@@ -31,7 +31,10 @@ export function AppSidebar() {
           Dashboard
         </Link>
 
-        <Link href="#" className={cn(itemClass, "hover:bg-white/10")}>
+        <Link
+          href="/new-project/project-charter"
+          className={cn(itemClass, "hover:bg-white/10")}
+        >
           <Plus className="size-5 shrink-0" />
           New Project
         </Link>

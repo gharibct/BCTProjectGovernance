@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CalendarDays,
   Circle,
   CircleCheck,
   ClipboardList,
@@ -14,45 +13,51 @@ import {
 
 import { cn } from "@/lib/utils";
 import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
-import { useCharterUi, type CharterSection } from "@/stores/charter-ui";
+import { useNewProjectUi, type NewProjectSection } from "@/stores/new-project-ui";
 
-// Menu items either open a charter section (on /project-charter), navigate to
-// a module route, or — for pages not built yet — render as inert entries.
-// `done` marks whether the task is completed for the current reporting period
-// (sample values until there's a backend).
+// Copy of the project navigation rail scoped to the New Project screens.
+// Menu items either open a charter section (on /new-project/project-charter),
+// navigate to a module route, or — for pages not built yet — render as inert
+// entries. `done` marks whether the task is completed for the current
+// reporting period (sample values until there's a backend).
 type NavItem = {
   label: string;
-  section?: CharterSection;
+  section?: NewProjectSection;
   href?: string;
   done: boolean;
 };
+
+const CHARTER_PATH = "/new-project/project-charter";
 
 const GROUPS: { heading: string; icon: LucideIcon; items: NavItem[] }[] = [
   {
     heading: "Project Charter",
     icon: FileText,
     items: [
-      { label: "Project Description", section: "description", done: true },
-      { label: "Progress", section: "progress", done: false },
-      { label: "Health & Status", section: "health", done: false },
-      { label: "Schedule", done: false },
+      { label: "Project Profile", section: "description", done: true },
+      { label: "Scope & Schedule", section: "progress", done: false },
     ],
   },
   {
-    heading: "Project Reporting",
+    heading: "Project Baseline",
     icon: ClipboardList,
     items: [
-      { label: "Project Status", href: "/project-status", done: true },
-      { label: "Resource Allocation", section: "resources", done: false },
-      { label: "Measurement", href: "/measurement", done: false },
-      { label: "Contractual Compliance", href: "/contractual-compliance", done: false },
-      { label: "Project RAIDO Register", href: "/raido", done: false },
+      { label: "Measurement", href: "/new-project/measurement", done: false },
+      {
+        label: "Contractual Compliance",
+        href: "/new-project/contractual-compliance",
+        done: false,
+      },
+      { label: "Project RAIDO Register", href: "/new-project/raido", done: false },
     ],
   },
   {
-    heading: "Delivery Excellence",
+    heading: "Baseline Assessment",
     icon: ShieldCheck,
-    items: [{ label: "DE Assessment", href: "/de-assessment", done: false }],
+    items: [
+      { label: "Self Assessment", section: "health", done: false },
+      { label: "DE Assessment", href: "/new-project/de-assessment", done: false },
+    ],
   },
 ];
 
@@ -76,19 +81,14 @@ function StatusIcon({ done }: { done: boolean }) {
   );
 }
 
-export function ProjectNav() {
+export function NewProjectNav() {
   const pathname = usePathname();
-  const { section, setSection } = useCharterUi();
-  const onCharter = pathname === "/project-charter";
+  const { section, setSection } = useNewProjectUi();
+  const onCharter = pathname === CHARTER_PATH;
 
   return (
     <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
-      <p className="flex items-center gap-2 px-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
-        <CalendarDays className="size-4 text-[#1a6fc4]" />
-        Period: {CURRENT_PERIOD}
-      </p>
-
-      <nav className="mt-4 flex flex-col gap-2">
+      <nav className="flex flex-col gap-2">
         {GROUPS.map((group) => (
           <div key={group.heading}>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
@@ -102,7 +102,7 @@ export function ProjectNav() {
                   return (
                     <Link
                       key={item.label}
-                      href="/project-charter"
+                      href={CHARTER_PATH}
                       onClick={() => setSection(item.section!)}
                       aria-current={active ? "page" : undefined}
                       className={cn(childClass, active ? activeClass : idleClass)}
@@ -145,7 +145,7 @@ export function ProjectNav() {
       <p className="mt-6 flex flex-col gap-1.5 border-t border-slate-100 px-3 pt-4 text-xs text-slate-500">
         <span className="flex items-center gap-2">
           <CircleCheck className="size-3.5 text-emerald-500" />
-          Completed this period
+          Completed
         </span>
         <span className="flex items-center gap-2">
           <Circle className="size-3.5 text-slate-300" />

@@ -85,11 +85,13 @@ export function Segmented<T extends string>({
   value,
   onChange,
   className,
+  activeClassName,
 }: {
   options: readonly { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   className?: string;
+  activeClassName?: string;
 }) {
   return (
     <div
@@ -109,7 +111,7 @@ export function Segmented<T extends string>({
           className={cn(
             "h-full rounded-md px-4 text-sm font-semibold whitespace-nowrap transition-colors",
             value === option.value
-              ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+              ? (activeClassName ?? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200")
               : "text-slate-500 hover:text-slate-800"
           )}
         >
