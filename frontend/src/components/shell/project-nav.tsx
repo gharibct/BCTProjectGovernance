@@ -1,0 +1,157 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  CalendarDays,
+  Circle,
+  CircleCheck,
+  ClipboardList,
+  FileText,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
+import { useCharterUi, type CharterSection } from "@/stores/charter-ui";
+
+// Menu items either open a charter section (on /project-charter), navigate to
+// a module route, or — for pages not built yet — render as inert entries.
+// `done` marks whether the task is completed for the current reporting period
+// (sample values until there's a backend).
+type NavItem = {
+  label: string;
+  section?: CharterSection;
+  href?: string;
+  done: boolean;
+};
+
+const GROUPS: { heading: string; icon: LucideIcon; items: NavItem[] }[] = [
+  {
+    heading: "Project Charter",
+    icon: FileText,
+    items: [
+      { label: "Project Description", section: "description", done: true },
+      { label: "Progress", section: "progress", done: false },
+      { label: "Health & Status", section: "health", done: false },
+      { label: "Schedule", done: false },
+    ],
+  },
+  {
+    heading: "Project Reporting",
+    icon: ClipboardList,
+    items: [
+      { label: "Project Status", href: "/project-status", done: true },
+      { label: "Resource Allocation", section: "resources", done: false },
+      { label: "Measurement", href: "/measurement", done: false },
+      { label: "Contractual Compliance", done: false },
+      { label: "Project RAIDO Register", done: false },
+    ],
+  },
+  {
+    heading: "Delivery Excellence",
+    icon: ShieldCheck,
+    items: [{ label: "DE Assessment", href: "/de-assessment", done: false }],
+  },
+];
+
+const childClass =
+  "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors";
+const activeClass = "bg-[#d9eafc] font-bold text-[#15406b]";
+const idleClass = "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+
+function StatusIcon({ done }: { done: boolean }) {
+  const title = done
+    ? `Completed for ${CURRENT_PERIOD}`
+    : `Pending for ${CURRENT_PERIOD}`;
+  return done ? (
+    <CircleCheck className="size-4 shrink-0 text-emerald-500">
+      <title>{title}</title>
+    </CircleCheck>
+  ) : (
+    <Circle className="size-4 shrink-0 text-slate-300">
+      <title>{title}</title>
+    </Circle>
+  );
+}
+
+export function ProjectNav() {
+  const pathname = usePathname();
+  const { section, setSection } = useCharterUi();
+  const onCharter = pathname === "/project-charter";
+
+  return (
+    <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
+      <p className="flex items-center gap-2 px-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
+        <CalendarDays className="size-4 text-[#1a6fc4]" />
+        Period: {CURRENT_PERIOD}
+      </p>
+
+      <nav className="mt-4 flex flex-col gap-2">
+        {GROUPS.map((group) => (
+          <div key={group.heading}>
+            <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
+              <group.icon className="size-5 shrink-0 text-[#1a6fc4]" />
+              {group.heading}
+            </div>
+            <div className="mt-1 mb-1 ml-5 flex flex-col gap-0.5 border-l border-slate-200 pl-3">
+              {group.items.map((item) => {
+                if (item.section) {
+                  const active = onCharter && section === item.section;
+                  return (
+                    <Link
+                      key={item.label}
+                      href="/project-charter"
+                      onClick={() => setSection(item.section!)}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(childClass, active ? activeClass : idleClass)}
+                    >
+                      {item.label}
+                      <StatusIcon done={item.done} />
+                    </Link>
+                  );
+                }
+                if (item.href) {
+                  const active = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(childClass, active ? activeClass : idleClass)}
+                    >
+                      {item.label}
+                      <StatusIcon done={item.done} />
+                    </Link>
+                  );
+                }
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className={cn(childClass, idleClass)}
+                  >
+                    {item.label}
+                    <StatusIcon done={item.done} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      <p className="mt-6 flex flex-col gap-1.5 border-t border-slate-100 px-3 pt-4 text-xs text-slate-500">
+        <span className="flex items-center gap-2">
+          <CircleCheck className="size-3.5 text-emerald-500" />
+          Completed this period
+        </span>
+        <span className="flex items-center gap-2">
+          <Circle className="size-3.5 text-slate-300" />
+          Pending
+        </span>
+      </p>
+    </aside>
+  );
+}
