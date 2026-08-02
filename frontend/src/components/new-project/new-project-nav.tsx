@@ -13,29 +13,29 @@ import {
 
 import { cn } from "@/lib/utils";
 import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
-import { useNewProjectUi, type NewProjectSection } from "@/stores/new-project-ui";
 
 // Copy of the project navigation rail scoped to the New Project screens.
-// Menu items either open a charter section (on /new-project/project-charter),
-// navigate to a module route, or — for pages not built yet — render as inert
-// entries. `done` marks whether the task is completed for the current
-// reporting period (sample values until there's a backend).
+// Every item is its own route so the browser URL, back button, and this
+// nav's active state all agree — no in-page tab switching. `done` marks
+// whether the task is completed for the current reporting period (sample
+// values until there's a backend).
 type NavItem = {
   label: string;
-  section?: NewProjectSection;
-  href?: string;
+  href: string;
   done: boolean;
 };
-
-const CHARTER_PATH = "/new-project/project-charter";
 
 const GROUPS: { heading: string; icon: LucideIcon; items: NavItem[] }[] = [
   {
     heading: "Project Charter",
     icon: FileText,
     items: [
-      { label: "Project Profile", section: "description", done: true },
-      { label: "Scope & Schedule", section: "progress", done: false },
+      { label: "Project Profile", href: "/new-project/project-charter", done: true },
+      {
+        label: "Scope & Schedule",
+        href: "/new-project/project-charter/schedule",
+        done: false,
+      },
       {
         label: "Map Oracle Projects",
         href: "/new-project/map-oracle-projects",
@@ -60,7 +60,11 @@ const GROUPS: { heading: string; icon: LucideIcon; items: NavItem[] }[] = [
     heading: "Baseline Assessment",
     icon: ShieldCheck,
     items: [
-      { label: "Self Assessment", section: "health", done: false },
+      {
+        label: "Self Assessment",
+        href: "/new-project/project-charter/self-assessment",
+        done: false,
+      },
       { label: "DE Assessment", href: "/new-project/de-assessment", done: false },
     ],
   },
@@ -88,8 +92,6 @@ function StatusIcon({ done }: { done: boolean }) {
 
 export function NewProjectNav() {
   const pathname = usePathname();
-  const { section, setSection } = useNewProjectUi();
-  const onCharter = pathname === CHARTER_PATH;
 
   return (
     <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
@@ -102,44 +104,17 @@ export function NewProjectNav() {
             </div>
             <div className="mt-1 mb-1 ml-5 flex flex-col gap-0.5 border-l border-slate-200 pl-3">
               {group.items.map((item) => {
-                if (item.section) {
-                  const active = onCharter && section === item.section;
-                  return (
-                    <Link
-                      key={item.label}
-                      href={CHARTER_PATH}
-                      onClick={() => setSection(item.section!)}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(childClass, active ? activeClass : idleClass)}
-                    >
-                      {item.label}
-                      <StatusIcon done={item.done} />
-                    </Link>
-                  );
-                }
-                if (item.href) {
-                  const active = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.label}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(childClass, active ? activeClass : idleClass)}
-                    >
-                      {item.label}
-                      <StatusIcon done={item.done} />
-                    </Link>
-                  );
-                }
+                const active = pathname === item.href;
                 return (
-                  <button
+                  <Link
                     key={item.label}
-                    type="button"
-                    className={cn(childClass, idleClass)}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(childClass, active ? activeClass : idleClass)}
                   >
                     {item.label}
                     <StatusIcon done={item.done} />
-                  </button>
+                  </Link>
                 );
               })}
             </div>

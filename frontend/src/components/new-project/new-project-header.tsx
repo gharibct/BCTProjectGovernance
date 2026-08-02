@@ -1,20 +1,11 @@
 "use client";
 
-import { useNewProjectUi, type NewProjectSection } from "@/stores/new-project-ui";
+import { useNewProjectUi } from "@/stores/new-project-ui";
 import { StatusBadge } from "@/components/forms/status-badge";
 
 // Matches the "{CODE} - Screen Name" heading convention used elsewhere
-// (see project-reporting/reporting-hub.tsx). Sections switched from the
-// Project Charter tabs (Project Profile / Scope & Schedule / Self
-// Assessment) derive their suffix from the shared section store; standalone
-// routes (Measurement, DE Assessment, Project Status) pass `subheading`
-// explicitly since they aren't part of that in-page tab switcher.
-const SECTION_SUFFIX: Partial<Record<NewProjectSection, string>> = {
-  description: "Project Profile",
-  progress: "Scope & Schedule",
-  health: "Self Assessment",
-};
-
+// (see project-reporting/reporting-hub.tsx). Every New Project screen is its
+// own route, so `subheading` is always passed explicitly by the page.
 export function NewProjectHeader({
   subheading,
 }: {
@@ -22,12 +13,10 @@ export function NewProjectHeader({
 } = {}) {
   const projectCode = useNewProjectUi((state) => state.projectCode);
   const projectName = useNewProjectUi((state) => state.projectName);
-  const section = useNewProjectUi((state) => state.section);
   const status = useNewProjectUi((state) => state.status);
 
   const base = projectCode.trim() || "New Project";
-  const suffix = subheading ?? SECTION_SUFFIX[section];
-  const heading = suffix ? `${base} - ${suffix}` : base;
+  const heading = subheading ? `${base} - ${subheading}` : base;
 
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">

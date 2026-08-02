@@ -92,7 +92,7 @@ export function AppSidebar() {
   const currentProjectCode = useNewProjectUi((state) => state.projectCode);
   const setProjectCode = useNewProjectUi((state) => state.setProjectCode);
   const setProjectName = useNewProjectUi((state) => state.setProjectName);
-  const setSection = useNewProjectUi((state) => state.setSection);
+  const resetDraft = useNewProjectUi((state) => state.resetDraft);
 
   const isDashboard = pathname === "/dashboard";
   const isNewProject = pathname.startsWith("/new-project");
@@ -111,7 +111,6 @@ export function AppSidebar() {
   const openForMaintenance = (project: ProjectRecord) => {
     setProjectCode(project.code);
     setProjectName(project.name);
-    setSection("description");
     router.push("/new-project/project-charter");
   };
 
@@ -130,6 +129,9 @@ export function AppSidebar() {
         <Link
           href="/new-project/project-charter"
           aria-current={isNewProject ? "page" : undefined}
+          onClick={() => {
+            if (isMaintaining) resetDraft();
+          }}
           className={cn(itemClass, isNewProject ? activeClass : idleClass)}
         >
           <Plus className="size-5 shrink-0" />

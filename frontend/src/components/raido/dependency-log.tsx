@@ -92,18 +92,6 @@ export function DependencyLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SectionCard icon={Link2} title="New Dependency">
-        <EntryFields defs={DEPENDENCY_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addDependency}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            Add Dependency
-          </Button>
-        </div>
-      </SectionCard>
-
       <SectionCard
         icon={Link2}
         title="Dependency Register"
@@ -121,6 +109,18 @@ export function DependencyLog() {
             { key: "status", label: "Status", badge: true },
           ]}
         />
+      </SectionCard>
+
+      <SectionCard icon={Link2} title="New Dependency">
+        <EntryFields defs={DEPENDENCY_FIELDS} values={values} set={set} />
+        <div className="mt-6 flex justify-end">
+          <Button
+            onClick={addDependency}
+            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+          >
+            Add Dependency
+          </Button>
+        </div>
       </SectionCard>
     </div>
   );

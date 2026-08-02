@@ -7,7 +7,6 @@ import {
   IdCard,
   Info,
   Lock,
-  RefreshCw,
   ScanSearch,
   UserRound,
 } from "lucide-react";
@@ -278,82 +277,6 @@ function ScopeAndScheduleTab() {
   );
 }
 
-// Resource allocation is synced from the BCT Oracle App — read-only here.
-const RESOURCES = [
-  { name: "Anitha Raman", role: "Technical Lead", fte: 1.0 },
-  { name: "Suresh Kumar", role: "Senior Developer", fte: 1.0 },
-  { name: "Meera Venkat", role: "Developer", fte: 1.0 },
-  { name: "Joseph Antony", role: "QA Engineer", fte: 0.5 },
-  { name: "Fatima Al Balushi", role: "Business Analyst", fte: 0.5 },
-];
-
-function ResourceAllocationTab() {
-  const totalFte = RESOURCES.reduce((sum, r) => sum + r.fte, 0);
-
-  return (
-    <SectionCard
-      icon={UserRound}
-      title="Resource Allocation"
-      aside={
-        <span className="flex items-center gap-2 text-xs font-medium text-slate-500">
-          <RefreshCw className="size-3.5" />
-          Synced from BCT Oracle App · today 06:00
-        </span>
-      }
-    >
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-bold tracking-wide text-slate-600 uppercase">
-              <th className="px-4 py-3">Resource</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3 text-right">FTE Allocation</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {RESOURCES.map((resource) => (
-              <tr key={resource.name}>
-                <td className="px-4 py-3 font-medium text-slate-800">
-                  {resource.name}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{resource.role}</td>
-                <td className="px-4 py-3 text-right text-slate-800 tabular-nums">
-                  {resource.fte.toFixed(1)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-6 flex gap-4">
-        <div className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-              Head Count
-            </p>
-            <AutoBadge />
-          </div>
-          <p className="mt-1 text-2xl font-bold text-slate-900 tabular-nums">
-            {RESOURCES.length}
-          </p>
-        </div>
-        <div className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-              Total FTE
-            </p>
-            <AutoBadge />
-          </div>
-          <p className="mt-1 text-2xl font-bold text-slate-900 tabular-nums">
-            {totalFte.toFixed(1)}
-          </p>
-        </div>
-      </div>
-    </SectionCard>
-  );
-}
-
 // Project Profile action bar: all four workflow actions are always visible;
 // each disables itself once it no longer applies to the current
 // created/editing/status combination, rather than disappearing outright.
@@ -366,7 +289,8 @@ function ProjectDescriptionActions() {
 
   const primaryClass =
     "h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]";
-  const outlineClass = "h-11 px-6 text-sm font-semibold";
+  const secondaryClass =
+    "h-11 bg-slate-600 px-6 text-sm font-semibold text-white hover:bg-slate-700";
 
   const statusMessage =
     status === "Approved"
@@ -385,8 +309,7 @@ function ProjectDescriptionActions() {
       </p>
       <div className="flex gap-3">
         <Button
-          variant="outline"
-          className={outlineClass}
+          className={secondaryClass}
           disabled={!isCreated || isEditing}
           onClick={() => setEditing(true)}
         >
@@ -424,47 +347,52 @@ function ProjectDescriptionActions() {
   );
 }
 
-export function CharterForm() {
-  // Section switching lives in the right-side Project Navigation menu.
-  const section = useNewProjectUi((state) => state.section);
-  const isDescription = section === "description";
-  const isSchedule = section === "progress";
-  const isHealth = section === "health";
-
+// Each New Project charter screen is its own route, so these are separate
+// top-level exports (one per page) instead of a single tab-switched form.
+export function ProjectProfileForm() {
   return (
     <div>
-      <div>
-        {section === "description" && <ProjectDescriptionTab />}
-        {section === "progress" && <ScopeAndScheduleTab />}
-        {section === "resources" && <ResourceAllocationTab />}
-        {section === "health" && <HealthDeclaration />}
-      </div>
-
-      {/* Actions */}
+      <ProjectDescriptionTab />
       <div className="mt-10 flex items-center justify-between">
-        {isDescription ? (
-          <ProjectDescriptionActions />
-        ) : (
-          <>
-            <p className="flex items-center gap-2 text-sm text-slate-500">
-              <Lock className="size-4" />
-              Editable by the Project Manager while the project is unlocked.
-            </p>
-            {isSchedule ? (
-              <div className="flex gap-3">
-                <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
-                  Save Scope &amp; Schedule
-                </Button>
-              </div>
-            ) : isHealth ? (
-              <div className="flex gap-3">
-                <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
-                  Submit Self Assessment
-                </Button>
-              </div>
-            ) : null}
-          </>
-        )}
+        <ProjectDescriptionActions />
+      </div>
+    </div>
+  );
+}
+
+export function ScopeScheduleForm() {
+  return (
+    <div>
+      <ScopeAndScheduleTab />
+      <div className="mt-10 flex items-center justify-between">
+        <p className="flex items-center gap-2 text-sm text-slate-500">
+          <Lock className="size-4" />
+          Editable by the Project Manager while the project is unlocked.
+        </p>
+        <div className="flex gap-3">
+          <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
+            Save Scope &amp; Schedule
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SelfAssessmentForm() {
+  return (
+    <div>
+      <HealthDeclaration />
+      <div className="mt-10 flex items-center justify-between">
+        <p className="flex items-center gap-2 text-sm text-slate-500">
+          <Lock className="size-4" />
+          Editable by the Project Manager while the project is unlocked.
+        </p>
+        <div className="flex gap-3">
+          <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
+            Submit Self Assessment
+          </Button>
+        </div>
       </div>
     </div>
   );

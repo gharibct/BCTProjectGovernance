@@ -72,18 +72,6 @@ export function AssumptionLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SectionCard icon={HelpCircle} title="New Assumption">
-        <EntryFields defs={ASSUMPTION_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addAssumption}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            Add Assumption
-          </Button>
-        </div>
-      </SectionCard>
-
       <SectionCard
         icon={HelpCircle}
         title="Assumption Register"
@@ -101,6 +89,18 @@ export function AssumptionLog() {
             { key: "status", label: "Status", badge: true },
           ]}
         />
+      </SectionCard>
+
+      <SectionCard icon={HelpCircle} title="New Assumption">
+        <EntryFields defs={ASSUMPTION_FIELDS} values={values} set={set} />
+        <div className="mt-6 flex justify-end">
+          <Button
+            onClick={addAssumption}
+            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+          >
+            Add Assumption
+          </Button>
+        </div>
       </SectionCard>
     </div>
   );

@@ -104,18 +104,6 @@ export function RiskLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SectionCard icon={ShieldAlert} title="New Risk">
-        <EntryFields defs={RISK_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addRisk}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            Add Risk
-          </Button>
-        </div>
-      </SectionCard>
-
       <SectionCard
         icon={ShieldAlert}
         title="Risk Register"
@@ -133,6 +121,18 @@ export function RiskLog() {
             { key: "status", label: "Status", badge: true },
           ]}
         />
+      </SectionCard>
+
+      <SectionCard icon={ShieldAlert} title="New Risk">
+        <EntryFields defs={RISK_FIELDS} values={values} set={set} />
+        <div className="mt-6 flex justify-end">
+          <Button
+            onClick={addRisk}
+            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+          >
+            Add Risk
+          </Button>
+        </div>
       </SectionCard>
     </div>
   );

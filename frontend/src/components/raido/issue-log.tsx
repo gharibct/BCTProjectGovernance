@@ -78,18 +78,6 @@ export function IssueLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SectionCard icon={TriangleAlert} title="New Issue">
-        <EntryFields defs={ISSUE_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addIssue}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            Add Issue
-          </Button>
-        </div>
-      </SectionCard>
-
       <SectionCard
         icon={TriangleAlert}
         title="Issue Register"
@@ -107,6 +95,18 @@ export function IssueLog() {
             { key: "status", label: "Status", badge: true },
           ]}
         />
+      </SectionCard>
+
+      <SectionCard icon={TriangleAlert} title="New Issue">
+        <EntryFields defs={ISSUE_FIELDS} values={values} set={set} />
+        <div className="mt-6 flex justify-end">
+          <Button
+            onClick={addIssue}
+            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+          >
+            Add Issue
+          </Button>
+        </div>
       </SectionCard>
     </div>
   );
