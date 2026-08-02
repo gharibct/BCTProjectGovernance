@@ -86,18 +86,22 @@ export function Segmented<T extends string>({
   onChange,
   className,
   activeClassName,
+  disabled,
 }: {
   options: readonly { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   className?: string;
   activeClassName?: string;
+  disabled?: boolean;
 }) {
   return (
     <div
       role="radiogroup"
+      aria-disabled={disabled || undefined}
       className={cn(
         "inline-flex h-11 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1",
+        disabled && "bg-slate-100",
         className
       )}
     >
@@ -107,12 +111,16 @@ export function Segmented<T extends string>({
           type="button"
           role="radio"
           aria-checked={value === option.value}
+          disabled={disabled}
           onClick={() => onChange(option.value)}
           className={cn(
             "h-full rounded-md px-4 text-sm font-semibold whitespace-nowrap transition-colors",
+            disabled && "cursor-not-allowed",
             value === option.value
               ? (activeClassName ?? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200")
-              : "text-slate-500 hover:text-slate-800"
+              : disabled
+                ? "text-slate-400"
+                : "text-slate-500 hover:text-slate-800"
           )}
         >
           {option.label}

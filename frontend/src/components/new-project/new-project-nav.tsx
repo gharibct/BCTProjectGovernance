@@ -36,6 +36,11 @@ const GROUPS: { heading: string; icon: LucideIcon; items: NavItem[] }[] = [
     items: [
       { label: "Project Profile", section: "description", done: true },
       { label: "Scope & Schedule", section: "progress", done: false },
+      {
+        label: "Map Oracle Projects",
+        href: "/new-project/map-oracle-projects",
+        done: false,
+      },
     ],
   },
   {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useNewProjectUi, type NewProjectSection } from "@/stores/new-project-ui";
+import { StatusBadge } from "@/components/forms/status-badge";
 
 // Matches the "{CODE} - Screen Name" heading convention used elsewhere
 // (see project-reporting/reporting-hub.tsx). Sections switched from the
@@ -22,22 +23,26 @@ export function NewProjectHeader({
   const projectCode = useNewProjectUi((state) => state.projectCode);
   const projectName = useNewProjectUi((state) => state.projectName);
   const section = useNewProjectUi((state) => state.section);
+  const status = useNewProjectUi((state) => state.status);
 
   const base = projectCode.trim() || "New Project";
   const suffix = subheading ?? SECTION_SUFFIX[section];
   const heading = suffix ? `${base} - ${suffix}` : base;
 
   return (
-    <div>
-      <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-        {heading}
-      </h1>
-      {projectName.trim() ? (
-        <p className="mt-3 flex items-center gap-2.5 text-slate-500">
-          <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
-          {projectName}
-        </p>
-      ) : null}
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 className="text-4xl font-bold tracking-tight text-slate-900">
+          {heading}
+        </h1>
+        {projectName.trim() ? (
+          <p className="mt-3 flex items-center gap-2.5 text-slate-500">
+            <span className="size-2 shrink-0 rounded-full bg-emerald-500" />
+            {projectName}
+          </p>
+        ) : null}
+      </div>
+      <StatusBadge value={status} size="lg" />
     </div>
   );
 }

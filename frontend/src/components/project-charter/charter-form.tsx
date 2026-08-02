@@ -27,6 +27,7 @@ import {
 import { HealthDeclaration } from "./health-declaration";
 
 const inputClass = "h-11";
+const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700";
 
 function ProjectDescriptionTab() {
   const [engagementType, setEngagementType] = React.useState("Implementation");
@@ -38,14 +39,14 @@ function ProjectDescriptionTab() {
       <SectionCard icon={Info} title="Project Details">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
           <Field label="Contract Type" htmlFor="contract-type">
-            <NativeSelect id="contract-type" defaultValue="FPP">
+            <NativeSelect id="contract-type" defaultValue="FPP" disabled>
               {["FPP", "T&M", "Capped T&M", "Internal"].map((type) => (
                 <option key={type}>{type}</option>
               ))}
             </NativeSelect>
           </Field>
           <Field label="Project Type" htmlFor="project-type">
-            <NativeSelect id="project-type" defaultValue="Development">
+            <NativeSelect id="project-type" defaultValue="Development" disabled>
               {[
                 "Development",
                 "Maintenance",
@@ -68,10 +69,12 @@ function ProjectDescriptionTab() {
               ]}
               value={engagementType}
               onChange={setEngagementType}
+              activeClassName={segmentedActiveClass}
+              disabled
             />
           </Field>
           <Field label="Project Owned" htmlFor="project-owned">
-            <NativeSelect id="project-owned" defaultValue="Fully Owned">
+            <NativeSelect id="project-owned" defaultValue="Fully Owned" disabled>
               {["Fully Owned", "Co-Owned", "Customer Driven"].map((owned) => (
                 <option key={owned}>{owned}</option>
               ))}
@@ -86,6 +89,8 @@ function ProjectDescriptionTab() {
               ]}
               value={organization}
               onChange={setOrganization}
+              activeClassName={segmentedActiveClass}
+              disabled
             />
           </Field>
           <Field label="GEO">
@@ -97,6 +102,8 @@ function ProjectDescriptionTab() {
               ]}
               value={geo}
               onChange={setGeo}
+              activeClassName={segmentedActiveClass}
+              disabled
             />
           </Field>
           <Field label="Account Name" htmlFor="account-name">
@@ -104,6 +111,7 @@ function ProjectDescriptionTab() {
               id="account-name"
               placeholder="e.g. Gulf National Bank"
               className={inputClass}
+              disabled
             />
           </Field>
         </div>
@@ -116,6 +124,7 @@ function ProjectDescriptionTab() {
               id="project-manager"
               placeholder="Name of the PM"
               className={inputClass}
+              disabled
             />
           </Field>
           <Field label="Delivery Manager" htmlFor="delivery-manager">
@@ -123,6 +132,7 @@ function ProjectDescriptionTab() {
               id="delivery-manager"
               placeholder="Name of the DM"
               className={inputClass}
+              disabled
             />
           </Field>
           <Field label="Delivery Excellence" htmlFor="delivery-excellence">
@@ -130,6 +140,7 @@ function ProjectDescriptionTab() {
               id="delivery-excellence"
               placeholder="Assigned DE person"
               className={inputClass}
+              disabled
             />
           </Field>
         </div>
@@ -144,10 +155,11 @@ function ProjectDescriptionTab() {
               min={0}
               placeholder="0.00"
               className={inputClass}
+              disabled
             />
           </Field>
           <Field label="Project Currency" htmlFor="project-currency">
-            <NativeSelect id="project-currency" defaultValue="USD">
+            <NativeSelect id="project-currency" defaultValue="USD" disabled>
               {["USD", "OMR", "AED", "SAR", "INR", "EUR"].map((currency) => (
                 <option key={currency}>{currency}</option>
               ))}
@@ -162,10 +174,11 @@ function ProjectDescriptionTab() {
               id="oracle-ids"
               placeholder="e.g. ORA-88121, ORA-88122"
               className={inputClass}
+              disabled
             />
           </Field>
           <Field label="Billing Type" htmlFor="billing-type">
-            <NativeSelect id="billing-type" defaultValue="FPP">
+            <NativeSelect id="billing-type" defaultValue="FPP" disabled>
               {["FPP", "FB", "T&M", "Product", "Unit Based Billing", "Others"].map(
                 (type) => (
                   <option key={type}>{type}</option>
@@ -182,6 +195,7 @@ function ProjectDescriptionTab() {
             <Textarea
               id="customer-overview"
               placeholder="Who the customer is, their business, and the relationship context…"
+              disabled
             />
           </Field>
           <Field
@@ -193,6 +207,7 @@ function ProjectDescriptionTab() {
               id="scope-description"
               className="min-h-32"
               placeholder="What the project will deliver — objectives, boundaries, and key deliverables…"
+              disabled
             />
           </Field>
         </div>
@@ -353,6 +368,7 @@ function ResourceAllocationTab() {
 export function CharterForm() {
   // Section switching lives in the right-side Project Navigation menu.
   const section = useCharterUi((state) => state.section);
+  const isDescription = section === "description";
 
   return (
     <div>
@@ -367,16 +383,20 @@ export function CharterForm() {
       <div className="mt-10 flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Lock className="size-4" />
-          Editable by the Project Manager while the project is unlocked.
+          {isDescription
+            ? "Locked — this project is Approved and no longer editable."
+            : "Editable by the Project Manager while the project is unlocked."}
         </p>
-        <div className="flex gap-3">
-          <Button variant="outline" className="h-11 px-6 text-sm font-semibold">
-            Save Draft
-          </Button>
-          <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
-            Save Charter
-          </Button>
-        </div>
+        {isDescription ? null : (
+          <div className="flex gap-3">
+            <Button variant="outline" className="h-11 px-6 text-sm font-semibold">
+              Save Draft
+            </Button>
+            <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
+              Save Charter
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
