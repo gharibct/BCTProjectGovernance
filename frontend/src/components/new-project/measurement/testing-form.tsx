@@ -2,12 +2,32 @@
 
 import { ChartColumn } from "lucide-react";
 
+import type { MetricTargetTesting, MetricTargetTestingPayload } from "@/lib/api/metric-targets";
 import { SectionCard } from "@/components/forms/form-primitives";
-import { MetricTile, useMeasures } from "./shared";
+import { MetricTile, num, str, type MeasuresProps } from "./shared";
 
-export function TestingTab() {
-  const { m, set } = useMeasures();
+export function toTestingPayload(m: Record<string, string>): MetricTargetTestingPayload {
+  return {
+    target_test_execution_coverage_pct: num(m.targetExecCoverage),
+    target_test_pass_rate_pct: num(m.targetPassRate),
+    target_automation_coverage_pct: num(m.targetAutomationCoverage),
+    target_test_design_productivity: num(m.targetDesignProductivity),
+    target_test_execution_productivity: num(m.targetExecProductivity),
+  };
+}
 
+export function fromTestingTarget(data: MetricTargetTesting | null): Record<string, string> {
+  if (!data) return {};
+  return {
+    targetExecCoverage: str(data.target_test_execution_coverage_pct),
+    targetPassRate: str(data.target_test_pass_rate_pct),
+    targetAutomationCoverage: str(data.target_automation_coverage_pct),
+    targetDesignProductivity: str(data.target_test_design_productivity),
+    targetExecProductivity: str(data.target_test_execution_productivity),
+  };
+}
+
+export function TestingTab({ m, set }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Testing Metrics">

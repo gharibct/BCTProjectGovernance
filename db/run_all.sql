@@ -26,3 +26,9 @@
 \ir tables/21_integrations.sql
 \ir tables/22_audit_activity_log.sql
 \ir tables/23_id_sequences.sql
+\ir tables/24_metric_target_development.sql
+\ir tables/25_metric_target_support.sql
+\ir tables/26_metric_target_staffing.sql
+\ir tables/27_metric_target_testing.sql
+\ir tables/28_metric_target_cloud_maintenance.sql
+\ir tables/29_metric_target_cloud_migration.sql

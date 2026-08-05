@@ -2,12 +2,31 @@
 
 import { ChartColumn } from "lucide-react";
 
+import type {
+  MetricTargetCloudMigration,
+  MetricTargetCloudMigrationPayload,
+} from "@/lib/api/metric-targets";
 import { SectionCard } from "@/components/forms/form-primitives";
-import { MetricTile, useMeasures } from "./shared";
+import { MetricTile, num, str, type MeasuresProps } from "./shared";
 
-export function CloudMigrationTab() {
-  const { m, set } = useMeasures();
+export function toCloudMigrationPayload(m: Record<string, string>): MetricTargetCloudMigrationPayload {
+  return {
+    target_applications_migrated_pct: num(m.targetAppsMigrated),
+    target_migration_success_rate_pct: num(m.targetSuccessRate),
+    target_migration_downtime_minutes: num(m.targetDowntime),
+  };
+}
 
+export function fromCloudMigrationTarget(data: MetricTargetCloudMigration | null): Record<string, string> {
+  if (!data) return {};
+  return {
+    targetAppsMigrated: str(data.target_applications_migrated_pct),
+    targetSuccessRate: str(data.target_migration_success_rate_pct),
+    targetDowntime: str(data.target_migration_downtime_minutes),
+  };
+}
+
+export function CloudMigrationTab({ m, set }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Cloud Migration Metrics">

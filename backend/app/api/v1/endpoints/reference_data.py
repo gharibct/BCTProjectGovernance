@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.factory import build_crud_router
-from app.crud.reference_data import account_crud, geo_crud, organization_crud, project_type_crud
+from app.crud.reference_data import account_crud, geo_crud, organization_crud, project_type_crud, reporting_period_crud
 from app.schemas.reference_data import (
     AccountCreate,
     AccountRead,
@@ -15,6 +15,9 @@ from app.schemas.reference_data import (
     ProjectTypeCreate,
     ProjectTypeRead,
     ProjectTypeUpdate,
+    ReportingPeriodCreate,
+    ReportingPeriodRead,
+    ReportingPeriodUpdate,
 )
 
 router = APIRouter()
@@ -57,5 +60,15 @@ router.include_router(
         read_schema=AccountRead,
         create_schema=AccountCreate,
         update_schema=AccountUpdate,
+    )
+)
+router.include_router(
+    build_crud_router(
+        prefix="/reporting-periods",
+        tags=["Reference Data"],
+        crud=reporting_period_crud,
+        read_schema=ReportingPeriodRead,
+        create_schema=ReportingPeriodCreate,
+        update_schema=ReportingPeriodUpdate,
     )
 )

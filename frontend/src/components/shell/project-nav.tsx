@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import {
   CalendarDays,
   Circle,
@@ -14,47 +14,66 @@ import {
 
 import { cn } from "@/lib/utils";
 import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
-import { useCharterUi, type CharterSection } from "@/stores/charter-ui";
 
-// Menu items either open a charter section (on /project-charter), navigate to
-// a module route, or — for pages not built yet — render as inert entries.
-// `done` marks whether the task is completed for the current reporting period
-// (sample values until there's a backend).
+// Every item is its own route (mirrors New Project's nav) so the browser
+// URL, back button, and this nav's active state all agree — no in-page
+// section switching. `done` marks whether the task is completed for the
+// current reporting period (sample values until there's a backend).
 type NavItem = {
   label: string;
-  section?: CharterSection;
-  href?: string;
+  href: string;
   done: boolean;
 };
 
-const GROUPS: { heading: string; icon: LucideIcon; items: NavItem[] }[] = [
-  {
-    heading: "Project Charter",
-    icon: FileText,
-    items: [
-      { label: "Project Description", section: "description", done: true },
-      { label: "Progress", section: "progress", done: false },
-      { label: "Health & Status", section: "health", done: false },
-      { label: "Schedule", done: false },
-    ],
-  },
-  {
-    heading: "Project Reporting",
-    icon: ClipboardList,
-    items: [
-      { label: "Project Status", href: "/project-status", done: true },
-      { label: "Resource Allocation", section: "resources", done: false },
-      { label: "Measurement", href: "/measurement", done: false },
-      { label: "Contractual Compliance", href: "/contractual-compliance", done: false },
-      { label: "Project RAIDO Register", href: "/raido", done: false },
-    ],
-  },
-  {
-    heading: "Delivery Excellence",
-    icon: ShieldCheck,
-    items: [{ label: "DE Assessment", href: "/de-assessment", done: false }],
-  },
-];
+// Every href is relative to the current :projectId route segment (see
+// buildGroups) so navigating between tabs stays on the same project.
+function buildGroups(base: string): { heading: string; icon: LucideIcon; items: NavItem[] }[] {
+  return [
+    {
+      heading: "Project Charter",
+      icon: FileText,
+      items: [
+        { label: "Project Profile", href: `${base}/project-charter`, done: true },
+        {
+          label: "Scope and Schedule",
+          href: `${base}/project-charter/schedule`,
+          done: false,
+        },
+      ],
+    },
+    {
+      heading: "Project Reporting",
+      icon: ClipboardList,
+      items: [
+        { label: "Project Status", href: `${base}/project-status`, done: true },
+        {
+          label: "Resource Allocation",
+          href: `${base}/resource-allocation`,
+          done: false,
+        },
+        { label: "Measurement", href: `${base}/measurement`, done: false },
+        {
+          label: "Contractual Compliance",
+          href: `${base}/contractual-compliance`,
+          done: false,
+        },
+        { label: "Project RAIDO Register", href: `${base}/raido`, done: false },
+      ],
+    },
+    {
+      heading: "Delivery Excellence",
+      icon: ShieldCheck,
+      items: [
+        {
+          label: "Self Assessment",
+          href: `${base}/project-charter/self-assessment`,
+          done: false,
+        },
+        { label: "DE Assessment", href: `${base}/de-assessment`, done: false },
+      ],
+    },
+  ];
+}
 
 const childClass =
   "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors";
@@ -78,8 +97,8 @@ function StatusIcon({ done }: { done: boolean }) {
 
 export function ProjectNav() {
   const pathname = usePathname();
-  const { section, setSection } = useCharterUi();
-  const onCharter = pathname === "/project-charter";
+  const { projectId } = useParams<{ projectId: string }>();
+  const groups = buildGroups(`/project-reporting/${projectId}`);
 
   return (
     <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
@@ -89,7 +108,7 @@ export function ProjectNav() {
       </p>
 
       <nav className="mt-4 flex flex-col gap-2">
-        {GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.heading}>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
               <group.icon className="size-5 shrink-0 text-[#1a6fc4]" />
@@ -97,44 +116,17 @@ export function ProjectNav() {
             </div>
             <div className="mt-1 mb-1 ml-5 flex flex-col gap-0.5 border-l border-slate-200 pl-3">
               {group.items.map((item) => {
-                if (item.section) {
-                  const active = onCharter && section === item.section;
-                  return (
-                    <Link
-                      key={item.label}
-                      href="/project-charter"
-                      onClick={() => setSection(item.section!)}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(childClass, active ? activeClass : idleClass)}
-                    >
-                      {item.label}
-                      <StatusIcon done={item.done} />
-                    </Link>
-                  );
-                }
-                if (item.href) {
-                  const active = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.label}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(childClass, active ? activeClass : idleClass)}
-                    >
-                      {item.label}
-                      <StatusIcon done={item.done} />
-                    </Link>
-                  );
-                }
+                const active = pathname === item.href;
                 return (
-                  <button
+                  <Link
                     key={item.label}
-                    type="button"
-                    className={cn(childClass, idleClass)}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(childClass, active ? activeClass : idleClass)}
                   >
                     {item.label}
                     <StatusIcon done={item.done} />
-                  </button>
+                  </Link>
                 );
               })}
             </div>

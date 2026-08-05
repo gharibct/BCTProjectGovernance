@@ -1,3 +1,5 @@
+import { Pencil, Trash2 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
 
@@ -11,16 +13,26 @@ export type RegisterColumn<T> = {
 
 // Shared list-view table for RAIDO registers (§4.5–4.9 of the spec): ID,
 // Title, Category, Owner, Status, and Severity/Priority/Criticality/Impact
-// with color coding — one component reused across all five logs.
+// with color coding — one component reused across all five logs (and the
+// Contractual Compliance / Resource Allocation registers). onEdit/onDelete
+// are optional — when passed, an Actions column with a pencil/trash icon
+// per row appears; onEdit hands the row back so the caller can populate its
+// "New <Item>" form for in-place editing.
 export function RegisterTable<T extends { id: string } & Record<string, unknown>>({
   items,
   columns,
   emptyLabel,
+  onEdit,
+  onDelete,
 }: {
   items: T[];
   columns: RegisterColumn<T>[];
   emptyLabel: string;
+  onEdit?: (item: T) => void;
+  onDelete?: (item: T) => void;
 }) {
+  const showActions = !!(onEdit || onDelete);
+
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="w-full text-sm">
@@ -34,13 +46,14 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
                 {c.label}
               </th>
             ))}
+            {showActions ? <th className="px-4 py-3 text-right">Actions</th> : null}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {items.length === 0 ? (
             <tr>
               <td
-                colSpan={columns.length}
+                colSpan={columns.length + (showActions ? 1 : 0)}
                 className="px-4 py-6 text-center text-slate-400"
               >
                 {emptyLabel}
@@ -66,6 +79,32 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
                     )}
                   </td>
                 ))}
+                {showActions ? (
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-1">
+                      {onEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(item)}
+                          aria-label="Edit row"
+                          className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#1a6fc4]"
+                        >
+                          <Pencil className="size-4" />
+                        </button>
+                      ) : null}
+                      {onDelete ? (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(item)}
+                          aria-label="Delete row"
+                          className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                ) : null}
               </tr>
             ))
           )}

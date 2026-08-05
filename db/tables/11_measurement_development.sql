@@ -1,10 +1,10 @@
 -- Measurement Entry — Development Projects tab (UX requirements §4.10).
--- Proposed weekly snapshot per as_of_date, aligned with Project Status.
+-- One snapshot per reporting_periods.id, aligned with Project Status.
 
 CREATE TABLE measurement_development (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    as_of_date DATE NOT NULL,
+    period_id UUID NOT NULL REFERENCES reporting_periods(id),
 
     overall_planned_size NUMERIC(14, 2),
     actual_size NUMERIC(14, 2), -- captured at end of project
@@ -34,10 +34,10 @@ CREATE TABLE measurement_development (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 
-    UNIQUE (project_id, as_of_date)
+    UNIQUE (project_id, period_id)
 );
 
-CREATE INDEX idx_measurement_development_project_id ON measurement_development(project_id, as_of_date DESC);
+CREATE INDEX idx_measurement_development_project_id ON measurement_development(project_id, period_id);
 
 CREATE TRIGGER trg_measurement_development_updated_at BEFORE UPDATE ON measurement_development FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 

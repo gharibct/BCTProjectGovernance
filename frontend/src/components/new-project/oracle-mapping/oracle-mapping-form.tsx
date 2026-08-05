@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Database } from "lucide-react";
+import { toast } from "sonner";
+import { Database, Trash2 } from "lucide-react";
 
 import {
   AutoBadge,
+  ButtonSpinner,
   Field,
   MandatoryBadge,
   SectionCard,
@@ -12,33 +14,48 @@ import {
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-// Oracle Project ID is entered by the PM; Project Description is never
-// typed — it's fetched via the BCT Oracle App integration once synced.
-type OracleMapping = {
-  id: string;
-  oracleProjectId: string;
-  description: string;
-};
+import { useNewProjectId } from "@/stores/new-project-ui";
+import {
+  useAddOracleId,
+  useDeleteOracleId,
+  useProjectOracleIds,
+  type ProjectOracleId,
+} from "@/lib/api/projects";
 
 export function OracleMappingForm() {
-  const seq = React.useRef(0);
-  const [items, setItems] = React.useState<OracleMapping[]>([]);
+  const projectId = useNewProjectId();
+  const { data: items = [] } = useProjectOracleIds(projectId);
+  const addOracleId = useAddOracleId(projectId);
+  const deleteOracleId = useDeleteOracleId(projectId);
   const [oracleProjectId, setOracleProjectId] = React.useState("");
 
   const addMapping = () => {
     if (!oracleProjectId.trim()) return;
-    seq.current += 1;
-    setItems((prev) => [
-      ...prev,
-      {
-        id: `oracle-${seq.current}`,
-        oracleProjectId,
-        description: "",
+    addOracleId.mutate(oracleProjectId.trim(), {
+      onSuccess: () => {
+        setOracleProjectId("");
+        toast.success("Oracle Project Mapped Successfully");
       },
-    ]);
-    setOracleProjectId("");
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "Failed to map Oracle project."),
+    });
   };
+
+  const removeMapping = (item: ProjectOracleId) => {
+    deleteOracleId.mutate(item.id, {
+      onSuccess: () => toast.success("Oracle Project Removed Successfully"),
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "Failed to remove Oracle project."),
+    });
+  };
+
+  if (!projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Create the project on the Project Profile tab first.
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -51,12 +68,26 @@ export function OracleMappingForm() {
           items={items}
           emptyLabel="No Oracle Project IDs mapped yet."
           columns={[
-            { key: "oracleProjectId", label: "Oracle Project ID" },
+            { key: "oracle_project_id", label: "Oracle Project ID" },
             {
               key: "description",
               label: "Project Description",
               render: () => (
                 <span className="text-slate-400 italic">Pending Oracle sync…</span>
+              ),
+            },
+            {
+              key: "actions",
+              label: "",
+              render: (item: ProjectOracleId) => (
+                <button
+                  type="button"
+                  aria-label={`Remove ${item.oracle_project_id}`}
+                  onClick={() => removeMapping(item)}
+                  className="text-slate-400 hover:text-red-600"
+                >
+                  <Trash2 className="size-4" />
+                </button>
               ),
             },
           ]}
@@ -94,8 +125,10 @@ export function OracleMappingForm() {
         <div className="mt-6 flex justify-end">
           <Button
             onClick={addMapping}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={addOracleId.isPending}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
+            {addOracleId.isPending ? <ButtonSpinner /> : null}
             Add Oracle Project
           </Button>
         </div>

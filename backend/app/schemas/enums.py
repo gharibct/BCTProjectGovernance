@@ -66,6 +66,7 @@ class ApplicablePhase(StrEnum):
 
 class ProjectStatus(StrEnum):
     START_UP = "Start Up"
+    PENDING_APPROVAL = "Pending Approval"
     EXECUTION = "Execution"
     HOLD = "Hold"
     CLOSED = "Closed"
@@ -331,3 +332,8 @@ class BackupRestoreStatus(StrEnum):
     IN_PROGRESS = "In Progress"
     COMPLETED = "Completed"
     FAILED = "Failed"
+
+
+class PeriodType(StrEnum):
+    WEEKLY = "Weekly"
+    MONTHLY = "Monthly"

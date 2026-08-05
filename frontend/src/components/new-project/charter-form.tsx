@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Banknote,
   CalendarDays,
@@ -11,30 +13,130 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import { useNewProjectUi } from "@/stores/new-project-ui";
+import { useNewProjectId, useNewProjectUi } from "@/stores/new-project-ui";
+import {
+  useAccounts,
+  useGeos,
+  useOrganizations,
+  useProjectTypes,
+  useUsers,
+} from "@/lib/api/reference-data";
+import {
+  useCreateProject,
+  useProject,
+  useUpdateProject,
+  type Project,
+  type ProjectPayload,
+} from "@/lib/api/projects";
 
 import {
   AutoBadge,
+  ButtonSpinner,
   Field,
   MandatoryBadge,
   SectionCard,
   Segmented,
 } from "@/components/forms/form-primitives";
-import { HealthDeclaration } from "./health-declaration";
+import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaration";
 
 const inputClass = "h-11";
 const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700";
 
-function ProjectDescriptionTab() {
-  const [engagementType, setEngagementType] = React.useState("Implementation");
-  const [organization, setOrganization] = React.useState("BCTPL");
-  const [geo, setGeo] = React.useState("APAC");
-  const { projectCode, projectName, setProjectName, isEditing } = useNewProjectUi();
-  const locked = !isEditing;
+const CONTRACT_TYPES = ["FPP", "T&M", "Capped T&M", "Internal"] as const;
+const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
+const BILLING_TYPES = ["FPP", "FB", "T&M", "Product", "Unit Based Billing", "Others"] as const;
+
+// Every field the Project Profile page collects (a subset of the Project
+// resource — Scope & Schedule owns the rest on its own page/PUT). Selects
+// backed by reference data (project type, organization, geo, account,
+// PM/DM/DE) store the referenced row's id, not its display label.
+function emptyValues(): ProjectPayload {
+  return { engagement_type: "Implementation" };
+}
+
+function valuesFromProject(project: Project): ProjectPayload {
+  return {
+    project_name: project.project_name,
+    contract_type: project.contract_type ?? undefined,
+    project_type_id: project.project_type_id ?? undefined,
+    organization_id: project.organization_id ?? undefined,
+    project_owned: project.project_owned ?? undefined,
+    geo_id: project.geo_id ?? undefined,
+    account_id: project.account_id ?? undefined,
+    project_manager_id: project.project_manager_id ?? undefined,
+    delivery_manager_id: project.delivery_manager_id ?? undefined,
+    delivery_excellence_id: project.delivery_excellence_id ?? undefined,
+    project_revenue: project.project_revenue ?? undefined,
+    project_currency: project.project_currency ?? undefined,
+    billing_type: project.billing_type ?? undefined,
+    // Segmented's own fallback (below) only makes "Implementation" look
+    // selected — it never becomes a real value unless the user clicks it. If
+    // the DB has no value yet, seed it here instead so it's an actual value
+    // that gets saved on the next Edit/Save, matching what's on screen.
+    engagement_type: project.engagement_type ?? "Implementation",
+    customer_overview: project.customer_overview ?? undefined,
+    project_scope_description: project.project_scope_description ?? undefined,
+    planned_start_date: project.planned_start_date ?? undefined,
+    actual_start_date: project.actual_start_date ?? undefined,
+    planned_end_date: project.planned_end_date ?? undefined,
+    actual_end_date: project.actual_end_date ?? undefined,
+  };
+}
+
+// A project with no separate approval workflow is only ever locked once it's
+// past Draft (Start Up) — see ProjectDescriptionActions. A not-yet-created
+// draft (no project loaded yet) counts as Draft too.
+function isDraftStatus(project: Project | undefined): boolean {
+  return !project || project.project_status === "Start Up";
+}
+
+function useProjectProfileForm() {
+  const projectId = useNewProjectId();
+  const { data: project } = useProject(projectId);
+  const [values, setValues] = React.useState<ProjectPayload>(emptyValues);
+  // Re-seed `values` from the fetched project whenever a *different* project
+  // finishes loading (or we drop back to a blank draft) — done during render
+  // rather than in an effect, per React's "adjusting state" guidance, so the
+  // fields don't flash their previous contents for a frame first. `syncedKey`
+  // stays null (skipping the reset) while a projectId is set but its fetch
+  // hasn't resolved yet, so in-flight loads don't blank the form early.
+  const [syncedKey, setSyncedKey] = React.useState<string | null>(null);
+  const key = project ? project.id : projectId ? null : "draft";
+  if (key !== null && key !== syncedKey) {
+    setSyncedKey(key);
+    setValues(project ? valuesFromProject(project) : emptyValues());
+  }
+
+  const set =
+    <K extends keyof ProjectPayload>(key: K) =>
+    (value: ProjectPayload[K]) =>
+      setValues((prev) => ({ ...prev, [key]: value }));
+
+  return { project, values, set };
+}
+
+function ProjectDescriptionTab({
+  values,
+  set,
+}: {
+  values: ProjectPayload;
+  set: <K extends keyof ProjectPayload>(key: K) => (value: ProjectPayload[K]) => void;
+}) {
+  const projectId = useNewProjectId();
+  const { data: project } = useProject(projectId);
+  const isEditing = useNewProjectUi((state) => state.isEditing);
+  const locked = !isDraftStatus(project) && !isEditing;
+
+  const { data: organizations } = useOrganizations();
+  const { data: geos } = useGeos();
+  const { data: projectTypes } = useProjectTypes();
+  const { data: accounts } = useAccounts();
+  const { data: users } = useUsers();
 
   return (
     <div className="flex flex-col gap-8">
@@ -43,7 +145,7 @@ function ProjectDescriptionTab() {
           <Field label="Project Code" htmlFor="project-code" badge={<AutoBadge />}>
             <Input
               id="project-code"
-              value={projectCode}
+              value={project?.project_code ?? "Generated on Create"}
               disabled
               className={inputClass}
             />
@@ -52,8 +154,8 @@ function ProjectDescriptionTab() {
             <Input
               id="project-name"
               placeholder="e.g. Core Banking Modernization"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
+              value={values.project_name ?? ""}
+              onChange={(e) => set("project_name")(e.target.value)}
               className={inputClass}
               disabled={locked}
             />
@@ -64,25 +166,34 @@ function ProjectDescriptionTab() {
       <SectionCard icon={Info} title="Project Details">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
           <Field label="Contract Type" htmlFor="contract-type">
-            <NativeSelect id="contract-type" defaultValue="FPP" disabled={locked}>
-              {["FPP", "T&M", "Capped T&M", "Internal"].map((type) => (
+            <NativeSelect
+              id="contract-type"
+              value={values.contract_type ?? ""}
+              onChange={(e) => set("contract_type")(e.target.value as ProjectPayload["contract_type"])}
+              disabled={locked}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {CONTRACT_TYPES.map((type) => (
                 <option key={type}>{type}</option>
               ))}
             </NativeSelect>
           </Field>
           <Field label="Project Type" htmlFor="project-type">
-            <NativeSelect id="project-type" defaultValue="Development" disabled={locked}>
-              {[
-                "Development",
-                "Maintenance",
-                "Professional Staffing",
-                "Support (Application)",
-                "Support (Infrastructure)",
-                "Testing",
-                "Cloud Maintenance",
-                "Cloud Migration",
-              ].map((type) => (
-                <option key={type}>{type}</option>
+            <NativeSelect
+              id="project-type"
+              value={values.project_type_id ?? ""}
+              onChange={(e) => set("project_type_id")(e.target.value)}
+              disabled={locked}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {(projectTypes ?? []).map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
               ))}
             </NativeSelect>
           </Field>
@@ -92,52 +203,61 @@ function ProjectDescriptionTab() {
                 { value: "Implementation", label: "Implementation" },
                 { value: "Support", label: "Support" },
               ]}
-              value={engagementType}
-              onChange={setEngagementType}
+              value={values.engagement_type ?? "Implementation"}
+              onChange={(v) => set("engagement_type")(v as ProjectPayload["engagement_type"])}
               activeClassName={segmentedActiveClass}
               disabled={locked}
             />
           </Field>
           <Field label="Project Owned" htmlFor="project-owned">
-            <NativeSelect id="project-owned" defaultValue="Fully Owned" disabled={locked}>
-              {["Fully Owned", "Co-Owned", "Customer Driven"].map((owned) => (
+            <NativeSelect
+              id="project-owned"
+              value={values.project_owned ?? ""}
+              onChange={(e) => set("project_owned")(e.target.value as ProjectPayload["project_owned"])}
+              disabled={locked}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {PROJECT_OWNED_OPTIONS.map((owned) => (
                 <option key={owned}>{owned}</option>
               ))}
             </NativeSelect>
           </Field>
           <Field label="Organization">
             <Segmented
-              options={[
-                { value: "BCTPL", label: "BCTPL" },
-                { value: "BCTC", label: "BCTC" },
-                { value: "FT", label: "FT" },
-              ]}
-              value={organization}
-              onChange={setOrganization}
+              options={(organizations ?? []).map((org) => ({ value: org.id, label: org.code }))}
+              value={values.organization_id ?? ""}
+              onChange={(v) => set("organization_id")(v)}
               activeClassName={segmentedActiveClass}
               disabled={locked}
             />
           </Field>
           <Field label="GEO">
             <Segmented
-              options={[
-                { value: "APAC", label: "APAC" },
-                { value: "MEA", label: "MEA" },
-                { value: "US", label: "US" },
-              ]}
-              value={geo}
-              onChange={setGeo}
+              options={(geos ?? []).map((geo) => ({ value: geo.id, label: geo.code }))}
+              value={values.geo_id ?? ""}
+              onChange={(v) => set("geo_id")(v)}
               activeClassName={segmentedActiveClass}
               disabled={locked}
             />
           </Field>
           <Field label="Account Name" htmlFor="account-name">
-            <Input
+            <NativeSelect
               id="account-name"
-              placeholder="e.g. Gulf National Bank"
-              className={inputClass}
+              value={values.account_id ?? ""}
+              onChange={(e) => set("account_id")(e.target.value)}
               disabled={locked}
-            />
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {(accounts ?? []).map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
         </div>
       </SectionCard>
@@ -145,28 +265,55 @@ function ProjectDescriptionTab() {
       <SectionCard icon={UserRound} title="Delivery Team">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
           <Field label="Project Manager" htmlFor="project-manager">
-            <Input
+            <NativeSelect
               id="project-manager"
-              placeholder="Name of the PM"
-              className={inputClass}
+              value={values.project_manager_id ?? ""}
+              onChange={(e) => set("project_manager_id")(e.target.value)}
               disabled={locked}
-            />
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {(users ?? []).map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.full_name}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
           <Field label="Delivery Manager" htmlFor="delivery-manager">
-            <Input
+            <NativeSelect
               id="delivery-manager"
-              placeholder="Name of the DM"
-              className={inputClass}
+              value={values.delivery_manager_id ?? ""}
+              onChange={(e) => set("delivery_manager_id")(e.target.value)}
               disabled={locked}
-            />
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {(users ?? []).map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.full_name}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
           <Field label="Delivery Excellence" htmlFor="delivery-excellence">
-            <Input
+            <NativeSelect
               id="delivery-excellence"
-              placeholder="Assigned DE person"
-              className={inputClass}
+              value={values.delivery_excellence_id ?? ""}
+              onChange={(e) => set("delivery_excellence_id")(e.target.value)}
               disabled={locked}
-            />
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {(users ?? []).map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.full_name}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
         </div>
       </SectionCard>
@@ -179,24 +326,42 @@ function ProjectDescriptionTab() {
               type="number"
               min={0}
               placeholder="0.00"
+              value={values.project_revenue ?? ""}
+              onChange={(e) =>
+                set("project_revenue")(e.target.value === "" ? undefined : e.target.value)
+              }
               className={inputClass}
               disabled={locked}
             />
           </Field>
           <Field label="Project Currency" htmlFor="project-currency">
-            <NativeSelect id="project-currency" defaultValue="USD" disabled={locked}>
+            <NativeSelect
+              id="project-currency"
+              value={values.project_currency ?? ""}
+              onChange={(e) => set("project_currency")(e.target.value)}
+              disabled={locked}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
               {["USD", "OMR", "AED", "SAR", "INR", "EUR"].map((currency) => (
                 <option key={currency}>{currency}</option>
               ))}
             </NativeSelect>
           </Field>
           <Field label="Billing Type" htmlFor="billing-type">
-            <NativeSelect id="billing-type" defaultValue="FPP" disabled={locked}>
-              {["FPP", "FB", "T&M", "Product", "Unit Based Billing", "Others"].map(
-                (type) => (
-                  <option key={type}>{type}</option>
-                )
-              )}
+            <NativeSelect
+              id="billing-type"
+              value={values.billing_type ?? ""}
+              onChange={(e) => set("billing_type")(e.target.value as ProjectPayload["billing_type"])}
+              disabled={locked}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {BILLING_TYPES.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
             </NativeSelect>
           </Field>
         </div>
@@ -212,16 +377,15 @@ function durationDays(from: string, to: string): string {
   return `${Math.round(ms / 86_400_000)} days`;
 }
 
-function ScopeAndScheduleTab() {
-  const [dates, setDates] = React.useState({
-    plannedStart: "",
-    plannedEnd: "",
-  });
-
-  const setDate =
-    (key: keyof typeof dates) => (e: React.ChangeEvent<HTMLInputElement>) =>
-      setDates((prev) => ({ ...prev, [key]: e.target.value }));
-
+function ScopeAndScheduleTab({
+  values,
+  set,
+  locked,
+}: {
+  values: ProjectPayload;
+  set: <K extends keyof ProjectPayload>(key: K) => (value: ProjectPayload[K]) => void;
+  locked: boolean;
+}) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ScanSearch} title="Scope Definition">
@@ -230,6 +394,9 @@ function ScopeAndScheduleTab() {
             <Textarea
               id="customer-overview"
               placeholder="Who the customer is, their business, and the relationship context…"
+              value={values.customer_overview ?? ""}
+              onChange={(e) => set("customer_overview")(e.target.value)}
+              disabled={locked}
             />
           </Field>
           <Field
@@ -241,6 +408,9 @@ function ScopeAndScheduleTab() {
               id="scope-description"
               className="min-h-32"
               placeholder="What the project will deliver — objectives, boundaries, and key deliverables…"
+              value={values.project_scope_description ?? ""}
+              onChange={(e) => set("project_scope_description")(e.target.value)}
+              disabled={locked}
             />
           </Field>
         </div>
@@ -252,23 +422,25 @@ function ScopeAndScheduleTab() {
             <Input
               id="planned-start"
               type="date"
-              value={dates.plannedStart}
-              onChange={setDate("plannedStart")}
+              value={values.planned_start_date ?? ""}
+              onChange={(e) => set("planned_start_date")(e.target.value)}
               className={inputClass}
+              disabled={locked}
             />
           </Field>
           <Field label="Planned End Date" htmlFor="planned-end">
             <Input
               id="planned-end"
               type="date"
-              value={dates.plannedEnd}
-              onChange={setDate("plannedEnd")}
+              value={values.planned_end_date ?? ""}
+              onChange={(e) => set("planned_end_date")(e.target.value)}
               className={inputClass}
+              disabled={locked}
             />
           </Field>
           <Field label="Planned Duration" badge={<AutoBadge />}>
             <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
-              {durationDays(dates.plannedStart, dates.plannedEnd)}
+              {durationDays(values.planned_start_date ?? "", values.planned_end_date ?? "")}
             </div>
           </Field>
         </div>
@@ -277,72 +449,161 @@ function ScopeAndScheduleTab() {
   );
 }
 
-// Project Profile action bar: all four workflow actions are always visible;
-// each disables itself once it no longer applies to the current
-// created/editing/status combination, rather than disappearing outright.
-// Create Project marks the project created and locks the form; Edit Project
-// re-opens it; Send To Approval hands it to the approver (locking again);
-// Approve is the approver's action and locks it for good.
-function ProjectDescriptionActions() {
-  const { isCreated, isEditing, status, setCreated, setEditing, setStatus } =
-    useNewProjectUi();
+// Project Profile action bar, mapped onto ProjectStatus's Start Up -> Pending
+// Approval -> Execution lifecycle (see lib/api/projects.ts): Create Project
+// (POST), Edit Project (PUT — saves the current fields, and unlocks them if
+// the project is locked), Send To Approval (PUT — saves and moves Start Up
+// to Pending Approval, which locks the form), Approve (PUT — moves Pending
+// Approval to Execution).
+function ProjectDescriptionActions({ values }: { values: ProjectPayload }) {
+  const router = useRouter();
+  const projectId = useNewProjectId();
+  const { isEditing, setEditing } = useNewProjectUi();
+  const { data: project } = useProject(projectId);
+  const createProject = useCreateProject();
+  const updateProject = useUpdateProject(projectId);
 
   const primaryClass =
     "h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]";
   const secondaryClass =
     "h-11 bg-slate-600 px-6 text-sm font-semibold text-white hover:bg-slate-700";
 
-  const statusMessage =
-    status === "Approved"
-      ? "Locked — this project is Approved and no longer editable."
-      : status === "Pending Approval"
-        ? "Awaiting approval — locked until reviewed."
+  const status = project?.project_status;
+  const isCreated = !!projectId;
+  const isDraft = isDraftStatus(project);
+  const [error, setError] = React.useState<string | null>(null);
+  // Edit Project, Send To Approval, and Approve all share the one
+  // `updateProject` mutation, so its `isPending` alone can't say which
+  // button was clicked — this tracks that, so only the clicked button shows
+  // a spinner instead of all three lighting up together.
+  const [pendingAction, setPendingAction] = React.useState<
+    "edit" | "save" | "approve" | null
+  >(null);
+
+  const statusMessage = isDraft
+    ? "Editable by the Project Manager while the project is in Draft."
+    : status === "Pending Approval"
+      ? "Pending Approval — click Edit Project to make changes, or Approve to move to Execution."
+      : status === "Execution"
+        ? "In execution — click Edit Project to make changes."
         : isEditing
           ? "Editable by the Project Manager while the project is unlocked."
           : "Locked — click Edit Project to make changes.";
 
+  const handleCreate = async () => {
+    if (!values.project_name?.trim()) {
+      setError("Project Name is required before you can create the project.");
+      return;
+    }
+    setError(null);
+    try {
+      const created = await createProject.mutateAsync(values);
+      setEditing(false);
+      toast.success("Project Created Successfully");
+      router.push(`/new-project/${created.id}/project-charter`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create project.";
+      setError(message);
+      toast.error(message);
+    }
+  };
+
+  // Edit Project saves whatever is currently in the fields (a PUT — there is
+  // no client-only "unlock" step) and, for a project that's locked because
+  // it's past Draft, also unlocks it for further edits.
+  const handleEdit = async () => {
+    setError(null);
+    setPendingAction("edit");
+    try {
+      await updateProject.mutateAsync(values);
+      setEditing(true);
+      toast.success("Project Updated Successfully");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save changes.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  // Submits the Draft for approval: saves the fields and moves the project
+  // out of Draft, which locks the form (see `locked`) until an approver
+  // either clicks Approve (below) or a future "send back" action.
+  const handleSave = async () => {
+    setError(null);
+    setPendingAction("save");
+    try {
+      await updateProject.mutateAsync({ ...values, project_status: "Pending Approval" });
+      setEditing(false);
+      toast.success("Project Sent to Approval Successfully");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save changes.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleApprove = async () => {
+    setError(null);
+    setPendingAction("approve");
+    try {
+      await updateProject.mutateAsync({ project_status: "Execution" });
+      toast.success("Project Approved Successfully");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to approve.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const busy = createProject.isPending || updateProject.isPending;
+  const locked = !isDraft && !isEditing;
+
   return (
     <>
-      <p className="flex items-center gap-2 text-sm text-slate-500">
-        <Lock className="size-4" />
-        {statusMessage}
-      </p>
-      <div className="flex gap-3">
+      <div className="flex justify-end gap-3">
         <Button
-          className={secondaryClass}
-          disabled={!isCreated || isEditing}
-          onClick={() => setEditing(true)}
+          className={cn(secondaryClass, "gap-2")}
+          disabled={!isCreated || busy}
+          onClick={handleEdit}
         >
+          {pendingAction === "edit" ? <ButtonSpinner /> : null}
           Edit Project
         </Button>
         <Button
-          className={primaryClass}
-          disabled={isCreated}
-          onClick={() => {
-            setCreated(true);
-            setEditing(false);
-          }}
+          className={cn(primaryClass, "gap-2")}
+          disabled={isCreated || busy}
+          onClick={handleCreate}
         >
+          {createProject.isPending ? <ButtonSpinner /> : null}
           Create Project
         </Button>
         <Button
-          className={primaryClass}
-          disabled={!isCreated || status !== "Draft"}
-          onClick={() => {
-            setEditing(false);
-            setStatus("Pending Approval");
-          }}
+          className={cn(primaryClass, "gap-2")}
+          disabled={!isCreated || locked || busy}
+          onClick={handleSave}
         >
+          {pendingAction === "save" ? <ButtonSpinner /> : null}
           Send To Approval
         </Button>
         <Button
-          className={primaryClass}
-          disabled={status !== "Pending Approval"}
-          onClick={() => setStatus("Approved")}
+          className={cn(primaryClass, "gap-2")}
+          disabled={status !== "Pending Approval" || busy}
+          onClick={handleApprove}
         >
+          {pendingAction === "approve" ? <ButtonSpinner /> : null}
           Approve
         </Button>
       </div>
+      <p className="flex items-center gap-2 text-sm text-slate-500">
+        <Lock className="size-4" />
+        {error ? <span className="text-red-600">{error}</span> : statusMessage}
+      </p>
     </>
   );
 }
@@ -350,49 +611,87 @@ function ProjectDescriptionActions() {
 // Each New Project charter screen is its own route, so these are separate
 // top-level exports (one per page) instead of a single tab-switched form.
 export function ProjectProfileForm() {
+  const { values, set } = useProjectProfileForm();
   return (
     <div>
-      <ProjectDescriptionTab />
-      <div className="mt-10 flex items-center justify-between">
-        <ProjectDescriptionActions />
+      <ProjectDescriptionTab values={values} set={set} />
+      <div className="mt-10 flex flex-col gap-4">
+        <ProjectDescriptionActions values={values} />
       </div>
     </div>
   );
 }
 
 export function ScopeScheduleForm() {
+  const projectId = useNewProjectId();
+  const isEditing = useNewProjectUi((state) => state.isEditing);
+  const { project, values, set } = useProjectProfileForm();
+  const updateProject = useUpdateProject(projectId);
+
+  if (!projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Create the project on the Project Profile tab first.
+      </p>
+    );
+  }
+
+  const isDraft = isDraftStatus(project);
+  const locked = !isDraft && !isEditing;
+
   return (
     <div>
-      <ScopeAndScheduleTab />
-      <div className="mt-10 flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm text-slate-500">
-          <Lock className="size-4" />
-          Editable by the Project Manager while the project is unlocked.
-        </p>
-        <div className="flex gap-3">
-          <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
+      <ScopeAndScheduleTab values={values} set={set} locked={locked} />
+      <div className="mt-10 flex flex-col gap-4">
+        <div className="flex justify-end gap-3">
+          <Button
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={locked || updateProject.isPending}
+            onClick={() =>
+              updateProject.mutate(values, {
+                onSuccess: () => toast.success("Scope & Schedule Saved Successfully"),
+                onError: (err) =>
+                  toast.error(err instanceof Error ? err.message : "Failed to save changes."),
+              })
+            }
+          >
+            {updateProject.isPending ? <ButtonSpinner /> : null}
             Save Scope &amp; Schedule
           </Button>
         </div>
+        <p className="flex items-center gap-2 text-sm text-slate-500">
+          <Lock className="size-4" />
+          {isDraft
+            ? "Editable by the Project Manager while the project is in Draft."
+            : isEditing
+              ? "Editable by the Project Manager while the project is unlocked."
+              : "Locked — click Edit Project on the Project Profile tab to make changes."}
+        </p>
       </div>
     </div>
   );
 }
 
 export function SelfAssessmentForm() {
+  const form = useHealthDeclarationForm();
   return (
     <div>
-      <HealthDeclaration />
-      <div className="mt-10 flex items-center justify-between">
+      <HealthDeclaration form={form} />
+      <div className="mt-10 flex flex-col gap-4">
+        <div className="flex justify-end gap-3">
+          <Button
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={!form.projectId || form.isSubmitting}
+            onClick={form.submit}
+          >
+            {form.isSubmitting ? <ButtonSpinner /> : null}
+            Submit Self Assessment
+          </Button>
+        </div>
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Lock className="size-4" />
           Editable by the Project Manager while the project is unlocked.
         </p>
-        <div className="flex gap-3">
-          <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
-            Submit Self Assessment
-          </Button>
-        </div>
       </div>
     </div>
   );

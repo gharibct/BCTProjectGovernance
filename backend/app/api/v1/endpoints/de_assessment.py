@@ -6,10 +6,11 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
-from app.crud.de_assessment import de_assessment_crud, de_assessment_finding_crud
+from app.crud.de_assessment import de_assessment_alert_crud, de_assessment_crud, de_assessment_finding_crud
 from app.crud.projects import project_crud
 from app.models.de_assessment import DEAssessment, DEAssessmentAlert, DEAssessmentFinding
 from app.schemas.de_assessment import (
+    DEAssessmentAlertIn,
     DEAssessmentAlertRead,
     DEAssessmentCreate,
     DEAssessmentFindingIn,
@@ -19,7 +20,6 @@ from app.schemas.de_assessment import (
     DEAssessmentReadWithDetails,
 )
 from app.services.code_generator import generate_code
-from app.services.de_assessment_alerts import validate_alert_requirement
 from app.services.health_rollup import compute_overall_project_health
 
 router = APIRouter(prefix="/projects/{project_id}/de-assessments", tags=["DE Assessment"])
@@ -87,10 +87,6 @@ async def create_assessment(project_id: UUID, payload: DEAssessmentCreate, db: A
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
 
-    error = validate_alert_requirement(payload.de_assessed_project_health, payload.alert is not None)
-    if error:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, error)
-
     now = datetime.now(UTC)
     assessment = DEAssessment(
         id=uuid4(),
@@ -106,34 +102,6 @@ async def create_assessment(project_id: UUID, payload: DEAssessmentCreate, db: A
     db.add(assessment)
     await db.flush()
 
-    if payload.alert is not None:
-        alert_code = await generate_code(db, "DE_ALERT")
-        db.add(
-            DEAssessmentAlert(
-                id=uuid4(),
-                alert_code=alert_code,
-                assessment_id=assessment.id,
-                alert_category=payload.alert.alert_category,
-                brief_description=payload.alert.brief_description,
-                detailed_description=payload.alert.detailed_description,
-                raised_by=payload.alert.raised_by,
-                raised_on=payload.alert.raised_on or payload.assessment_date,
-                created_at=now,
-            )
-        )
-
-    for finding in payload.findings:
-        db.add(
-            DEAssessmentFinding(
-                id=uuid4(),
-                assessment_id=assessment.id,
-                created_at=now,
-                updated_at=now,
-                **finding.model_dump(),
-            )
-        )
-    await db.flush()
-
     # Keep the Project Charter's cached health fields in sync (UX §4.3/§4.12).
     project.de_assessed_project_health = payload.de_assessed_project_health
     project.overall_project_health = compute_overall_project_health(
@@ -142,6 +110,21 @@ async def create_assessment(project_id: UUID, payload: DEAssessmentCreate, db: A
     await db.flush()
 
     return await _load_with_details(db, assessment)
+
+
+@router.post("/{assessment_id}/alerts", response_model=DEAssessmentAlertRead, status_code=status.HTTP_201_CREATED)
+async def add_alert(project_id: UUID, assessment_id: UUID, payload: DEAssessmentAlertIn, db: AsyncSession = Depends(get_db)):
+    assessment = await de_assessment_crud.get(db, assessment_id)
+    if assessment is None or assessment.project_id != project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Assessment not found")
+    alert_code = await generate_code(db, "DE_ALERT")
+    return await de_assessment_alert_crud.create(
+        db,
+        payload,
+        assessment_id=assessment_id,
+        alert_code=alert_code,
+        raised_on=payload.raised_on or assessment.assessment_date,
+    )
 
 
 @router.post("/{assessment_id}/findings", response_model=DEAssessmentFindingRead, status_code=status.HTTP_201_CREATED)

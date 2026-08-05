@@ -1,12 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { HeartPulse, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
+import { HeartPulse } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useNewProjectId } from "@/stores/new-project-ui";
+import { useProject } from "@/lib/api/projects";
+import {
+  useCreateHealthDeclaration,
+  useLatestHealthDeclaration,
+  type HealthDeclaration as ApiHealthDeclaration,
+  type HealthRating as ApiHealthRating,
+} from "@/lib/api/health-declarations";
 
-import { AutoBadge, Field, SectionCard } from "@/components/forms/form-primitives";
+import { SectionCard } from "@/components/forms/form-primitives";
 
 export type HealthRating = "green" | "amber" | "potential-red" | "red";
 
@@ -56,43 +65,170 @@ function worstOf(ratings: HealthRating[]): HealthRating {
   );
 }
 
-const CATEGORIES = [
+// UI uses kebab-case rating keys; the API's HealthRating enum is "Red" /
+// "Potential Red" / "Amber" / "Green". Exported so other health-adjacent
+// screens (e.g. de-assessment-form.tsx) share the same conversion.
+export const RATING_TO_API: Record<HealthRating, ApiHealthRating> = {
+  green: "Green",
+  amber: "Amber",
+  "potential-red": "Potential Red",
+  red: "Red",
+};
+export const RATING_FROM_API: Record<ApiHealthRating, HealthRating> = {
+  Green: "green",
+  Amber: "amber",
+  "Potential Red": "potential-red",
+  Red: "red",
+};
+
+export const CATEGORIES = [
   {
     key: "core-delivery",
     name: "Core Delivery",
     covers: "Scope · Cost · Schedule · Quality · Contractual SLA · KPI",
+    ratingField: "core_delivery_rating",
+    descriptionField: "core_delivery_description",
   },
   {
     key: "people",
     name: "People",
     covers: "Resourcing · Fulfilment · Skilling · Performance · Attrition",
+    ratingField: "people_rating",
+    descriptionField: "people_description",
   },
   {
     key: "operational",
     name: "Operational",
     covers:
       "PID Creation · Extension · Contract Extension · PO · Projects without contract · Payment · Invoices · Timesheet",
+    ratingField: "operational_rating",
+    descriptionField: "operational_description",
   },
   {
     key: "customer",
     name: "Customer",
     covers: "Relation · Pulse · Feedback · Opportunities · Business",
+    ratingField: "customer_rating",
+    descriptionField: "customer_description",
   },
   {
     key: "financial",
     name: "Financial",
     covers: "Forecast · Margin · MIP",
+    ratingField: "financial_rating",
+    descriptionField: "financial_description",
   },
   {
     key: "compliance",
     name: "Compliance",
     covers: "Security · Infrastructure · Vendor Management",
+    ratingField: "compliance_rating",
+    descriptionField: "compliance_description",
   },
 ] as const;
 
-type CategoryKey = (typeof CATEGORIES)[number]["key"];
+export type CategoryKey = (typeof CATEGORIES)[number]["key"];
 
-function HealthPicker({
+const DEFAULT_RATINGS: Record<CategoryKey, HealthRating> = {
+  "core-delivery": "green",
+  people: "green",
+  operational: "green",
+  customer: "green",
+  financial: "green",
+  compliance: "green",
+};
+
+const EMPTY_DESCRIPTIONS: Record<CategoryKey, string> = {
+  "core-delivery": "",
+  people: "",
+  operational: "",
+  customer: "",
+  financial: "",
+  compliance: "",
+};
+
+function fromDeclaration(declaration: ApiHealthDeclaration) {
+  const ratings = {} as Record<CategoryKey, HealthRating>;
+  const descriptions = {} as Record<CategoryKey, string>;
+  for (const category of CATEGORIES) {
+    ratings[category.key] = RATING_FROM_API[declaration[category.ratingField]];
+    descriptions[category.key] = declaration[category.descriptionField] ?? "";
+  }
+  return { ratings, descriptions };
+}
+
+// Owns all state + the submit mutation; the SelfAssessmentForm action bar
+// (in charter-form.tsx) calls `submit` from the same hook instance so the
+// Submit button acts on the values rendered here.
+export function useHealthDeclarationForm() {
+  const projectId = useNewProjectId();
+  const { data: project } = useProject(projectId);
+  const { data: latest } = useLatestHealthDeclaration(projectId);
+  const createDeclaration = useCreateHealthDeclaration(projectId);
+
+  const [ratings, setRatings] = React.useState<Record<CategoryKey, HealthRating>>(DEFAULT_RATINGS);
+  const [descriptions, setDescriptions] = React.useState<Record<CategoryKey, string>>(EMPTY_DESCRIPTIONS);
+  const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
+
+  const key = latest ? latest.id : latest === null ? "none" : null;
+  if (key !== null && key !== syncedFor) {
+    setSyncedFor(key);
+    if (latest) {
+      const seeded = fromDeclaration(latest);
+      setRatings(seeded.ratings);
+      setDescriptions(seeded.descriptions);
+    }
+  }
+
+  const setRating = (categoryKey: CategoryKey, value: HealthRating) =>
+    setRatings((prev) => ({ ...prev, [categoryKey]: value }));
+  const setDescription = (categoryKey: CategoryKey, value: string) =>
+    setDescriptions((prev) => ({ ...prev, [categoryKey]: value }));
+
+  const declaredOverall = worstOf(Object.values(ratings));
+  const deAssessedHealth = project?.de_assessed_project_health
+    ? RATING_FROM_API[project.de_assessed_project_health]
+    : null;
+  const overall = deAssessedHealth ? worstOf([declaredOverall, deAssessedHealth]) : declaredOverall;
+
+  const submit = () => {
+    if (!projectId) return;
+    createDeclaration.mutate({
+      declaration_date: new Date().toISOString().slice(0, 10),
+      core_delivery_rating: RATING_TO_API[ratings["core-delivery"]],
+      core_delivery_description: descriptions["core-delivery"] || undefined,
+      people_rating: RATING_TO_API[ratings.people],
+      people_description: descriptions.people || undefined,
+      operational_rating: RATING_TO_API[ratings.operational],
+      operational_description: descriptions.operational || undefined,
+      customer_rating: RATING_TO_API[ratings.customer],
+      customer_description: descriptions.customer || undefined,
+      financial_rating: RATING_TO_API[ratings.financial],
+      financial_description: descriptions.financial || undefined,
+      compliance_rating: RATING_TO_API[ratings.compliance],
+      compliance_description: descriptions.compliance || undefined,
+    }, {
+      onSuccess: () => toast.success("Self Assessment Submitted Successfully"),
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "Failed to submit self assessment."),
+    });
+  };
+
+  return {
+    projectId,
+    ratings,
+    setRating,
+    descriptions,
+    setDescription,
+    declaredOverall,
+    deAssessedHealth,
+    overall,
+    submit,
+    isSubmitting: createDeclaration.isPending,
+  };
+}
+
+export function HealthPicker({
   value,
   onChange,
 }: {
@@ -146,22 +282,20 @@ export function HealthPill({ rating }: { rating: HealthRating }) {
   );
 }
 
-// DE Assessed Project Health is read-only here — it comes from the latest
-// DE Assessment Form record.
-const DE_ASSESSED_HEALTH: HealthRating = "amber";
+export function HealthDeclaration({
+  form,
+}: {
+  form: ReturnType<typeof useHealthDeclarationForm>;
+}) {
+  const { ratings, setRating, descriptions, setDescription } = form;
 
-export function HealthDeclaration() {
-  const [ratings, setRatings] = React.useState<Record<CategoryKey, HealthRating>>({
-    "core-delivery": "green",
-    people: "amber",
-    operational: "green",
-    customer: "green",
-    financial: "green",
-    compliance: "green",
-  });
-
-  const declaredOverall = worstOf(Object.values(ratings));
-  const overall = worstOf([declaredOverall, DE_ASSESSED_HEALTH]);
+  if (!form.projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Create the project on the Project Profile tab first.
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -182,46 +316,17 @@ export function HealthDeclaration() {
               </div>
               <HealthPicker
                 value={ratings[category.key]}
-                onChange={(value) =>
-                  setRatings((prev) => ({ ...prev, [category.key]: value }))
-                }
+                onChange={(value) => setRating(category.key, value)}
               />
               <Input
                 aria-label={`${category.name} health description`}
                 placeholder="Short description…"
                 className="h-10"
+                value={descriptions[category.key]}
+                onChange={(e) => setDescription(category.key, e.target.value)}
               />
             </div>
           ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={ShieldCheck} title="Overall Health">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
-          <Field
-            label="Delivery Declared Overall"
-            badge={<AutoBadge label="Auto — any Red rolls up" />}
-          >
-            <div className="flex h-11 items-center">
-              <HealthPill rating={declaredOverall} />
-            </div>
-          </Field>
-          <Field
-            label="DE Assessed Project Health"
-            badge={<AutoBadge label="From DE Assessment" />}
-          >
-            <div className="flex h-11 items-center">
-              <HealthPill rating={DE_ASSESSED_HEALTH} />
-            </div>
-          </Field>
-          <Field
-            label="Overall Project Health"
-            badge={<AutoBadge label="Auto — highest severity" />}
-          >
-            <div className="flex h-11 items-center">
-              <HealthPill rating={overall} />
-            </div>
-          </Field>
         </div>
       </SectionCard>
     </div>

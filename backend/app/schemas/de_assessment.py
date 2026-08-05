@@ -60,15 +60,14 @@ class DEAssessmentFindingRead(BaseModel):
 
 
 class DEAssessmentCreate(BaseModel):
+    """Header only — Alerts and Findings are added afterward, one at a time,
+    via their own registers (POST .../alerts, POST .../findings)."""
+
     assessment_date: date
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None
     next_assessment_due_date: date | None = None
     assessed_by: UUID | None = None
-    # Required when de_assessed_project_health != Green (UX §4.12); validated
-    # in the endpoint since it's a cross-field rule, not a per-field one.
-    alert: DEAssessmentAlertIn | None = None
-    findings: list[DEAssessmentFindingIn] = []
 
 
 class DEAssessmentRead(BaseModel):

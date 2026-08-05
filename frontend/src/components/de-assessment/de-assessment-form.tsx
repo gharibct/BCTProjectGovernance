@@ -1,48 +1,75 @@
 "use client";
 
 import * as React from "react";
-import { CirclePlus, Lock, ShieldCheck, Siren, Table } from "lucide-react";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import { Lock, ShieldCheck } from "lucide-react";
 
-import {
-  AutoBadge,
-  Field,
-  MandatoryBadge,
-  SectionCard,
-  Segmented,
-} from "@/components/forms/form-primitives";
+import { cn } from "@/lib/utils";
+import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/forms/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  HealthPicker,
+  RATING_TO_API,
+  type HealthRating as Health,
+} from "@/components/project-charter/health-declaration";
+import {
+  useCreateDEAssessment,
+  useLatestDEAssessment,
+  type DEAssessmentPayload,
+} from "@/lib/api/de-assessment";
 
-// Delivery Excellence periodic audit — health rating, PCI score, alert when
-// not Green, and a key-findings register per the requirements (§4.12).
-const HEALTH_OPTIONS = [
-  { value: "green", label: "Green" },
-  { value: "amber", label: "Amber" },
-  { value: "potential-red", label: "Potential Red" },
-  { value: "red", label: "Red" },
+import { AlertRegisterTab } from "./alert-register-tab";
+import { FindingsRegisterTab } from "./findings-register-tab";
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Alert and Findings are each their own register (register grid + "New
+// <Item>" entry form), matching the Contractual Compliance / RAIDO register
+// pattern used across Project Reporting — each row saves immediately
+// against the latest assessment, no separate "save the tab" step.
+const TABS = [
+  { label: "Alert Register", content: AlertRegisterTab },
+  { label: "Findings Register", content: FindingsRegisterTab },
 ] as const;
 
-type Health = (typeof HEALTH_OPTIONS)[number]["value"];
-
-const ALERT_CATEGORIES = [
-  "Core Delivery",
-  "People",
-  "Operational",
-  "Customer",
-  "Financial",
-  "Compliance",
-];
-
-const CLASSIFICATIONS = ["Observation", "Recommendation"];
-
-const FINDING_STATUSES = ["Open", "Closed", "On Hold", "Deferred"];
-
 export function DeAssessmentForm() {
+  const { projectId: rawProjectId } = useParams<{ projectId: string }>();
+  const projectId = rawProjectId ?? null;
+  const { data: latest } = useLatestDEAssessment(projectId);
+  const createAssessment = useCreateDEAssessment(projectId);
+
+  const [assessmentDate, setAssessmentDate] = React.useState(today);
   const [health, setHealth] = React.useState<Health>("green");
-  const [findings, setFindings] = React.useState([0]);
-  const nextFinding = React.useRef(1);
+  const [pciScore, setPciScore] = React.useState("");
+
+  const [tab, setTab] = React.useState<(typeof TABS)[number]["label"]>("Alert Register");
+  const Active = TABS.find((t) => t.label === tab)!.content;
+
+  const submitHeader = () => {
+    if (!projectId || !pciScore.trim()) return;
+    const payload: DEAssessmentPayload = {
+      assessment_date: assessmentDate,
+      de_assessed_project_health: RATING_TO_API[health],
+      pci_score: pciScore,
+    };
+    createAssessment.mutate(payload, {
+      onSuccess: () => toast.success("DE Assessment Submitted Successfully"),
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "Failed to submit DE assessment."),
+    });
+  };
+
+  if (!projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        No project selected.
+      </p>
+    );
+  }
 
   return (
     <div>
@@ -51,17 +78,19 @@ export function DeAssessmentForm() {
         title="DE Assessment"
         aside={
           <Field label="Assessment Date" htmlFor="assessment-date">
-            <Input id="assessment-date" type="date" className="h-10 w-44" />
+            <Input
+              id="assessment-date"
+              type="date"
+              className="h-10 w-44"
+              value={assessmentDate}
+              onChange={(e) => setAssessmentDate(e.target.value)}
+            />
           </Field>
         }
       >
         <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
           <Field label="DE Assessed Project Health" badge={<MandatoryBadge />}>
-            <Segmented
-              options={HEALTH_OPTIONS}
-              value={health}
-              onChange={setHealth}
-            />
+            <HealthPicker value={health} onChange={setHealth} />
           </Field>
           <Field label="PCI Score" htmlFor="pci-score" badge={<MandatoryBadge />}>
             <Input
@@ -70,149 +99,52 @@ export function DeAssessmentForm() {
               min={0}
               placeholder="0.00"
               className="h-11 w-36"
+              value={pciScore}
+              onChange={(e) => setPciScore(e.target.value)}
             />
           </Field>
-        </div>
-      </SectionCard>
-
-      {health !== "green" ? (
-        <div className="mt-8">
-          <SectionCard icon={Siren} title="Alert">
-            <div className="grid grid-cols-3 gap-x-8 gap-y-6">
-              <Field label="Alert ID" htmlFor="alert-id" badge={<AutoBadge />}>
-                <Input id="alert-id" value="ALT-0012" disabled className="h-11" />
-              </Field>
-              <Field label="Alert Category" htmlFor="alert-category">
-                <NativeSelect id="alert-category" defaultValue="">
-                  <option value="" disabled>
-                    Select category
-                  </option>
-                  {ALERT_CATEGORIES.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </NativeSelect>
-              </Field>
-              <Field
-                label="Alert Brief Description"
-                htmlFor="alert-brief"
-                className="col-start-1 col-end-4"
-              >
-                <Input
-                  id="alert-brief"
-                  placeholder="One-line summary of the alert"
-                  className="h-11"
-                />
-              </Field>
-              <Field
-                label="Detailed Description"
-                htmlFor="alert-detail"
-                className="col-start-1 col-end-4"
-              >
-                <Textarea
-                  id="alert-detail"
-                  placeholder="Describe the concern, its impact, and the support needed"
-                  className="min-h-28"
-                />
-              </Field>
-              <Field label="Raised By" htmlFor="alert-raised-by" badge={<AutoBadge />}>
-                <Input
-                  id="alert-raised-by"
-                  value="Delivery Excellence"
-                  disabled
-                  className="h-11"
-                />
-              </Field>
-              <Field label="Raised On" htmlFor="alert-raised-on">
-                <Input id="alert-raised-on" type="date" className="h-11" />
-              </Field>
-            </div>
-          </SectionCard>
-        </div>
-      ) : null}
-
-      <div className="mt-8">
-        <SectionCard icon={Table} title="Key Findings">
-          <div className="grid grid-cols-[2.5rem_11rem_1fr_9.5rem_9rem_1fr] gap-x-3">
-            {["#", "Classification", "Action Taken", "Date", "Status", "Remarks"].map(
-              (h) => (
-                <p
-                  key={h}
-                  className="pb-3 text-xs font-bold tracking-wide text-slate-500 uppercase"
-                >
-                  {h}
-                </p>
-              )
-            )}
-
-            {findings.map((id, index) => (
-              <React.Fragment key={id}>
-                <p className="flex h-11 items-center border-t border-slate-100 pt-3 text-sm font-semibold text-slate-500 tabular-nums">
-                  {index + 1}
-                </p>
-                <div className="border-t border-slate-100 pt-3">
-                  <NativeSelect aria-label={`Finding ${index + 1} classification`}>
-                    {CLASSIFICATIONS.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </NativeSelect>
-                </div>
-                <div className="border-t border-slate-100 pt-3">
-                  <Input
-                    aria-label={`Finding ${index + 1} action taken`}
-                    placeholder="Action taken"
-                    className="h-11"
-                  />
-                </div>
-                <div className="border-t border-slate-100 pt-3">
-                  <Input
-                    aria-label={`Finding ${index + 1} date`}
-                    type="date"
-                    className="h-11"
-                  />
-                </div>
-                <div className="border-t border-slate-100 pt-3">
-                  <NativeSelect aria-label={`Finding ${index + 1} status`}>
-                    {FINDING_STATUSES.map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </NativeSelect>
-                </div>
-                <div className="border-t border-slate-100 pt-3">
-                  <Input
-                    aria-label={`Finding ${index + 1} remarks`}
-                    placeholder="Remarks"
-                    className="h-11"
-                  />
-                </div>
-              </React.Fragment>
-            ))}
-          </div>
-
           <Button
-            variant="outline"
-            className="mt-5 h-10 gap-2 text-sm font-semibold"
-            onClick={() => setFindings((f) => [...f, nextFinding.current++])}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={createAssessment.isPending}
+            onClick={submitHeader}
           >
-            <CirclePlus className="size-4" />
-            Add Finding
-          </Button>
-        </SectionCard>
-      </div>
-
-      <div className="mt-10 flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm text-slate-500">
-          <Lock className="size-4" />
-          One assessment per cycle — past assessments are retained in history.
-        </p>
-        <div className="flex gap-3">
-          <Button variant="outline" className="h-11 px-6 text-sm font-semibold">
-            Save Draft
-          </Button>
-          <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
+            {createAssessment.isPending ? <ButtonSpinner /> : null}
             Submit Assessment
           </Button>
         </div>
+      </SectionCard>
+
+      <div className="mt-8">
+        <div role="tablist" className="flex gap-8 border-b border-slate-200">
+          {TABS.map((t) => (
+            <button
+              key={t.label}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.label}
+              onClick={() => setTab(t.label)}
+              className={cn(
+                "-mb-px border-b-2 pb-3 text-sm font-semibold whitespace-nowrap transition-colors",
+                tab === t.label
+                  ? "border-[#1a4a7a] text-[#1a4a7a]"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-8">
+          <Active projectId={projectId} assessment={latest} />
+        </div>
       </div>
+
+      <p className="mt-10 flex items-center gap-2 text-sm text-slate-500">
+        <Lock className="size-4" />
+        One assessment per cycle — Alerts and Findings are logged against the
+        latest assessment, row by row.
+      </p>
     </div>
   );
 }

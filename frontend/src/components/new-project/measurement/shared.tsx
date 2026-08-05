@@ -16,6 +16,12 @@ export function fmt(value: number | null, digits = 2): string {
   return value === null ? "—" : value.toFixed(digits);
 }
 
+// String form of a target value as it comes back from the API, for seeding
+// an editable text input — no rounding, unlike fmt() which is for display.
+export function str(value: number | string | null | undefined): string {
+  return value === null || value === undefined ? "" : String(value);
+}
+
 // Ratio helper: a / b, null when either side is missing or b is 0.
 export function ratio(a: number | null, b: number | null): number | null {
   return a !== null && b !== null && b > 0 ? a / b : null;
@@ -31,8 +37,17 @@ export function useMeasures() {
   const set =
     (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setM((prev) => ({ ...prev, [key]: e.target.value }));
-  return { m, set };
+  const setAll = React.useCallback((values: Record<string, string>) => setM(values), []);
+  return { m, set, setAll };
 }
+
+// Props shape shared by every per-Project-Type target tab now that
+// MeasurementTabs owns the form state (so it can seed it from the saved
+// target and wire the shared Save button to it).
+export type MeasuresProps = {
+  m: Record<string, string>;
+  set: (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => void;
+};
 
 // Editable — at the planning stage there's no execution data to compute
 // metrics from, so each tile is a directly-entered target value rather than

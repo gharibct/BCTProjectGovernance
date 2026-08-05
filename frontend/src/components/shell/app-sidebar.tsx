@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   ChartColumn,
   ChevronDown,
@@ -13,31 +13,8 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { useNewProjectUi } from "@/stores/new-project-ui";
-import { useProjectRegistry, type ProjectRecord } from "@/stores/project-registry";
-
-// Projects visible to the signed-in user — sample data until there's a
-// backend; only PRJ-2026-0042 has screens built.
-const PROJECTS = [
-  { id: "PRJ-2026-0042", href: "/project-reporting" },
-  { id: "PRJ-2026-0038", href: "#" },
-  { id: "PRJ-2026-0031", href: "#" },
-  { id: "PRJ-2025-0117", href: "#" },
-];
-
-const ACTIVE_PROJECT = "PRJ-2026-0042";
-
-// Original (non-New Project) project screens, so the "Project Reporting"
-// group highlights only for those routes rather than always being on.
-const PROJECT_REPORTING_PREFIXES = [
-  "/project-reporting",
-  "/project-charter",
-  "/project-status",
-  "/measurement",
-  "/de-assessment",
-  "/contractual-compliance",
-  "/raido",
-];
+import { NEW_PROJECT_SEGMENT } from "@/stores/new-project-ui";
+import { useProjects } from "@/lib/api/projects";
 
 const itemClass =
   "flex items-center gap-3.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition-colors";
@@ -86,33 +63,20 @@ function CollapsibleGroup({
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
 
-  const projects = useProjectRegistry((state) => state.projects);
-  const currentProjectCode = useNewProjectUi((state) => state.projectCode);
-  const setProjectCode = useNewProjectUi((state) => state.setProjectCode);
-  const setProjectName = useNewProjectUi((state) => state.setProjectName);
-  const resetDraft = useNewProjectUi((state) => state.resetDraft);
+  const { data: projects = [] } = useProjects();
 
   const isDashboard = pathname === "/dashboard";
   const isNewProject = pathname.startsWith("/new-project");
-  const isProjectReporting = PROJECT_REPORTING_PREFIXES.some((prefix) =>
-    pathname.startsWith(prefix)
-  );
-  // Distinguishes "creating a new project" from "reopened via Maintain
-  // Project" — both live at the same route, so the signal is whether the
-  // project currently loaded in the shared store is a registered one.
-  const isMaintaining =
-    isNewProject && projects.some((p) => p.code === currentProjectCode);
-
-  // Reopening a project only rehydrates its identity (code/name) — every
-  // other field on the charter screens is local component state today and
-  // resets to its default. See stores/project-registry.ts.
-  const openForMaintenance = (project: ProjectRecord) => {
-    setProjectCode(project.code);
-    setProjectName(project.name);
-    router.push("/new-project/project-charter");
-  };
+  const isProjectReporting = pathname.startsWith("/project-reporting");
+  // The :projectId route segment is the single source of truth for which of
+  // "New Project" (segment === "new") vs "Maintain Project" (a real id) is
+  // active — no separate client-side intent flag to keep in sync.
+  const routeProjectId = isNewProject ? pathname.split("/")[2] : undefined;
+  const isMaintaining = isNewProject && routeProjectId !== NEW_PROJECT_SEGMENT;
+  // /project-reporting/{projectId}/... — the bare /project-reporting
+  // dashboard has no :projectId segment yet, so this is undefined there.
+  const reportingProjectId = isProjectReporting ? pathname.split("/")[2] : undefined;
 
   return (
     <aside className="w-64 shrink-0 bg-[#1a4a7a] py-6">
@@ -127,12 +91,9 @@ export function AppSidebar() {
         </Link>
 
         <Link
-          href="/new-project/project-charter"
-          aria-current={isNewProject ? "page" : undefined}
-          onClick={() => {
-            if (isMaintaining) resetDraft();
-          }}
-          className={cn(itemClass, isNewProject ? activeClass : idleClass)}
+          href="/new-project/new/project-charter"
+          aria-current={isNewProject && !isMaintaining ? "page" : undefined}
+          className={cn(itemClass, isNewProject && !isMaintaining ? activeClass : idleClass)}
         >
           <Plus className="size-5 shrink-0" />
           New Project
@@ -145,24 +106,27 @@ export function AppSidebar() {
           defaultOpen={isMaintaining}
         >
           {projects.map((project) => {
-            const active = isNewProject && project.code === currentProjectCode;
+            const active = isMaintaining && project.id === routeProjectId;
+            const href = `/new-project/${project.id}/project-charter`;
             return (
-              <button
-                key={project.code}
-                type="button"
-                onClick={() => openForMaintenance(project)}
+              <Link
+                key={project.id}
+                href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "w-full rounded-md px-3 py-2 text-left font-mono text-[13px] transition-colors",
+                  "block w-full rounded-md px-3 py-2 text-left font-mono text-[13px] transition-colors",
                   active
                     ? "bg-white/15 font-semibold text-white"
                     : "text-slate-300 hover:bg-white/5 hover:text-white"
                 )}
               >
-                {project.code}
-              </button>
+                {project.project_code}
+              </Link>
             );
           })}
+          {projects.length === 0 ? (
+            <p className="px-3 py-2 text-[13px] text-slate-400">No projects yet.</p>
+          ) : null}
         </CollapsibleGroup>
 
         <CollapsibleGroup
@@ -171,24 +135,28 @@ export function AppSidebar() {
           active={isProjectReporting}
           defaultOpen={isProjectReporting}
         >
-          {PROJECTS.map((project) => {
-            const active = project.id === ACTIVE_PROJECT;
+          {projects.map((project) => {
+            const active = project.id === reportingProjectId;
+            const href = `/project-reporting/${project.id}/project-charter`;
             return (
               <Link
                 key={project.id}
-                href={project.href}
+                href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-md px-3 py-2 font-mono text-[13px] transition-colors",
+                  "block w-full rounded-md px-3 py-2 text-left font-mono text-[13px] transition-colors",
                   active
                     ? "bg-white/15 font-semibold text-white"
                     : "text-slate-300 hover:bg-white/5 hover:text-white"
                 )}
               >
-                {project.id}
+                {project.project_code}
               </Link>
             );
           })}
+          {projects.length === 0 ? (
+            <p className="px-3 py-2 text-[13px] text-slate-400">No projects yet.</p>
+          ) : null}
         </CollapsibleGroup>
 
         <Link href="#" className={cn(itemClass, idleClass)}>

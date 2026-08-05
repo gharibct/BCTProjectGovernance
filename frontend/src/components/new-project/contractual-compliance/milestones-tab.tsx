@@ -1,53 +1,64 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import { Flag } from "lucide-react";
 
-import { AutoBadge, SectionCard } from "@/components/forms/form-primitives";
-import {
-  EntryFields,
-  useEntryValues,
-  useIdCounter,
-  type FieldDef,
-} from "@/components/forms/entry-form";
+import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
+import { useNewProjectId } from "@/stores/new-project-ui";
+import { useCreateMilestonePayment, useMilestonePayments } from "@/lib/api/contractual";
 
-// Per §4.11 Milestones Linked to Payment — Definition fields. Payment
-// Actuals are recorded later, once each milestone is actually due.
-const MILESTONE_STATUSES = ["Yet To Be Paid", "Paid On Time", "Delayed Payment"] as const;
-
+// Per §4.11 Milestones Linked to Payment — Definition fields, matching
+// MilestonePaymentCreate. Payment Actuals/Status are recorded later, once
+// each milestone is actually due, via a separate endpoint/screen.
 const MILESTONE_FIELDS: FieldDef[] = [
-  { key: "name", label: "Milestone Name", kind: "text", mandatory: true },
+  { key: "milestone_name", label: "Milestone Name", kind: "text", mandatory: true },
   {
-    key: "expectedDate",
+    key: "expected_date_of_payment",
     label: "Expected Date of Payment",
     kind: "date",
     mandatory: true,
   },
-  { key: "expectedValue", label: "Expected Payment Value", kind: "number" },
-  {
-    key: "status",
-    label: "Status",
-    kind: "select",
-    options: MILESTONE_STATUSES,
-  },
-  { key: "description", label: "Milestone Description", kind: "textarea" },
-  { key: "remarks", label: "Remarks", kind: "textarea" },
+  { key: "expected_payment_value", label: "Expected Payment Value", kind: "number" },
+  { key: "milestone_description", label: "Milestone Description", kind: "textarea" },
 ];
 
-type MilestoneItem = { id: string } & Record<string, string>;
-
 export function MilestonesTab() {
+  const projectId = useNewProjectId();
   const { values, set, reset } = useEntryValues();
-  const nextId = useIdCounter("MS");
-  const [items, setItems] = React.useState<MilestoneItem[]>([]);
+  const { data: items = [] } = useMilestonePayments(projectId);
+  const createMilestone = useCreateMilestonePayment(projectId);
 
   const addMilestone = () => {
-    if (!values.name?.trim()) return;
-    setItems((prev) => [...prev, { id: nextId(), ...values }]);
-    reset();
+    if (!values.milestone_name?.trim() || !values.expected_date_of_payment) return;
+    createMilestone.mutate(
+      {
+        milestone_name: values.milestone_name,
+        expected_date_of_payment: values.expected_date_of_payment,
+        expected_payment_value: values.expected_payment_value || undefined,
+        milestone_description: values.milestone_description || undefined,
+      },
+      {
+        onSuccess: () => {
+          reset();
+          toast.success("Milestone Added Successfully");
+        },
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Failed to add milestone."),
+      }
+    );
   };
+
+  if (!projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Create the project on the Project Profile tab first.
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -60,12 +71,10 @@ export function MilestonesTab() {
           items={items}
           emptyLabel="No milestones defined yet."
           columns={[
-            { key: "id", label: "Milestone ID" },
-            { key: "name", label: "Milestone" },
-            { key: "expectedDate", label: "Expected Date" },
-            { key: "expectedValue", label: "Expected Value", align: "right" },
-            { key: "status", label: "Status", badge: true },
-            { key: "remarks", label: "Remarks" },
+            { key: "milestone_name", label: "Milestone" },
+            { key: "expected_date_of_payment", label: "Expected Date" },
+            { key: "expected_payment_value", label: "Expected Value", align: "right" },
+            { key: "milestone_description", label: "Description" },
           ]}
         />
       </SectionCard>
@@ -75,8 +84,10 @@ export function MilestonesTab() {
         <div className="mt-6 flex justify-end">
           <Button
             onClick={addMilestone}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={createMilestone.isPending}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
+            {createMilestone.isPending ? <ButtonSpinner /> : null}
             Add Milestone
           </Button>
         </div>

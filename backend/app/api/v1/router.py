@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     health_declarations,
     integrations,
     measurement,
+    metric_target,
     project_status,
     projects,
     raid,
@@ -25,6 +26,7 @@ api_router.include_router(health_declarations.router)
 api_router.include_router(project_status.router)
 api_router.include_router(raid.router)
 api_router.include_router(measurement.router)
+api_router.include_router(metric_target.router)
 api_router.include_router(contractual.router)
 api_router.include_router(de_assessment.router)
 api_router.include_router(data_integrity.router)

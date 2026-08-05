@@ -1,10 +1,10 @@
 -- Measurement Entry — Support (Application/Infrastructure) tab (UX §4.10).
--- Continuous/ticket-driven, rolled up weekly for reporting via as_of_date.
+-- Continuous/ticket-driven, rolled up weekly for reporting via reporting_periods.
 
 CREATE TABLE measurement_support (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    as_of_date DATE NOT NULL,
+    period_id UUID NOT NULL REFERENCES reporting_periods(id),
 
     incidents_p1_count INTEGER,
     incidents_p1_person_days NUMERIC(10, 2),
@@ -30,9 +30,9 @@ CREATE TABLE measurement_support (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 
-    UNIQUE (project_id, as_of_date)
+    UNIQUE (project_id, period_id)
 );
 
-CREATE INDEX idx_measurement_support_project_id ON measurement_support(project_id, as_of_date DESC);
+CREATE INDEX idx_measurement_support_project_id ON measurement_support(project_id, period_id);
 
 CREATE TRIGGER trg_measurement_support_updated_at BEFORE UPDATE ON measurement_support FOR EACH ROW EXECUTE FUNCTION set_updated_at();

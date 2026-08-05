@@ -1,6 +1,9 @@
+from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+
+from app.schemas.enums import PeriodType
 
 
 class OrganizationBase(BaseModel):
@@ -85,5 +88,32 @@ class AccountUpdate(BaseModel):
 
 
 class AccountRead(AccountBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+
+
+class ReportingPeriodBase(BaseModel):
+    period_type: PeriodType
+    code: str
+    label: str
+    start_date: date
+    end_date: date
+    is_active: bool = True
+
+
+class ReportingPeriodCreate(ReportingPeriodBase):
+    pass
+
+
+class ReportingPeriodUpdate(BaseModel):
+    period_type: PeriodType | None = None
+    code: str | None = None
+    label: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    is_active: bool | None = None
+
+
+class ReportingPeriodRead(ReportingPeriodBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID

@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.schemas.enums import (
     ApplicablePhase,
@@ -13,6 +13,16 @@ from app.schemas.enums import (
     ProjectOwned,
     ProjectStatus,
 )
+
+
+def _is_filled(value: object) -> bool:
+    """A str counts as filled only if it has non-whitespace content; any other
+    non-None value (UUID, Decimal, date, enum) counts as filled outright."""
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    return True
 
 
 class ProjectBase(BaseModel):
@@ -88,6 +98,47 @@ class ProjectRead(ProjectBase):
     updated_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
+
+    # Derived, not stored — see new-project-nav.tsx's section status icons.
+    # Every field the corresponding charter screen collects must be filled
+    # in (not just the Mandatory-badged ones) for that flag to flip true.
+    # Saving with blanks is still allowed — this only affects the "done"
+    # indicator, never the save itself.
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def profile_completion_flag(self) -> bool:
+        return all(
+            _is_filled(value)
+            for value in (
+                self.project_name,
+                self.contract_type,
+                self.project_type_id,
+                self.engagement_type,
+                self.project_owned,
+                self.organization_id,
+                self.geo_id,
+                self.account_id,
+                self.project_manager_id,
+                self.delivery_manager_id,
+                self.delivery_excellence_id,
+                self.project_revenue,
+                self.project_currency,
+                self.billing_type,
+            )
+        )
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def schedule_completion_flag(self) -> bool:
+        return all(
+            _is_filled(value)
+            for value in (
+                self.customer_overview,
+                self.project_scope_description,
+                self.planned_start_date,
+                self.planned_end_date,
+            )
+        )
 
 
 class ProjectOracleIdBase(BaseModel):

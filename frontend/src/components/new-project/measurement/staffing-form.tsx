@@ -2,19 +2,48 @@
 
 import { ChartColumn } from "lucide-react";
 
+import type {
+  MetricTargetStaffing,
+  MetricTargetStaffingPayload,
+  StaffingPriorityCode,
+} from "@/lib/api/metric-targets";
 import { SectionCard } from "@/components/forms/form-primitives";
-import { MetricTile, useMeasures } from "./shared";
+import { MetricTile, num, str, type MeasuresProps } from "./shared";
 
 const PRIORITIES = [
-  { key: "p1", label: "Critical (P1)" },
-  { key: "p2", label: "High (P2)" },
-  { key: "p3", label: "Medium (P3)" },
-  { key: "p4", label: "Low (P4)" },
-] as const;
+  { key: "p1", label: "Critical (P1)", code: "Critical" },
+  { key: "p2", label: "High (P2)", code: "High" },
+  { key: "p3", label: "Medium (P3)", code: "Medium" },
+  { key: "p4", label: "Low (P4)", code: "Low" },
+] as const satisfies { key: string; label: string; code: StaffingPriorityCode }[];
 
-export function StaffingTab() {
-  const { m, set } = useMeasures();
+export function toStaffingPayload(m: Record<string, string>): MetricTargetStaffingPayload {
+  return {
+    target_pct_profiles_qualifying: num(m.targetProfilesQualifying),
+    target_pct_candidates_joining: num(m.targetCandidatesJoining),
+    priority_targets: PRIORITIES.map((p) => ({
+      priority: p.code,
+      target_avg_response_time_hours: num(m[`target-avg-resp-${p.key}`]),
+      target_avg_lead_time_days: num(m[`target-lead-time-${p.key}`]),
+    })),
+  };
+}
 
+export function fromStaffingTarget(data: MetricTargetStaffing | null): Record<string, string> {
+  if (!data) return {};
+  const seed: Record<string, string> = {
+    targetProfilesQualifying: str(data.target_pct_profiles_qualifying),
+    targetCandidatesJoining: str(data.target_pct_candidates_joining),
+  };
+  for (const p of PRIORITIES) {
+    const row = data.priority_targets.find((r) => r.priority === p.code);
+    seed[`target-avg-resp-${p.key}`] = str(row?.target_avg_response_time_hours);
+    seed[`target-lead-time-${p.key}`] = str(row?.target_avg_lead_time_days);
+  }
+  return seed;
+}
+
+export function StaffingTab({ m, set }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Professional Staffing Metrics">

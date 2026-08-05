@@ -1,23 +1,31 @@
 "use client";
 
-import * as React from "react";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
 import { ClipboardCheck } from "lucide-react";
+import * as React from "react";
 
-import { AutoBadge, SectionCard } from "@/components/forms/form-primitives";
+import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import {
   EntryFields,
   useEntryValues,
-  useIdCounter,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
+import {
+  useCommitments,
+  useCreateCommitment,
+  useDeleteCommitment,
+  useUpdateCommitment,
+  type CommitmentFrequency,
+  type ContractualCommitment,
+  type ContractualCommitmentPayload,
+} from "@/lib/api/contractual";
 
-// Per §4.11 Contractual Compliance: commitments carry their own cadence
-// (Frequency), so Actual is captured per-commitment here rather than fixed
-// for the whole screen — unlike the New Project charter's definition-stage
-// version of this form, this one is for an active project, so Actual/Status
-// are recorded alongside the definition instead of added later.
+// Definition fields only (per ContractualCommitmentCreate/Update) — Actuals
+// are their own period-based history, recorded later via a separate
+// endpoint/screen, same split New Project's version already documents.
 const FREQUENCIES = [
   "One Time",
   "Weekly",
@@ -29,7 +37,7 @@ const FREQUENCIES = [
 ] as const;
 
 const COMMITMENT_FIELDS: FieldDef[] = [
-  { key: "name", label: "Name of the Commitment", kind: "text", mandatory: true },
+  { key: "commitment_name", label: "Name of the Commitment", kind: "text", mandatory: true },
   {
     key: "frequency",
     label: "Frequency",
@@ -38,37 +46,98 @@ const COMMITMENT_FIELDS: FieldDef[] = [
     mandatory: true,
   },
   { key: "formula", label: "Formula", kind: "text", placeholder: "e.g. Resolved / Total" },
-  { key: "target", label: "Target", kind: "number" },
+  { key: "target", label: "Target", kind: "text", placeholder: "e.g. 95%" },
   {
-    key: "penaltyApplicable",
+    key: "penalty_applicable",
     label: "Penalty Applicable",
     kind: "select",
     options: ["Y", "N"],
   },
-  { key: "penaltyValue", label: "Penalty Value", kind: "number" },
-  { key: "actual", label: "Actual", kind: "number" },
+  { key: "penalty_value", label: "Penalty Value", kind: "number" },
 ];
 
-function metStatus(target: string, actual: string): string {
-  const t = Number(target);
-  const a = Number(actual);
-  if (!target || !actual || Number.isNaN(t) || Number.isNaN(a)) return "";
-  return a >= t ? "Met" : "Not Met";
+function toValues(item: ContractualCommitment): Record<string, string> {
+  return {
+    commitment_name: item.commitment_name,
+    frequency: item.frequency,
+    formula: item.formula ?? "",
+    target: item.target ?? "",
+    penalty_applicable: item.penalty_applicable ? "Y" : "N",
+    penalty_value: item.penalty_value ?? "",
+  };
 }
 
-type CommitmentItem = { id: string; status: string } & Record<string, string>;
-
 export function CommitmentsTab() {
-  const { values, set, reset } = useEntryValues();
-  const nextId = useIdCounter("CC");
-  const [items, setItems] = React.useState<CommitmentItem[]>([]);
+  const { projectId } = useParams<{ projectId: string }>();
+  const { values, set, reset, load } = useEntryValues();
+  const { data: items = [] } = useCommitments(projectId);
+  const createCommitment = useCreateCommitment(projectId);
+  const updateCommitment = useUpdateCommitment(projectId);
+  const deleteCommitment = useDeleteCommitment(projectId);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
 
-  const addCommitment = () => {
-    if (!values.name?.trim()) return;
-    const status = metStatus(values.target ?? "", values.actual ?? "");
-    setItems((prev) => [...prev, { id: nextId(), ...values, status }]);
+  const startEdit = (item: ContractualCommitment) => {
+    setEditingId(item.id);
+    load(toValues(item));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
     reset();
   };
+
+  const handleDelete = (item: ContractualCommitment) => {
+    deleteCommitment.mutate(item.id, {
+      onSuccess: () => {
+        if (editingId === item.id) cancelEdit();
+        toast.success("Commitment Deleted Successfully");
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete commitment."),
+    });
+  };
+
+  const submit = () => {
+    if (!values.commitment_name?.trim() || !values.frequency) return;
+    const payload: ContractualCommitmentPayload = {
+      commitment_name: values.commitment_name,
+      frequency: values.frequency as CommitmentFrequency,
+      formula: values.formula || undefined,
+      target: values.target || undefined,
+      penalty_applicable: values.penalty_applicable === "Y",
+      penalty_value: values.penalty_value || undefined,
+    };
+
+    if (editingId) {
+      updateCommitment.mutate(
+        { id: editingId, payload },
+        {
+          onSuccess: () => {
+            cancelEdit();
+            toast.success("Commitment Updated Successfully");
+          },
+          onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update commitment."),
+        }
+      );
+    } else {
+      createCommitment.mutate(payload, {
+        onSuccess: () => {
+          reset();
+          toast.success("Commitment Added Successfully");
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add commitment."),
+      });
+    }
+  };
+
+  if (!projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Create the project on the Project Profile tab first.
+      </p>
+    );
+  }
+
+  const busy = createCommitment.isPending || updateCommitment.isPending;
 
   return (
     <div className="flex flex-col gap-8">
@@ -80,25 +149,37 @@ export function CommitmentsTab() {
         <RegisterTable
           items={items}
           emptyLabel="No commitments defined yet."
+          onEdit={startEdit}
+          onDelete={handleDelete}
           columns={[
-            { key: "id", label: "Commitment ID" },
-            { key: "name", label: "Commitment" },
+            { key: "commitment_name", label: "Commitment" },
             { key: "frequency", label: "Frequency" },
             { key: "target", label: "Target", align: "right" },
-            { key: "actual", label: "Actual", align: "right" },
-            { key: "status", label: "Status", badge: true },
+            {
+              key: "penalty_applicable",
+              label: "Penalty",
+              render: (item) => (item.penalty_applicable ? "Y" : "N"),
+            },
+            { key: "penalty_value", label: "Penalty Value", align: "right" },
           ]}
         />
       </SectionCard>
 
       <SectionCard icon={ClipboardCheck} title="New Commitment">
         <EntryFields defs={COMMITMENT_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
+          {editingId ? (
+            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+              Cancel
+            </Button>
+          ) : null}
           <Button
-            onClick={addCommitment}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            onClick={submit}
+            disabled={busy}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
-            Add Commitment
+            {busy ? <ButtonSpinner /> : null}
+            {editingId ? "Edit Commitment" : "Add Commitment"}
           </Button>
         </div>
       </SectionCard>

@@ -43,7 +43,29 @@ CREATE TABLE accounts (
 
 CREATE INDEX idx_accounts_geo_id ON accounts(geo_id);
 
+-- Reporting Period lookup — the Week/Month codes that Measurement Entry and
+-- Project Reporting submit and read against. Admin-maintained ahead of time
+-- (e.g. all 52 weeks / 12 months of a year seeded up front) so PMs pick from
+-- a fixed combo instead of typing a free-form date; drives the "Reporting
+-- Period" combo on the Project Reporting screen.
+CREATE TABLE reporting_periods (
+    id UUID PRIMARY KEY,
+    period_type TEXT NOT NULL, -- Weekly, Monthly
+    code TEXT NOT NULL UNIQUE, -- e.g. '2026-W31', '2026-07'
+    label TEXT NOT NULL,       -- e.g. 'Week 31, 2026', 'Jul 2026'
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    is_active BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+
+    UNIQUE (period_type, start_date)
+);
+
+CREATE INDEX idx_reporting_periods_type_start ON reporting_periods(period_type, start_date DESC);
+
 CREATE TRIGGER trg_organizations_updated_at BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_geos_updated_at BEFORE UPDATE ON geos FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_project_types_updated_at BEFORE UPDATE ON project_types FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_accounts_updated_at BEFORE UPDATE ON accounts FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_reporting_periods_updated_at BEFORE UPDATE ON reporting_periods FOR EACH ROW EXECUTE FUNCTION set_updated_at();

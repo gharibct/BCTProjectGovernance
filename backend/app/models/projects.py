@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric
+from sqlalchemy import DateTime, FetchedValue, ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -36,11 +36,14 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     actual_end_date: Mapped[date | None]
     # DB GENERATED ALWAYS columns (see db/tables/03_projects.sql) — never assigned
     # by the app; Postgres rejects an explicit INSERT/UPDATE value for these.
-    planned_duration_days: Mapped[int | None]
-    actual_duration_days: Mapped[int | None]
+    # server_default=FetchedValue() tells SQLAlchemy to leave them out of the
+    # INSERT/UPDATE column list entirely and re-fetch the computed value
+    # instead (crud.base already calls db.refresh() after flush).
+    planned_duration_days: Mapped[int | None] = mapped_column(server_default=FetchedValue())
+    actual_duration_days: Mapped[int | None] = mapped_column(server_default=FetchedValue())
 
     applicable_phase: Mapped[str | None]
-    project_status: Mapped[str]  # Start Up, Execution, Hold, Closed, Open Only for Billing
+    project_status: Mapped[str]  # Start Up, Pending Approval, Execution, Hold, Closed, Open Only for Billing
     # Health values: Red, Potential Red, Amber, Green. Kept in sync by services.health_rollup.
     delivery_declared_overall_health: Mapped[str | None]
     de_assessed_project_health: Mapped[str | None]

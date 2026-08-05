@@ -13,7 +13,11 @@ export type FieldDef = {
   key: string;
   label: string;
   kind: FieldKind;
+  // Enum-style select: option value === option label.
   options?: readonly string[];
+  // FK-backed select (e.g. a user picker): value is the referenced row's id,
+  // label is its display name. Takes precedence over `options` when set.
+  choices?: readonly { value: string; label: string }[];
   hint?: string;
   mandatory?: boolean;
   placeholder?: string;
@@ -32,7 +36,9 @@ export function useEntryValues() {
   const set = (key: string) => (e: ChangeEvent) =>
     setValues((prev) => ({ ...prev, [key]: e.target.value }));
   const reset = () => setValues({});
-  return { values, set, reset };
+  // Bulk-populate from an existing row — used when editing a register entry.
+  const load = (next: Record<string, string>) => setValues(next);
+  return { values, set, reset, load };
 }
 
 function renderControl(
@@ -47,11 +53,17 @@ function renderControl(
           <option value="" disabled>
             Select…
           </option>
-          {def.options?.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
+          {def.choices
+            ? def.choices.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))
+            : def.options?.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
         </NativeSelect>
       );
     case "textarea":

@@ -4,7 +4,6 @@ import * as React from "react";
 import { Lock } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 import { CommitmentsTab } from "./commitments-tab";
 import { MilestonesTab } from "./milestones-tab";
@@ -51,14 +50,9 @@ export function ContractualComplianceForm() {
       <div className="mt-10 flex flex-wrap items-start justify-between gap-4">
         <p className="flex max-w-2xl items-start gap-2 text-sm text-slate-500">
           <Lock className="mt-0.5 size-4 shrink-0" />
-          Save each tab once its entries are ready — Commitments and
-          Milestones are saved independently.
+          Each entry saves immediately when added — Commitments and
+          Milestones are logged independently, row by row.
         </p>
-        <div className="flex shrink-0 gap-3">
-          <Button className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]">
-            Save {tab}
-          </Button>
-        </div>
       </div>
     </div>
   );

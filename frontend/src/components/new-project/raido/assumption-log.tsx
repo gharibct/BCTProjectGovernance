@@ -1,74 +1,102 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import { HelpCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { AutoBadge, SectionCard } from "@/components/forms/form-primitives";
+import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import {
   EntryFields,
   useEntryValues,
-  useIdCounter,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { useNewProjectId } from "@/stores/new-project-ui";
+import { useUsers } from "@/lib/api/reference-data";
+import { useDependencies } from "@/lib/api/raid";
+import {
+  useAssumptions,
+  useCreateAssumption,
+  type AssumptionLog as AssumptionLogItem,
+  type AssumptionLogPayload,
+} from "@/lib/api/raid";
 
-// Fields per §4.8 Assumption Log. Validation Date/Status already functions
-// as this log's review-style checkpoint (per the spec), so no proposed
-// Last/Next Review Date addition here.
-const ASSUMPTION_FIELDS: FieldDef[] = [
-  { key: "title", label: "Title", kind: "text", mandatory: true },
-  { key: "category", label: "Category", kind: "text" },
-  { key: "raisedBy", label: "Raised By", kind: "text" },
-  { key: "raisedDate", label: "Raised Date", kind: "date" },
-  { key: "owner", label: "Owner", kind: "text" },
-  { key: "dependencyReference", label: "Dependency Reference", kind: "text", hint: "Optional link to a Dependency record" },
-  {
-    key: "probabilityOfFailure",
-    label: "Probability of Failure",
-    kind: "select",
-    options: ["Low", "Medium", "High"],
-  },
-  {
-    key: "impactRating",
-    label: "Impact Rating",
-    kind: "select",
-    options: ["Low", "Medium", "High", "Critical"],
-    mandatory: true,
-  },
-  { key: "validationDate", label: "Validation Date", kind: "date" },
-  {
-    key: "validationStatus",
-    label: "Validation Status",
-    kind: "select",
-    options: ["Pending", "Validated", "Invalid"],
-  },
-  {
-    key: "status",
-    label: "Current Status",
-    kind: "select",
-    options: ["Open", "Closed", "Cancelled"],
-  },
-  { key: "lastUpdated", label: "Last Updated", kind: "date" },
-  { key: "description", label: "Detailed Description", kind: "textarea" },
-  { key: "impactIfInvalid", label: "Impact if Invalid", kind: "textarea" },
-  { key: "mitigationPlan", label: "Mitigation Plan", kind: "textarea" },
-  { key: "contingencyPlan", label: "Contingency Plan", kind: "textarea" },
-  { key: "remarks", label: "Remarks", kind: "textarea" },
-];
+// Fields per §4.8 Assumption Log. Keys match AssumptionLogCreate's field
+// names — validation_status/current_status/last_updated aren't settable at
+// creation (they default to "Pending"/"Open" server-side).
+function useAssumptionFields(): FieldDef[] {
+  const { data: users } = useUsers();
+  const projectId = useNewProjectId();
+  const { data: dependencies } = useDependencies(projectId);
+  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+  const dependencyChoices = (dependencies ?? []).map((d) => ({
+    value: d.id,
+    label: `${d.dependency_code} — ${d.dependency_title}`,
+  }));
 
-type AssumptionItem = { id: string } & Record<string, string>;
+  return [
+    { key: "title", label: "Title", kind: "text", mandatory: true },
+    { key: "category", label: "Category", kind: "text" },
+    { key: "raised_by", label: "Raised By", kind: "select", choices: userChoices },
+    { key: "raised_date", label: "Raised Date", kind: "date" },
+    { key: "owner", label: "Owner", kind: "select", choices: userChoices },
+    {
+      key: "dependency_reference",
+      label: "Dependency Reference",
+      kind: "select",
+      choices: dependencyChoices,
+      hint: "Optional link to a Dependency record",
+    },
+    {
+      key: "probability_of_failure",
+      label: "Probability of Failure",
+      kind: "select",
+      options: ["Low", "Medium", "High"],
+    },
+    {
+      key: "impact_rating",
+      label: "Impact Rating",
+      kind: "select",
+      options: ["Low", "Medium", "High", "Critical"],
+      mandatory: true,
+    },
+    { key: "validation_date", label: "Validation Date", kind: "date" },
+    { key: "detailed_description", label: "Detailed Description", kind: "textarea" },
+    { key: "impact_if_invalid", label: "Impact if Invalid", kind: "textarea" },
+    { key: "mitigation_plan", label: "Mitigation Plan", kind: "textarea" },
+    { key: "contingency_plan", label: "Contingency Plan", kind: "textarea" },
+    { key: "remarks", label: "Remarks", kind: "textarea" },
+  ];
+}
 
 export function AssumptionLog() {
+  const projectId = useNewProjectId();
   const { values, set, reset } = useEntryValues();
-  const nextId = useIdCounter("ASM");
-  const [items, setItems] = React.useState<AssumptionItem[]>([]);
+  const { data: items = [] } = useAssumptions(projectId);
+  const createAssumption = useCreateAssumption(projectId);
+  const fields = useAssumptionFields();
+  const { data: users } = useUsers();
+  const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
 
   const addAssumption = () => {
     if (!values.title?.trim()) return;
-    setItems((prev) => [...prev, { id: nextId(), ...values }]);
-    reset();
+    createAssumption.mutate(values as AssumptionLogPayload, {
+      onSuccess: () => {
+        reset();
+        toast.success("Assumption Added Successfully");
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add assumption."),
+    });
   };
+
+  if (!projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Create the project on the Project Profile tab first.
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -81,23 +109,25 @@ export function AssumptionLog() {
           items={items}
           emptyLabel="No assumptions logged yet."
           columns={[
-            { key: "id", label: "Assumption ID" },
+            { key: "assumption_code", label: "Assumption ID" },
             { key: "title", label: "Title" },
             { key: "category", label: "Category" },
-            { key: "owner", label: "Owner" },
-            { key: "impactRating", label: "Impact", badge: true },
-            { key: "status", label: "Status", badge: true },
+            { key: "owner", label: "Owner", render: (item: AssumptionLogItem) => userName(item.owner) },
+            { key: "impact_rating", label: "Impact", badge: true },
+            { key: "current_status", label: "Status", badge: true },
           ]}
         />
       </SectionCard>
 
       <SectionCard icon={HelpCircle} title="New Assumption">
-        <EntryFields defs={ASSUMPTION_FIELDS} values={values} set={set} />
+        <EntryFields defs={fields} values={values} set={set} />
         <div className="mt-6 flex justify-end">
           <Button
             onClick={addAssumption}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={createAssumption.isPending}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
+            {createAssumption.isPending ? <ButtonSpinner /> : null}
             Add Assumption
           </Button>
         </div>

@@ -1,73 +1,86 @@
 "use client";
 
 import * as React from "react";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
 import { ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { AutoBadge, SectionCard } from "@/components/forms/form-primitives";
+import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import {
   EntryFields,
   useEntryValues,
-  useIdCounter,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { useUsers } from "@/lib/api/reference-data";
+import {
+  useCreateRisk,
+  useDeleteRisk,
+  useRisks,
+  useUpdateRisk,
+  type RiskLog as RiskLogItem,
+  type RiskLogPayload,
+} from "@/lib/api/raid";
 
-// Fields per §4.5 Risk Log.
-const RISK_FIELDS: FieldDef[] = [
-  { key: "title", label: "Risk Title", kind: "text", mandatory: true },
-  {
-    key: "category",
-    label: "Risk Category",
-    kind: "select",
-    options: ["Core Delivery", "People", "Operational", "Customer", "Financial", "Compliance"],
-  },
-  { key: "type", label: "Risk Type", kind: "select", options: ["Internal", "External"] },
-  { key: "identifiedBy", label: "Identified By", kind: "text" },
-  { key: "identifiedDate", label: "Identified Date", kind: "date" },
-  { key: "owner", label: "Risk Owner", kind: "text" },
-  { key: "trigger", label: "Trigger / Event", kind: "text" },
-  {
-    key: "probability",
-    label: "Probability",
-    kind: "select",
-    options: ["Very Low", "Low", "Medium", "High", "Very High"],
-    mandatory: true,
-  },
-  {
-    key: "impact",
-    label: "Impact",
-    kind: "select",
-    options: ["Very Low", "Low", "Medium", "High", "Critical"],
-    mandatory: true,
-  },
-  {
-    key: "responseStrategy",
-    label: "Response Strategy",
-    kind: "select",
-    options: ["Avoid", "Mitigate", "Transfer", "Accept"],
-  },
-  { key: "affectedDeliverables", label: "Affected Deliverables", kind: "text" },
-  { key: "affectedMilestone", label: "Affected Milestone", kind: "text" },
-  { key: "targetResolutionDate", label: "Target Resolution Date", kind: "date" },
-  {
-    key: "status",
-    label: "Current Status",
-    kind: "select",
-    options: ["Open", "Monitoring", "Closed"],
-  },
-  { key: "escalationRequired", label: "Escalation Required", kind: "select", options: ["Y", "N"] },
-  { key: "escalatedTo", label: "Escalated To", kind: "text" },
-  { key: "lastReviewDate", label: "Last Review Date", kind: "date" },
-  { key: "nextReviewDate", label: "Next Review Date", kind: "date" },
-  { key: "description", label: "Risk Description", kind: "textarea" },
-  { key: "mitigationPlan", label: "Mitigation Plan", kind: "textarea" },
-  { key: "contingencyPlan", label: "Contingency Plan", kind: "textarea" },
-  { key: "residualRisk", label: "Residual Risk", kind: "textarea" },
-  { key: "remarks", label: "Remarks", kind: "textarea" },
-];
+// Fields per §4.5 Risk Log. Keys match RiskLogCreate/Update's field names
+// 1:1 so EntryFields' values can be posted straight through (after the
+// escalation Y/N -> boolean and severity conversions below).
+function useRiskFields(): FieldDef[] {
+  const { data: users } = useUsers();
+  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
 
-// Risk Score = Probability × Impact, bucketed into a Severity label.
+  return [
+    { key: "risk_title", label: "Risk Title", kind: "text", mandatory: true },
+    {
+      key: "risk_category",
+      label: "Risk Category",
+      kind: "select",
+      options: ["Core Delivery", "People", "Operational", "Customer", "Financial", "Compliance"],
+    },
+    { key: "risk_type", label: "Risk Type", kind: "select", options: ["Internal", "External"] },
+    { key: "identified_by", label: "Identified By", kind: "select", choices: userChoices },
+    { key: "identified_date", label: "Identified Date", kind: "date" },
+    { key: "risk_owner", label: "Risk Owner", kind: "select", choices: userChoices },
+    { key: "trigger_event", label: "Trigger / Event", kind: "text" },
+    {
+      key: "probability",
+      label: "Probability",
+      kind: "select",
+      options: ["Very Low", "Low", "Medium", "High", "Very High"],
+      mandatory: true,
+    },
+    {
+      key: "impact",
+      label: "Impact",
+      kind: "select",
+      options: ["Very Low", "Low", "Medium", "High", "Critical"],
+      mandatory: true,
+    },
+    {
+      key: "response_strategy",
+      label: "Response Strategy",
+      kind: "select",
+      options: ["Avoid", "Mitigate", "Transfer", "Accept"],
+    },
+    { key: "affected_deliverables", label: "Affected Deliverables", kind: "text" },
+    { key: "affected_milestone", label: "Affected Milestone", kind: "text" },
+    { key: "target_resolution_date", label: "Target Resolution Date", kind: "date" },
+    { key: "escalation_required", label: "Escalation Required", kind: "select", options: ["Y", "N"] },
+    { key: "escalated_to", label: "Escalated To", kind: "text" },
+    { key: "last_review_date", label: "Last Review Date", kind: "date" },
+    { key: "next_review_date", label: "Next Review Date", kind: "date" },
+    { key: "risk_description", label: "Risk Description", kind: "textarea" },
+    { key: "mitigation_plan", label: "Mitigation Plan", kind: "textarea" },
+    { key: "contingency_plan", label: "Contingency Plan", kind: "textarea" },
+    { key: "residual_risk", label: "Residual Risk", kind: "textarea" },
+    { key: "remarks", label: "Remarks", kind: "textarea" },
+  ];
+}
+
+// Risk Score = Probability × Impact, bucketed into a Severity label — sent
+// to the backend as-is (RiskLogCreate.severity), which otherwise has no way
+// to compute it itself.
 const SCALE: Record<string, number> = {
   "very low": 1,
   low: 2,
@@ -77,30 +90,95 @@ const SCALE: Record<string, number> = {
   critical: 5,
 };
 
-function severityFor(probability: string, impact: string): string {
+function severityFor(probability: string, impact: string): string | undefined {
   const p = SCALE[probability.toLowerCase()] ?? 0;
   const i = SCALE[impact.toLowerCase()] ?? 0;
   const score = p * i;
-  if (!score) return "";
+  if (!score) return undefined;
   if (score >= 16) return "Critical";
   if (score >= 9) return "High";
   if (score >= 4) return "Medium";
   return "Low";
 }
 
-type RiskItem = { id: string; severity: string } & Record<string, string>;
+function toValues(item: RiskLogItem): Record<string, string> {
+  return {
+    ...item,
+    escalation_required: item.escalation_required ? "Y" : "N",
+  } as unknown as Record<string, string>;
+}
 
 export function RiskLog() {
-  const { values, set, reset } = useEntryValues();
-  const nextId = useIdCounter("RSK");
-  const [items, setItems] = React.useState<RiskItem[]>([]);
+  const { projectId } = useParams<{ projectId: string }>();
+  const { values, set, reset, load } = useEntryValues();
+  const { data: items = [] } = useRisks(projectId);
+  const createRisk = useCreateRisk(projectId);
+  const updateRisk = useUpdateRisk(projectId);
+  const deleteRisk = useDeleteRisk(projectId);
+  const fields = useRiskFields();
+  const { data: users } = useUsers();
+  const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
+  const [editingId, setEditingId] = React.useState<string | null>(null);
 
-  const addRisk = () => {
-    if (!values.title?.trim()) return;
-    const severity = severityFor(values.probability ?? "", values.impact ?? "");
-    setItems((prev) => [...prev, { id: nextId(), ...values, severity }]);
+  const startEdit = (item: RiskLogItem) => {
+    setEditingId(item.id);
+    load(toValues(item));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
     reset();
   };
+
+  const handleDelete = (item: RiskLogItem) => {
+    deleteRisk.mutate(item.id, {
+      onSuccess: () => {
+        if (editingId === item.id) cancelEdit();
+        toast.success("Risk Deleted Successfully");
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete risk."),
+    });
+  };
+
+  const submit = () => {
+    if (!values.risk_title?.trim()) return;
+    const payload: RiskLogPayload = {
+      ...values,
+      severity: severityFor(values.probability ?? "", values.impact ?? ""),
+      escalation_required: values.escalation_required === "Y",
+    };
+
+    if (editingId) {
+      updateRisk.mutate(
+        { id: editingId, payload },
+        {
+          onSuccess: () => {
+            cancelEdit();
+            toast.success("Risk Updated Successfully");
+          },
+          onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update risk."),
+        }
+      );
+    } else {
+      createRisk.mutate(payload, {
+        onSuccess: () => {
+          reset();
+          toast.success("Risk Added Successfully");
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add risk."),
+      });
+    }
+  };
+
+  if (!projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Create the project on the Project Profile tab first.
+      </p>
+    );
+  }
+
+  const busy = createRisk.isPending || updateRisk.isPending;
 
   return (
     <div className="flex flex-col gap-8">
@@ -112,25 +190,34 @@ export function RiskLog() {
         <RegisterTable
           items={items}
           emptyLabel="No risks logged yet."
+          onEdit={startEdit}
+          onDelete={handleDelete}
           columns={[
-            { key: "id", label: "Risk ID" },
-            { key: "title", label: "Title" },
-            { key: "category", label: "Category" },
-            { key: "owner", label: "Owner" },
+            { key: "risk_code", label: "Risk ID" },
+            { key: "risk_title", label: "Title" },
+            { key: "risk_category", label: "Category" },
+            { key: "risk_owner", label: "Owner", render: (item) => userName(item.risk_owner) },
             { key: "severity", label: "Severity", badge: true },
-            { key: "status", label: "Status", badge: true },
+            { key: "current_status", label: "Status", badge: true },
           ]}
         />
       </SectionCard>
 
       <SectionCard icon={ShieldAlert} title="New Risk">
-        <EntryFields defs={RISK_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
+        <EntryFields defs={fields} values={values} set={set} />
+        <div className="mt-6 flex justify-end gap-3">
+          {editingId ? (
+            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+              Cancel
+            </Button>
+          ) : null}
           <Button
-            onClick={addRisk}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            onClick={submit}
+            disabled={busy}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
-            Add Risk
+            {busy ? <ButtonSpinner /> : null}
+            {editingId ? "Edit Risk" : "Add Risk"}
           </Button>
         </div>
       </SectionCard>

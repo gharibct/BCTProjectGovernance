@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
@@ -37,4 +38,15 @@ class Account(Base, UUIDPrimaryKey, TimestampColumns):
 
     name: Mapped[str] = mapped_column(unique=True)
     geo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("geos.id"))
+    is_active: Mapped[bool]
+
+
+class ReportingPeriod(Base, UUIDPrimaryKey, TimestampColumns):
+    __tablename__ = "reporting_periods"
+
+    period_type: Mapped[str]  # Weekly, Monthly
+    code: Mapped[str] = mapped_column(unique=True)  # e.g. '2026-W31', '2026-07'
+    label: Mapped[str]  # e.g. 'Week 31, 2026', 'Jul 2026'
+    start_date: Mapped[date]
+    end_date: Mapped[date]
     is_active: Mapped[bool]

@@ -1,5 +1,5 @@
 """Measurement Entry (UX §4.10), one tab per Project Type. Support, Testing,
-Cloud Maintenance and Cloud Migration share a flat (project_id, as_of_date,
+Cloud Maintenance and Cloud Migration share a flat (project_id, period_id,
 raw inputs -> computed metrics) shape and go through build_measurement_router.
 Development and Staffing additionally have a nested child table (per-SDLC-stage
 defects, per-priority response/lead time) so they get bespoke routers below.
@@ -8,6 +8,7 @@ defects, per-priority response/lead time) so they get bespoke routers below.
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -35,6 +36,7 @@ from app.models.measurement import (
     MeasurementSupport,
     MeasurementTesting,
 )
+from app.models.reference_data import ReportingPeriod
 from app.schemas.common import Page
 from app.schemas.enums import SdlcStage, StaffingPriority
 from app.schemas.measurement import (
@@ -73,6 +75,21 @@ from app.services.measurement_metrics import (
 router = APIRouter()
 
 
+# Most Measurement tabs key their snapshots off a reporting_periods row rather
+# than a raw date (see db/tables/11-15), so "latest"/list ordering has to sort
+# by that period's start_date via a correlated subquery. Cloud Migration is
+# event-based (multiple attempts can land on the same day) and still orders by
+# its own as_of_date column.
+def _by_period_start(model: type) -> Any:
+    return (
+        select(ReportingPeriod.start_date).where(ReportingPeriod.id == model.period_id).scalar_subquery().desc()
+    )
+
+
+def _by_as_of_date(model: type) -> Any:
+    return model.as_of_date.desc()
+
+
 # --- Generic factory for the 4 flat tabs ---
 
 
@@ -86,6 +103,7 @@ class MeasurementConfig:
     update_schema: type
     read_schema: type
     compute_metrics: Callable[[dict], dict]
+    order_by: Callable[[type], Any]
 
 
 def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
@@ -104,14 +122,14 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
             skip=pagination.skip,
             limit=pagination.limit,
             filters={model.project_id: project_id},
-            order_by=model.as_of_date.desc(),
+            order_by=cfg.order_by(model),
         )
         return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
     @sub.get("/latest", response_model=cfg.read_schema)
     async def get_latest(project_id: UUID, db: AsyncSession = Depends(get_db)):
         items, _ = await crud.list(
-            db, filters={model.project_id: project_id}, order_by=model.as_of_date.desc(), limit=1
+            db, filters={model.project_id: project_id}, order_by=cfg.order_by(model), limit=1
         )
         if not items:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No measurement data recorded for this project")
@@ -164,6 +182,7 @@ router.include_router(
             update_schema=MeasurementSupportCreate,
             read_schema=MeasurementSupportRead,
             compute_metrics=compute_support_metrics,
+            order_by=_by_period_start,
         )
     )
 )
@@ -178,6 +197,7 @@ router.include_router(
             update_schema=MeasurementTestingCreate,
             read_schema=MeasurementTestingRead,
             compute_metrics=compute_testing_metrics,
+            order_by=_by_period_start,
         )
     )
 )
@@ -192,6 +212,7 @@ router.include_router(
             update_schema=MeasurementCloudMaintenanceCreate,
             read_schema=MeasurementCloudMaintenanceRead,
             compute_metrics=compute_cloud_maintenance_metrics,
+            order_by=_by_period_start,
         )
     )
 )
@@ -206,6 +227,7 @@ router.include_router(
             update_schema=MeasurementCloudMigrationCreate,
             read_schema=MeasurementCloudMigrationRead,
             compute_metrics=compute_cloud_migration_metrics,
+            order_by=_by_as_of_date,
         )
     )
 )
@@ -246,7 +268,7 @@ async def list_development(
         skip=pagination.skip,
         limit=pagination.limit,
         filters={MeasurementDevelopment.project_id: project_id},
-        order_by=MeasurementDevelopment.as_of_date.desc(),
+        order_by=_by_period_start(MeasurementDevelopment),
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
@@ -256,7 +278,7 @@ async def get_latest_development(project_id: UUID, db: AsyncSession = Depends(ge
     items, _ = await measurement_development_crud.list(
         db,
         filters={MeasurementDevelopment.project_id: project_id},
-        order_by=MeasurementDevelopment.as_of_date.desc(),
+        order_by=_by_period_start(MeasurementDevelopment),
         limit=1,
     )
     if not items:
@@ -387,7 +409,7 @@ async def list_staffing(
         skip=pagination.skip,
         limit=pagination.limit,
         filters={MeasurementStaffing.project_id: project_id},
-        order_by=MeasurementStaffing.as_of_date.desc(),
+        order_by=_by_period_start(MeasurementStaffing),
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
@@ -397,7 +419,7 @@ async def get_latest_staffing(project_id: UUID, db: AsyncSession = Depends(get_d
     items, _ = await measurement_staffing_crud.list(
         db,
         filters={MeasurementStaffing.project_id: project_id},
-        order_by=MeasurementStaffing.as_of_date.desc(),
+        order_by=_by_period_start(MeasurementStaffing),
         limit=1,
     )
     if not items:

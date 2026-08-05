@@ -13,7 +13,7 @@ class MeasurementDevelopment(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "measurement_development"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    as_of_date: Mapped[date]
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
 
     overall_planned_size: Mapped[Decimal | None] = mapped_column(Numeric)
     actual_size: Mapped[Decimal | None] = mapped_column(Numeric)
@@ -57,7 +57,7 @@ class MeasurementSupport(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "measurement_support"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    as_of_date: Mapped[date]
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
 
     incidents_p1_count: Mapped[int | None]
     incidents_p1_person_days: Mapped[Decimal | None] = mapped_column(Numeric)
@@ -85,7 +85,7 @@ class MeasurementStaffing(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "measurement_staffing"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    as_of_date: Mapped[date]
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
 
     requests_count: Mapped[int | None]
     profiles_submitted_count: Mapped[int | None]
@@ -116,7 +116,7 @@ class MeasurementTesting(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "measurement_testing"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    as_of_date: Mapped[date]
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
 
     total_test_cases_designed: Mapped[int | None]
     executed_test_cases: Mapped[int | None]
@@ -138,7 +138,7 @@ class MeasurementCloudMaintenance(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "measurement_cloud_maintenance"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    as_of_date: Mapped[date]
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
 
     total_uptime_hours: Mapped[Decimal | None] = mapped_column(Numeric)
     total_scheduled_time_hours: Mapped[Decimal | None] = mapped_column(Numeric)

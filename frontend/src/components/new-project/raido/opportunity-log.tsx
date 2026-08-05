@@ -1,81 +1,106 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import { TrendingUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { AutoBadge, SectionCard } from "@/components/forms/form-primitives";
+import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import {
   EntryFields,
   useEntryValues,
-  useIdCounter,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { useNewProjectId } from "@/stores/new-project-ui";
+import { useUsers } from "@/lib/api/reference-data";
+import {
+  useCreateOpportunity,
+  useOpportunities,
+  type OpportunityLog as OpportunityLogItem,
+  type OpportunityLogPayload,
+} from "@/lib/api/raid";
 
-// Fields per §4.9 Opportunity Log, including the proposed Last/Next Review
-// Date addition for parity with the Risk Log's monthly-review cadence.
-const OPPORTUNITY_FIELDS: FieldDef[] = [
-  { key: "title", label: "Opportunity Title", kind: "text", mandatory: true },
-  { key: "category", label: "Category", kind: "text" },
-  { key: "identifiedBy", label: "Identified By", kind: "text" },
-  { key: "identifiedDate", label: "Identified Date", kind: "date" },
-  { key: "owner", label: "Opportunity Owner", kind: "text" },
-  {
-    key: "impact",
-    label: "Impact",
-    kind: "select",
-    options: ["Very Low", "Low", "Medium", "High"],
-    mandatory: true,
-  },
-  {
-    key: "expectedBenefit",
-    label: "Expected Benefit",
-    kind: "select",
-    options: ["Time", "Cost", "Quality", "Revenue"],
-  },
-  { key: "estimatedBenefit", label: "Estimated Benefit", kind: "number", hint: "Quantified value" },
-  {
-    key: "benefitType",
-    label: "Benefit Type",
-    kind: "select",
-    options: ["Cost Saving", "Revenue Increase", "Quality Improvement", "Customer Satisfaction"],
-  },
-  {
-    key: "exploitationStrategy",
-    label: "Exploitation Strategy",
-    kind: "select",
-    options: ["Exploit", "Enhance", "Share", "Accept"],
-  },
-  { key: "targetImplementationDate", label: "Target Implementation Date", kind: "date" },
-  {
-    key: "status",
-    label: "Status",
-    kind: "select",
-    options: ["Identified", "Approved", "Implemented", "Closed"],
-  },
-  { key: "approvalRequired", label: "Approval Required", kind: "select", options: ["Y", "N"] },
-  { key: "approvedBy", label: "Approved By", kind: "text" },
-  { key: "closureDate", label: "Closure Date", kind: "date" },
-  { key: "lastReviewDate", label: "Last Review Date", kind: "date" },
-  { key: "nextReviewDate", label: "Next Review Date", kind: "date" },
-  { key: "description", label: "Opportunity Description", kind: "textarea" },
-  { key: "actionPlan", label: "Action Plan", kind: "textarea" },
-  { key: "remarks", label: "Remarks", kind: "textarea" },
-];
+// Fields per §4.9 Opportunity Log. Keys match OpportunityLogCreate's field
+// names — status/approved_by/actual_benefit/closure_date aren't settable at
+// creation (status defaults to "Identified" server-side).
+function useOpportunityFields(): FieldDef[] {
+  const { data: users } = useUsers();
+  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
 
-type OpportunityItem = { id: string } & Record<string, string>;
+  return [
+    { key: "opportunity_title", label: "Opportunity Title", kind: "text", mandatory: true },
+    { key: "category", label: "Category", kind: "text" },
+    { key: "identified_by", label: "Identified By", kind: "select", choices: userChoices },
+    { key: "identified_date", label: "Identified Date", kind: "date" },
+    { key: "opportunity_owner", label: "Opportunity Owner", kind: "select", choices: userChoices },
+    {
+      key: "impact",
+      label: "Impact",
+      kind: "select",
+      options: ["Very Low", "Low", "Medium", "High"],
+      mandatory: true,
+    },
+    {
+      key: "expected_benefit",
+      label: "Expected Benefit",
+      kind: "select",
+      options: ["Time", "Cost", "Quality", "Revenue"],
+    },
+    { key: "estimated_benefit", label: "Estimated Benefit", kind: "number", hint: "Quantified value" },
+    {
+      key: "benefit_type",
+      label: "Benefit Type",
+      kind: "select",
+      options: ["Cost Saving", "Revenue Increase", "Quality Improvement", "Customer Satisfaction"],
+    },
+    {
+      key: "exploitation_strategy",
+      label: "Exploitation Strategy",
+      kind: "select",
+      options: ["Exploit", "Enhance", "Share", "Accept"],
+    },
+    { key: "target_implementation_date", label: "Target Implementation Date", kind: "date" },
+    { key: "approval_required", label: "Approval Required", kind: "select", options: ["Y", "N"] },
+    { key: "last_review_date", label: "Last Review Date", kind: "date" },
+    { key: "next_review_date", label: "Next Review Date", kind: "date" },
+    { key: "opportunity_description", label: "Opportunity Description", kind: "textarea" },
+    { key: "action_plan", label: "Action Plan", kind: "textarea" },
+    { key: "remarks", label: "Remarks", kind: "textarea" },
+  ];
+}
 
 export function OpportunityLog() {
+  const projectId = useNewProjectId();
   const { values, set, reset } = useEntryValues();
-  const nextId = useIdCounter("OPP");
-  const [items, setItems] = React.useState<OpportunityItem[]>([]);
+  const { data: items = [] } = useOpportunities(projectId);
+  const createOpportunity = useCreateOpportunity(projectId);
+  const fields = useOpportunityFields();
+  const { data: users } = useUsers();
+  const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
 
   const addOpportunity = () => {
-    if (!values.title?.trim()) return;
-    setItems((prev) => [...prev, { id: nextId(), ...values }]);
-    reset();
+    if (!values.opportunity_title?.trim()) return;
+    const payload: OpportunityLogPayload = {
+      ...values,
+      approval_required: values.approval_required === "Y",
+    };
+    createOpportunity.mutate(payload, {
+      onSuccess: () => {
+        reset();
+        toast.success("Opportunity Added Successfully");
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add opportunity."),
+    });
   };
+
+  if (!projectId) {
+    return (
+      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+        Create the project on the Project Profile tab first.
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -88,10 +113,14 @@ export function OpportunityLog() {
           items={items}
           emptyLabel="No opportunities logged yet."
           columns={[
-            { key: "id", label: "Opportunity ID" },
-            { key: "title", label: "Title" },
+            { key: "opportunity_code", label: "Opportunity ID" },
+            { key: "opportunity_title", label: "Title" },
             { key: "category", label: "Category" },
-            { key: "owner", label: "Owner" },
+            {
+              key: "opportunity_owner",
+              label: "Owner",
+              render: (item: OpportunityLogItem) => userName(item.opportunity_owner),
+            },
             { key: "impact", label: "Impact", badge: true },
             { key: "status", label: "Status", badge: true },
           ]}
@@ -99,12 +128,14 @@ export function OpportunityLog() {
       </SectionCard>
 
       <SectionCard icon={TrendingUp} title="New Opportunity">
-        <EntryFields defs={OPPORTUNITY_FIELDS} values={values} set={set} />
+        <EntryFields defs={fields} values={values} set={set} />
         <div className="mt-6 flex justify-end">
           <Button
             onClick={addOpportunity}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={createOpportunity.isPending}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
+            {createOpportunity.isPending ? <ButtonSpinner /> : null}
             Add Opportunity
           </Button>
         </div>

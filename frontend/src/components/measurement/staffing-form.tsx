@@ -1,27 +1,131 @@
 "use client";
 
-import * as React from "react";
 import { ChartColumn, Timer, Users } from "lucide-react";
 
-import { Field, SectionCard } from "@/components/forms/form-primitives";
+import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MetricTile, fmt, inputClass, num, pct, ratio, useMeasures } from "./shared";
+import { useStaffingTarget } from "@/lib/api/metric-targets";
+import {
+  useCreateStaffingMeasurement,
+  useLatestStaffingMeasurement,
+  type MeasurementStaffingPayload,
+  type MeasurementStaffingRead,
+  type StaffingPriorityCode,
+} from "@/lib/api/measurement";
+import { useReportingPeriods } from "@/lib/api/reference-data";
+import { MetricTile, PeriodField, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
 
-const PRIORITIES = [
-  { key: "p1", label: "Critical (P1)" },
-  { key: "p2", label: "High (P2)" },
-  { key: "p3", label: "Medium (P3)" },
-  { key: "p4", label: "Low (P4)" },
-] as const;
+const PRIORITIES: { key: StaffingPriorityCode; label: string }[] = [
+  { key: "Critical", label: "Critical" },
+  { key: "High", label: "High" },
+  { key: "Medium", label: "Medium" },
+  { key: "Low", label: "Low" },
+];
 
-export function StaffingTab() {
-  const { m, set } = useMeasures();
+function toValues(data: MeasurementStaffingRead): Record<string, string> {
+  const values: Record<string, string> = {
+    requests_count: str(data.requests_count),
+    profiles_submitted_count: str(data.profiles_submitted_count),
+    client_interviews_count: str(data.client_interviews_count),
+    interview_selects_count: str(data.interview_selects_count),
+    associates_joined_count: str(data.associates_joined_count),
+  };
+  for (const p of data.priority_metrics) {
+    values[`resp_${p.priority}`] = str(p.response_time_hours);
+    values[`lead_${p.priority}`] = str(p.lead_time_days);
+  }
+  return values;
+}
 
-  const requests = num(m.requests);
-  const joined = num(m.joined);
+function toPayload(m: Record<string, string>, periodId: string): MeasurementStaffingPayload {
+  return {
+    period_id: periodId,
+    requests_count: m.requests_count || undefined,
+    profiles_submitted_count: m.profiles_submitted_count || undefined,
+    client_interviews_count: m.client_interviews_count || undefined,
+    interview_selects_count: m.interview_selects_count || undefined,
+    associates_joined_count: m.associates_joined_count || undefined,
+    priority_metrics: PRIORITIES.map(({ key }) => ({
+      priority: key,
+      response_time_hours: m[`resp_${key}`] || undefined,
+      lead_time_days: m[`lead_${key}`] || undefined,
+    })),
+  };
+}
+
+export function StaffingTab({ projectId }: { projectId: string }) {
+  const { data: periods } = useReportingPeriods();
+  const { data: target } = useStaffingTarget(projectId);
+
+  const latestQuery = useLatestStaffingMeasurement(projectId);
+  const createMutation = useCreateStaffingMeasurement(projectId);
+  const { latest, m, set, periodId, setPeriodId, submit, isSaving } = useMeasurementForm({
+    projectId,
+    latestQuery,
+    createMutation,
+    toValues,
+    toPayload,
+  });
+
+  const targetFor = (priority: StaffingPriorityCode) =>
+    target?.priority_targets.find((p) => p.priority === priority);
+  const latestFor = (priority: StaffingPriorityCode) =>
+    latest?.priority_metrics.find((p) => p.priority === priority);
 
   return (
     <div className="flex flex-col gap-8">
+      <SectionCard
+        icon={ChartColumn}
+        title="Metrics"
+        aside={
+          <div className="flex items-end gap-4">
+            <PeriodField periods={periods} value={periodId} onChange={(e) => setPeriodId(e.target.value)} />
+            <Button
+              onClick={submit}
+              disabled={!periodId || isSaving}
+              className="h-10 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              {isSaving ? <ButtonSpinner /> : null}
+              Save Measurements
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {PRIORITIES.map((p) => (
+            <MetricTile
+              key={`avg-resp-${p.key}`}
+              label={`Avg Response Time — ${p.label}`}
+              target={str(targetFor(p.key)?.target_avg_response_time_hours)}
+              current={fmt(num(latestFor(p.key)?.avg_response_time_hours), 1)}
+              unit="Hours (trailing avg)"
+            />
+          ))}
+          <MetricTile
+            label="Profiles Qualifying for Submission"
+            target={str(target?.target_pct_profiles_qualifying)}
+            current={fmt(num(latest?.pct_profiles_qualifying), 1)}
+            unit="%"
+          />
+          <MetricTile
+            label="Candidates Resulting in Joining"
+            target={str(target?.target_pct_candidates_joining)}
+            current={fmt(num(latest?.pct_candidates_joining), 1)}
+            unit="%"
+          />
+          {PRIORITIES.map((p) => (
+            <MetricTile
+              key={`lead-time-${p.key}`}
+              label={`Lead Time — ${p.label}`}
+              target={str(targetFor(p.key)?.target_avg_lead_time_days)}
+              current={fmt(num(latestFor(p.key)?.avg_lead_time_days), 1)}
+              unit="Days (trailing avg)"
+            />
+          ))}
+        </div>
+      </SectionCard>
+
       <SectionCard icon={Timer} title="Requests & Response">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
           <Field label="No. of Requests" htmlFor="requests">
@@ -29,8 +133,8 @@ export function StaffingTab() {
               id="requests"
               type="number"
               min={0}
-              value={m.requests ?? ""}
-              onChange={set("requests")}
+              value={m.requests_count ?? ""}
+              onChange={set("requests_count")}
               className={inputClass}
             />
           </Field>
@@ -41,14 +145,14 @@ export function StaffingTab() {
               key={`resp-${p.key}`}
               label={`Response Time — ${p.label}`}
               htmlFor={`resp-${p.key}`}
-              hint="Person-Hours"
+              hint="Hours"
             >
               <Input
                 id={`resp-${p.key}`}
                 type="number"
                 min={0}
-                value={m[`resp-${p.key}`] ?? ""}
-                onChange={set(`resp-${p.key}`)}
+                value={m[`resp_${p.key}`] ?? ""}
+                onChange={set(`resp_${p.key}`)}
                 className={inputClass}
               />
             </Field>
@@ -58,14 +162,14 @@ export function StaffingTab() {
               key={`lead-${p.key}`}
               label={`Lead Time to Onboarding — ${p.label}`}
               htmlFor={`lead-${p.key}`}
-              hint="Person-Days"
+              hint="Days"
             >
               <Input
                 id={`lead-${p.key}`}
                 type="number"
                 min={0}
-                value={m[`lead-${p.key}`] ?? ""}
-                onChange={set(`lead-${p.key}`)}
+                value={m[`lead_${p.key}`] ?? ""}
+                onChange={set(`lead_${p.key}`)}
                 className={inputClass}
               />
             </Field>
@@ -80,8 +184,8 @@ export function StaffingTab() {
               id="profiles"
               type="number"
               min={0}
-              value={m.profiles ?? ""}
-              onChange={set("profiles")}
+              value={m.profiles_submitted_count ?? ""}
+              onChange={set("profiles_submitted_count")}
               className={inputClass}
             />
           </Field>
@@ -90,8 +194,8 @@ export function StaffingTab() {
               id="interviews"
               type="number"
               min={0}
-              value={m.interviews ?? ""}
-              onChange={set("interviews")}
+              value={m.client_interviews_count ?? ""}
+              onChange={set("client_interviews_count")}
               className={inputClass}
             />
           </Field>
@@ -100,8 +204,8 @@ export function StaffingTab() {
               id="selects"
               type="number"
               min={0}
-              value={m.selects ?? ""}
-              onChange={set("selects")}
+              value={m.interview_selects_count ?? ""}
+              onChange={set("interview_selects_count")}
               className={inputClass}
             />
           </Field>
@@ -110,42 +214,11 @@ export function StaffingTab() {
               id="joined"
               type="number"
               min={0}
-              value={m.joined ?? ""}
-              onChange={set("joined")}
+              value={m.associates_joined_count ?? ""}
+              onChange={set("associates_joined_count")}
               className={inputClass}
             />
           </Field>
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={ChartColumn} title="Metrics">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {PRIORITIES.map((p) => (
-            <MetricTile
-              key={`avg-resp-${p.key}`}
-              label={`Avg Response Time — ${p.label}`}
-              value={fmt(ratio(num(m[`resp-${p.key}`]), requests), 1)}
-              unit="Person-Hours / Request"
-            />
-          ))}
-          <MetricTile
-            label="Profiles Qualifying for Submission"
-            value={fmt(pct(num(m.interviews), num(m.profiles)), 1)}
-            unit="%"
-          />
-          <MetricTile
-            label="Candidates Resulting in Joining"
-            value={fmt(pct(num(m.joined), num(m.selects)), 1)}
-            unit="%"
-          />
-          {PRIORITIES.map((p) => (
-            <MetricTile
-              key={`lead-time-${p.key}`}
-              label={`Lead Time — ${p.label}`}
-              value={fmt(ratio(num(m[`lead-${p.key}`]), joined), 1)}
-              unit="Person-Days / Onboarding"
-            />
-          ))}
         </div>
       </SectionCard>
     </div>

@@ -106,7 +106,7 @@ export function ProjectDetails({
                 >
                   <td className="px-6 py-3.5">
                     <Link
-                      href="/project-charter"
+                      href="/project-reporting"
                       className="font-semibold text-[#1a6fc4] hover:underline"
                     >
                       {project.name}

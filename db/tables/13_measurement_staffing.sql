@@ -1,10 +1,10 @@
 -- Measurement Entry — Professional Staffing tab (UX §4.10). Request-driven,
--- rolled up weekly for reporting via as_of_date.
+-- rolled up weekly for reporting via reporting_periods.
 
 CREATE TABLE measurement_staffing (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    as_of_date DATE NOT NULL,
+    period_id UUID NOT NULL REFERENCES reporting_periods(id),
 
     requests_count INTEGER,
     profiles_submitted_count INTEGER,
@@ -20,10 +20,10 @@ CREATE TABLE measurement_staffing (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 
-    UNIQUE (project_id, as_of_date)
+    UNIQUE (project_id, period_id)
 );
 
-CREATE INDEX idx_measurement_staffing_project_id ON measurement_staffing(project_id, as_of_date DESC);
+CREATE INDEX idx_measurement_staffing_project_id ON measurement_staffing(project_id, period_id);
 
 CREATE TRIGGER trg_measurement_staffing_updated_at BEFORE UPDATE ON measurement_staffing FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 

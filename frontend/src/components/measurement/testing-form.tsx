@@ -1,34 +1,119 @@
 "use client";
 
-import * as React from "react";
 import { ChartColumn, CircleCheckBig } from "lucide-react";
 
-import { Field, SectionCard } from "@/components/forms/form-primitives";
+import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MetricTile, fmt, inputClass, num, pct, ratio, useMeasures } from "./shared";
+import { useTestingTarget } from "@/lib/api/metric-targets";
+import {
+  useCreateTestingMeasurement,
+  useLatestTestingMeasurement,
+  type MeasurementTestingPayload,
+  type MeasurementTestingRead,
+} from "@/lib/api/measurement";
+import { useReportingPeriods } from "@/lib/api/reference-data";
+import { MetricTile, PeriodField, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
 
 const MEASURES = [
-  { key: "designed", label: "Total Test Cases Designed", hint: "Count" },
-  { key: "executed", label: "# of Executed Test Cases", hint: "Count" },
-  { key: "passed", label: "# of Passed Test Cases", hint: "Count" },
-  { key: "automated", label: "# of Test Cases Automated", hint: "Count" },
-  {
-    key: "designEffort",
-    label: "Effort Spent for Test Case Design",
-    hint: "Person-Days",
-  },
-  {
-    key: "execEffort",
-    label: "Effort Spent for Test Execution",
-    hint: "Person-Days",
-  },
+  { key: "total_test_cases_designed", label: "Total Test Cases Designed", hint: "Count" },
+  { key: "executed_test_cases", label: "# of Executed Test Cases", hint: "Count" },
+  { key: "passed_test_cases", label: "# of Passed Test Cases", hint: "Count" },
+  { key: "automated_test_cases", label: "# of Test Cases Automated", hint: "Count" },
+  { key: "effort_test_case_design", label: "Effort Spent for Test Case Design", hint: "Person-Days" },
+  { key: "effort_test_execution", label: "Effort Spent for Test Execution", hint: "Person-Days" },
 ] as const;
 
-export function TestingTab() {
-  const { m, set } = useMeasures();
+function toValues(data: MeasurementTestingRead): Record<string, string> {
+  return {
+    total_test_cases_designed: str(data.total_test_cases_designed),
+    executed_test_cases: str(data.executed_test_cases),
+    passed_test_cases: str(data.passed_test_cases),
+    automated_test_cases: str(data.automated_test_cases),
+    effort_test_case_design: str(data.effort_test_case_design),
+    effort_test_execution: str(data.effort_test_execution),
+  };
+}
+
+function toPayload(m: Record<string, string>, periodId: string): MeasurementTestingPayload {
+  return {
+    period_id: periodId,
+    total_test_cases_designed: m.total_test_cases_designed || undefined,
+    executed_test_cases: m.executed_test_cases || undefined,
+    passed_test_cases: m.passed_test_cases || undefined,
+    automated_test_cases: m.automated_test_cases || undefined,
+    effort_test_case_design: m.effort_test_case_design || undefined,
+    effort_test_execution: m.effort_test_execution || undefined,
+  };
+}
+
+export function TestingTab({ projectId }: { projectId: string }) {
+  const { data: periods } = useReportingPeriods();
+  const { data: target } = useTestingTarget(projectId);
+
+  const latestQuery = useLatestTestingMeasurement(projectId);
+  const createMutation = useCreateTestingMeasurement(projectId);
+  const { latest, m, set, periodId, setPeriodId, submit, isSaving } = useMeasurementForm({
+    projectId,
+    latestQuery,
+    createMutation,
+    toValues,
+    toPayload,
+  });
 
   return (
     <div className="flex flex-col gap-8">
+      <SectionCard
+        icon={ChartColumn}
+        title="Metrics"
+        aside={
+          <div className="flex items-end gap-4">
+            <PeriodField periods={periods} value={periodId} onChange={(e) => setPeriodId(e.target.value)} />
+            <Button
+              onClick={submit}
+              disabled={!periodId || isSaving}
+              className="h-10 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              {isSaving ? <ButtonSpinner /> : null}
+              Save Measurements
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <MetricTile
+            label="Test Execution Coverage"
+            target={str(target?.target_test_execution_coverage_pct)}
+            current={fmt(num(latest?.test_execution_coverage_pct), 1)}
+            unit="%"
+          />
+          <MetricTile
+            label="Test Pass Rate"
+            target={str(target?.target_test_pass_rate_pct)}
+            current={fmt(num(latest?.test_pass_rate_pct), 1)}
+            unit="%"
+          />
+          <MetricTile
+            label="Automation Coverage"
+            target={str(target?.target_automation_coverage_pct)}
+            current={fmt(num(latest?.automation_coverage_pct), 1)}
+            unit="%"
+          />
+          <MetricTile
+            label="Test Design Productivity"
+            target={str(target?.target_test_design_productivity)}
+            current={fmt(num(latest?.test_design_productivity), 1)}
+            unit="Test Cases / Person-Day"
+          />
+          <MetricTile
+            label="Test Execution Productivity"
+            target={str(target?.target_test_execution_productivity)}
+            current={fmt(num(latest?.test_execution_productivity), 1)}
+            unit="Test Cases / Person-Day"
+          />
+        </div>
+      </SectionCard>
+
       <SectionCard icon={CircleCheckBig} title="Test Measures">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
           {MEASURES.map((f) => (
@@ -43,36 +128,6 @@ export function TestingTab() {
               />
             </Field>
           ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={ChartColumn} title="Metrics">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <MetricTile
-            label="Test Execution Coverage"
-            value={fmt(pct(num(m.executed), num(m.designed)), 1)}
-            unit="%"
-          />
-          <MetricTile
-            label="Test Pass Rate"
-            value={fmt(pct(num(m.passed), num(m.executed)), 1)}
-            unit="%"
-          />
-          <MetricTile
-            label="Automation Coverage"
-            value={fmt(pct(num(m.automated), num(m.designed)), 1)}
-            unit="%"
-          />
-          <MetricTile
-            label="Test Design Productivity"
-            value={fmt(ratio(num(m.designed), num(m.designEffort)), 1)}
-            unit="Test Cases / Person-Day"
-          />
-          <MetricTile
-            label="Test Execution Productivity"
-            value={fmt(ratio(num(m.executed), num(m.execEffort)), 1)}
-            unit="Test Cases / Person-Day"
-          />
         </div>
       </SectionCard>
     </div>

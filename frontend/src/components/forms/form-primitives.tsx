@@ -1,10 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Lock, type LucideIcon } from "lucide-react";
+import { Loader2, Lock, type LucideIcon } from "lucide-react";
 
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+
+// Inline spinner for a submit/save button's own label while its request is
+// in flight — pair with `disabled={mutation.isPending}` on the same button.
+export function ButtonSpinner() {
+  return <Loader2 className="size-4 animate-spin" />;
+}
 
 export function SectionCard({
   icon: Icon,

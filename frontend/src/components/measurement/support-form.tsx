@@ -1,30 +1,73 @@
 "use client";
 
-import * as React from "react";
+import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ChartColumn, Headset } from "lucide-react";
 
-import { Field, SectionCard } from "@/components/forms/form-primitives";
-import { Input } from "@/components/ui/input";
-import { MetricTile, fmt, inputClass, num, useMeasures } from "./shared";
+import { useSupportTarget } from "@/lib/api/metric-targets";
+import {
+  useCreateSupportMeasurement,
+  useLatestSupportMeasurement,
+  type MeasurementSupportPayload,
+  type MeasurementSupportRead,
+} from "@/lib/api/measurement";
+import { useReportingPeriods } from "@/lib/api/reference-data";
+import { MetricTile, PeriodField, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
 
 // Ticket types with Count + Person-Days effort per the Measurement sheet.
 const TICKET_ROWS = [
-  { key: "p1", label: "Incidents — P1" },
-  { key: "p2", label: "Incidents — P2" },
-  { key: "p3", label: "Incidents — P3" },
-  { key: "sr", label: "Service Request" },
-  { key: "uc", label: "User Clarification" },
+  { key: "p1", label: "Incidents — P1", count: "incidents_p1_count", effort: "incidents_p1_person_days" },
+  { key: "p2", label: "Incidents — P2", count: "incidents_p2_count", effort: "incidents_p2_person_days" },
+  { key: "p3", label: "Incidents — P3", count: "incidents_p3_count", effort: "incidents_p3_person_days" },
 ] as const;
 
-// MTTR = effort (Person-Days × 8) ÷ ticket count → Person-Hours per ticket.
-function mttr(effortDays: number | null, count: number | null): number | null {
-  return effortDays !== null && count !== null && count > 0
-    ? (effortDays * 8) / count
-    : null;
+function toValues(data: MeasurementSupportRead): Record<string, string> {
+  return {
+    incidents_p1_count: str(data.incidents_p1_count),
+    incidents_p1_person_days: str(data.incidents_p1_person_days),
+    incidents_p2_count: str(data.incidents_p2_count),
+    incidents_p2_person_days: str(data.incidents_p2_person_days),
+    incidents_p3_count: str(data.incidents_p3_count),
+    incidents_p3_person_days: str(data.incidents_p3_person_days),
+    service_requests_count: str(data.service_requests_count),
+    user_clarifications_count: str(data.user_clarifications_count),
+    tickets_reopened_count: str(data.tickets_reopened_count),
+    aging_tickets_count: str(data.aging_tickets_count),
+    first_time_resolutions_count: str(data.first_time_resolutions_count),
+  };
 }
 
-export function SupportTab() {
-  const { m, set } = useMeasures();
+function toPayload(m: Record<string, string>, periodId: string): MeasurementSupportPayload {
+  return {
+    period_id: periodId,
+    incidents_p1_count: m.incidents_p1_count || undefined,
+    incidents_p1_person_days: m.incidents_p1_person_days || undefined,
+    incidents_p2_count: m.incidents_p2_count || undefined,
+    incidents_p2_person_days: m.incidents_p2_person_days || undefined,
+    incidents_p3_count: m.incidents_p3_count || undefined,
+    incidents_p3_person_days: m.incidents_p3_person_days || undefined,
+    service_requests_count: m.service_requests_count || undefined,
+    user_clarifications_count: m.user_clarifications_count || undefined,
+    tickets_reopened_count: m.tickets_reopened_count || undefined,
+    aging_tickets_count: m.aging_tickets_count || undefined,
+    first_time_resolutions_count: m.first_time_resolutions_count || undefined,
+  };
+}
+
+export function SupportTab({ projectId }: { projectId: string }) {
+  const { data: periods } = useReportingPeriods();
+  const { data: target } = useSupportTarget(projectId);
+
+  const latestQuery = useLatestSupportMeasurement(projectId);
+  const createMutation = useCreateSupportMeasurement(projectId);
+  const { latest, m, set, periodId, setPeriodId, submit, isSaving } = useMeasurementForm({
+    projectId,
+    latestQuery,
+    createMutation,
+    toValues,
+    toPayload,
+  });
 
   const cell = (key: string, label: string) => (
     <Input
@@ -39,6 +82,63 @@ export function SupportTab() {
 
   return (
     <div className="flex flex-col gap-8">
+      <SectionCard
+        icon={ChartColumn}
+        title="Metrics"
+        aside={
+          <div className="flex items-end gap-4">
+            <PeriodField periods={periods} value={periodId} onChange={(e) => setPeriodId(e.target.value)} />
+            <Button
+              onClick={submit}
+              disabled={!periodId || isSaving}
+              className="h-10 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              {isSaving ? <ButtonSpinner /> : null}
+              Save Measurements
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricTile
+            label="Incident MTTR (Overall)"
+            target=""
+            current={fmt(num(latest?.incident_mttr_hours), 1)}
+            unit="Person-Hours / Incident"
+          />
+          <MetricTile
+            label="Service Request MTTR"
+            target={str(target?.target_service_request_mttr_hours)}
+            current={fmt(num(latest?.service_request_mttr_hours), 1)}
+            unit="Hours"
+          />
+          <MetricTile
+            label="User Clarification MTTR"
+            target={str(target?.target_user_clarification_mttr_hours)}
+            current={fmt(num(latest?.user_clarification_mttr_hours), 1)}
+            unit="Hours"
+          />
+          <MetricTile
+            label="SLA Compliance — P1"
+            target={str(target?.target_incident_sla_compliance_p1_pct)}
+            current={fmt(num(latest?.incident_sla_compliance_p1_pct), 1)}
+            unit="%"
+          />
+          <MetricTile
+            label="SLA Compliance — P2"
+            target={str(target?.target_incident_sla_compliance_p2_pct)}
+            current={fmt(num(latest?.incident_sla_compliance_p2_pct), 1)}
+            unit="%"
+          />
+          <MetricTile
+            label="SLA Compliance — P3"
+            target={str(target?.target_incident_sla_compliance_p3_pct)}
+            current={fmt(num(latest?.incident_sla_compliance_p3_pct), 1)}
+            unit="%"
+          />
+        </div>
+      </SectionCard>
+
       <SectionCard icon={Headset} title="Tickets">
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm">
@@ -52,18 +152,12 @@ export function SupportTab() {
             <tbody className="divide-y divide-slate-100">
               {TICKET_ROWS.map((row) => (
                 <tr key={row.key}>
-                  <td className="px-4 py-2 font-medium text-slate-800">
-                    {row.label}
+                  <td className="px-4 py-2 font-medium text-slate-800">{row.label}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex justify-end">{cell(row.count, `${row.label} count`)}</div>
                   </td>
                   <td className="px-4 py-2">
-                    <div className="flex justify-end">
-                      {cell(`${row.key}-count`, `${row.label} count`)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-end">
-                      {cell(`${row.key}-effort`, `${row.label} effort`)}
-                    </div>
+                    <div className="flex justify-end">{cell(row.effort, `${row.label} effort`)}</div>
                   </td>
                 </tr>
               ))}
@@ -72,13 +166,33 @@ export function SupportTab() {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
+          <Field label="# of Service Requests" htmlFor="service-requests">
+            <Input
+              id="service-requests"
+              type="number"
+              min={0}
+              value={m.service_requests_count ?? ""}
+              onChange={set("service_requests_count")}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="# of User Clarifications" htmlFor="user-clarifications">
+            <Input
+              id="user-clarifications"
+              type="number"
+              min={0}
+              value={m.user_clarifications_count ?? ""}
+              onChange={set("user_clarifications_count")}
+              className={inputClass}
+            />
+          </Field>
           <Field label="# of Tickets Re-Opened" htmlFor="reopened">
             <Input
               id="reopened"
               type="number"
               min={0}
-              value={m.reopened ?? ""}
-              onChange={set("reopened")}
+              value={m.tickets_reopened_count ?? ""}
+              onChange={set("tickets_reopened_count")}
               className={inputClass}
             />
           </Field>
@@ -87,8 +201,8 @@ export function SupportTab() {
               id="aging"
               type="number"
               min={0}
-              value={m.aging ?? ""}
-              onChange={set("aging")}
+              value={m.aging_tickets_count ?? ""}
+              onChange={set("aging_tickets_count")}
               className={inputClass}
             />
           </Field>
@@ -97,104 +211,11 @@ export function SupportTab() {
               id="ftr"
               type="number"
               min={0}
-              value={m.ftr ?? ""}
-              onChange={set("ftr")}
+              value={m.first_time_resolutions_count ?? ""}
+              onChange={set("first_time_resolutions_count")}
               className={inputClass}
             />
           </Field>
-          <Field
-            label="SLA Compliance % — P1"
-            htmlFor="sla-p1"
-            hint="From ticketing tool"
-          >
-            <Input
-              id="sla-p1"
-              type="number"
-              min={0}
-              max={100}
-              value={m.slaP1 ?? ""}
-              onChange={set("slaP1")}
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            label="SLA Compliance % — P2"
-            htmlFor="sla-p2"
-            hint="From ticketing tool"
-          >
-            <Input
-              id="sla-p2"
-              type="number"
-              min={0}
-              max={100}
-              value={m.slaP2 ?? ""}
-              onChange={set("slaP2")}
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            label="SLA Compliance % — P3"
-            htmlFor="sla-p3"
-            hint="From ticketing tool"
-          >
-            <Input
-              id="sla-p3"
-              type="number"
-              min={0}
-              max={100}
-              value={m.slaP3 ?? ""}
-              onChange={set("slaP3")}
-              className={inputClass}
-            />
-          </Field>
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={ChartColumn} title="Metrics">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricTile
-            label="Incident MTTR — P1"
-            value={fmt(mttr(num(m["p1-effort"]), num(m["p1-count"])), 1)}
-            unit="Person-Hours / Incident"
-          />
-          <MetricTile
-            label="Incident MTTR — P2"
-            value={fmt(mttr(num(m["p2-effort"]), num(m["p2-count"])), 1)}
-            unit="Person-Hours / Incident"
-          />
-          <MetricTile
-            label="Incident MTTR — P3"
-            value={fmt(mttr(num(m["p3-effort"]), num(m["p3-count"])), 1)}
-            unit="Person-Hours / Incident"
-          />
-          <MetricTile
-            label="Service Request MTTR"
-            value={fmt(mttr(num(m["sr-effort"]), num(m["sr-count"])), 1)}
-            unit="Person-Hours / SR"
-          />
-          <MetricTile
-            label="User Clarification MTTR"
-            value={fmt(mttr(num(m["uc-effort"]), num(m["uc-count"])), 1)}
-            unit="Person-Hours / UC"
-          />
-          <MetricTile
-            label="SLA Compliance — P1"
-            value={num(m.slaP1) === null ? "—" : m.slaP1}
-            unit="%"
-            note="Entered"
-          />
-          <MetricTile
-            label="SLA Compliance — P2"
-            value={num(m.slaP2) === null ? "—" : m.slaP2}
-            unit="%"
-            note="Entered"
-          />
-          <MetricTile
-            label="SLA Compliance — P3"
-            value={num(m.slaP3) === null ? "—" : m.slaP3}
-            unit="%"
-            note="Entered"
-          />
         </div>
       </SectionCard>
     </div>

@@ -1,9 +1,9 @@
--- Measurement Entry — Testing tab (UX §4.10). Per test cycle/phase via as_of_date.
+-- Measurement Entry — Testing tab (UX §4.10). Per test cycle/phase via reporting_periods.
 
 CREATE TABLE measurement_testing (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    as_of_date DATE NOT NULL,
+    period_id UUID NOT NULL REFERENCES reporting_periods(id),
 
     total_test_cases_designed INTEGER,
     executed_test_cases INTEGER,
@@ -23,9 +23,9 @@ CREATE TABLE measurement_testing (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 
-    UNIQUE (project_id, as_of_date)
+    UNIQUE (project_id, period_id)
 );
 
-CREATE INDEX idx_measurement_testing_project_id ON measurement_testing(project_id, as_of_date DESC);
+CREATE INDEX idx_measurement_testing_project_id ON measurement_testing(project_id, period_id);
 
 CREATE TRIGGER trg_measurement_testing_updated_at BEFORE UPDATE ON measurement_testing FOR EACH ROW EXECUTE FUNCTION set_updated_at();

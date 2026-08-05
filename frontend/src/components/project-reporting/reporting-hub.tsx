@@ -1,14 +1,11 @@
+"use client";
+
 import Link from "next/link";
-import {
-  ArrowRightToLine,
-  CircleCheck,
-  Flag,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { ArrowRightToLine, CircleCheck, Flag, HeartPulse, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useProjects } from "@/lib/api/projects";
 import { StarterCards } from "./starter-cards";
 
 // Sample project identity and reporting data until there's a backend.
@@ -16,21 +13,11 @@ const PROJECT_CODE = "PRJ-2026-0042";
 const PROJECT_DESCRIPTION =
   "Modernization of the core banking platform for Gulf National Bank, covering deposits, lending and payments modules across APAC operations.";
 
+// Frontend-only for now — backend mapping for these KPIs hasn't started yet.
+// The three health tiles mirror health-declaration.tsx's own three fields:
+// Delivery Declared Overall, DE Assessed Project Health, and the
+// highest-severity Overall Health rollup between them.
 const STATS = [
-  {
-    label: "Risk Index",
-    value: "3/10",
-    qualifier: "Low",
-    qualifierClass: "text-emerald-600",
-    icon: ShieldCheck,
-  },
-  {
-    label: "Utilization",
-    value: "92%",
-    qualifier: "Optimal",
-    qualifierClass: "text-[#1a6fc4]",
-    icon: Users,
-  },
   {
     label: "Milestones",
     value: "12/15",
@@ -38,14 +25,35 @@ const STATS = [
     qualifierClass: "text-[#1a6fc4]",
     icon: Flag,
   },
-  {
-    label: "Overall Status",
-    value: "Healthy",
-    qualifier: "Green",
-    qualifierClass: "text-emerald-600",
-    icon: CircleCheck,
-  },
+  { label: "Delivery Declared Health", value: "Green", icon: HeartPulse, pill: true },
+  { label: "DE Assessed Health", value: "Green", icon: ShieldCheck, pill: true },
+  { label: "Overall Health", value: "Green", icon: CircleCheck, pill: true },
 ];
+
+// Same rating→color mapping as HealthPill (health-declaration.tsx) — kept
+// local since this file has no backend health data to share that type with
+// yet.
+const HEALTH_PILL_STYLES: Record<string, { pillClass: string; dotClass: string }> = {
+  Green: { pillClass: "bg-emerald-50 text-emerald-700 ring-emerald-200", dotClass: "bg-emerald-500" },
+  Amber: { pillClass: "bg-amber-50 text-amber-700 ring-amber-200", dotClass: "bg-amber-400" },
+  "Potential Red": { pillClass: "bg-orange-50 text-orange-700 ring-orange-200", dotClass: "bg-orange-500" },
+  Red: { pillClass: "bg-red-50 text-red-700 ring-red-200", dotClass: "bg-red-500" },
+};
+
+function HealthValuePill({ value }: { value: string }) {
+  const style = HEALTH_PILL_STYLES[value] ?? HEALTH_PILL_STYLES.Green;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ring-1",
+        style.pillClass
+      )}
+    >
+      <span className={cn("size-2 rounded-full", style.dotClass)} />
+      {value}
+    </span>
+  );
+}
 
 const HISTORY = [
   {
@@ -75,12 +83,20 @@ const HISTORY = [
 ];
 
 export function ReportingHub() {
+  // Only one project has screens built today, so we just take the first one
+  // — this whole dashboard is still sample data pending its own :projectId
+  // route (see project-nav.tsx / [projectId]/* for the screens that already
+  // have one).
+  const { data: projects } = useProjects();
+  const project = projects?.[0];
+  const charterHref = project ? `/project-reporting/${project.id}/project-charter` : "#";
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-            {PROJECT_CODE} - Project Reporting
+            {project?.project_code ?? PROJECT_CODE} - Project Reporting
           </h1>
           <p className="mt-2 max-w-3xl text-slate-500">{PROJECT_DESCRIPTION}</p>
         </div>
@@ -88,7 +104,7 @@ export function ReportingHub() {
           asChild
           className="h-11 shrink-0 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
         >
-          <Link href="/project-charter">
+          <Link href={charterHref}>
             <ArrowRightToLine className="size-4" />
             Goto Latest Report
           </Link>
@@ -108,17 +124,23 @@ export function ReportingHub() {
               <stat.icon className="size-4.5 text-[#1a6fc4]" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">
-                {stat.value}
-              </span>
-              <span
-                className={cn(
-                  "text-xs font-bold tracking-wide uppercase",
-                  stat.qualifierClass
-                )}
-              >
-                {stat.qualifier}
-              </span>
+              {stat.pill ? (
+                <HealthValuePill value={stat.value} />
+              ) : (
+                <>
+                  <span className="text-2xl font-bold text-slate-900">
+                    {stat.value}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs font-bold tracking-wide uppercase",
+                      stat.qualifierClass
+                    )}
+                  >
+                    {stat.qualifier}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -186,7 +208,7 @@ export function ReportingHub() {
                       variant="outline"
                       className="h-8 w-20 text-xs font-semibold"
                     >
-                      <Link href="/project-charter">Open</Link>
+                      <Link href={charterHref}>Open</Link>
                     </Button>
                   </td>
                 </tr>

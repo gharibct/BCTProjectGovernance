@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import {
   Circle,
   CircleCheck,
@@ -13,62 +13,92 @@ import {
 
 import { cn } from "@/lib/utils";
 import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
+import { useNewProjectId } from "@/stores/new-project-ui";
+import { useProject, useProjectOracleIds } from "@/lib/api/projects";
+import { useCommitments, useMilestonePayments } from "@/lib/api/contractual";
+import {
+  useAssumptions,
+  useDependencies,
+  useIssues,
+  useOpportunities,
+  useRisks,
+} from "@/lib/api/raid";
+import { useLatestHealthDeclaration } from "@/lib/api/health-declarations";
+import { useLatestDEAssessment } from "@/lib/api/de-assessment";
 
 // Copy of the project navigation rail scoped to the New Project screens.
 // Every item is its own route so the browser URL, back button, and this
 // nav's active state all agree — no in-page tab switching. `done` marks
-// whether the task is completed for the current reporting period (sample
-// values until there's a backend).
+// whether the task is completed for the current reporting period. Project
+// Profile and Scope & Schedule are backed by the project's derived
+// profile_completion_flag/schedule_completion_flag; Map Oracle Projects,
+// Contractual Compliance, and RAIDO are done once their registers have at
+// least one row each; Self Assessment and DE Assessment are done once at
+// least one declaration/assessment has been submitted. Measurement is the
+// only one still a sample value, pending its own backend wiring.
 type NavItem = {
   label: string;
   href: string;
   done: boolean;
 };
 
-const GROUPS: { heading: string; icon: LucideIcon; items: NavItem[] }[] = [
-  {
-    heading: "Project Charter",
-    icon: FileText,
-    items: [
-      { label: "Project Profile", href: "/new-project/project-charter", done: true },
-      {
-        label: "Scope & Schedule",
-        href: "/new-project/project-charter/schedule",
-        done: false,
-      },
-      {
-        label: "Map Oracle Projects",
-        href: "/new-project/map-oracle-projects",
-        done: false,
-      },
-    ],
-  },
-  {
-    heading: "Project Baseline",
-    icon: ClipboardList,
-    items: [
-      { label: "Measurement", href: "/new-project/measurement", done: false },
-      {
-        label: "Contractual Compliance",
-        href: "/new-project/contractual-compliance",
-        done: false,
-      },
-      { label: "Project RAIDO Register", href: "/new-project/raido", done: false },
-    ],
-  },
-  {
-    heading: "Baseline Assessment",
-    icon: ShieldCheck,
-    items: [
-      {
-        label: "Self Assessment",
-        href: "/new-project/project-charter/self-assessment",
-        done: false,
-      },
-      { label: "DE Assessment", href: "/new-project/de-assessment", done: false },
-    ],
-  },
-];
+// Every href is relative to the current :projectId route segment (see
+// buildGroups) so navigating between tabs stays on the same project/draft.
+function buildGroups(
+  base: string,
+  profileComplete: boolean,
+  scheduleComplete: boolean,
+  oracleMapped: boolean,
+  contractualComplianceComplete: boolean,
+  raidoComplete: boolean,
+  selfAssessmentComplete: boolean,
+  deAssessmentComplete: boolean,
+): { heading: string; icon: LucideIcon; items: NavItem[] }[] {
+  return [
+    {
+      heading: "Project Charter",
+      icon: FileText,
+      items: [
+        { label: "Project Profile", href: `${base}/project-charter`, done: profileComplete },
+        {
+          label: "Scope & Schedule",
+          href: `${base}/project-charter/schedule`,
+          done: scheduleComplete,
+        },
+        {
+          label: "Map Oracle Projects",
+          href: `${base}/map-oracle-projects`,
+          done: oracleMapped,
+        },
+      ],
+    },
+    {
+      heading: "Project Baseline",
+      icon: ClipboardList,
+      items: [
+        { label: "Measurement", href: `${base}/measurement`, done: false },
+        {
+          label: "Contractual Compliance",
+          href: `${base}/contractual-compliance`,
+          done: contractualComplianceComplete,
+        },
+        { label: "Project RAIDO Register", href: `${base}/raido`, done: raidoComplete },
+      ],
+    },
+    {
+      heading: "Baseline Assessment",
+      icon: ShieldCheck,
+      items: [
+        {
+          label: "Self Assessment",
+          href: `${base}/project-charter/self-assessment`,
+          done: selfAssessmentComplete,
+        },
+        { label: "DE Assessment", href: `${base}/de-assessment`, done: deAssessmentComplete },
+      ],
+    },
+  ];
+}
 
 const childClass =
   "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors";
@@ -92,11 +122,38 @@ function StatusIcon({ done }: { done: boolean }) {
 
 export function NewProjectNav() {
   const pathname = usePathname();
+  const { projectId } = useParams<{ projectId: string }>();
+  const newProjectId = useNewProjectId();
+  const { data: project } = useProject(newProjectId);
+  const { data: oracleIds } = useProjectOracleIds(newProjectId);
+  const { data: commitments } = useCommitments(newProjectId);
+  const { data: milestones } = useMilestonePayments(newProjectId);
+  const { data: risks } = useRisks(newProjectId);
+  const { data: issues } = useIssues(newProjectId);
+  const { data: dependencies } = useDependencies(newProjectId);
+  const { data: assumptions } = useAssumptions(newProjectId);
+  const { data: opportunities } = useOpportunities(newProjectId);
+  const { data: healthDeclaration } = useLatestHealthDeclaration(newProjectId);
+  const { data: deAssessment } = useLatestDEAssessment(newProjectId);
+  const groups = buildGroups(
+    `/new-project/${projectId}`,
+    project?.profile_completion_flag ?? false,
+    project?.schedule_completion_flag ?? false,
+    (oracleIds?.length ?? 0) > 0,
+    (commitments?.length ?? 0) > 0 && (milestones?.length ?? 0) > 0,
+    (risks?.length ?? 0) > 0 &&
+      (issues?.length ?? 0) > 0 &&
+      (dependencies?.length ?? 0) > 0 &&
+      (assumptions?.length ?? 0) > 0 &&
+      (opportunities?.length ?? 0) > 0,
+    !!healthDeclaration,
+    !!deAssessment,
+  );
 
   return (
     <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
       <nav className="flex flex-col gap-2">
-        {GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.heading}>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
               <group.icon className="size-5 shrink-0 text-[#1a6fc4]" />

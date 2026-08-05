@@ -22,7 +22,7 @@ class MeasurementDevelopmentDefectRead(MeasurementDevelopmentDefectIn):
 
 
 class MeasurementDevelopmentCreate(BaseModel):
-    as_of_date: date
+    period_id: UUID
     overall_planned_size: Decimal | None = None
     actual_size: Decimal | None = None
     overall_estimated_effort: Decimal | None = None
@@ -43,7 +43,7 @@ class MeasurementDevelopmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     project_id: UUID
-    as_of_date: date
+    period_id: UUID
     overall_planned_size: Decimal | None = None
     actual_size: Decimal | None = None
     overall_estimated_effort: Decimal | None = None
@@ -95,7 +95,7 @@ class MeasurementDevelopmentUpdate(BaseModel):
 
 
 class MeasurementSupportCreate(BaseModel):
-    as_of_date: date
+    period_id: UUID
     incidents_p1_count: int | None = None
     incidents_p1_person_days: Decimal | None = None
     incidents_p2_count: int | None = None
@@ -114,7 +114,7 @@ class MeasurementSupportRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     project_id: UUID
-    as_of_date: date
+    period_id: UUID
     incidents_p1_count: int | None = None
     incidents_p1_person_days: Decimal | None = None
     incidents_p2_count: int | None = None
@@ -155,7 +155,7 @@ class MeasurementStaffingPriorityMetricRead(MeasurementStaffingPriorityMetricIn)
 
 
 class MeasurementStaffingCreate(BaseModel):
-    as_of_date: date
+    period_id: UUID
     requests_count: int | None = None
     profiles_submitted_count: int | None = None
     client_interviews_count: int | None = None
@@ -169,7 +169,7 @@ class MeasurementStaffingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     project_id: UUID
-    as_of_date: date
+    period_id: UUID
     requests_count: int | None = None
     profiles_submitted_count: int | None = None
     client_interviews_count: int | None = None
@@ -201,7 +201,7 @@ class MeasurementStaffingUpdate(BaseModel):
 
 
 class MeasurementTestingCreate(BaseModel):
-    as_of_date: date
+    period_id: UUID
     total_test_cases_designed: int | None = None
     executed_test_cases: int | None = None
     passed_test_cases: int | None = None
@@ -215,7 +215,7 @@ class MeasurementTestingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     project_id: UUID
-    as_of_date: date
+    period_id: UUID
     total_test_cases_designed: int | None = None
     executed_test_cases: int | None = None
     passed_test_cases: int | None = None
@@ -236,7 +236,7 @@ class MeasurementTestingRead(BaseModel):
 
 
 class MeasurementCloudMaintenanceCreate(BaseModel):
-    as_of_date: date
+    period_id: UUID
     total_uptime_hours: Decimal | None = None
     total_scheduled_time_hours: Decimal | None = None
     application_downtime_hours: Decimal | None = None
@@ -247,7 +247,7 @@ class MeasurementCloudMaintenanceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     project_id: UUID
-    as_of_date: date
+    period_id: UUID
     total_uptime_hours: Decimal | None = None
     total_scheduled_time_hours: Decimal | None = None
     application_downtime_hours: Decimal | None = None
