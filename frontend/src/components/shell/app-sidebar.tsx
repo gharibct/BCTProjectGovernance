@@ -74,8 +74,8 @@ export function AppSidebar() {
   // active — no separate client-side intent flag to keep in sync.
   const routeProjectId = isNewProject ? pathname.split("/")[2] : undefined;
   const isMaintaining = isNewProject && routeProjectId !== NEW_PROJECT_SEGMENT;
-  // /project-reporting/{projectId}/... — the bare /project-reporting
-  // dashboard has no :projectId segment yet, so this is undefined there.
+  // /project-reporting/{projectId}(/...) — every project-reporting route is
+  // nested under a :projectId segment, including the hub page itself.
   const reportingProjectId = isProjectReporting ? pathname.split("/")[2] : undefined;
 
   return (
@@ -137,7 +137,7 @@ export function AppSidebar() {
         >
           {projects.map((project) => {
             const active = project.id === reportingProjectId;
-            const href = `/project-reporting/${project.id}/project-charter`;
+            const href = `/project-reporting/${project.id}`;
             return (
               <Link
                 key={project.id}

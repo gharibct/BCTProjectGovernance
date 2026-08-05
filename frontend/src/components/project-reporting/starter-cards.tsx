@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ArrowRight, CalendarDays, Table2 } from "lucide-react";
 
 import { NativeSelect } from "@/components/ui/native-select";
@@ -13,8 +14,11 @@ const MONTHS = ["May 2026", "Jun 2026", "Jul 2026"];
 const CURRENT_MONTH = "Jul 2026";
 
 export function StarterCards() {
+  const { projectId } = useParams<{ projectId: string }>();
   const [week, setWeek] = useState(CURRENT_WEEK);
   const [month, setMonth] = useState(CURRENT_MONTH);
+
+  const statusHref = `/project-reporting/${projectId}/project-status`;
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -28,7 +32,7 @@ export function StarterCards() {
         value={week}
         onChange={setWeek}
         cta="Start Weekly Draft"
-        href={`/project-status?period=${encodeURIComponent(week)}`}
+        href={`${statusHref}?period=${encodeURIComponent(week)}`}
       />
       <StarterCard
         icon={<CalendarDays className="size-6" />}
@@ -40,7 +44,7 @@ export function StarterCards() {
         value={month}
         onChange={setMonth}
         cta="Start Monthly Audit"
-        href="#"
+        href={`${statusHref}?period=${encodeURIComponent(month)}`}
       />
     </div>
   );

@@ -1,58 +1,39 @@
 "use client";
 
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ArrowRightToLine, CircleCheck, Flag, HeartPulse, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useProjects } from "@/lib/api/projects";
+import { useProject, type HealthRating as ApiHealthRating } from "@/lib/api/projects";
+import { HealthPill, RATING_FROM_API } from "@/components/project-charter/health-declaration";
 import { StarterCards } from "./starter-cards";
 
-// Sample project identity and reporting data until there's a backend.
-const PROJECT_CODE = "PRJ-2026-0042";
-const PROJECT_DESCRIPTION =
-  "Modernization of the core banking platform for Gulf National Bank, covering deposits, lending and payments modules across APAC operations.";
-
-// Frontend-only for now — backend mapping for these KPIs hasn't started yet.
-// The three health tiles mirror health-declaration.tsx's own three fields:
-// Delivery Declared Overall, DE Assessed Project Health, and the
-// highest-severity Overall Health rollup between them.
-const STATS = [
-  {
-    label: "Milestones",
-    value: "12/15",
-    qualifier: "On Track",
-    qualifierClass: "text-[#1a6fc4]",
-    icon: Flag,
-  },
-  { label: "Delivery Declared Health", value: "Green", icon: HeartPulse, pill: true },
-  { label: "DE Assessed Health", value: "Green", icon: ShieldCheck, pill: true },
-  { label: "Overall Health", value: "Green", icon: CircleCheck, pill: true },
-];
-
-// Same rating→color mapping as HealthPill (health-declaration.tsx) — kept
-// local since this file has no backend health data to share that type with
-// yet.
-const HEALTH_PILL_STYLES: Record<string, { pillClass: string; dotClass: string }> = {
-  Green: { pillClass: "bg-emerald-50 text-emerald-700 ring-emerald-200", dotClass: "bg-emerald-500" },
-  Amber: { pillClass: "bg-amber-50 text-amber-700 ring-amber-200", dotClass: "bg-amber-400" },
-  "Potential Red": { pillClass: "bg-orange-50 text-orange-700 ring-orange-200", dotClass: "bg-orange-500" },
-  Red: { pillClass: "bg-red-50 text-red-700 ring-red-200", dotClass: "bg-red-500" },
+// No Milestones backend yet — this tile stays sample data until one exists.
+const MILESTONES_STAT = {
+  label: "Milestones",
+  value: "12/15",
+  qualifier: "On Track",
+  qualifierClass: "text-[#1a6fc4]",
+  icon: Flag,
 };
 
-function HealthValuePill({ value }: { value: string }) {
-  const style = HEALTH_PILL_STYLES[value] ?? HEALTH_PILL_STYLES.Green;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ring-1",
-        style.pillClass
-      )}
-    >
-      <span className={cn("size-2 rounded-full", style.dotClass)} />
-      {value}
-    </span>
-  );
+// Mirrors health-declaration.tsx's own three fields: Delivery Declared
+// Overall, DE Assessed Project Health, and the highest-severity Overall
+// Health rollup between them — all real backend columns on Project.
+const HEALTH_STATS: {
+  label: string;
+  field: "delivery_declared_overall_health" | "de_assessed_project_health" | "overall_project_health";
+  icon: typeof HeartPulse;
+}[] = [
+  { label: "Delivery Declared Health", field: "delivery_declared_overall_health", icon: HeartPulse },
+  { label: "DE Assessed Health", field: "de_assessed_project_health", icon: ShieldCheck },
+  { label: "Overall Health", field: "overall_project_health", icon: CircleCheck },
+];
+
+function ratingFrom(value: ApiHealthRating | null) {
+  return value ? RATING_FROM_API[value] : null;
 }
 
 const HISTORY = [
@@ -83,22 +64,20 @@ const HISTORY = [
 ];
 
 export function ReportingHub() {
-  // Only one project has screens built today, so we just take the first one
-  // — this whole dashboard is still sample data pending its own :projectId
-  // route (see project-nav.tsx / [projectId]/* for the screens that already
-  // have one).
-  const { data: projects } = useProjects();
-  const project = projects?.[0];
-  const charterHref = project ? `/project-reporting/${project.id}/project-charter` : "#";
+  const { projectId } = useParams<{ projectId: string }>();
+  const { data: project } = useProject(projectId ?? null);
+  const charterHref = `/project-reporting/${projectId}/project-charter`;
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-            {project?.project_code ?? PROJECT_CODE} - Project Reporting
+            {project?.project_code ?? "Project Reporting"}
           </h1>
-          <p className="mt-2 max-w-3xl text-slate-500">{PROJECT_DESCRIPTION}</p>
+          <p className="mt-2 max-w-3xl text-slate-500">
+            {project?.project_scope_description || project?.customer_overview || project?.project_name}
+          </p>
         </div>
         <Button
           asChild
@@ -112,38 +91,49 @@ export function ReportingHub() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        {STATS.map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-                {stat.label}
-              </span>
-              <stat.icon className="size-4.5 text-[#1a6fc4]" />
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              {stat.pill ? (
-                <HealthValuePill value={stat.value} />
-              ) : (
-                <>
-                  <span className="text-2xl font-bold text-slate-900">
-                    {stat.value}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-xs font-bold tracking-wide uppercase",
-                      stat.qualifierClass
-                    )}
-                  >
-                    {stat.qualifier}
-                  </span>
-                </>
-              )}
-            </div>
+        <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+              {MILESTONES_STAT.label}
+            </span>
+            <MILESTONES_STAT.icon className="size-4.5 text-[#1a6fc4]" />
           </div>
-        ))}
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-slate-900">{MILESTONES_STAT.value}</span>
+            <span
+              className={cn(
+                "text-xs font-bold tracking-wide uppercase",
+                MILESTONES_STAT.qualifierClass
+              )}
+            >
+              {MILESTONES_STAT.qualifier}
+            </span>
+          </div>
+        </div>
+
+        {HEALTH_STATS.map((stat) => {
+          const rating = ratingFrom(project?.[stat.field] ?? null);
+          return (
+            <div
+              key={stat.label}
+              className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                  {stat.label}
+                </span>
+                <stat.icon className="size-4.5 text-[#1a6fc4]" />
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                {rating ? (
+                  <HealthPill rating={rating} />
+                ) : (
+                  <span className="text-sm font-semibold text-slate-400">Not assessed</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <StarterCards />

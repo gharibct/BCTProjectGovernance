@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
 import { useReportingPeriod } from "@/components/shell/reporting-period-badge";
 
 export function ReportingBreadcrumb() {
+  const { projectId } = useParams<{ projectId: string }>();
   const period = useReportingPeriod();
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
       <Link
-        href="/project-reporting"
+        href={`/project-reporting/${projectId}`}
         className="font-semibold text-[#1a6fc4] hover:underline"
       >
         Project Reporting
