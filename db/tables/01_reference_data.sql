@@ -50,7 +50,9 @@ CREATE INDEX idx_accounts_geo_id ON accounts(geo_id);
 -- Period" combo on the Project Reporting screen.
 CREATE TABLE reporting_periods (
     id UUID PRIMARY KEY,
-    period_type TEXT NOT NULL, -- Weekly, Monthly
+    period_type TEXT NOT NULL, -- Weekly, Monthly, Baseline (sentinel row for
+                                -- health_declarations' initial New Project
+                                -- declaration — see 04_health_declarations.sql)
     code TEXT NOT NULL UNIQUE, -- e.g. '2026-W31', '2026-07'
     label TEXT NOT NULL,       -- e.g. 'Week 31, 2026', 'Jul 2026'
     start_date DATE NOT NULL,

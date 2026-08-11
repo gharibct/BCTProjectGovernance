@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { PageBanner } from "@/components/shell/page-banner";
 import {
   fetchProjects,
   type ProjectFilter,
@@ -55,6 +56,8 @@ export function Dashboard() {
           Updated today · 09:45 AM
         </span>
       </header>
+
+      <PageBanner />
 
       <KpiCards selected={filter} onSelect={setFilter} />
 

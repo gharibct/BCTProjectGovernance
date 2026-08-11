@@ -15,13 +15,13 @@ export type ApplicablePhase =
   | "UAT"
   | "Warranty"
   | "Support";
-// Real backend workflow — not the Draft/Pending Approval/Approved states the
-// UI previously mocked. There is no approval step server-side: a project is
-// "Start Up" the moment it's created.
+// Matches backend/app/schemas/enums.py's ProjectStatus. A project is
+// "Draft" the moment it's created; the charter's Send To Approval / Approve
+// actions move it through Pending Approval to Approved.
 export type ProjectStatus =
-  | "Start Up"
+  | "Draft"
   | "Pending Approval"
-  | "Execution"
+  | "Approved"
   | "Hold"
   | "Closed"
   | "Open Only for Billing";

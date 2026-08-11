@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useParams } from "next/navigation";
 
 import { useProject } from "@/lib/api/projects";
@@ -63,7 +64,10 @@ export function MeasurementTabs() {
       </div>
 
       <div className="mt-8">
-        <Active projectId={projectId} />
+        {/* useSearchParams (for the period) requires a Suspense boundary */}
+        <Suspense fallback={null}>
+          <Active projectId={projectId} />
+        </Suspense>
       </div>
     </div>
   );

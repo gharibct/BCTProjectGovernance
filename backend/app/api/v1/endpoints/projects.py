@@ -38,7 +38,7 @@ async def list_projects(
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 async def create_project(payload: ProjectCreate, db: AsyncSession = Depends(get_db)):
     code = await generate_code(db, "PROJECT")
-    return await project_crud.create(db, payload, project_code=code, project_status=ProjectStatus.START_UP)
+    return await project_crud.create(db, payload, project_code=code, project_status=ProjectStatus.DRAFT)
 
 
 @router.get("/{project_id}", response_model=ProjectRead)

@@ -1,26 +1,40 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { HelpCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useUsers } from "@/lib/api/reference-data";
+import { useBaselinePeriodId } from "@/lib/period-utils";
 import { useDependencies } from "@/lib/api/raid";
 import {
   useAssumptions,
   useCreateAssumption,
+  useUpdateAssumption,
   type AssumptionLog as AssumptionLogItem,
   type AssumptionLogPayload,
 } from "@/lib/api/raid";
+
+const ASSUMPTION_PREVIEW_FIELDS = [
+  { key: "title", label: "Title" },
+  { key: "category", label: "Category" },
+  { key: "probability_of_failure", label: "Probability of Failure" },
+  { key: "impact_rating", label: "Impact Rating" },
+] as const;
+
+function buildAssumptionPayload(values: Record<string, string>): AssumptionLogPayload {
+  return values as AssumptionLogPayload;
+}
 
 // Fields per §4.8 Assumption Log. Keys match AssumptionLogCreate's field
 // names — validation_status/current_status/last_updated aren't settable at
@@ -72,21 +86,25 @@ function useAssumptionFields(): FieldDef[] {
 
 export function AssumptionLog() {
   const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useAssumptions(projectId);
   const createAssumption = useCreateAssumption(projectId);
+  const updateAssumption = useUpdateAssumption(projectId);
   const fields = useAssumptionFields();
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addAssumption = () => {
     if (!values.title?.trim()) return;
-    createAssumption.mutate(values as AssumptionLogPayload, {
+    createAssumption.mutate(buildAssumptionPayload(values), {
       onSuccess: () => {
         reset();
-        toast.success("Assumption Added Successfully");
+        showSuccess("Assumption Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add assumption."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add assumption."),
     });
   };
 
@@ -100,6 +118,13 @@ export function AssumptionLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="assumptions"
+        periodId={periodId}
+        itemLabel="Assumption"
+      />
+
       <SectionCard
         icon={HelpCircle}
         title="Assumption Register"
@@ -118,6 +143,17 @@ export function AssumptionLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="assumptions"
+        periodId={periodId}
+        itemLabel="Assumption"
+        previewFields={ASSUMPTION_PREVIEW_FIELDS}
+        buildPayload={buildAssumptionPayload}
+        createMutation={createAssumption}
+        updateMutation={updateAssumption}
+      />
 
       <SectionCard icon={HelpCircle} title="New Assumption">
         <EntryFields defs={fields} values={values} set={set} />

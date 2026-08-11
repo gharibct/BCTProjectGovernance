@@ -1,11 +1,11 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { toast } from "sonner";
+import { useParams, useSearchParams } from "next/navigation";
 import { Flag } from "lucide-react";
 import * as React from "react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
@@ -13,6 +13,7 @@ import {
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import {
   useCreateMilestonePayment,
   useDeleteMilestonePayment,
@@ -46,14 +47,32 @@ function toValues(item: MilestonePayment): Record<string, string> {
   };
 }
 
+const MILESTONE_PREVIEW_FIELDS = [
+  { key: "milestone_name", label: "Name" },
+  { key: "expected_date_of_payment", label: "Expected Date" },
+  { key: "expected_payment_value", label: "Value" },
+] as const;
+
+function buildMilestonePayload(values: Record<string, string>): MilestonePaymentPayload {
+  return {
+    milestone_name: values.milestone_name,
+    expected_date_of_payment: values.expected_date_of_payment || undefined,
+    expected_payment_value: values.expected_payment_value || undefined,
+    milestone_description: values.milestone_description || undefined,
+  };
+}
+
 export function MilestonesTab() {
   const { projectId } = useParams<{ projectId: string }>();
+  const periodId = useSearchParams().get("period");
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useMilestonePayments(projectId);
   const createMilestone = useCreateMilestonePayment(projectId);
   const updateMilestone = useUpdateMilestonePayment(projectId);
   const deleteMilestone = useDeleteMilestonePayment(projectId);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const startEdit = (item: MilestonePayment) => {
     setEditingId(item.id);
@@ -69,20 +88,15 @@ export function MilestonesTab() {
     deleteMilestone.mutate(item.id, {
       onSuccess: () => {
         if (editingId === item.id) cancelEdit();
-        toast.success("Milestone Deleted Successfully");
+        showSuccess("Milestone Deleted Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete milestone."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete milestone."),
     });
   };
 
   const submit = () => {
     if (!values.milestone_name?.trim() || !values.expected_date_of_payment) return;
-    const payload: MilestonePaymentPayload = {
-      milestone_name: values.milestone_name,
-      expected_date_of_payment: values.expected_date_of_payment,
-      expected_payment_value: values.expected_payment_value || undefined,
-      milestone_description: values.milestone_description || undefined,
-    };
+    const payload = buildMilestonePayload(values);
 
     if (editingId) {
       updateMilestone.mutate(
@@ -90,18 +104,18 @@ export function MilestonesTab() {
         {
           onSuccess: () => {
             cancelEdit();
-            toast.success("Milestone Updated Successfully");
+            showSuccess("Milestone Updated Successfully");
           },
-          onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update milestone."),
+          onError: (err) => showError(err instanceof Error ? err.message : "Failed to update milestone."),
         }
       );
     } else {
       createMilestone.mutate(payload, {
         onSuccess: () => {
           reset();
-          toast.success("Milestone Added Successfully");
+          showSuccess("Milestone Added Successfully");
         },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add milestone."),
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to add milestone."),
       });
     }
   };
@@ -118,6 +132,13 @@ export function MilestonesTab() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="milestones"
+        periodId={periodId}
+        itemLabel="Milestone"
+      />
+
       <SectionCard
         icon={Flag}
         title="Milestones Register"
@@ -136,6 +157,16 @@ export function MilestonesTab() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="milestones"
+        periodId={periodId}
+        itemLabel="Milestone"
+        previewFields={MILESTONE_PREVIEW_FIELDS}
+        buildPayload={buildMilestonePayload}
+        createMutation={createMilestone}
+      />
 
       <SectionCard icon={Flag} title="New Milestone">
         <EntryFields defs={MILESTONE_FIELDS} values={values} set={set} />

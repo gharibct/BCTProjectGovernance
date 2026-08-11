@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FileText,
   ShieldCheck,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -95,6 +96,16 @@ function buildGroups(
           done: selfAssessmentComplete,
         },
         { label: "DE Assessment", href: `${base}/de-assessment`, done: deAssessmentComplete },
+      ],
+    },
+    {
+      heading: "AI Hub",
+      icon: Sparkles,
+      // Not a period-completion task like the groups above, so there's no
+      // pending/done signal to derive — always shown as done so it never
+      // reads as an outstanding checklist item.
+      items: [
+        { label: "AI Document Processing", href: `${base}/ai-hub/document-processing`, done: true },
       ],
     },
   ];

@@ -1,15 +1,38 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { Flag } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
-import { useCreateMilestonePayment, useMilestonePayments } from "@/lib/api/contractual";
+import { useBaselinePeriodId } from "@/lib/period-utils";
+import {
+  useCreateMilestonePayment,
+  useMilestonePayments,
+  type MilestonePaymentPayload,
+} from "@/lib/api/contractual";
+
+const MILESTONE_PREVIEW_FIELDS = [
+  { key: "milestone_name", label: "Name" },
+  { key: "expected_date_of_payment", label: "Expected Date" },
+  { key: "expected_payment_value", label: "Value" },
+] as const;
+
+// Shared by the manual "Add Milestone" button and the AI row-suggestions
+// panel's Apply (both ultimately call the same createMilestone mutation).
+function buildMilestonePayload(values: Record<string, string>): MilestonePaymentPayload {
+  return {
+    milestone_name: values.milestone_name,
+    expected_date_of_payment: values.expected_date_of_payment || undefined,
+    expected_payment_value: values.expected_payment_value || undefined,
+    milestone_description: values.milestone_description || undefined,
+  };
+}
 
 // Per §4.11 Milestones Linked to Payment — Definition fields, matching
 // MilestonePaymentCreate. Payment Actuals/Status are recorded later, once
@@ -28,28 +51,23 @@ const MILESTONE_FIELDS: FieldDef[] = [
 
 export function MilestonesTab() {
   const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useMilestonePayments(projectId);
   const createMilestone = useCreateMilestonePayment(projectId);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addMilestone = () => {
     if (!values.milestone_name?.trim() || !values.expected_date_of_payment) return;
-    createMilestone.mutate(
-      {
-        milestone_name: values.milestone_name,
-        expected_date_of_payment: values.expected_date_of_payment,
-        expected_payment_value: values.expected_payment_value || undefined,
-        milestone_description: values.milestone_description || undefined,
+    createMilestone.mutate(buildMilestonePayload(values), {
+      onSuccess: () => {
+        reset();
+        showSuccess("Milestone Added Successfully");
       },
-      {
-        onSuccess: () => {
-          reset();
-          toast.success("Milestone Added Successfully");
-        },
-        onError: (err) =>
-          toast.error(err instanceof Error ? err.message : "Failed to add milestone."),
-      }
-    );
+      onError: (err) =>
+        showError(err instanceof Error ? err.message : "Failed to add milestone."),
+    });
   };
 
   if (!projectId) {
@@ -62,6 +80,13 @@ export function MilestonesTab() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="milestones"
+        periodId={periodId}
+        itemLabel="Milestone"
+      />
+
       <SectionCard
         icon={Flag}
         title="Milestones Register"
@@ -78,6 +103,16 @@ export function MilestonesTab() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="milestones"
+        periodId={periodId}
+        itemLabel="Milestone"
+        previewFields={MILESTONE_PREVIEW_FIELDS}
+        buildPayload={buildMilestonePayload}
+        createMutation={createMilestone}
+      />
 
       <SectionCard icon={Flag} title="New Milestone">
         <EntryFields defs={MILESTONE_FIELDS} values={values} set={set} />

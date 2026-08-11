@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import type { UseMutationResult } from "@tanstack/react-query";
 import { Target } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useNewProjectId } from "@/stores/new-project-ui";
+import { usePageBanner } from "@/stores/page-banner";
 import { useProject } from "@/lib/api/projects";
 import { useProjectTypes } from "@/lib/api/reference-data";
 import {
@@ -49,7 +51,24 @@ const TABS = [
 // form with and a submit callback to save it. All hooks are still called
 // unconditionally above (each gated by its own `enabled` flag) to satisfy the
 // rules of hooks.
+// Every other Save/Add flow in this app (risk-log.tsx, charter-form.tsx,
+// etc.) toasts on success/error — this was the one place that called
+// .mutate() with no callbacks at all, so saving here gave no feedback.
+function saveWithBanner<TData, TPayload>(
+  mutation: UseMutationResult<TData, Error, TPayload>,
+  payload: TPayload,
+  showSuccess: (message: string) => void,
+  showError: (message: string) => void
+) {
+  mutation.mutate(payload, {
+    onSuccess: () => showSuccess("Measurement Targets Saved Successfully"),
+    onError: (err) => showError(err instanceof Error ? err.message : "Failed to save measurement targets."),
+  });
+}
+
 function useActiveTarget(projectId: string | null, projectTypeCode: string | undefined) {
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
   const development = useDevelopmentTarget(projectId, projectTypeCode === "DEVELOPMENT");
   const support = useSupportTarget(projectId, projectTypeCode === "SUPPORT");
   const staffing = useStaffingTarget(projectId, projectTypeCode === "PROFESSIONAL_STAFFING");
@@ -70,42 +89,48 @@ function useActiveTarget(projectId: string | null, projectTypeCode: string | und
         isLoaded: development.status === "success",
         seed: development.data ? fromDevelopmentTarget(development.data) : {},
         isSaving: saveDevelopment.isPending,
-        submit: (m: Record<string, string>) => saveDevelopment.mutate(toDevelopmentPayload(m)),
+        submit: (m: Record<string, string>) =>
+          saveWithBanner(saveDevelopment, toDevelopmentPayload(m), showSuccess, showError),
       };
     case "SUPPORT":
       return {
         isLoaded: support.status === "success",
         seed: support.data ? fromSupportTarget(support.data) : {},
         isSaving: saveSupport.isPending,
-        submit: (m: Record<string, string>) => saveSupport.mutate(toSupportPayload(m)),
+        submit: (m: Record<string, string>) =>
+          saveWithBanner(saveSupport, toSupportPayload(m), showSuccess, showError),
       };
     case "PROFESSIONAL_STAFFING":
       return {
         isLoaded: staffing.status === "success",
         seed: staffing.data ? fromStaffingTarget(staffing.data) : {},
         isSaving: saveStaffing.isPending,
-        submit: (m: Record<string, string>) => saveStaffing.mutate(toStaffingPayload(m)),
+        submit: (m: Record<string, string>) =>
+          saveWithBanner(saveStaffing, toStaffingPayload(m), showSuccess, showError),
       };
     case "TESTING":
       return {
         isLoaded: testing.status === "success",
         seed: testing.data ? fromTestingTarget(testing.data) : {},
         isSaving: saveTesting.isPending,
-        submit: (m: Record<string, string>) => saveTesting.mutate(toTestingPayload(m)),
+        submit: (m: Record<string, string>) =>
+          saveWithBanner(saveTesting, toTestingPayload(m), showSuccess, showError),
       };
     case "CLOUD_MAINTENANCE":
       return {
         isLoaded: cloudMaintenance.status === "success",
         seed: cloudMaintenance.data ? fromCloudMaintenanceTarget(cloudMaintenance.data) : {},
         isSaving: saveCloudMaintenance.isPending,
-        submit: (m: Record<string, string>) => saveCloudMaintenance.mutate(toCloudMaintenancePayload(m)),
+        submit: (m: Record<string, string>) =>
+          saveWithBanner(saveCloudMaintenance, toCloudMaintenancePayload(m), showSuccess, showError),
       };
     case "CLOUD_MIGRATION":
       return {
         isLoaded: cloudMigration.status === "success",
         seed: cloudMigration.data ? fromCloudMigrationTarget(cloudMigration.data) : {},
         isSaving: saveCloudMigration.isPending,
-        submit: (m: Record<string, string>) => saveCloudMigration.mutate(toCloudMigrationPayload(m)),
+        submit: (m: Record<string, string>) =>
+          saveWithBanner(saveCloudMigration, toCloudMigrationPayload(m), showSuccess, showError),
       };
     default:
       return { isLoaded: false, seed: {} as Record<string, string>, isSaving: false, submit: () => {} };

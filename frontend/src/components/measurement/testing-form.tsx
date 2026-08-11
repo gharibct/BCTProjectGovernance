@@ -5,6 +5,7 @@ import { ChartColumn, CircleCheckBig } from "lucide-react";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useTestingTarget } from "@/lib/api/metric-targets";
 import {
   useCreateTestingMeasurement,
@@ -12,8 +13,7 @@ import {
   type MeasurementTestingPayload,
   type MeasurementTestingRead,
 } from "@/lib/api/measurement";
-import { useReportingPeriods } from "@/lib/api/reference-data";
-import { MetricTile, PeriodField, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
+import { MetricTile, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
 
 const MEASURES = [
   { key: "total_test_cases_designed", label: "Total Test Cases Designed", hint: "Count" },
@@ -48,13 +48,13 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementTest
 }
 
 export function TestingTab({ projectId }: { projectId: string }) {
-  const { data: periods } = useReportingPeriods();
   const { data: target } = useTestingTarget(projectId);
 
   const latestQuery = useLatestTestingMeasurement(projectId);
   const createMutation = useCreateTestingMeasurement(projectId);
-  const { latest, m, set, periodId, setPeriodId, submit, isSaving } = useMeasurementForm({
+  const { latest, m, set, periodId, submit, isSaving, ai } = useMeasurementForm({
     projectId,
+    screen: "measurement_testing",
     latestQuery,
     createMutation,
     toValues,
@@ -63,12 +63,17 @@ export function TestingTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
+      <LoadAiSuggestionsButton
+        projectId={projectId}
+        screen="measurement_testing"
+        periodId={periodId || null}
+        ai={ai}
+      />
       <SectionCard
         icon={ChartColumn}
         title="Metrics"
         aside={
           <div className="flex items-end gap-4">
-            <PeriodField periods={periods} value={periodId} onChange={(e) => setPeriodId(e.target.value)} />
             <Button
               onClick={submit}
               disabled={!periodId || isSaving}

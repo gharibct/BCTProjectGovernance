@@ -5,6 +5,8 @@ import { Loader2, Lock, type LucideIcon } from "lucide-react";
 
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { AiFieldBadge } from "@/components/ai/ai-field-badge";
+import type { AiSuggestion } from "@/lib/api/ai-suggestions";
 
 // Inline spinner for a submit/save button's own label while its request is
 // in flight — pair with `disabled={mutation.isPending}` on the same button.
@@ -42,15 +44,26 @@ export function Field({
   htmlFor,
   badge,
   hint,
+  error,
   children,
   className,
+  ai,
 }: {
   label: string;
   htmlFor?: string;
   badge?: React.ReactNode;
   hint?: string;
+  // Field-level validation message — shown in place of `hint` when present.
+  // Purely presentational (no aria-invalid/border wiring on the control
+  // itself, since Field wraps arbitrary children); pair with a page banner
+  // for visibility per the app's notification standard.
+  error?: string;
   children: React.ReactNode;
   className?: string;
+  // Passed when a screen wires up AI-Implementation.md's suggestion
+  // framework (see components/ai/use-ai-review.ts) — undefined/no-suggestion
+  // renders exactly as before, so every other Field caller is unaffected.
+  ai?: { suggestion: AiSuggestion; onRevert: () => void };
 }) {
   return (
     <div className={className}>
@@ -63,8 +76,17 @@ export function Field({
         </Label>
         {badge}
       </div>
-      <div className="mt-2">{children}</div>
-      {hint ? <p className="mt-1.5 text-xs text-slate-400 italic">{hint}</p> : null}
+      {/* AI-Implementation.md §6: the confidence indicator sits before the
+          control, not next to the label like `badge` above. */}
+      <div className="mt-2 flex items-center gap-2">
+        {ai ? <AiFieldBadge suggestion={ai.suggestion} onRevert={ai.onRevert} /> : null}
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
+      {error ? (
+        <p className="mt-1.5 text-xs font-medium text-red-600">{error}</p>
+      ) : hint ? (
+        <p className="mt-1.5 text-xs text-slate-400 italic">{hint}</p>
+      ) : null}
     </div>
   );
 }

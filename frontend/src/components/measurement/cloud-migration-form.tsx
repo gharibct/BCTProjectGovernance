@@ -1,12 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 import { ChartColumn, CloudUpload } from "lucide-react";
 
 import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
+import { useAiReview } from "@/components/ai/use-ai-review";
 import { useCloudMigrationTarget } from "@/lib/api/metric-targets";
 import {
   useCreateCloudMigrationMeasurement,
@@ -23,7 +26,7 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
   const { data: latest } = useLatestCloudMigrationMeasurement(projectId);
   const createMutation = useCreateCloudMigrationMeasurement(projectId);
 
-  const { m, set, setAll } = useMeasures();
+  const { m, set: rawSet, setValue, setAll } = useMeasures();
   const [asOfDate, setAsOfDate] = React.useState(today);
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
 
@@ -43,6 +46,29 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
     }
   }
 
+  // Cloud Migration has no period_id of its own (uses as_of_date instead —
+  // see 16_measurement_cloud_migration.sql), so the ambient ?period= from
+  // the Reporting Hub is used purely as the AI-suggestion dimension.
+  const periodId = useSearchParams().get("period");
+  const ai = useAiReview(projectId, "measurement_cloud_migration", periodId);
+  const appliedSignatures = React.useRef<Map<string, string>>(new Map());
+  React.useEffect(() => {
+    for (const suggestion of ai.pendingFields) {
+      const signature = `${suggestion.id}:${suggestion.value ?? ""}`;
+      if (appliedSignatures.current.get(suggestion.field_key) !== signature) {
+        appliedSignatures.current.set(suggestion.field_key, signature);
+        ai.notePreviousValue(suggestion.field_key, m[suggestion.field_key]);
+        setValue(suggestion.field_key, suggestion.value ?? "");
+      }
+    }
+  }, [ai, m, setValue]);
+  const set = (fieldKey: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    rawSet(fieldKey)(e);
+    ai.noteManualEdit(fieldKey);
+  };
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
+
   const submit = () => {
     if (!projectId || !asOfDate) return;
     createMutation.mutate(
@@ -56,14 +82,23 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
         migration_end_time: m.migration_end_time || undefined,
       },
       {
-        onSuccess: () => toast.success("Measurement Saved Successfully"),
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to save measurement."),
+        onSuccess: () => {
+          ai.resolveAll();
+          showSuccess("Measurement Saved Successfully");
+        },
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to save measurement."),
       }
     );
   };
 
   return (
     <div className="flex flex-col gap-8">
+      <LoadAiSuggestionsButton
+        projectId={projectId}
+        screen="measurement_cloud_migration"
+        periodId={periodId}
+        ai={ai}
+      />
       <SectionCard
         icon={ChartColumn}
         title="Metrics"

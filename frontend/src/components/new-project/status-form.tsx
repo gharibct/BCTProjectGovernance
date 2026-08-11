@@ -1,21 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { ClipboardList, Lock } from "lucide-react";
 
-import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
+import { SectionCard, ButtonSpinner, Field, MandatoryBadge } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useNewProjectId } from "@/stores/new-project-ui";
+import { useReportingPeriods } from "@/lib/api/reference-data";
 import {
   useCreateStatusReport,
-  useLatestStatusReport,
-  type ProjectStatusReport,
+  useStatusReports,
+  useUpdateStatusReport,
 } from "@/lib/api/project-status";
 
-// Weekly narrative report — three bulleted free-text sections per the
+// Weekly/Monthly narrative report — three bulleted free-text sections per the
 // requirements (§4.4). `field` matches ProjectStatusReportCreate's keys.
 const STATUS_SECTIONS = [
   {
@@ -38,49 +39,59 @@ const STATUS_SECTIONS = [
   },
 ];
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const BLANK_SECTIONS: Record<string, string> = {
+  key_accomplishments: "",
+  upcoming_key_releases: "",
+  leadership_support_required: "",
+};
 
 export function StatusForm() {
   const projectId = useNewProjectId();
-  const { data: latest } = useLatestStatusReport(projectId);
+  const { data: periods } = useReportingPeriods();
+  const { data: reports } = useStatusReports(projectId);
   const createReport = useCreateStatusReport(projectId);
+  const updateReport = useUpdateStatusReport(projectId);
 
-  const [reportDate, setReportDate] = React.useState(today);
-  const [sections, setSections] = React.useState<Record<string, string>>({
-    key_accomplishments: "",
-    upcoming_key_releases: "",
-    leadership_support_required: "",
-  });
+  const [periodId, setPeriodId] = React.useState("");
+  const [sections, setSections] = React.useState<Record<string, string>>(BLANK_SECTIONS);
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
 
-  const key = latest ? latest.id : latest === null ? "none" : null;
-  if (key !== null && key !== syncedFor) {
+  const existing = reports?.find((r) => r.period_id === periodId);
+
+  const key = existing ? existing.id : `blank:${periodId}`;
+  if (key !== syncedFor) {
     setSyncedFor(key);
-    if (latest) {
-      const seeded: ProjectStatusReport = latest;
-      setReportDate(seeded.report_date);
-      setSections({
-        key_accomplishments: seeded.key_accomplishments ?? "",
-        upcoming_key_releases: seeded.upcoming_key_releases ?? "",
-        leadership_support_required: seeded.leadership_support_required ?? "",
-      });
-    }
+    setSections(
+      existing
+        ? {
+            key_accomplishments: existing.key_accomplishments ?? "",
+            upcoming_key_releases: existing.upcoming_key_releases ?? "",
+            leadership_support_required: existing.leadership_support_required ?? "",
+          }
+        : BLANK_SECTIONS
+    );
   }
 
-  const submit = () => {
-    if (!projectId) return;
-    createReport.mutate({
-      report_date: reportDate,
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
+
+  const save = (status: "Draft" | "Submitted") => {
+    if (!projectId || !periodId) return;
+    const fields = {
       key_accomplishments: sections.key_accomplishments || undefined,
       upcoming_key_releases: sections.upcoming_key_releases || undefined,
       leadership_support_required: sections.leadership_support_required || undefined,
-    }, {
-      onSuccess: () => toast.success("Status Report Submitted Successfully"),
-      onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "Failed to submit status report."),
-    });
+    };
+    const onSuccess = () =>
+      showSuccess(status === "Submitted" ? "Status Report Submitted Successfully" : "Draft Saved Successfully");
+    const onError = (err: unknown) =>
+      showError(err instanceof Error ? err.message : "Failed to save status report.");
+
+    if (existing) {
+      updateReport.mutate({ id: existing.id, payload: { ...fields, status } }, { onSuccess, onError });
+    } else {
+      createReport.mutate({ period_id: periodId, status, ...fields }, { onSuccess, onError });
+    }
   };
 
   if (!projectId) {
@@ -91,31 +102,34 @@ export function StatusForm() {
     );
   }
 
+  const isSaving = createReport.isPending || updateReport.isPending;
+
   return (
     <div>
       <SectionCard
         icon={ClipboardList}
         title="Project Status"
         aside={
-          <Field label="Report Date" htmlFor="report-date">
-            <Input
-              id="report-date"
-              type="date"
-              className="h-10 w-44"
-              value={reportDate}
-              onChange={(e) => setReportDate(e.target.value)}
-            />
+          <Field label="Reporting Period" htmlFor="reporting-period" badge={<MandatoryBadge />}>
+            <NativeSelect
+              id="reporting-period"
+              className="h-10 w-56"
+              value={periodId}
+              onChange={(e) => setPeriodId(e.target.value)}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {(periods ?? []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </NativeSelect>
           </Field>
         }
       >
         <div className="grid grid-cols-[minmax(14rem,18rem)_1fr] gap-x-8">
-          <p className="pb-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
-            Project Current Status
-          </p>
-          <p className="pb-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
-            Description
-          </p>
-
           {STATUS_SECTIONS.map((s) => (
             <React.Fragment key={s.field}>
               <p className="border-t border-slate-100 py-5 text-sm font-bold text-slate-800">
@@ -140,15 +154,24 @@ export function StatusForm() {
       <div className="mt-10 flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Lock className="size-4" />
-          One report per week — past reports are retained in history.
+          Draft and Submitted reports are retained per period — past reports stay in history.
         </p>
         <div className="flex gap-3">
           <Button
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-            disabled={createReport.isPending}
-            onClick={submit}
+            variant="outline"
+            className="h-11 gap-2 px-6 text-sm font-semibold"
+            disabled={!periodId || isSaving}
+            onClick={() => save("Draft")}
           >
-            {createReport.isPending ? <ButtonSpinner /> : null}
+            {isSaving ? <ButtonSpinner /> : null}
+            Save Draft
+          </Button>
+          <Button
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={!periodId || isSaving}
+            onClick={() => save("Submitted")}
+          >
+            {isSaving ? <ButtonSpinner /> : null}
             Submit Report
           </Button>
         </div>

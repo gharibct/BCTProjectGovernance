@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useParams } from "next/navigation";
-import { toast } from "sonner";
 import { Activity, HeartPulse } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -14,14 +13,18 @@ import {
   type ApplicablePhase,
   type ProjectStatus,
 } from "@/lib/api/projects";
+import { useReportingPeriods } from "@/lib/api/reference-data";
+import { currentPeriod } from "@/lib/period-utils";
 import {
   useCreateHealthDeclaration,
-  useLatestHealthDeclaration,
+  useHealthDeclarations,
+  useUpdateHealthDeclaration,
   type HealthDeclaration as ApiHealthDeclaration,
   type HealthRating as ApiHealthRating,
 } from "@/lib/api/health-declarations";
 
 import { Field, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 
 export type HealthRating = "green" | "amber" | "potential-red" | "red";
 
@@ -74,8 +77,8 @@ const APPLICABLE_PHASES: ApplicablePhase[] = [
 ];
 
 const PROJECT_STATUSES: ProjectStatus[] = [
-  "Start Up",
-  "Execution",
+  "Draft",
+  "Approved",
   "Hold",
   "Closed",
   "Open Only for Billing",
@@ -188,21 +191,32 @@ export function useHealthDeclarationForm() {
   const { projectId: rawProjectId } = useParams<{ projectId: string }>();
   const projectId = rawProjectId ?? null;
   const { data: project } = useProject(projectId);
-  const { data: latest } = useLatestHealthDeclaration(projectId);
+  const { data: periods = [] } = useReportingPeriods();
+  const { data: declarations } = useHealthDeclarations(projectId);
   const createDeclaration = useCreateHealthDeclaration(projectId);
+  const updateDeclaration = useUpdateHealthDeclaration(projectId);
   const updateProject = useUpdateProject(projectId);
+
+  // Self Assessment is done at project start and again each monthly review —
+  // one declaration per reporting month (see 04_health_declarations.sql),
+  // always against the current month.
+  const periodId = currentPeriod(periods, "Monthly")?.id ?? "";
+  const existing = declarations?.find((d) => d.period_id === periodId);
 
   const [ratings, setRatings] = React.useState<Record<CategoryKey, HealthRating>>(DEFAULT_RATINGS);
   const [descriptions, setDescriptions] = React.useState<Record<CategoryKey, string>>(EMPTY_DESCRIPTIONS);
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
 
-  const key = latest ? latest.id : latest === null ? "none" : null;
-  if (key !== null && key !== syncedFor) {
+  const key = existing ? existing.id : `blank:${periodId}`;
+  if (key !== syncedFor) {
     setSyncedFor(key);
-    if (latest) {
-      const seeded = fromDeclaration(latest);
+    if (existing) {
+      const seeded = fromDeclaration(existing);
       setRatings(seeded.ratings);
       setDescriptions(seeded.descriptions);
+    } else {
+      setRatings(DEFAULT_RATINGS);
+      setDescriptions(EMPTY_DESCRIPTIONS);
     }
   }
 
@@ -230,35 +244,39 @@ export function useHealthDeclarationForm() {
   const overall = deAssessedHealth ? worstOf([declaredOverall, deAssessedHealth]) : declaredOverall;
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const submit = async () => {
-    if (!projectId) return;
+    if (!projectId || !periodId) return;
     setIsSubmitting(true);
     try {
+      const fields = {
+        core_delivery_rating: RATING_TO_API[ratings["core-delivery"]],
+        core_delivery_description: descriptions["core-delivery"] || undefined,
+        people_rating: RATING_TO_API[ratings.people],
+        people_description: descriptions.people || undefined,
+        operational_rating: RATING_TO_API[ratings.operational],
+        operational_description: descriptions.operational || undefined,
+        customer_rating: RATING_TO_API[ratings.customer],
+        customer_description: descriptions.customer || undefined,
+        financial_rating: RATING_TO_API[ratings.financial],
+        financial_description: descriptions.financial || undefined,
+        compliance_rating: RATING_TO_API[ratings.compliance],
+        compliance_description: descriptions.compliance || undefined,
+      };
       await Promise.all([
-        createDeclaration.mutateAsync({
-          declaration_date: new Date().toISOString().slice(0, 10),
-          core_delivery_rating: RATING_TO_API[ratings["core-delivery"]],
-          core_delivery_description: descriptions["core-delivery"] || undefined,
-          people_rating: RATING_TO_API[ratings.people],
-          people_description: descriptions.people || undefined,
-          operational_rating: RATING_TO_API[ratings.operational],
-          operational_description: descriptions.operational || undefined,
-          customer_rating: RATING_TO_API[ratings.customer],
-          customer_description: descriptions.customer || undefined,
-          financial_rating: RATING_TO_API[ratings.financial],
-          financial_description: descriptions.financial || undefined,
-          compliance_rating: RATING_TO_API[ratings.compliance],
-          compliance_description: descriptions.compliance || undefined,
-        }),
+        existing
+          ? updateDeclaration.mutateAsync({ id: existing.id, payload: fields })
+          : createDeclaration.mutateAsync({ period_id: periodId, ...fields }),
         updateProject.mutateAsync({
           applicable_phase: applicablePhase || undefined,
           project_status: projectStatus || undefined,
         }),
       ]);
-      toast.success("Self Assessment Saved Successfully");
+      showSuccess("Self Assessment Saved Successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save self assessment.");
+      showError(err instanceof Error ? err.message : "Failed to save self assessment.");
     } finally {
       setIsSubmitting(false);
     }
@@ -278,7 +296,7 @@ export function useHealthDeclarationForm() {
     deAssessedHealth,
     overall,
     submit,
-    isSubmitting,
+    isSubmitting: isSubmitting || createDeclaration.isPending || updateDeclaration.isPending,
   };
 }
 

@@ -5,6 +5,7 @@ import { ChartColumn, Server } from "lucide-react";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useCloudMaintenanceTarget } from "@/lib/api/metric-targets";
 import {
   useCreateCloudMaintenanceMeasurement,
@@ -12,8 +13,7 @@ import {
   type MeasurementCloudMaintenancePayload,
   type MeasurementCloudMaintenanceRead,
 } from "@/lib/api/measurement";
-import { useReportingPeriods } from "@/lib/api/reference-data";
-import { MetricTile, PeriodField, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
+import { MetricTile, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
 
 function toValues(data: MeasurementCloudMaintenanceRead): Record<string, string> {
   return {
@@ -33,13 +33,13 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementClou
 }
 
 export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
-  const { data: periods } = useReportingPeriods();
   const { data: target } = useCloudMaintenanceTarget(projectId);
 
   const latestQuery = useLatestCloudMaintenanceMeasurement(projectId);
   const createMutation = useCreateCloudMaintenanceMeasurement(projectId);
-  const { latest, m, set, periodId, setPeriodId, submit, isSaving } = useMeasurementForm({
+  const { latest, m, set, periodId, submit, isSaving, ai } = useMeasurementForm({
     projectId,
+    screen: "measurement_cloud_maintenance",
     latestQuery,
     createMutation,
     toValues,
@@ -48,12 +48,17 @@ export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
+      <LoadAiSuggestionsButton
+        projectId={projectId}
+        screen="measurement_cloud_maintenance"
+        periodId={periodId || null}
+        ai={ai}
+      />
       <SectionCard
         icon={ChartColumn}
         title="Metrics"
         aside={
           <div className="flex items-end gap-4">
-            <PeriodField periods={periods} value={periodId} onChange={(e) => setPeriodId(e.target.value)} />
             <Button
               onClick={submit}
               disabled={!periodId || isSaving}

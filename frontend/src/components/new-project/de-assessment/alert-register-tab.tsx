@@ -1,9 +1,10 @@
 "use client";
 
-import { toast } from "sonner";
+import * as React from "react";
 import { Siren } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
@@ -50,9 +51,19 @@ export function AlertRegisterTab({
 }) {
   const { values, set, reset } = useEntryValues();
   const createAlert = useCreateDEAssessmentAlert(projectId, assessment?.id ?? null);
+  const [descriptionError, setDescriptionError] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addAlert = () => {
-    if (!assessment || !values.brief_description?.trim()) return;
+    if (!assessment) return;
+    if (!values.brief_description?.trim()) {
+      const message = "Brief Description is required.";
+      setDescriptionError(message);
+      showError(message);
+      return;
+    }
+    setDescriptionError(null);
     const payload: DEAssessmentAlertPayload = {
       alert_category: values.alert_category || undefined,
       brief_description: values.brief_description,
@@ -62,9 +73,9 @@ export function AlertRegisterTab({
     createAlert.mutate(payload, {
       onSuccess: () => {
         reset();
-        toast.success("Alert Added Successfully");
+        showSuccess("Alert Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add alert."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add alert."),
     });
   };
 
@@ -80,12 +91,6 @@ export function AlertRegisterTab({
 
   return (
     <div className="flex flex-col gap-8">
-      {assessment.de_assessed_project_health !== "Green" && items.length === 0 ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          This assessment is rated {assessment.de_assessed_project_health} — raise at least one alert below.
-        </p>
-      ) : null}
-
       <SectionCard icon={Siren} title="Alert Register" aside={<AutoBadge label={`${items.length} logged`} />}>
         <RegisterTable
           items={items}
@@ -100,7 +105,12 @@ export function AlertRegisterTab({
       </SectionCard>
 
       <SectionCard icon={Siren} title="New Alert">
-        <EntryFields defs={ALERT_FIELDS} values={values} set={set} />
+        <EntryFields
+          defs={ALERT_FIELDS}
+          values={values}
+          set={set}
+          errors={descriptionError ? { brief_description: descriptionError } : undefined}
+        />
         <div className="mt-6 flex justify-end">
           <Button
             onClick={addAlert}

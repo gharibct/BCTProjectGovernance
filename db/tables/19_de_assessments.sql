@@ -5,7 +5,7 @@
 CREATE TABLE de_assessments (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    assessment_date DATE NOT NULL,
+    assessment_date DATE,
     de_assessed_project_health TEXT NOT NULL, -- Red, Potential Red, Amber, Green
     pci_score NUMERIC(6, 2),
     next_assessment_due_date DATE,

@@ -63,7 +63,7 @@ class DEAssessmentCreate(BaseModel):
     """Header only — Alerts and Findings are added afterward, one at a time,
     via their own registers (POST .../alerts, POST .../findings)."""
 
-    assessment_date: date
+    assessment_date: date | None = None
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None
     next_assessment_due_date: date | None = None
@@ -74,7 +74,7 @@ class DEAssessmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     project_id: UUID
-    assessment_date: date
+    assessment_date: date | None
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None
     next_assessment_due_date: date | None = None

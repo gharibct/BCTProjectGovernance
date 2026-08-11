@@ -1,20 +1,39 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useUsers } from "@/lib/api/reference-data";
-import { useCreateIssue, useIssues, type IssueLog as IssueLogItem, type IssueLogPayload } from "@/lib/api/raid";
+import { useBaselinePeriodId } from "@/lib/period-utils";
+import {
+  useCreateIssue,
+  useIssues,
+  useUpdateIssue,
+  type IssueLog as IssueLogItem,
+  type IssueLogPayload,
+} from "@/lib/api/raid";
+
+const ISSUE_PREVIEW_FIELDS = [
+  { key: "issue_title", label: "Title" },
+  { key: "issue_category", label: "Category" },
+  { key: "priority", label: "Priority" },
+  { key: "severity", label: "Severity" },
+] as const;
+
+function buildIssuePayload(values: Record<string, string>): IssueLogPayload {
+  return values as IssueLogPayload;
+}
 
 // Fields per §4.6 Issue Log. Keys match IssueLogCreate's field names —
 // fields only settable after creation (status, actual_resolution_date,
@@ -59,21 +78,26 @@ function useIssueFields(): FieldDef[] {
 
 export function IssueLog() {
   const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useIssues(projectId);
   const createIssue = useCreateIssue(projectId);
+  const updateIssue = useUpdateIssue(projectId);
   const fields = useIssueFields();
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
 
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
+
   const addIssue = () => {
     if (!values.issue_title?.trim()) return;
-    createIssue.mutate(values as IssueLogPayload, {
+    createIssue.mutate(buildIssuePayload(values), {
       onSuccess: () => {
         reset();
-        toast.success("Issue Added Successfully");
+        showSuccess("Issue Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add issue."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add issue."),
     });
   };
 
@@ -87,6 +111,8 @@ export function IssueLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger projectId={projectId} screen="issues" periodId={periodId} itemLabel="Issue" />
+
       <SectionCard
         icon={TriangleAlert}
         title="Issue Register"
@@ -105,6 +131,17 @@ export function IssueLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="issues"
+        periodId={periodId}
+        itemLabel="Issue"
+        previewFields={ISSUE_PREVIEW_FIELDS}
+        buildPayload={buildIssuePayload}
+        createMutation={createIssue}
+        updateMutation={updateIssue}
+      />
 
       <SectionCard icon={TriangleAlert} title="New Issue">
         <EntryFields defs={fields} values={values} set={set} />

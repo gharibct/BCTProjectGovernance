@@ -43,7 +43,7 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     actual_duration_days: Mapped[int | None] = mapped_column(server_default=FetchedValue())
 
     applicable_phase: Mapped[str | None]
-    project_status: Mapped[str]  # Start Up, Pending Approval, Execution, Hold, Closed, Open Only for Billing
+    project_status: Mapped[str]  # Draft, Pending Approval, Approved, Hold, Closed, Open Only for Billing
     # Health values: Red, Potential Red, Amber, Green. Kept in sync by services.health_rollup.
     delivery_declared_overall_health: Mapped[str | None]
     de_assessed_project_health: Mapped[str | None]

@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
@@ -12,7 +12,7 @@ class HealthDeclaration(Base, UUIDPrimaryKey):
     __tablename__ = "health_declarations"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    declaration_date: Mapped[date]
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
 
     # Rating values (all *_rating columns): Red, Potential Red, Amber, Green.
     core_delivery_rating: Mapped[str]

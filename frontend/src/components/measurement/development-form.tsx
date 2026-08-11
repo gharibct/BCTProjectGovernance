@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { fromDevelopmentTarget } from "@/components/new-project/measurement/development-form";
 import { useDevelopmentTarget } from "@/lib/api/metric-targets";
 import {
@@ -25,10 +26,8 @@ import {
   type MeasurementDevelopmentRead,
   type SdlcStage,
 } from "@/lib/api/measurement";
-import { useReportingPeriods } from "@/lib/api/reference-data";
 import {
   MetricTile,
-  PeriodField,
   fmt,
   inputClass,
   num,
@@ -87,14 +86,14 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementDeve
 }
 
 export function DevelopmentTab({ projectId }: { projectId: string }) {
-  const { data: periods } = useReportingPeriods();
   const { data: targetData } = useDevelopmentTarget(projectId);
   const target = targetData ? fromDevelopmentTarget(targetData) : ({} as Record<string, string>);
 
   const latestQuery = useLatestDevelopmentMeasurement(projectId);
   const createMutation = useCreateDevelopmentMeasurement(projectId);
-  const { latest, m, set, periodId, setPeriodId, submit, isSaving } = useMeasurementForm({
+  const { latest, m, set, periodId, submit, isSaving, ai } = useMeasurementForm({
     projectId,
+    screen: "measurement_development",
     latestQuery,
     createMutation,
     toValues,
@@ -120,12 +119,17 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
+      <LoadAiSuggestionsButton
+        projectId={projectId}
+        screen="measurement_development"
+        periodId={periodId || null}
+        ai={ai}
+      />
       <SectionCard
         icon={ChartColumn}
         title="Metrics"
         aside={
           <div className="flex items-end gap-4">
-            <PeriodField periods={periods} value={periodId} onChange={(e) => setPeriodId(e.target.value)} />
             <Button
               onClick={submit}
               disabled={!periodId || isSaving}

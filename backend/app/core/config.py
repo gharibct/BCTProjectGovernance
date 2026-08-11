@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/project_governance"
     api_key: str = "change-me-local-dev-key"
     cors_origins: str = "http://localhost:3000"
+    document_storage_dir: str = "./storage/documents"
 
     @property
     def cors_origin_list(self) -> list[str]:

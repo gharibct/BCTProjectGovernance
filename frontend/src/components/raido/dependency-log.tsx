@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
-import { toast } from "sonner";
+import { useParams, useSearchParams } from "next/navigation";
 import { Link2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useUsers } from "@/lib/api/reference-data";
 import {
   useCreateDependency,
@@ -92,8 +93,23 @@ function toValues(item: DependencyLogItem): Record<string, string> {
   } as unknown as Record<string, string>;
 }
 
+const DEPENDENCY_PREVIEW_FIELDS = [
+  { key: "dependency_title", label: "Title" },
+  { key: "category", label: "Category" },
+  { key: "criticality", label: "Criticality" },
+  { key: "probability_of_delay", label: "Probability of Delay" },
+] as const;
+
+function buildDependencyPayload(values: Record<string, string>): DependencyLogPayload {
+  return {
+    ...values,
+    escalation_required: values.escalation_required === "Y",
+  };
+}
+
 export function DependencyLog() {
   const { projectId } = useParams<{ projectId: string }>();
+  const periodId = useSearchParams().get("period");
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useDependencies(projectId);
   const createDependency = useCreateDependency(projectId);
@@ -103,6 +119,8 @@ export function DependencyLog() {
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const startEdit = (item: DependencyLogItem) => {
     setEditingId(item.id);
@@ -118,18 +136,15 @@ export function DependencyLog() {
     deleteDependency.mutate(item.id, {
       onSuccess: () => {
         if (editingId === item.id) cancelEdit();
-        toast.success("Dependency Deleted Successfully");
+        showSuccess("Dependency Deleted Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete dependency."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete dependency."),
     });
   };
 
   const submit = () => {
     if (!values.dependency_title?.trim()) return;
-    const payload: DependencyLogPayload = {
-      ...values,
-      escalation_required: values.escalation_required === "Y",
-    };
+    const payload = buildDependencyPayload(values);
 
     if (editingId) {
       updateDependency.mutate(
@@ -137,18 +152,18 @@ export function DependencyLog() {
         {
           onSuccess: () => {
             cancelEdit();
-            toast.success("Dependency Updated Successfully");
+            showSuccess("Dependency Updated Successfully");
           },
-          onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update dependency."),
+          onError: (err) => showError(err instanceof Error ? err.message : "Failed to update dependency."),
         }
       );
     } else {
       createDependency.mutate(payload, {
         onSuccess: () => {
           reset();
-          toast.success("Dependency Added Successfully");
+          showSuccess("Dependency Added Successfully");
         },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add dependency."),
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to add dependency."),
       });
     }
   };
@@ -165,6 +180,13 @@ export function DependencyLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="dependencies"
+        periodId={periodId}
+        itemLabel="Dependency"
+      />
+
       <SectionCard
         icon={Link2}
         title="Dependency Register"
@@ -185,6 +207,17 @@ export function DependencyLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="dependencies"
+        periodId={periodId}
+        itemLabel="Dependency"
+        previewFields={DEPENDENCY_PREVIEW_FIELDS}
+        buildPayload={buildDependencyPayload}
+        createMutation={createDependency}
+        updateMutation={updateDependency}
+      />
 
       <SectionCard icon={Link2} title="New Dependency">
         <EntryFields defs={fields} values={values} set={set} />

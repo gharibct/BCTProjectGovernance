@@ -1,12 +1,14 @@
 "use client";
 
-import { toast } from "sonner";
+import * as React from "react";
 import { Table } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
+import { usePageBanner } from "@/stores/page-banner";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import {
   useCreateDEAssessmentFinding,
   type DEAssessment,
@@ -18,6 +20,12 @@ import {
 const CLASSIFICATIONS: FindingClassification[] = ["Observation", "Recommendation"];
 const FINDING_STATUSES: FindingStatus[] = ["Open", "Closed", "On Hold", "Deferred"];
 
+const FINDING_PREVIEW_FIELDS = [
+  { key: "classification", label: "Classification" },
+  { key: "action_taken", label: "Action Taken" },
+  { key: "status", label: "Status" },
+] as const;
+
 const FINDING_FIELDS: FieldDef[] = [
   { key: "classification", label: "Classification", kind: "select", options: CLASSIFICATIONS, mandatory: true },
   { key: "action_taken", label: "Action Taken", kind: "text", placeholder: "Action taken" },
@@ -28,30 +36,44 @@ const FINDING_FIELDS: FieldDef[] = [
 
 export function FindingsRegisterTab({
   projectId,
+  periodId,
   assessment,
 }: {
   projectId: string | null;
+  periodId: string | null;
   assessment: DEAssessment | null | undefined;
 }) {
   const { values, set, reset } = useEntryValues();
   const createFinding = useCreateDEAssessmentFinding(projectId, assessment?.id ?? null);
+  const [classificationError, setClassificationError] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
+
+  const buildFindingPayload = (v: Record<string, string>): DEAssessmentFindingPayload => ({
+    sequence_no: (assessment?.findings.length ?? 0) + 1,
+    classification: v.classification as FindingClassification,
+    action_taken: v.action_taken || undefined,
+    finding_date: v.finding_date || undefined,
+    status: (v.status as FindingStatus) || "Open",
+    remarks: v.remarks || undefined,
+  });
 
   const addFinding = () => {
-    if (!assessment || !values.classification) return;
-    const payload: DEAssessmentFindingPayload = {
-      sequence_no: assessment.findings.length + 1,
-      classification: values.classification as FindingClassification,
-      action_taken: values.action_taken || undefined,
-      finding_date: values.finding_date || undefined,
-      status: (values.status as FindingStatus) || "Open",
-      remarks: values.remarks || undefined,
-    };
+    if (!assessment) return;
+    if (!values.classification) {
+      const message = "Classification is required.";
+      setClassificationError(message);
+      showError(message);
+      return;
+    }
+    setClassificationError(null);
+    const payload = buildFindingPayload(values);
     createFinding.mutate(payload, {
       onSuccess: () => {
         reset();
-        toast.success("Finding Added Successfully");
+        showSuccess("Finding Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add finding."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add finding."),
     });
   };
 
@@ -67,6 +89,13 @@ export function FindingsRegisterTab({
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId ?? ""}
+        screen="de_assessment_findings"
+        periodId={periodId}
+        itemLabel="Finding"
+      />
+
       <SectionCard icon={Table} title="Findings Register" aside={<AutoBadge label={`${items.length} logged`} />}>
         <RegisterTable
           items={items}
@@ -82,8 +111,23 @@ export function FindingsRegisterTab({
         />
       </SectionCard>
 
+      <AiRowSuggestionsPanel
+        projectId={projectId ?? ""}
+        screen="de_assessment_findings"
+        periodId={periodId}
+        itemLabel="Finding"
+        previewFields={FINDING_PREVIEW_FIELDS}
+        buildPayload={buildFindingPayload}
+        createMutation={createFinding}
+      />
+
       <SectionCard icon={Table} title="New Finding">
-        <EntryFields defs={FINDING_FIELDS} values={values} set={set} />
+        <EntryFields
+          defs={FINDING_FIELDS}
+          values={values}
+          set={set}
+          errors={classificationError ? { classification: classificationError } : undefined}
+        />
         <div className="mt-6 flex justify-end">
           <Button
             onClick={addFinding}

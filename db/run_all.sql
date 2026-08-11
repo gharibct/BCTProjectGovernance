@@ -32,3 +32,6 @@
 \ir tables/27_metric_target_testing.sql
 \ir tables/28_metric_target_cloud_maintenance.sql
 \ir tables/29_metric_target_cloud_migration.sql
+\ir tables/30_ai_field_suggestions.sql
+\ir tables/31_ai_row_suggestions.sql
+\ir tables/32_project_documents.sql

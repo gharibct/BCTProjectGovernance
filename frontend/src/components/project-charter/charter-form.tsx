@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useParams } from "next/navigation";
-import { toast } from "sonner";
 import {
   Banknote,
   CalendarDays,
@@ -28,6 +27,7 @@ import {
 } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   useAccounts,
   useGeos,
@@ -368,6 +368,8 @@ function ResourceAllocationTab() {
   const createResource = useCreateProjectResource(projectId);
   const updateResource = useUpdateProjectResource(projectId);
   const deleteResourceMutation = useDeleteProjectResource(projectId);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const startEdit = (item: ProjectResource) => {
     setEditingId(item.id);
@@ -383,9 +385,9 @@ function ResourceAllocationTab() {
     deleteResourceMutation.mutate(item.id, {
       onSuccess: () => {
         if (editingId === item.id) cancelEdit();
-        toast.success("Resource Deleted Successfully");
+        showSuccess("Resource Deleted Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete resource."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete resource."),
     });
   };
 
@@ -403,18 +405,18 @@ function ResourceAllocationTab() {
         {
           onSuccess: () => {
             cancelEdit();
-            toast.success("Resource Updated Successfully");
+            showSuccess("Resource Updated Successfully");
           },
-          onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update resource."),
+          onError: (err) => showError(err instanceof Error ? err.message : "Failed to update resource."),
         }
       );
     } else {
       createResource.mutate(payload, {
         onSuccess: () => {
           reset();
-          toast.success("Resource Added Successfully");
+          showSuccess("Resource Added Successfully");
         },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add resource."),
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to add resource."),
       });
     }
   };
@@ -529,6 +531,8 @@ export function ScopeScheduleForm() {
   const projectId = rawProjectId ?? null;
   const { data: project } = useProject(projectId);
   const updateProject = useUpdateProject(projectId);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const [actual, setActual] = React.useState<ActualDates>({ start: "", end: "" });
   const [syncedKey, setSyncedKey] = React.useState<string | null>(null);
@@ -571,9 +575,9 @@ export function ScopeScheduleForm() {
                 actual_end_date: actual.end || undefined,
               },
               {
-                onSuccess: () => toast.success("Schedule Saved Successfully"),
+                onSuccess: () => showSuccess("Schedule Saved Successfully"),
                 onError: (err) =>
-                  toast.error(err instanceof Error ? err.message : "Failed to save changes."),
+                  showError(err instanceof Error ? err.message : "Failed to save changes."),
               }
             )
           }

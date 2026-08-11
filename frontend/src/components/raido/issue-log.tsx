@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
-import { toast } from "sonner";
+import { useParams, useSearchParams } from "next/navigation";
 import { TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useUsers } from "@/lib/api/reference-data";
 import {
   useCreateIssue,
@@ -64,8 +65,20 @@ function useIssueFields(): FieldDef[] {
   ];
 }
 
+const ISSUE_PREVIEW_FIELDS = [
+  { key: "issue_title", label: "Title" },
+  { key: "issue_category", label: "Category" },
+  { key: "priority", label: "Priority" },
+  { key: "severity", label: "Severity" },
+] as const;
+
+function buildIssuePayload(values: Record<string, string>): IssueLogPayload {
+  return values as IssueLogPayload;
+}
+
 export function IssueLog() {
   const { projectId } = useParams<{ projectId: string }>();
+  const periodId = useSearchParams().get("period");
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useIssues(projectId);
   const createIssue = useCreateIssue(projectId);
@@ -75,6 +88,8 @@ export function IssueLog() {
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const startEdit = (item: IssueLogItem) => {
     setEditingId(item.id);
@@ -90,15 +105,15 @@ export function IssueLog() {
     deleteIssue.mutate(item.id, {
       onSuccess: () => {
         if (editingId === item.id) cancelEdit();
-        toast.success("Issue Deleted Successfully");
+        showSuccess("Issue Deleted Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete issue."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete issue."),
     });
   };
 
   const submit = () => {
     if (!values.issue_title?.trim()) return;
-    const payload = values as IssueLogPayload;
+    const payload = buildIssuePayload(values);
 
     if (editingId) {
       updateIssue.mutate(
@@ -106,18 +121,18 @@ export function IssueLog() {
         {
           onSuccess: () => {
             cancelEdit();
-            toast.success("Issue Updated Successfully");
+            showSuccess("Issue Updated Successfully");
           },
-          onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update issue."),
+          onError: (err) => showError(err instanceof Error ? err.message : "Failed to update issue."),
         }
       );
     } else {
       createIssue.mutate(payload, {
         onSuccess: () => {
           reset();
-          toast.success("Issue Added Successfully");
+          showSuccess("Issue Added Successfully");
         },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add issue."),
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to add issue."),
       });
     }
   };
@@ -134,6 +149,8 @@ export function IssueLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger projectId={projectId} screen="issues" periodId={periodId} itemLabel="Issue" />
+
       <SectionCard
         icon={TriangleAlert}
         title="Issue Register"
@@ -154,6 +171,17 @@ export function IssueLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="issues"
+        periodId={periodId}
+        itemLabel="Issue"
+        previewFields={ISSUE_PREVIEW_FIELDS}
+        buildPayload={buildIssuePayload}
+        createMutation={createIssue}
+        updateMutation={updateIssue}
+      />
 
       <SectionCard icon={TriangleAlert} title="New Issue">
         <EntryFields defs={fields} values={values} set={set} />

@@ -1,20 +1,41 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { ClipboardCheck } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
+import { useBaselinePeriodId } from "@/lib/period-utils";
 import {
   useCommitments,
   useCreateCommitment,
   type CommitmentFrequency,
   type ContractualCommitmentPayload,
 } from "@/lib/api/contractual";
+
+const COMMITMENT_PREVIEW_FIELDS = [
+  { key: "commitment_name", label: "Name" },
+  { key: "frequency", label: "Frequency" },
+  { key: "target", label: "Target" },
+] as const;
+
+// Shared by the manual "Add Commitment" button and the AI row-suggestions
+// panel's Apply (both ultimately call the same createCommitment mutation).
+function buildCommitmentPayload(values: Record<string, string>): ContractualCommitmentPayload {
+  return {
+    commitment_name: values.commitment_name,
+    frequency: values.frequency as CommitmentFrequency,
+    formula: values.formula || undefined,
+    target: values.target || undefined,
+    penalty_applicable: values.penalty_applicable === "Y",
+    penalty_value: values.penalty_value || undefined,
+  };
+}
 
 // Per §4.11 Contractual Commitment — Definition fields. This is the
 // definition stage for a project still being created, so only Definition
@@ -52,26 +73,21 @@ const COMMITMENT_FIELDS: FieldDef[] = [
 
 export function CommitmentsTab() {
   const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useCommitments(projectId);
   const createCommitment = useCreateCommitment(projectId);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addCommitment = () => {
     if (!values.commitment_name?.trim() || !values.frequency) return;
-    const payload: ContractualCommitmentPayload = {
-      commitment_name: values.commitment_name,
-      frequency: values.frequency as CommitmentFrequency,
-      formula: values.formula || undefined,
-      target: values.target || undefined,
-      penalty_applicable: values.penalty_applicable === "Y",
-      penalty_value: values.penalty_value || undefined,
-    };
-    createCommitment.mutate(payload, {
+    createCommitment.mutate(buildCommitmentPayload(values), {
       onSuccess: () => {
         reset();
-        toast.success("Commitment Added Successfully");
+        showSuccess("Commitment Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add commitment."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add commitment."),
     });
   };
 
@@ -85,6 +101,13 @@ export function CommitmentsTab() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="commitments"
+        periodId={periodId}
+        itemLabel="Commitment"
+      />
+
       <SectionCard
         icon={ClipboardCheck}
         title="Commitments Register"
@@ -106,6 +129,16 @@ export function CommitmentsTab() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="commitments"
+        periodId={periodId}
+        itemLabel="Commitment"
+        previewFields={COMMITMENT_PREVIEW_FIELDS}
+        buildPayload={buildCommitmentPayload}
+        createMutation={createCommitment}
+      />
 
       <SectionCard icon={ClipboardCheck} title="New Commitment">
         <EntryFields defs={COMMITMENT_FIELDS} values={values} set={set} />

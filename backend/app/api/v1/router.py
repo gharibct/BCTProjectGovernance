@@ -1,11 +1,14 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    ai_row_suggestions,
+    ai_suggestions,
     audit,
     contractual,
     dashboard,
     data_integrity,
     de_assessment,
+    documents,
     health_declarations,
     integrations,
     measurement,
@@ -22,6 +25,9 @@ api_router = APIRouter()
 api_router.include_router(reference_data.router)
 api_router.include_router(users.router)
 api_router.include_router(projects.router)
+api_router.include_router(ai_suggestions.router)
+api_router.include_router(ai_row_suggestions.router)
+api_router.include_router(documents.router)
 api_router.include_router(health_declarations.router)
 api_router.include_router(project_status.router)
 api_router.include_router(raid.router)

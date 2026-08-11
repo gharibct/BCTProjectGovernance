@@ -1,25 +1,44 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { TrendingUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useUsers } from "@/lib/api/reference-data";
+import { useBaselinePeriodId } from "@/lib/period-utils";
 import {
   useCreateOpportunity,
   useOpportunities,
+  useUpdateOpportunity,
   type OpportunityLog as OpportunityLogItem,
   type OpportunityLogPayload,
 } from "@/lib/api/raid";
+
+const OPPORTUNITY_PREVIEW_FIELDS = [
+  { key: "opportunity_title", label: "Title" },
+  { key: "category", label: "Category" },
+  { key: "impact", label: "Impact" },
+  { key: "expected_benefit", label: "Expected Benefit" },
+] as const;
+
+// Shared by the manual "Add Opportunity" button and the AI row-suggestions
+// panel's Apply (both ultimately call the same createOpportunity mutation).
+function buildOpportunityPayload(values: Record<string, string>): OpportunityLogPayload {
+  return {
+    ...values,
+    approval_required: values.approval_required === "Y",
+  };
+}
 
 // Fields per §4.9 Opportunity Log. Keys match OpportunityLogCreate's field
 // names — status/approved_by/actual_benefit/closure_date aren't settable at
@@ -72,25 +91,25 @@ function useOpportunityFields(): FieldDef[] {
 
 export function OpportunityLog() {
   const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useOpportunities(projectId);
   const createOpportunity = useCreateOpportunity(projectId);
+  const updateOpportunity = useUpdateOpportunity(projectId);
   const fields = useOpportunityFields();
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addOpportunity = () => {
     if (!values.opportunity_title?.trim()) return;
-    const payload: OpportunityLogPayload = {
-      ...values,
-      approval_required: values.approval_required === "Y",
-    };
-    createOpportunity.mutate(payload, {
+    createOpportunity.mutate(buildOpportunityPayload(values), {
       onSuccess: () => {
         reset();
-        toast.success("Opportunity Added Successfully");
+        showSuccess("Opportunity Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add opportunity."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add opportunity."),
     });
   };
 
@@ -104,6 +123,13 @@ export function OpportunityLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="opportunities"
+        periodId={periodId}
+        itemLabel="Opportunity"
+      />
+
       <SectionCard
         icon={TrendingUp}
         title="Opportunity Register"
@@ -126,6 +152,17 @@ export function OpportunityLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="opportunities"
+        periodId={periodId}
+        itemLabel="Opportunity"
+        previewFields={OPPORTUNITY_PREVIEW_FIELDS}
+        buildPayload={buildOpportunityPayload}
+        createMutation={createOpportunity}
+        updateMutation={updateOpportunity}
+      />
 
       <SectionCard icon={TrendingUp} title="New Opportunity">
         <EntryFields defs={fields} values={values} set={set} />

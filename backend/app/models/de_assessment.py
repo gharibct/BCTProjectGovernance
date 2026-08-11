@@ -13,7 +13,7 @@ class DEAssessment(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "de_assessments"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    assessment_date: Mapped[date]
+    assessment_date: Mapped[date | None]
     de_assessed_project_health: Mapped[str]  # Red, Potential Red, Amber, Green
     pci_score: Mapped[Decimal | None] = mapped_column(Numeric)
     next_assessment_due_date: Mapped[date | None]

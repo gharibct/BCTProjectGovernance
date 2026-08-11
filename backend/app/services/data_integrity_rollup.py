@@ -41,6 +41,12 @@ async def _max_updated_at_date(db: AsyncSession, model: type, project_id: UUID) 
     return result.date() if result else None
 
 
+async def _max_created_at_date(db: AsyncSession, model: type, project_id: UUID) -> date | None:
+    stmt = select(func.max(model.created_at)).where(model.project_id == project_id)
+    result = (await db.execute(stmt)).scalar_one_or_none()
+    return result.date() if result else None
+
+
 async def _contractual_actuals_max_date(db: AsyncSession, project_id: UUID) -> date | None:
     stmt = (
         select(func.max(ContractualCommitmentActual.period_date))
@@ -57,9 +63,7 @@ MODULE_LOOKUP: dict[str, Callable[[AsyncSession, UUID], Awaitable[date | None]]]
     "Dependency Log": lambda db, pid: _max_updated_at_date(db, DependencyLog, pid),
     "Assumption Log": lambda db, pid: _max_updated_at_date(db, AssumptionLog, pid),
     "Opportunity Log": lambda db, pid: _max_updated_at_date(db, OpportunityLog, pid),
-    "Delivery Declared Project Health": lambda db, pid: _max_date_column(
-        db, HealthDeclaration, HealthDeclaration.declaration_date, pid
-    ),
+    "Delivery Declared Project Health": lambda db, pid: _max_created_at_date(db, HealthDeclaration, pid),
     "DE Assessed Project Health": lambda db, pid: _max_date_column(db, DEAssessment, DEAssessment.assessment_date, pid),
     "Development Metrics": lambda db, pid: _max_date_column(
         db, MeasurementDevelopment, MeasurementDevelopment.as_of_date, pid

@@ -1,5 +1,4 @@
 import uuid
-from datetime import date
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
@@ -12,7 +11,8 @@ class ProjectStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "project_status_reports"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    report_date: Mapped[date]
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
+    status: Mapped[str]  # Draft, Submitted
     key_accomplishments: Mapped[str | None]
     upcoming_key_releases: Mapped[str | None]
     leadership_support_required: Mapped[str | None]

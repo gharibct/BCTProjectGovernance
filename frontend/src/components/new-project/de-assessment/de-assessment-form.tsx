@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { Lock, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -9,6 +8,7 @@ import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNewProjectId } from "@/stores/new-project-ui";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   HealthPicker,
   RATING_TO_API,
@@ -22,10 +22,6 @@ import {
 
 import { AlertRegisterTab } from "./alert-register-tab";
 import { FindingsRegisterTab } from "./findings-register-tab";
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 // Alert and Findings are each their own register (register grid + "New
 // <Item>" entry form), matching the Contractual Compliance tab pattern —
@@ -41,24 +37,55 @@ export function DeAssessmentForm() {
   const { data: latest } = useLatestDEAssessment(projectId);
   const createAssessment = useCreateDEAssessment(projectId);
 
-  const [assessmentDate, setAssessmentDate] = React.useState(today);
   const [health, setHealth] = React.useState<UiHealthRating>("green");
   const [pciScore, setPciScore] = React.useState("");
+  const [pciScoreError, setPciScoreError] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
+  const showWarning = usePageBanner((state) => state.showWarning);
+  const dismiss = usePageBanner((state) => state.dismiss);
 
   const [tab, setTab] = React.useState<(typeof TABS)[number]["label"]>("Alert Register");
   const Active = TABS.find((t) => t.label === tab)!.content;
 
+  // Flagship "warning" banner: a real, pre-existing condition (previously a
+  // static box buried inside the Alert Register tab, invisible while
+  // Findings was active) — now visible below the page header regardless of
+  // which tab is selected, and clears itself once an alert is raised.
+  const needsAlertWarning =
+    !!latest && latest.de_assessed_project_health !== "Green" && latest.alerts.length === 0;
+  const warningShownRef = React.useRef(false);
+  React.useEffect(() => {
+    if (needsAlertWarning && latest) {
+      showWarning(
+        `This assessment is rated ${latest.de_assessed_project_health} — raise at least one alert below.`,
+        { label: "Review Alerts", onClick: () => setTab("Alert Register") }
+      );
+      warningShownRef.current = true;
+    } else if (warningShownRef.current) {
+      dismiss();
+      warningShownRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsAlertWarning]);
+
   const submitHeader = () => {
-    if (!projectId || !pciScore.trim()) return;
+    if (!projectId) return;
+    if (!pciScore.trim()) {
+      const message = "PCI Score is required.";
+      setPciScoreError(message);
+      showError(message);
+      return;
+    }
+    setPciScoreError(null);
     const payload: DEAssessmentPayload = {
-      assessment_date: assessmentDate,
       de_assessed_project_health: RATING_TO_API[health],
       pci_score: pciScore,
     };
     createAssessment.mutate(payload, {
-      onSuccess: () => toast.success("DE Assessment Submitted Successfully"),
+      onSuccess: () => showSuccess("DE Assessment Submitted Successfully"),
       onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "Failed to submit DE assessment."),
+        showError(err instanceof Error ? err.message : "Failed to submit DE assessment."),
     });
   };
 
@@ -72,26 +99,17 @@ export function DeAssessmentForm() {
 
   return (
     <div>
-      <SectionCard
-        icon={ShieldCheck}
-        title="DE Assessment"
-        aside={
-          <Field label="Assessment Date" htmlFor="assessment-date">
-            <Input
-              id="assessment-date"
-              type="date"
-              className="h-10 w-44"
-              value={assessmentDate}
-              onChange={(e) => setAssessmentDate(e.target.value)}
-            />
-          </Field>
-        }
-      >
+      <SectionCard icon={ShieldCheck} title="DE Assessment">
         <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
           <Field label="DE Assessed Project Health" badge={<MandatoryBadge />}>
             <HealthPicker value={health} onChange={setHealth} />
           </Field>
-          <Field label="PCI Score" htmlFor="pci-score" badge={<MandatoryBadge />}>
+          <Field
+            label="PCI Score"
+            htmlFor="pci-score"
+            badge={<MandatoryBadge />}
+            error={pciScoreError ?? undefined}
+          >
             <Input
               id="pci-score"
               type="number"
@@ -99,7 +117,10 @@ export function DeAssessmentForm() {
               placeholder="0.00"
               className="h-11 w-36"
               value={pciScore}
-              onChange={(e) => setPciScore(e.target.value)}
+              onChange={(e) => {
+                setPciScore(e.target.value);
+                if (pciScoreError) setPciScoreError(null);
+              }}
             />
           </Field>
           <Button

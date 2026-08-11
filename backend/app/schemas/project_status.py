@@ -1,11 +1,14 @@
-from datetime import date, datetime
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.enums import ReportStatus
+
 
 class ProjectStatusReportCreate(BaseModel):
-    report_date: date
+    period_id: UUID
+    status: ReportStatus = ReportStatus.DRAFT
     key_accomplishments: str | None = None
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
@@ -13,6 +16,7 @@ class ProjectStatusReportCreate(BaseModel):
 
 
 class ProjectStatusReportUpdate(BaseModel):
+    status: ReportStatus | None = None
     key_accomplishments: str | None = None
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
@@ -22,7 +26,8 @@ class ProjectStatusReportRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     project_id: UUID
-    report_date: date
+    period_id: UUID
+    status: ReportStatus
     key_accomplishments: str | None = None
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None

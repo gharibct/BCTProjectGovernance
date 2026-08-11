@@ -6,7 +6,11 @@ import { ArrowRightToLine, CircleCheck, Flag, HeartPulse, ShieldCheck } from "lu
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PageBanner } from "@/components/shell/page-banner";
+import { StatusBadge } from "@/components/forms/status-badge";
 import { useProject, type HealthRating as ApiHealthRating } from "@/lib/api/projects";
+import { useReportingPeriods } from "@/lib/api/reference-data";
+import { useStatusReports } from "@/lib/api/project-status";
 import { HealthPill, RATING_FROM_API } from "@/components/project-charter/health-declaration";
 import { StarterCards } from "./starter-cards";
 
@@ -36,37 +40,21 @@ function ratingFrom(value: ApiHealthRating | null) {
   return value ? RATING_FROM_API[value] : null;
 }
 
-const HISTORY = [
-  {
-    period: "Week 31",
-    type: "Weekly",
-    createdOn: "Aug 01, 2024",
-    status: "Completed",
-    completion: "100%",
-    lastUpdated: "Aug 03, 2024",
-  },
-  {
-    period: "Week 32",
-    type: "Weekly",
-    createdOn: "Aug 08, 2024",
-    status: "Completed",
-    completion: "100%",
-    lastUpdated: "Aug 10, 2024",
-  },
-  {
-    period: "Jul 2026",
-    type: "Monthly",
-    createdOn: "Jul 01, 2026",
-    status: "Completed",
-    completion: "100%",
-    lastUpdated: "Jul 28, 2026",
-  },
-];
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
+}
 
 export function ReportingHub() {
   const { projectId } = useParams<{ projectId: string }>();
   const { data: project } = useProject(projectId ?? null);
-  const charterHref = `/project-reporting/${projectId}/project-charter`;
+  const { data: periods = [] } = useReportingPeriods();
+  const { data: reports = [] } = useStatusReports(projectId ?? null);
+  const statusHref = `/project-reporting/${projectId}/project-status`;
+
+  // The list endpoint already orders by the period's start_date desc, so
+  // the first row is the latest report across both Weekly and Monthly.
+  const latestReport = reports[0];
+  const latestReportHref = latestReport ? `${statusHref}?period=${latestReport.period_id}` : statusHref;
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -83,12 +71,14 @@ export function ReportingHub() {
           asChild
           className="h-11 shrink-0 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
         >
-          <Link href={charterHref}>
+          <Link href={latestReportHref}>
             <ArrowRightToLine className="size-4" />
             Goto Latest Report
           </Link>
         </Button>
       </div>
+
+      <PageBanner />
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
@@ -148,61 +138,58 @@ export function ReportingHub() {
                 <th className="px-3 py-3 font-bold">Type</th>
                 <th className="px-3 py-3 font-bold">Created On</th>
                 <th className="px-3 py-3 font-bold">Status</th>
-                <th className="px-3 py-3 text-right font-bold">Completion</th>
                 <th className="px-3 py-3 font-bold">Last Updated</th>
                 <th className="px-6 py-3 text-right font-bold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {HISTORY.map((report) => (
-                <tr
-                  key={report.period}
-                  className="border-t border-slate-100 transition-colors hover:bg-slate-50/70"
-                >
-                  <td className="px-6 py-3.5 font-bold text-slate-900">
-                    {report.period}
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <span
-                      className={cn(
-                        "rounded px-2.5 py-1 text-xs font-semibold",
-                        report.type === "Weekly"
-                          ? "bg-slate-100 text-slate-600"
-                          : "bg-blue-50 text-[#1a6fc4]"
-                      )}
-                    >
-                      {report.type}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3.5 text-slate-700">
-                    {report.createdOn}
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <span className="flex items-center gap-1.5 font-semibold text-emerald-600">
-                      <span className="size-1.5 rounded-full bg-emerald-500" />
-                      {report.status}
-                    </span>
-                  </td>
-                  <td
-                    className="px-3 py-3.5 text-right text-slate-700"
-                    style={{ fontVariantNumeric: "tabular-nums" }}
-                  >
-                    {report.completion}
-                  </td>
-                  <td className="px-3 py-3.5 text-slate-700">
-                    {report.lastUpdated}
-                  </td>
-                  <td className="px-6 py-3.5 text-right">
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="h-8 w-20 text-xs font-semibold"
-                    >
-                      <Link href={charterHref}>Open</Link>
-                    </Button>
+              {reports.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-6 text-center text-slate-400">
+                    No reports submitted yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                reports.map((report) => {
+                  const period = periods.find((p) => p.id === report.period_id);
+                  return (
+                    <tr
+                      key={report.id}
+                      className="border-t border-slate-100 transition-colors hover:bg-slate-50/70"
+                    >
+                      <td className="px-6 py-3.5 font-bold text-slate-900">
+                        {period?.label ?? "—"}
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <span
+                          className={cn(
+                            "rounded px-2.5 py-1 text-xs font-semibold",
+                            period?.period_type === "Weekly"
+                              ? "bg-slate-100 text-slate-600"
+                              : "bg-blue-50 text-[#1a6fc4]"
+                          )}
+                        >
+                          {period?.period_type ?? "—"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3.5 text-slate-700">{formatDate(report.created_at)}</td>
+                      <td className="px-3 py-3.5">
+                        <StatusBadge value={report.status} />
+                      </td>
+                      <td className="px-3 py-3.5 text-slate-700">{formatDate(report.updated_at)}</td>
+                      <td className="px-6 py-3.5 text-right">
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="h-8 w-20 text-xs font-semibold"
+                        >
+                          <Link href={`${statusHref}?period=${report.period_id}`}>Open</Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

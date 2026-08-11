@@ -32,7 +32,7 @@ export type DEAssessmentFinding = {
 export type DEAssessment = {
   id: string;
   project_id: string;
-  assessment_date: string;
+  assessment_date: string | null;
   de_assessed_project_health: HealthRating;
   pci_score: string | null;
   next_assessment_due_date: string | null;
@@ -46,7 +46,7 @@ export type DEAssessment = {
 // Header only — Alerts and Findings are added afterward, one at a time, via
 // their own registers (useCreateDEAssessmentAlert/useCreateDEAssessmentFinding).
 export type DEAssessmentPayload = {
-  assessment_date: string;
+  assessment_date?: string;
   de_assessed_project_health: HealthRating;
   pci_score?: string;
 };

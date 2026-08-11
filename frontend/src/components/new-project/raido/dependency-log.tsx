@@ -1,25 +1,44 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { Link2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useUsers } from "@/lib/api/reference-data";
+import { useBaselinePeriodId } from "@/lib/period-utils";
 import {
   useCreateDependency,
   useDependencies,
+  useUpdateDependency,
   type DependencyLog as DependencyLogItem,
   type DependencyLogPayload,
 } from "@/lib/api/raid";
+
+const DEPENDENCY_PREVIEW_FIELDS = [
+  { key: "dependency_title", label: "Title" },
+  { key: "category", label: "Category" },
+  { key: "criticality", label: "Criticality" },
+  { key: "probability_of_delay", label: "Probability of Delay" },
+] as const;
+
+// Shared by the manual "Add Dependency" button and the AI row-suggestions
+// panel's Apply (both ultimately call the same createDependency mutation).
+function buildDependencyPayload(values: Record<string, string>): DependencyLogPayload {
+  return {
+    ...values,
+    escalation_required: values.escalation_required === "Y",
+  };
+}
 
 // Fields per §4.7 Dependency Log. Keys match DependencyLogCreate's field
 // names — dependency_status/last_updated/actual_completion_date aren't
@@ -85,25 +104,25 @@ function useDependencyFields(): FieldDef[] {
 
 export function DependencyLog() {
   const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useDependencies(projectId);
   const createDependency = useCreateDependency(projectId);
+  const updateDependency = useUpdateDependency(projectId);
   const fields = useDependencyFields();
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addDependency = () => {
     if (!values.dependency_title?.trim()) return;
-    const payload: DependencyLogPayload = {
-      ...values,
-      escalation_required: values.escalation_required === "Y",
-    };
-    createDependency.mutate(payload, {
+    createDependency.mutate(buildDependencyPayload(values), {
       onSuccess: () => {
         reset();
-        toast.success("Dependency Added Successfully");
+        showSuccess("Dependency Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add dependency."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add dependency."),
     });
   };
 
@@ -117,6 +136,13 @@ export function DependencyLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="dependencies"
+        periodId={periodId}
+        itemLabel="Dependency"
+      />
+
       <SectionCard
         icon={Link2}
         title="Dependency Register"
@@ -135,6 +161,17 @@ export function DependencyLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="dependencies"
+        periodId={periodId}
+        itemLabel="Dependency"
+        previewFields={DEPENDENCY_PREVIEW_FIELDS}
+        buildPayload={buildDependencyPayload}
+        createMutation={createDependency}
+        updateMutation={updateDependency}
+      />
 
       <SectionCard icon={Link2} title="New Dependency">
         <EntryFields defs={fields} values={values} set={set} />

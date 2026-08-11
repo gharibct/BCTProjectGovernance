@@ -7,7 +7,7 @@ export type HealthRating = "Red" | "Potential Red" | "Amber" | "Green";
 export type HealthDeclaration = {
   id: string;
   project_id: string;
-  declaration_date: string;
+  period_id: string;
   core_delivery_rating: HealthRating;
   core_delivery_description: string | null;
   people_rating: HealthRating;
@@ -26,7 +26,7 @@ export type HealthDeclaration = {
 };
 
 export type HealthDeclarationPayload = {
-  declaration_date: string;
+  period_id: string;
   core_delivery_rating: HealthRating;
   core_delivery_description?: string;
   people_rating: HealthRating;
@@ -41,9 +41,12 @@ export type HealthDeclarationPayload = {
   compliance_description?: string;
 };
 
-// Append-only history — no update/delete (see backend/app/api/v1/endpoints/
-// health_declarations.py). "Latest" 404s until the first one is created,
-// which is a normal state (not an error), so it's swallowed to undefined.
+export type HealthDeclarationUpdatePayload = Omit<HealthDeclarationPayload, "period_id">;
+
+// One declaration per reporting period (see
+// backend/app/api/v1/endpoints/health_declarations.py) — "latest" 404s until
+// the first one is created, which is a normal state (not an error), so it's
+// swallowed to undefined.
 export function useLatestHealthDeclaration(projectId: string | null) {
   return useQuery({
     queryKey: ["health-declaration-latest", projectId],
@@ -59,16 +62,40 @@ export function useLatestHealthDeclaration(projectId: string | null) {
   });
 }
 
+// Full history for a project — used to look up whether a declaration already
+// exists for a given period (so the form can PUT instead of re-POSTing into
+// the project_id+period_id unique constraint), same pattern as
+// useStatusReports in project-status.ts.
+export function useHealthDeclarations(projectId: string | null) {
+  return useQuery({
+    queryKey: ["health-declarations", projectId],
+    queryFn: () => api.get<HealthDeclaration[]>(`/projects/${projectId}/health-declarations`),
+    enabled: !!projectId,
+  });
+}
+
+function invalidateHealthDeclarations(queryClient: ReturnType<typeof useQueryClient>, projectId: string | null) {
+  queryClient.invalidateQueries({ queryKey: ["health-declaration-latest", projectId] });
+  queryClient.invalidateQueries({ queryKey: ["health-declarations", projectId] });
+  // Creating/updating a declaration updates the Project's cached health
+  // fields server-side (delivery_declared_overall_health / overall_project_health).
+  queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+}
+
 export function useCreateHealthDeclaration(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: HealthDeclarationPayload) =>
       api.post<HealthDeclaration>(`/projects/${projectId}/health-declarations`, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["health-declaration-latest", projectId] });
-      // Creating a declaration updates the Project's cached health fields
-      // server-side (delivery_declared_overall_health / overall_project_health).
-      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-    },
+    onSuccess: () => invalidateHealthDeclarations(queryClient, projectId),
+  });
+}
+
+export function useUpdateHealthDeclaration(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: HealthDeclarationUpdatePayload }) =>
+      api.put<HealthDeclaration>(`/projects/${projectId}/health-declarations/${id}`, payload),
+    onSuccess: () => invalidateHealthDeclarations(queryClient, projectId),
   });
 }

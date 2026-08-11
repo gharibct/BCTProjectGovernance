@@ -39,13 +39,54 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+// For multipart uploads (document-processing) — deliberately omits
+// Content-Type so fetch sets its own multipart boundary; a FormData body
+// can't be JSON.stringify'd like request()'s other callers.
+async function postForm<T>(path: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "X-API-Key": API_KEY },
+    body: formData,
+  });
+
+  if (res.status === 204) return undefined as T;
+
+  const isJson = res.headers.get("content-type")?.includes("application/json");
+  const body = isJson ? await res.json() : await res.text();
+
+  if (!res.ok) {
+    throw new ApiError(res.status, isJson ? (body?.detail ?? body) : body);
+  }
+
+  return body as T;
+}
+
+// For file downloads (document-processing) — a plain <a href> can't attach
+// the X-API-Key header this backend requires on every route, so downloads
+// fetch a Blob here and the caller turns it into a synthetic anchor click.
+async function getBlob(path: string): Promise<Blob> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: { "X-API-Key": API_KEY },
+  });
+
+  if (!res.ok) {
+    const isJson = res.headers.get("content-type")?.includes("application/json");
+    const body = isJson ? await res.json() : await res.text();
+    throw new ApiError(res.status, isJson ? (body?.detail ?? body) : body);
+  }
+
+  return res.blob();
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) }),
+  postForm: <T>(path: string, formData: FormData) => postForm<T>(path, formData),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PUT", body: body === undefined ? undefined : JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  getBlob: (path: string) => getBlob(path),
 };
 
 export type Page<T> = {

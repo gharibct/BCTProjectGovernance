@@ -1,12 +1,13 @@
 "use client";
 
-import { toast } from "sonner";
+import * as React from "react";
 import { Table } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   useCreateDEAssessmentFinding,
   type DEAssessment,
@@ -35,9 +36,19 @@ export function FindingsRegisterTab({
 }) {
   const { values, set, reset } = useEntryValues();
   const createFinding = useCreateDEAssessmentFinding(projectId, assessment?.id ?? null);
+  const [classificationError, setClassificationError] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addFinding = () => {
-    if (!assessment || !values.classification) return;
+    if (!assessment) return;
+    if (!values.classification) {
+      const message = "Classification is required.";
+      setClassificationError(message);
+      showError(message);
+      return;
+    }
+    setClassificationError(null);
     const payload: DEAssessmentFindingPayload = {
       sequence_no: assessment.findings.length + 1,
       classification: values.classification as FindingClassification,
@@ -49,9 +60,9 @@ export function FindingsRegisterTab({
     createFinding.mutate(payload, {
       onSuccess: () => {
         reset();
-        toast.success("Finding Added Successfully");
+        showSuccess("Finding Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add finding."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add finding."),
     });
   };
 
@@ -83,7 +94,12 @@ export function FindingsRegisterTab({
       </SectionCard>
 
       <SectionCard icon={Table} title="New Finding">
-        <EntryFields defs={FINDING_FIELDS} values={values} set={set} />
+        <EntryFields
+          defs={FINDING_FIELDS}
+          values={values}
+          set={set}
+          errors={classificationError ? { classification: classificationError } : undefined}
+        />
         <div className="mt-6 flex justify-end">
           <Button
             onClick={addFinding}

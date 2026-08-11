@@ -65,9 +65,9 @@ class ApplicablePhase(StrEnum):
 
 
 class ProjectStatus(StrEnum):
-    START_UP = "Start Up"
+    DRAFT = "Draft"
     PENDING_APPROVAL = "Pending Approval"
-    EXECUTION = "Execution"
+    APPROVED = "Approved"
     HOLD = "Hold"
     CLOSED = "Closed"
     OPEN_ONLY_FOR_BILLING = "Open Only for Billing"
@@ -337,3 +337,45 @@ class BackupRestoreStatus(StrEnum):
 class PeriodType(StrEnum):
     WEEKLY = "Weekly"
     MONTHLY = "Monthly"
+    BASELINE = "Baseline"
+
+
+class ReportStatus(StrEnum):
+    DRAFT = "Draft"
+    SUBMITTED = "Submitted"
+
+
+class DocumentContext(StrEnum):
+    CREATE = "create"
+    REPORTING = "reporting"
+
+
+class DocumentAiStatus(StrEnum):
+    NOT_PROCESSED = "Not Processed"
+    PROCESSING = "Processing"
+    PROCESSED = "Processed"
+    EXCLUDED = "Excluded"
+
+
+class AiSuggestionStatus(StrEnum):
+    """See AI-Implementation.md §9: a suggestion is PENDING until the PM either
+    IGNOREs it directly, or RESOLVEs (implicitly, by saving/editing/creating
+    on the screen it belongs to — at that point any AI-derived value on
+    screen is just manual data)."""
+
+    PENDING = "pending"
+    IGNORED = "ignored"
+    RESOLVED = "resolved"
+
+
+class AiRowSuggestionStatus(StrEnum):
+    """Row-level counterpart to AiSuggestionStatus, used by ai_row_suggestions
+    (RAID grids, AI-Implementation.md §10). A suggestion here is a whole
+    candidate Risk/Issue/Dependency/Assumption/Opportunity row rather than one
+    field's value, so there's no "resolved on save" — it's PENDING until the
+    PM either IGNOREs it or APPLIEs it (which creates the real row via that
+    entity's own create endpoint, the same one manual entry uses)."""
+
+    PENDING = "pending"
+    IGNORED = "ignored"
+    APPLIED = "applied"

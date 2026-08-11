@@ -6,9 +6,19 @@ import { ChevronRight } from "lucide-react";
 
 import { useReportingPeriod } from "@/components/shell/reporting-period-badge";
 
-export function ReportingBreadcrumb() {
+// `periodLabel` lets a screen with a real reporting_periods selection (see
+// components/project-status/status-header.tsx) override the generic
+// sample-data period shown by default — every other caller is unaffected.
+// `hidePeriod` lets a screen with no period concept at all (e.g. DE
+// Assessment, which tracks one assessment per cycle, not per period) drop
+// the trailing crumb entirely.
+export function ReportingBreadcrumb({
+  periodLabel,
+  hidePeriod,
+}: { periodLabel?: string; hidePeriod?: boolean } = {}) {
   const { projectId } = useParams<{ projectId: string }>();
-  const period = useReportingPeriod();
+  const genericPeriod = useReportingPeriod();
+  const period = periodLabel ?? genericPeriod;
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
@@ -18,8 +28,12 @@ export function ReportingBreadcrumb() {
       >
         Project Reporting
       </Link>
-      <ChevronRight className="size-4 text-slate-400" />
-      <span className="font-semibold text-slate-600">{period}</span>
+      {hidePeriod ? null : (
+        <>
+          <ChevronRight className="size-4 text-slate-400" />
+          <span className="font-semibold text-slate-600">{period}</span>
+        </>
+      )}
     </nav>
   );
 }

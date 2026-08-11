@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -123,7 +123,7 @@ async def add_alert(project_id: UUID, assessment_id: UUID, payload: DEAssessment
         payload,
         assessment_id=assessment_id,
         alert_code=alert_code,
-        raised_on=payload.raised_on or assessment.assessment_date,
+        raised_on=payload.raised_on or assessment.assessment_date or date.today(),
     )
 
 

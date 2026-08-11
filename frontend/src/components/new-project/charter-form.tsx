@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import {
   Banknote,
   CalendarDays,
@@ -19,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useNewProjectId, useNewProjectUi } from "@/stores/new-project-ui";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   useAccounts,
   useGeos,
@@ -42,6 +42,10 @@ import {
   SectionCard,
   Segmented,
 } from "@/components/forms/form-primitives";
+import type { useAiReview } from "@/components/ai/use-ai-review";
+import { useAiFieldBinding, type FieldAi } from "@/components/ai/use-ai-field-binding";
+import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
+import { useBaselinePeriodId } from "@/lib/period-utils";
 import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaration";
 
 const inputClass = "h-11";
@@ -88,11 +92,11 @@ function valuesFromProject(project: Project): ProjectPayload {
   };
 }
 
-// A project with no separate approval workflow is only ever locked once it's
-// past Draft (Start Up) — see ProjectDescriptionActions. A not-yet-created
-// draft (no project loaded yet) counts as Draft too.
+// The form only locks once a project moves past Draft — see
+// ProjectDescriptionActions. A not-yet-created draft (no project loaded yet)
+// counts as Draft too.
 function isDraftStatus(project: Project | undefined): boolean {
-  return !project || project.project_status === "Start Up";
+  return !project || project.project_status === "Draft";
 }
 
 function useProjectProfileForm() {
@@ -122,10 +126,14 @@ function useProjectProfileForm() {
 
 function ProjectDescriptionTab({
   values,
-  set,
+  fieldAi,
+  setAndClear,
+  projectNameError,
 }: {
   values: ProjectPayload;
-  set: <K extends keyof ProjectPayload>(key: K) => (value: ProjectPayload[K]) => void;
+  fieldAi: FieldAi<ProjectPayload>;
+  setAndClear: <K extends keyof ProjectPayload>(key: K) => (value: ProjectPayload[K]) => void;
+  projectNameError?: string;
 }) {
   const projectId = useNewProjectId();
   const { data: project } = useProject(projectId);
@@ -145,17 +153,24 @@ function ProjectDescriptionTab({
           <Field label="Project Code" htmlFor="project-code" badge={<AutoBadge />}>
             <Input
               id="project-code"
-              value={project?.project_code ?? "Generated on Create"}
+              placeholder="Generated on Create"
+              value={project?.project_code ?? ""}
               disabled
               className={inputClass}
             />
           </Field>
-          <Field label="Project Name" htmlFor="project-name" badge={<MandatoryBadge />}>
+          <Field
+            label="Project Name"
+            htmlFor="project-name"
+            badge={<MandatoryBadge />}
+            ai={fieldAi("project_name")}
+            error={projectNameError}
+          >
             <Input
               id="project-name"
               placeholder="e.g. Core Banking Modernization"
               value={values.project_name ?? ""}
-              onChange={(e) => set("project_name")(e.target.value)}
+              onChange={(e) => setAndClear("project_name")(e.target.value)}
               className={inputClass}
               disabled={locked}
             />
@@ -165,11 +180,13 @@ function ProjectDescriptionTab({
 
       <SectionCard icon={Info} title="Project Details">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Contract Type" htmlFor="contract-type">
+          <Field label="Contract Type" htmlFor="contract-type" ai={fieldAi("contract_type")}>
             <NativeSelect
               id="contract-type"
               value={values.contract_type ?? ""}
-              onChange={(e) => set("contract_type")(e.target.value as ProjectPayload["contract_type"])}
+              onChange={(e) =>
+                setAndClear("contract_type")(e.target.value as ProjectPayload["contract_type"])
+              }
               disabled={locked}
             >
               <option value="" disabled>
@@ -180,11 +197,11 @@ function ProjectDescriptionTab({
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Project Type" htmlFor="project-type">
+          <Field label="Project Type" htmlFor="project-type" ai={fieldAi("project_type_id")}>
             <NativeSelect
               id="project-type"
               value={values.project_type_id ?? ""}
-              onChange={(e) => set("project_type_id")(e.target.value)}
+              onChange={(e) => setAndClear("project_type_id")(e.target.value)}
               disabled={locked}
             >
               <option value="" disabled>
@@ -197,23 +214,25 @@ function ProjectDescriptionTab({
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Engagement Type">
+          <Field label="Engagement Type" ai={fieldAi("engagement_type")}>
             <Segmented
               options={[
                 { value: "Implementation", label: "Implementation" },
                 { value: "Support", label: "Support" },
               ]}
               value={values.engagement_type ?? "Implementation"}
-              onChange={(v) => set("engagement_type")(v as ProjectPayload["engagement_type"])}
+              onChange={(v) => setAndClear("engagement_type")(v as ProjectPayload["engagement_type"])}
               activeClassName={segmentedActiveClass}
               disabled={locked}
             />
           </Field>
-          <Field label="Project Owned" htmlFor="project-owned">
+          <Field label="Project Owned" htmlFor="project-owned" ai={fieldAi("project_owned")}>
             <NativeSelect
               id="project-owned"
               value={values.project_owned ?? ""}
-              onChange={(e) => set("project_owned")(e.target.value as ProjectPayload["project_owned"])}
+              onChange={(e) =>
+                setAndClear("project_owned")(e.target.value as ProjectPayload["project_owned"])
+              }
               disabled={locked}
             >
               <option value="" disabled>
@@ -224,29 +243,29 @@ function ProjectDescriptionTab({
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Organization">
+          <Field label="Organization" ai={fieldAi("organization_id")}>
             <Segmented
               options={(organizations ?? []).map((org) => ({ value: org.id, label: org.code }))}
               value={values.organization_id ?? ""}
-              onChange={(v) => set("organization_id")(v)}
+              onChange={(v) => setAndClear("organization_id")(v)}
               activeClassName={segmentedActiveClass}
               disabled={locked}
             />
           </Field>
-          <Field label="GEO">
+          <Field label="GEO" ai={fieldAi("geo_id")}>
             <Segmented
               options={(geos ?? []).map((geo) => ({ value: geo.id, label: geo.code }))}
               value={values.geo_id ?? ""}
-              onChange={(v) => set("geo_id")(v)}
+              onChange={(v) => setAndClear("geo_id")(v)}
               activeClassName={segmentedActiveClass}
               disabled={locked}
             />
           </Field>
-          <Field label="Account Name" htmlFor="account-name">
+          <Field label="Account Name" htmlFor="account-name" ai={fieldAi("account_id")}>
             <NativeSelect
               id="account-name"
               value={values.account_id ?? ""}
-              onChange={(e) => set("account_id")(e.target.value)}
+              onChange={(e) => setAndClear("account_id")(e.target.value)}
               disabled={locked}
             >
               <option value="" disabled>
@@ -264,11 +283,11 @@ function ProjectDescriptionTab({
 
       <SectionCard icon={UserRound} title="Delivery Team">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
-          <Field label="Project Manager" htmlFor="project-manager">
+          <Field label="Project Manager" htmlFor="project-manager" ai={fieldAi("project_manager_id")}>
             <NativeSelect
               id="project-manager"
               value={values.project_manager_id ?? ""}
-              onChange={(e) => set("project_manager_id")(e.target.value)}
+              onChange={(e) => setAndClear("project_manager_id")(e.target.value)}
               disabled={locked}
             >
               <option value="" disabled>
@@ -281,11 +300,15 @@ function ProjectDescriptionTab({
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Delivery Manager" htmlFor="delivery-manager">
+          <Field
+            label="Delivery Manager"
+            htmlFor="delivery-manager"
+            ai={fieldAi("delivery_manager_id")}
+          >
             <NativeSelect
               id="delivery-manager"
               value={values.delivery_manager_id ?? ""}
-              onChange={(e) => set("delivery_manager_id")(e.target.value)}
+              onChange={(e) => setAndClear("delivery_manager_id")(e.target.value)}
               disabled={locked}
             >
               <option value="" disabled>
@@ -298,11 +321,15 @@ function ProjectDescriptionTab({
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Delivery Excellence" htmlFor="delivery-excellence">
+          <Field
+            label="Delivery Excellence"
+            htmlFor="delivery-excellence"
+            ai={fieldAi("delivery_excellence_id")}
+          >
             <NativeSelect
               id="delivery-excellence"
               value={values.delivery_excellence_id ?? ""}
-              onChange={(e) => set("delivery_excellence_id")(e.target.value)}
+              onChange={(e) => setAndClear("delivery_excellence_id")(e.target.value)}
               disabled={locked}
             >
               <option value="" disabled>
@@ -320,7 +347,7 @@ function ProjectDescriptionTab({
 
       <SectionCard icon={Banknote} title="Commercials">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Project Revenue" htmlFor="project-revenue">
+          <Field label="Project Revenue" htmlFor="project-revenue" ai={fieldAi("project_revenue")}>
             <Input
               id="project-revenue"
               type="number"
@@ -328,17 +355,17 @@ function ProjectDescriptionTab({
               placeholder="0.00"
               value={values.project_revenue ?? ""}
               onChange={(e) =>
-                set("project_revenue")(e.target.value === "" ? undefined : e.target.value)
+                setAndClear("project_revenue")(e.target.value === "" ? undefined : e.target.value)
               }
               className={inputClass}
               disabled={locked}
             />
           </Field>
-          <Field label="Project Currency" htmlFor="project-currency">
+          <Field label="Project Currency" htmlFor="project-currency" ai={fieldAi("project_currency")}>
             <NativeSelect
               id="project-currency"
               value={values.project_currency ?? ""}
-              onChange={(e) => set("project_currency")(e.target.value)}
+              onChange={(e) => setAndClear("project_currency")(e.target.value)}
               disabled={locked}
             >
               <option value="" disabled>
@@ -349,11 +376,13 @@ function ProjectDescriptionTab({
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Billing Type" htmlFor="billing-type">
+          <Field label="Billing Type" htmlFor="billing-type" ai={fieldAi("billing_type")}>
             <NativeSelect
               id="billing-type"
               value={values.billing_type ?? ""}
-              onChange={(e) => set("billing_type")(e.target.value as ProjectPayload["billing_type"])}
+              onChange={(e) =>
+                setAndClear("billing_type")(e.target.value as ProjectPayload["billing_type"])
+              }
               disabled={locked}
             >
               <option value="" disabled>
@@ -379,23 +408,25 @@ function durationDays(from: string, to: string): string {
 
 function ScopeAndScheduleTab({
   values,
-  set,
+  fieldAi,
+  setAndClear,
   locked,
 }: {
   values: ProjectPayload;
-  set: <K extends keyof ProjectPayload>(key: K) => (value: ProjectPayload[K]) => void;
+  fieldAi: FieldAi<ProjectPayload>;
+  setAndClear: <K extends keyof ProjectPayload>(key: K) => (value: ProjectPayload[K]) => void;
   locked: boolean;
 }) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ScanSearch} title="Scope Definition">
         <div className="flex flex-col gap-6">
-          <Field label="Customer Overview" htmlFor="customer-overview">
+          <Field label="Customer Overview" htmlFor="customer-overview" ai={fieldAi("customer_overview")}>
             <Textarea
               id="customer-overview"
               placeholder="Who the customer is, their business, and the relationship context…"
               value={values.customer_overview ?? ""}
-              onChange={(e) => set("customer_overview")(e.target.value)}
+              onChange={(e) => setAndClear("customer_overview")(e.target.value)}
               disabled={locked}
             />
           </Field>
@@ -403,13 +434,14 @@ function ScopeAndScheduleTab({
             label="Project Scope Description"
             htmlFor="scope-description"
             badge={<MandatoryBadge />}
+            ai={fieldAi("project_scope_description")}
           >
             <Textarea
               id="scope-description"
               className="min-h-32"
               placeholder="What the project will deliver — objectives, boundaries, and key deliverables…"
               value={values.project_scope_description ?? ""}
-              onChange={(e) => set("project_scope_description")(e.target.value)}
+              onChange={(e) => setAndClear("project_scope_description")(e.target.value)}
               disabled={locked}
             />
           </Field>
@@ -418,22 +450,22 @@ function ScopeAndScheduleTab({
 
       <SectionCard icon={CalendarDays} title="Schedule">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Planned Start Date" htmlFor="planned-start">
+          <Field label="Planned Start Date" htmlFor="planned-start" ai={fieldAi("planned_start_date")}>
             <Input
               id="planned-start"
               type="date"
               value={values.planned_start_date ?? ""}
-              onChange={(e) => set("planned_start_date")(e.target.value)}
+              onChange={(e) => setAndClear("planned_start_date")(e.target.value)}
               className={inputClass}
               disabled={locked}
             />
           </Field>
-          <Field label="Planned End Date" htmlFor="planned-end">
+          <Field label="Planned End Date" htmlFor="planned-end" ai={fieldAi("planned_end_date")}>
             <Input
               id="planned-end"
               type="date"
               value={values.planned_end_date ?? ""}
-              onChange={(e) => set("planned_end_date")(e.target.value)}
+              onChange={(e) => setAndClear("planned_end_date")(e.target.value)}
               className={inputClass}
               disabled={locked}
             />
@@ -449,19 +481,29 @@ function ScopeAndScheduleTab({
   );
 }
 
-// Project Profile action bar, mapped onto ProjectStatus's Start Up -> Pending
-// Approval -> Execution lifecycle (see lib/api/projects.ts): Create Project
+// Project Profile action bar, mapped onto ProjectStatus's Draft -> Pending
+// Approval -> Approved lifecycle (see lib/api/projects.ts): Create Project
 // (POST), Edit Project (PUT — saves the current fields, and unlocks them if
-// the project is locked), Send To Approval (PUT — saves and moves Start Up
+// the project is locked), Send To Approval (PUT — saves and moves Draft
 // to Pending Approval, which locks the form), Approve (PUT — moves Pending
-// Approval to Execution).
-function ProjectDescriptionActions({ values }: { values: ProjectPayload }) {
+// Approval to Approved).
+function ProjectDescriptionActions({
+  values,
+  ai,
+  onProjectNameErrorChange,
+}: {
+  values: ProjectPayload;
+  ai: ReturnType<typeof useAiReview>;
+  onProjectNameErrorChange: (error: string | null) => void;
+}) {
   const router = useRouter();
   const projectId = useNewProjectId();
   const { isEditing, setEditing } = useNewProjectUi();
   const { data: project } = useProject(projectId);
   const createProject = useCreateProject();
   const updateProject = useUpdateProject(projectId);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const primaryClass =
     "h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]";
@@ -471,7 +513,6 @@ function ProjectDescriptionActions({ values }: { values: ProjectPayload }) {
   const status = project?.project_status;
   const isCreated = !!projectId;
   const isDraft = isDraftStatus(project);
-  const [error, setError] = React.useState<string | null>(null);
   // Edit Project, Send To Approval, and Approve all share the one
   // `updateProject` mutation, so its `isPending` alone can't say which
   // button was clicked — this tracks that, so only the clicked button shows
@@ -483,28 +524,30 @@ function ProjectDescriptionActions({ values }: { values: ProjectPayload }) {
   const statusMessage = isDraft
     ? "Editable by the Project Manager while the project is in Draft."
     : status === "Pending Approval"
-      ? "Pending Approval — click Edit Project to make changes, or Approve to move to Execution."
-      : status === "Execution"
-        ? "In execution — click Edit Project to make changes."
+      ? "Pending Approval — click Edit Project to make changes, or Approve to move to Approved."
+      : status === "Approved"
+        ? "Approved — click Edit Project to make changes."
         : isEditing
           ? "Editable by the Project Manager while the project is unlocked."
           : "Locked — click Edit Project to make changes.";
 
   const handleCreate = async () => {
     if (!values.project_name?.trim()) {
-      setError("Project Name is required before you can create the project.");
+      const message = "Project Name is required before you can create the project.";
+      onProjectNameErrorChange(message);
+      showError(message);
       return;
     }
-    setError(null);
+    onProjectNameErrorChange(null);
     try {
       const created = await createProject.mutateAsync(values);
       setEditing(false);
-      toast.success("Project Created Successfully");
+      // Survives the redirect below so it's visible on the destination page
+      // instead of flashing away before the navigation completes.
+      showSuccess("Project Created Successfully", { persistThroughNavigation: true });
       router.push(`/new-project/${created.id}/project-charter`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create project.";
-      setError(message);
-      toast.error(message);
+      showError(err instanceof Error ? err.message : "Failed to create project.");
     }
   };
 
@@ -512,16 +555,15 @@ function ProjectDescriptionActions({ values }: { values: ProjectPayload }) {
   // no client-only "unlock" step) and, for a project that's locked because
   // it's past Draft, also unlocks it for further edits.
   const handleEdit = async () => {
-    setError(null);
+    onProjectNameErrorChange(null);
     setPendingAction("edit");
     try {
       await updateProject.mutateAsync(values);
+      await ai.resolveAll();
       setEditing(true);
-      toast.success("Project Updated Successfully");
+      showSuccess("Project Updated Successfully");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save changes.";
-      setError(message);
-      toast.error(message);
+      showError(err instanceof Error ? err.message : "Failed to save changes.");
     } finally {
       setPendingAction(null);
     }
@@ -531,31 +573,28 @@ function ProjectDescriptionActions({ values }: { values: ProjectPayload }) {
   // out of Draft, which locks the form (see `locked`) until an approver
   // either clicks Approve (below) or a future "send back" action.
   const handleSave = async () => {
-    setError(null);
+    onProjectNameErrorChange(null);
     setPendingAction("save");
     try {
       await updateProject.mutateAsync({ ...values, project_status: "Pending Approval" });
+      await ai.resolveAll();
       setEditing(false);
-      toast.success("Project Sent to Approval Successfully");
+      showSuccess("Project Sent to Approval Successfully");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save changes.";
-      setError(message);
-      toast.error(message);
+      showError(err instanceof Error ? err.message : "Failed to save changes.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleApprove = async () => {
-    setError(null);
+    onProjectNameErrorChange(null);
     setPendingAction("approve");
     try {
-      await updateProject.mutateAsync({ project_status: "Execution" });
-      toast.success("Project Approved Successfully");
+      await updateProject.mutateAsync({ project_status: "Approved" });
+      showSuccess("Project Approved Successfully");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to approve.";
-      setError(message);
-      toast.error(message);
+      showError(err instanceof Error ? err.message : "Failed to approve.");
     } finally {
       setPendingAction(null);
     }
@@ -602,7 +641,7 @@ function ProjectDescriptionActions({ values }: { values: ProjectPayload }) {
       </div>
       <p className="flex items-center gap-2 text-sm text-slate-500">
         <Lock className="size-4" />
-        {error ? <span className="text-red-600">{error}</span> : statusMessage}
+        {statusMessage}
       </p>
     </>
   );
@@ -611,12 +650,23 @@ function ProjectDescriptionActions({ values }: { values: ProjectPayload }) {
 // Each New Project charter screen is its own route, so these are separate
 // top-level exports (one per page) instead of a single tab-switched form.
 export function ProjectProfileForm() {
+  const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const { values, set } = useProjectProfileForm();
+  const { ai, fieldAi, setAndClear } = useAiFieldBinding(projectId, "project_profile", periodId, values, set);
+  const [projectNameError, setProjectNameError] = React.useState<string | null>(null);
+
   return (
     <div>
-      <ProjectDescriptionTab values={values} set={set} />
+      <LoadAiSuggestionsButton projectId={projectId} screen="project_profile" periodId={periodId} ai={ai} />
+      <ProjectDescriptionTab
+        values={values}
+        fieldAi={fieldAi}
+        setAndClear={setAndClear}
+        projectNameError={projectNameError ?? undefined}
+      />
       <div className="mt-10 flex flex-col gap-4">
-        <ProjectDescriptionActions values={values} />
+        <ProjectDescriptionActions values={values} ai={ai} onProjectNameErrorChange={setProjectNameError} />
       </div>
     </div>
   );
@@ -624,9 +674,13 @@ export function ProjectProfileForm() {
 
 export function ScopeScheduleForm() {
   const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const isEditing = useNewProjectUi((state) => state.isEditing);
   const { project, values, set } = useProjectProfileForm();
   const updateProject = useUpdateProject(projectId);
+  const { ai, fieldAi, setAndClear } = useAiFieldBinding(projectId, "scope_schedule", periodId, values, set);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   if (!projectId) {
     return (
@@ -641,7 +695,8 @@ export function ScopeScheduleForm() {
 
   return (
     <div>
-      <ScopeAndScheduleTab values={values} set={set} locked={locked} />
+      <LoadAiSuggestionsButton projectId={projectId} screen="scope_schedule" periodId={periodId} ai={ai} />
+      <ScopeAndScheduleTab values={values} fieldAi={fieldAi} setAndClear={setAndClear} locked={locked} />
       <div className="mt-10 flex flex-col gap-4">
         <div className="flex justify-end gap-3">
           <Button
@@ -649,9 +704,12 @@ export function ScopeScheduleForm() {
             disabled={locked || updateProject.isPending}
             onClick={() =>
               updateProject.mutate(values, {
-                onSuccess: () => toast.success("Scope & Schedule Saved Successfully"),
+                onSuccess: () => {
+                  ai.resolveAll();
+                  showSuccess("Scope & Schedule Saved Successfully");
+                },
                 onError: (err) =>
-                  toast.error(err instanceof Error ? err.message : "Failed to save changes."),
+                  showError(err instanceof Error ? err.message : "Failed to save changes."),
               })
             }
           >
@@ -676,6 +734,14 @@ export function SelfAssessmentForm() {
   const form = useHealthDeclarationForm();
   return (
     <div>
+      {form.projectId ? (
+        <LoadAiSuggestionsButton
+          projectId={form.projectId}
+          screen="self_assessment"
+          periodId={form.periodId}
+          ai={form.ai}
+        />
+      ) : null}
       <HealthDeclaration form={form} />
       <div className="mt-10 flex flex-col gap-4">
         <div className="flex justify-end gap-3">

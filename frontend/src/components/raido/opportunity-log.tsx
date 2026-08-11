@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
-import { toast } from "sonner";
+import { useParams, useSearchParams } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useUsers } from "@/lib/api/reference-data";
 import {
   useCreateOpportunity,
@@ -79,8 +80,23 @@ function toValues(item: OpportunityLogItem): Record<string, string> {
   } as unknown as Record<string, string>;
 }
 
+const OPPORTUNITY_PREVIEW_FIELDS = [
+  { key: "opportunity_title", label: "Title" },
+  { key: "category", label: "Category" },
+  { key: "impact", label: "Impact" },
+  { key: "expected_benefit", label: "Expected Benefit" },
+] as const;
+
+function buildOpportunityPayload(values: Record<string, string>): OpportunityLogPayload {
+  return {
+    ...values,
+    approval_required: values.approval_required === "Y",
+  };
+}
+
 export function OpportunityLog() {
   const { projectId } = useParams<{ projectId: string }>();
+  const periodId = useSearchParams().get("period");
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useOpportunities(projectId);
   const createOpportunity = useCreateOpportunity(projectId);
@@ -90,6 +106,8 @@ export function OpportunityLog() {
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const startEdit = (item: OpportunityLogItem) => {
     setEditingId(item.id);
@@ -105,18 +123,15 @@ export function OpportunityLog() {
     deleteOpportunity.mutate(item.id, {
       onSuccess: () => {
         if (editingId === item.id) cancelEdit();
-        toast.success("Opportunity Deleted Successfully");
+        showSuccess("Opportunity Deleted Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete opportunity."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete opportunity."),
     });
   };
 
   const submit = () => {
     if (!values.opportunity_title?.trim()) return;
-    const payload: OpportunityLogPayload = {
-      ...values,
-      approval_required: values.approval_required === "Y",
-    };
+    const payload = buildOpportunityPayload(values);
 
     if (editingId) {
       updateOpportunity.mutate(
@@ -124,18 +139,18 @@ export function OpportunityLog() {
         {
           onSuccess: () => {
             cancelEdit();
-            toast.success("Opportunity Updated Successfully");
+            showSuccess("Opportunity Updated Successfully");
           },
-          onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update opportunity."),
+          onError: (err) => showError(err instanceof Error ? err.message : "Failed to update opportunity."),
         }
       );
     } else {
       createOpportunity.mutate(payload, {
         onSuccess: () => {
           reset();
-          toast.success("Opportunity Added Successfully");
+          showSuccess("Opportunity Added Successfully");
         },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add opportunity."),
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to add opportunity."),
       });
     }
   };
@@ -152,6 +167,13 @@ export function OpportunityLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="opportunities"
+        periodId={periodId}
+        itemLabel="Opportunity"
+      />
+
       <SectionCard
         icon={TrendingUp}
         title="Opportunity Register"
@@ -176,6 +198,17 @@ export function OpportunityLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="opportunities"
+        periodId={periodId}
+        itemLabel="Opportunity"
+        previewFields={OPPORTUNITY_PREVIEW_FIELDS}
+        buildPayload={buildOpportunityPayload}
+        createMutation={createOpportunity}
+        updateMutation={updateOpportunity}
+      />
 
       <SectionCard icon={TrendingUp} title="New Opportunity">
         <EntryFields defs={fields} values={values} set={set} />

@@ -1,20 +1,35 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useUsers } from "@/lib/api/reference-data";
-import { useCreateRisk, useRisks, type RiskLog as RiskLogItem, type RiskLogPayload } from "@/lib/api/raid";
+import { useBaselinePeriodId } from "@/lib/period-utils";
+import {
+  useCreateRisk,
+  useRisks,
+  useUpdateRisk,
+  type RiskLog as RiskLogItem,
+  type RiskLogPayload,
+} from "@/lib/api/raid";
+
+const RISK_PREVIEW_FIELDS = [
+  { key: "risk_title", label: "Title" },
+  { key: "risk_category", label: "Category" },
+  { key: "probability", label: "Probability" },
+  { key: "impact", label: "Impact" },
+] as const;
 
 // Fields per §4.5 Risk Log. Keys match RiskLogCreate's field names 1:1 so
 // EntryFields' values can be posted straight through (after the escalation
@@ -94,28 +109,37 @@ function severityFor(probability: string, impact: string): string | undefined {
   return "Low";
 }
 
+// Shared by the manual "Add Risk" button and the AI row-suggestions panel's
+// Apply (both ultimately call the same createRisk mutation with this shape).
+function buildRiskPayload(values: Record<string, string>): RiskLogPayload {
+  return {
+    ...values,
+    severity: severityFor(values.probability ?? "", values.impact ?? ""),
+    escalation_required: values.escalation_required === "Y",
+  };
+}
+
 export function RiskLog() {
   const projectId = useNewProjectId();
+  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useRisks(projectId);
   const createRisk = useCreateRisk(projectId);
+  const updateRisk = useUpdateRisk(projectId);
   const fields = useRiskFields();
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addRisk = () => {
     if (!values.risk_title?.trim()) return;
-    const payload: RiskLogPayload = {
-      ...values,
-      severity: severityFor(values.probability ?? "", values.impact ?? ""),
-      escalation_required: values.escalation_required === "Y",
-    };
-    createRisk.mutate(payload, {
+    createRisk.mutate(buildRiskPayload(values), {
       onSuccess: () => {
         reset();
-        toast.success("Risk Added Successfully");
+        showSuccess("Risk Added Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add risk."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add risk."),
     });
   };
 
@@ -129,6 +153,8 @@ export function RiskLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger projectId={projectId} screen="risks" periodId={periodId} itemLabel="Risk" />
+
       <SectionCard
         icon={ShieldAlert}
         title="Risk Register"
@@ -147,6 +173,17 @@ export function RiskLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="risks"
+        periodId={periodId}
+        itemLabel="Risk"
+        previewFields={RISK_PREVIEW_FIELDS}
+        buildPayload={buildRiskPayload}
+        createMutation={createRisk}
+        updateMutation={updateRisk}
+      />
 
       <SectionCard icon={ShieldAlert} title="New Risk">
         <EntryFields defs={fields} values={values} set={set} />

@@ -1,16 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
-import { toast } from "sonner";
+import { Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { Lock, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AiFieldBadge } from "@/components/ai/ai-field-badge";
+import { useAiFieldBinding } from "@/components/ai/use-ai-field-binding";
+import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import {
   HealthPicker,
+  RATING_FROM_API,
   RATING_TO_API,
   type HealthRating as Health,
 } from "@/components/project-charter/health-declaration";
@@ -36,30 +41,93 @@ const TABS = [
   { label: "Findings Register", content: FindingsRegisterTab },
 ] as const;
 
-export function DeAssessmentForm() {
+type DeAssessmentAiValues = {
+  de_assessed_project_health: string;
+  pci_score: string;
+};
+
+function DeAssessmentFormInner() {
   const { projectId: rawProjectId } = useParams<{ projectId: string }>();
   const projectId = rawProjectId ?? null;
+  const periodId = useSearchParams().get("period");
   const { data: latest } = useLatestDEAssessment(projectId);
   const createAssessment = useCreateDEAssessment(projectId);
 
   const [assessmentDate, setAssessmentDate] = React.useState(today);
   const [health, setHealth] = React.useState<Health>("green");
   const [pciScore, setPciScore] = React.useState("");
+  const [pciScoreError, setPciScoreError] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
+  const showWarning = usePageBanner((state) => state.showWarning);
+  const dismiss = usePageBanner((state) => state.dismiss);
 
   const [tab, setTab] = React.useState<(typeof TABS)[number]["label"]>("Alert Register");
   const Active = TABS.find((t) => t.label === tab)!.content;
 
+  // Flagship "warning" banner: a real, pre-existing condition (previously a
+  // static box buried inside the Alert Register tab, invisible while
+  // Findings was active) — now visible below the page header regardless of
+  // which tab is selected, and clears itself once an alert is raised.
+  const needsAlertWarning =
+    !!latest && latest.de_assessed_project_health !== "Green" && latest.alerts.length === 0;
+  const warningShownRef = React.useRef(false);
+  React.useEffect(() => {
+    if (needsAlertWarning && latest) {
+      showWarning(
+        `This assessment is rated ${latest.de_assessed_project_health} — raise at least one alert below.`,
+        { label: "Review Alerts", onClick: () => setTab("Alert Register") }
+      );
+      warningShownRef.current = true;
+    } else if (warningShownRef.current) {
+      dismiss();
+      warningShownRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsAlertWarning]);
+
+  const aiValues: DeAssessmentAiValues = {
+    de_assessed_project_health: RATING_TO_API[health],
+    pci_score: pciScore,
+  };
+  function setAiValue<K extends keyof DeAssessmentAiValues>(fieldKey: K) {
+    return (value: DeAssessmentAiValues[K]) => {
+      if (fieldKey === "de_assessed_project_health") {
+        setHealth(RATING_FROM_API[value as keyof typeof RATING_FROM_API]);
+      } else {
+        setPciScore(value);
+      }
+    };
+  }
+  const { ai, fieldAi, setAndClear } = useAiFieldBinding(
+    projectId,
+    "de_assessment_profile",
+    periodId,
+    aiValues,
+    setAiValue
+  );
+
   const submitHeader = () => {
-    if (!projectId || !pciScore.trim()) return;
+    if (!projectId) return;
+    if (!pciScore.trim()) {
+      const message = "PCI Score is required.";
+      setPciScoreError(message);
+      showError(message);
+      return;
+    }
+    setPciScoreError(null);
     const payload: DEAssessmentPayload = {
-      assessment_date: assessmentDate,
+      assessment_date: assessmentDate || undefined,
       de_assessed_project_health: RATING_TO_API[health],
       pci_score: pciScore,
     };
     createAssessment.mutate(payload, {
-      onSuccess: () => toast.success("DE Assessment Submitted Successfully"),
+      onSuccess: () => {
+        ai.resolveAll();
+        showSuccess("DE Assessment Submitted Successfully");
+      },
       onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "Failed to submit DE assessment."),
+        showError(err instanceof Error ? err.message : "Failed to submit DE assessment."),
     });
   };
 
@@ -73,26 +141,31 @@ export function DeAssessmentForm() {
 
   return (
     <div>
-      <SectionCard
-        icon={ShieldCheck}
-        title="DE Assessment"
-        aside={
-          <Field label="Assessment Date" htmlFor="assessment-date">
-            <Input
-              id="assessment-date"
-              type="date"
-              className="h-10 w-44"
-              value={assessmentDate}
-              onChange={(e) => setAssessmentDate(e.target.value)}
+      <LoadAiSuggestionsButton
+        projectId={projectId}
+        screen="de_assessment_profile"
+        periodId={periodId}
+        ai={ai}
+      />
+      <SectionCard icon={ShieldCheck} title="DE Assessment">
+        <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
+          <Field
+            label="DE Assessed Project Health"
+            badge={<MandatoryBadge />}
+            ai={fieldAi("de_assessed_project_health")}
+          >
+            <HealthPicker
+              value={health}
+              onChange={(value) => setAndClear("de_assessed_project_health")(RATING_TO_API[value])}
             />
           </Field>
-        }
-      >
-        <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
-          <Field label="DE Assessed Project Health" badge={<MandatoryBadge />}>
-            <HealthPicker value={health} onChange={setHealth} />
-          </Field>
-          <Field label="PCI Score" htmlFor="pci-score" badge={<MandatoryBadge />}>
+          <Field
+            label="PCI Score"
+            htmlFor="pci-score"
+            badge={<MandatoryBadge />}
+            ai={fieldAi("pci_score")}
+            error={pciScoreError ?? undefined}
+          >
             <Input
               id="pci-score"
               type="number"
@@ -100,7 +173,10 @@ export function DeAssessmentForm() {
               placeholder="0.00"
               className="h-11 w-36"
               value={pciScore}
-              onChange={(e) => setPciScore(e.target.value)}
+              onChange={(e) => {
+                setAndClear("pci_score")(e.target.value);
+                if (pciScoreError) setPciScoreError(null);
+              }}
             />
           </Field>
           <Button
@@ -136,7 +212,7 @@ export function DeAssessmentForm() {
         </div>
 
         <div className="mt-8">
-          <Active projectId={projectId} assessment={latest} />
+          <Active projectId={projectId} periodId={periodId} assessment={latest} />
         </div>
       </div>
 
@@ -146,5 +222,13 @@ export function DeAssessmentForm() {
         latest assessment, row by row.
       </p>
     </div>
+  );
+}
+
+export function DeAssessmentForm() {
+  return (
+    <Suspense fallback={null}>
+      <DeAssessmentFormInner />
+    </Suspense>
   );
 }

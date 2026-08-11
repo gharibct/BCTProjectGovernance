@@ -14,7 +14,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { NEW_PROJECT_SEGMENT } from "@/stores/new-project-ui";
-import { useProjects } from "@/lib/api/projects";
+import { useProjects, type Project } from "@/lib/api/projects";
 
 const itemClass =
   "flex items-center gap-3.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition-colors";
@@ -61,10 +61,20 @@ function CollapsibleGroup({
   );
 }
 
+// A project counts as "Approved" once it's past Pending Approval — Draft and
+// Pending Approval are still being set up (Maintain Project); Approved
+// onward (Approved/Hold/Closed/Open Only for Billing) is what charter-form's
+// Approve button produces and is what Project Reporting reports on.
+function isApproved(status: Project["project_status"]): boolean {
+  return status !== "Draft" && status !== "Pending Approval";
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
 
   const { data: projects = [] } = useProjects();
+  const maintainProjects = projects.filter((p) => !isApproved(p.project_status));
+  const reportingProjects = projects.filter((p) => isApproved(p.project_status));
 
   const isDashboard = pathname === "/dashboard";
   const isNewProject = pathname.startsWith("/new-project");
@@ -105,7 +115,7 @@ export function AppSidebar() {
           active={isMaintaining}
           defaultOpen={isMaintaining}
         >
-          {projects.map((project) => {
+          {maintainProjects.map((project) => {
             const active = isMaintaining && project.id === routeProjectId;
             const href = `/new-project/${project.id}/project-charter`;
             return (
@@ -124,7 +134,7 @@ export function AppSidebar() {
               </Link>
             );
           })}
-          {projects.length === 0 ? (
+          {maintainProjects.length === 0 ? (
             <p className="px-3 py-2 text-[13px] text-slate-400">No projects yet.</p>
           ) : null}
         </CollapsibleGroup>
@@ -135,7 +145,7 @@ export function AppSidebar() {
           active={isProjectReporting}
           defaultOpen={isProjectReporting}
         >
-          {projects.map((project) => {
+          {reportingProjects.map((project) => {
             const active = project.id === reportingProjectId;
             const href = `/project-reporting/${project.id}`;
             return (
@@ -154,8 +164,8 @@ export function AppSidebar() {
               </Link>
             );
           })}
-          {projects.length === 0 ? (
-            <p className="px-3 py-2 text-[13px] text-slate-400">No projects yet.</p>
+          {reportingProjects.length === 0 ? (
+            <p className="px-3 py-2 text-[13px] text-slate-400">No approved projects yet.</p>
           ) : null}
         </CollapsibleGroup>
 

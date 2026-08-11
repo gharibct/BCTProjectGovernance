@@ -13,7 +13,7 @@ export type ProjectType = {
 };
 export type Account = { id: string; name: string; geo_id: string | null; is_active: boolean };
 
-export type PeriodType = "Weekly" | "Monthly";
+export type PeriodType = "Weekly" | "Monthly" | "Baseline";
 export type ReportingPeriod = {
   id: string;
   period_type: PeriodType;

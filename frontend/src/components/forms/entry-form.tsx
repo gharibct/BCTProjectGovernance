@@ -112,10 +112,14 @@ export function EntryFields({
   defs,
   values,
   set,
+  errors,
 }: {
   defs: FieldDef[];
   values: Record<string, string>;
   set: (key: string) => (e: ChangeEvent) => void;
+  // Optional field-level validation messages, keyed by FieldDef.key — see
+  // Field's own `error` prop. Undefined/omitted renders exactly as before.
+  errors?: Record<string, string>;
 }) {
   const gridDefs = defs.filter((d) => d.kind !== "textarea");
   const textDefs = defs.filter((d) => d.kind === "textarea");
@@ -130,6 +134,7 @@ export function EntryFields({
             htmlFor={def.key}
             hint={def.hint}
             badge={def.mandatory ? <MandatoryBadge /> : undefined}
+            error={errors?.[def.key]}
           >
             {renderControl(def, values[def.key] ?? "", set(def.key))}
           </Field>
@@ -142,6 +147,7 @@ export function EntryFields({
           htmlFor={def.key}
           hint={def.hint}
           badge={def.mandatory ? <MandatoryBadge /> : undefined}
+          error={errors?.[def.key]}
         >
           {renderControl(def, values[def.key] ?? "", set(def.key))}
         </Field>

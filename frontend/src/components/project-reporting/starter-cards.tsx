@@ -6,17 +6,24 @@ import { useParams } from "next/navigation";
 import { ArrowRight, CalendarDays, Table2 } from "lucide-react";
 
 import { NativeSelect } from "@/components/ui/native-select";
-
-// Reporting periods on offer — sample values until there's a backend.
-const WEEKS = ["Week 29", "Week 30", "Week 31", "Week 32"];
-const CURRENT_WEEK = "Week 31";
-const MONTHS = ["May 2026", "Jun 2026", "Jul 2026"];
-const CURRENT_MONTH = "Jul 2026";
+import { useReportingPeriods, type ReportingPeriod } from "@/lib/api/reference-data";
+import { currentPeriod } from "@/lib/period-utils";
 
 export function StarterCards() {
   const { projectId } = useParams<{ projectId: string }>();
-  const [week, setWeek] = useState(CURRENT_WEEK);
-  const [month, setMonth] = useState(CURRENT_MONTH);
+  const { data: periods = [] } = useReportingPeriods();
+  const weeks = periods.filter((p) => p.period_type === "Weekly");
+  const months = periods.filter((p) => p.period_type === "Monthly");
+  const currentWeek = currentPeriod(periods, "Weekly");
+  const currentMonth = currentPeriod(periods, "Monthly");
+
+  // undefined until the user picks something explicitly, so the dropdown
+  // defaults to the current period once reporting periods load without
+  // needing an effect to sync state from the async query.
+  const [weekOverride, setWeekOverride] = useState<string | undefined>(undefined);
+  const [monthOverride, setMonthOverride] = useState<string | undefined>(undefined);
+  const weekId = weekOverride ?? currentWeek?.id ?? "";
+  const monthId = monthOverride ?? currentMonth?.id ?? "";
 
   const statusHref = `/project-reporting/${projectId}/project-status`;
 
@@ -27,24 +34,24 @@ export function StarterCards() {
         title="New Weekly Report"
         description="Document operational progress, blockers, and milestone tracking for the current cycle."
         periodLabel="Reporting week"
-        options={WEEKS}
-        current={CURRENT_WEEK}
-        value={week}
-        onChange={setWeek}
+        options={weeks}
+        currentId={currentWeek?.id}
+        value={weekId}
+        onChange={setWeekOverride}
         cta="Start Weekly Draft"
-        href={`${statusHref}?period=${encodeURIComponent(week)}`}
+        href={weekId ? `${statusHref}?period=${weekId}` : statusHref}
       />
       <StarterCard
         icon={<CalendarDays className="size-6" />}
         title="New Monthly Report"
         description="Compile executive-level health checks, financial variance, and long-term risk assessment."
         periodLabel="Reporting month"
-        options={MONTHS}
-        current={CURRENT_MONTH}
-        value={month}
-        onChange={setMonth}
+        options={months}
+        currentId={currentMonth?.id}
+        value={monthId}
+        onChange={setMonthOverride}
         cta="Start Monthly Audit"
-        href={`${statusHref}?period=${encodeURIComponent(month)}`}
+        href={monthId ? `${statusHref}?period=${monthId}` : statusHref}
       />
     </div>
   );
@@ -56,7 +63,7 @@ function StarterCard({
   description,
   periodLabel,
   options,
-  current,
+  currentId,
   value,
   onChange,
   cta,
@@ -66,8 +73,8 @@ function StarterCard({
   title: string;
   description: string;
   periodLabel: string;
-  options: string[];
-  current: string;
+  options: ReportingPeriod[];
+  currentId: string | undefined;
   value: string;
   onChange: (value: string) => void;
   cta: string;
@@ -89,9 +96,12 @@ function StarterCard({
               value={value}
               onChange={(e) => onChange(e.target.value)}
             >
+              <option value="" disabled>
+                Select…
+              </option>
               {options.map((option) => (
-                <option key={option} value={option}>
-                  {option === current ? `${option} (Current)` : option}
+                <option key={option.id} value={option.id}>
+                  {option.id === currentId ? `${option.label} (Current)` : option.label}
                 </option>
               ))}
             </NativeSelect>

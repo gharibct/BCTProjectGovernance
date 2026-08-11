@@ -1,18 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
-import { toast } from "sonner";
+import { useParams, useSearchParams } from "next/navigation";
 import { HelpCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useUsers } from "@/lib/api/reference-data";
 import {
   useAssumptions,
@@ -71,8 +72,20 @@ function useAssumptionFields(projectId: string | null): FieldDef[] {
   ];
 }
 
+const ASSUMPTION_PREVIEW_FIELDS = [
+  { key: "title", label: "Title" },
+  { key: "category", label: "Category" },
+  { key: "probability_of_failure", label: "Probability of Failure" },
+  { key: "impact_rating", label: "Impact Rating" },
+] as const;
+
+function buildAssumptionPayload(values: Record<string, string>): AssumptionLogPayload {
+  return values as AssumptionLogPayload;
+}
+
 export function AssumptionLog() {
   const { projectId } = useParams<{ projectId: string }>();
+  const periodId = useSearchParams().get("period");
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useAssumptions(projectId);
   const createAssumption = useCreateAssumption(projectId);
@@ -82,6 +95,8 @@ export function AssumptionLog() {
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const startEdit = (item: AssumptionLogItem) => {
     setEditingId(item.id);
@@ -97,15 +112,15 @@ export function AssumptionLog() {
     deleteAssumption.mutate(item.id, {
       onSuccess: () => {
         if (editingId === item.id) cancelEdit();
-        toast.success("Assumption Deleted Successfully");
+        showSuccess("Assumption Deleted Successfully");
       },
-      onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to delete assumption."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete assumption."),
     });
   };
 
   const submit = () => {
     if (!values.title?.trim()) return;
-    const payload = values as AssumptionLogPayload;
+    const payload = buildAssumptionPayload(values);
 
     if (editingId) {
       updateAssumption.mutate(
@@ -113,18 +128,18 @@ export function AssumptionLog() {
         {
           onSuccess: () => {
             cancelEdit();
-            toast.success("Assumption Updated Successfully");
+            showSuccess("Assumption Updated Successfully");
           },
-          onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to update assumption."),
+          onError: (err) => showError(err instanceof Error ? err.message : "Failed to update assumption."),
         }
       );
     } else {
       createAssumption.mutate(payload, {
         onSuccess: () => {
           reset();
-          toast.success("Assumption Added Successfully");
+          showSuccess("Assumption Added Successfully");
         },
-        onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to add assumption."),
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to add assumption."),
       });
     }
   };
@@ -141,6 +156,13 @@ export function AssumptionLog() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AiRowSuggestionsTrigger
+        projectId={projectId}
+        screen="assumptions"
+        periodId={periodId}
+        itemLabel="Assumption"
+      />
+
       <SectionCard
         icon={HelpCircle}
         title="Assumption Register"
@@ -161,6 +183,17 @@ export function AssumptionLog() {
           ]}
         />
       </SectionCard>
+
+      <AiRowSuggestionsPanel
+        projectId={projectId}
+        screen="assumptions"
+        periodId={periodId}
+        itemLabel="Assumption"
+        previewFields={ASSUMPTION_PREVIEW_FIELDS}
+        buildPayload={buildAssumptionPayload}
+        createMutation={createAssumption}
+        updateMutation={updateAssumption}
+      />
 
       <SectionCard icon={HelpCircle} title="New Assumption">
         <EntryFields defs={fields} values={values} set={set} />

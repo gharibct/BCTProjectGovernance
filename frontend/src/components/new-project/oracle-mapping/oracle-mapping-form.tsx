@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { Database, Trash2 } from "lucide-react";
 
 import {
@@ -15,6 +14,7 @@ import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNewProjectId } from "@/stores/new-project-ui";
+import { usePageBanner } from "@/stores/page-banner";
 import {
   useAddOracleId,
   useDeleteOracleId,
@@ -28,24 +28,33 @@ export function OracleMappingForm() {
   const addOracleId = useAddOracleId(projectId);
   const deleteOracleId = useDeleteOracleId(projectId);
   const [oracleProjectId, setOracleProjectId] = React.useState("");
+  const [oracleIdError, setOracleIdError] = React.useState<string | null>(null);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
 
   const addMapping = () => {
-    if (!oracleProjectId.trim()) return;
+    if (!oracleProjectId.trim()) {
+      const message = "Oracle Project ID is required.";
+      setOracleIdError(message);
+      showError(message);
+      return;
+    }
+    setOracleIdError(null);
     addOracleId.mutate(oracleProjectId.trim(), {
       onSuccess: () => {
         setOracleProjectId("");
-        toast.success("Oracle Project Mapped Successfully");
+        showSuccess("Oracle Project Mapped Successfully");
       },
       onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "Failed to map Oracle project."),
+        showError(err instanceof Error ? err.message : "Failed to map Oracle project."),
     });
   };
 
   const removeMapping = (item: ProjectOracleId) => {
     deleteOracleId.mutate(item.id, {
-      onSuccess: () => toast.success("Oracle Project Removed Successfully"),
+      onSuccess: () => showSuccess("Oracle Project Removed Successfully"),
       onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "Failed to remove Oracle project."),
+        showError(err instanceof Error ? err.message : "Failed to remove Oracle project."),
     });
   };
 
@@ -100,12 +109,16 @@ export function OracleMappingForm() {
             label="Oracle Project ID"
             htmlFor="oracle-project-id"
             badge={<MandatoryBadge />}
+            error={oracleIdError ?? undefined}
           >
             <Input
               id="oracle-project-id"
               placeholder="e.g. ORA-88121"
               value={oracleProjectId}
-              onChange={(e) => setOracleProjectId(e.target.value)}
+              onChange={(e) => {
+                setOracleProjectId(e.target.value);
+                if (oracleIdError) setOracleIdError(null);
+              }}
               className="h-11"
             />
           </Field>
