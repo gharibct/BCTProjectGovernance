@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Activity, HeartPulse } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ import { usePageBanner } from "@/stores/page-banner";
 
 export type HealthRating = "green" | "amber" | "potential-red" | "red";
 
-const HEALTH_LEVELS: {
+export const HEALTH_LEVELS: {
   value: HealthRating;
   label: string;
   activeClass: string;
@@ -84,7 +84,7 @@ const PROJECT_STATUSES: ProjectStatus[] = [
   "Open Only for Billing",
 ];
 
-const CATEGORIES = [
+export const CATEGORIES = [
   {
     key: "core-delivery",
     name: "Core Delivery",
@@ -132,7 +132,7 @@ const CATEGORIES = [
 
 export type CategoryKey = (typeof CATEGORIES)[number]["key"];
 
-const DEFAULT_RATINGS: Record<CategoryKey, HealthRating> = {
+export const DEFAULT_RATINGS: Record<CategoryKey, HealthRating> = {
   "core-delivery": "green",
   people: "green",
   operational: "green",
@@ -141,7 +141,7 @@ const DEFAULT_RATINGS: Record<CategoryKey, HealthRating> = {
   compliance: "green",
 };
 
-const EMPTY_DESCRIPTIONS: Record<CategoryKey, string> = {
+export const EMPTY_DESCRIPTIONS: Record<CategoryKey, string> = {
   "core-delivery": "",
   people: "",
   operational: "",
@@ -153,7 +153,7 @@ const EMPTY_DESCRIPTIONS: Record<CategoryKey, string> = {
 // Severity order for roll-ups: worst rating wins.
 const SEVERITY: HealthRating[] = ["green", "amber", "potential-red", "red"];
 
-function worstOf(ratings: HealthRating[]): HealthRating {
+export function worstOf(ratings: HealthRating[]): HealthRating {
   return ratings.reduce((worst, rating) =>
     SEVERITY.indexOf(rating) > SEVERITY.indexOf(worst) ? rating : worst
   );
@@ -197,10 +197,11 @@ export function useHealthDeclarationForm() {
   const updateDeclaration = useUpdateHealthDeclaration(projectId);
   const updateProject = useUpdateProject(projectId);
 
-  // Self Assessment is done at project start and again each monthly review —
-  // one declaration per reporting month (see 04_health_declarations.sql),
-  // always against the current month.
-  const periodId = currentPeriod(periods, "Monthly")?.id ?? "";
+  // RAG Status is part of both Weekly and Monthly reporting — it follows
+  // whichever period is selected (?period=, forwarded by ProjectNav same as
+  // every other reporting screen), falling back to the current month when
+  // reached with no period in the URL (e.g. a direct/bookmarked visit).
+  const periodId = useSearchParams().get("period") ?? currentPeriod(periods, "Monthly")?.id ?? "";
   const existing = declarations?.find((d) => d.period_id === periodId);
 
   const [ratings, setRatings] = React.useState<Record<CategoryKey, HealthRating>>(DEFAULT_RATINGS);
@@ -274,7 +275,7 @@ export function useHealthDeclarationForm() {
           project_status: projectStatus || undefined,
         }),
       ]);
-      showSuccess("Self Assessment Saved Successfully");
+      showSuccess("RAG Status Saved Successfully");
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to save self assessment.");
     } finally {

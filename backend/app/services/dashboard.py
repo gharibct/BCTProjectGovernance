@@ -12,6 +12,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.account_health_declarations import AccountHealthDeclaration
 from app.models.contractual import (
     ContractualCommitment,
     ContractualCommitmentActual,
@@ -19,12 +20,17 @@ from app.models.contractual import (
     MilestonePaymentActual,
 )
 from app.models.de_assessment import DEAssessment, DEAssessmentAlert
+from app.models.health_declarations import HealthDeclaration
+from app.models.project_status import ProjectStatusItem
 from app.models.projects import Project
 from app.models.raid import IssueLog, OpportunityLog, RiskLog
 from app.models.reference_data import Account, ProjectType
+from app.models.regional_status import AccountStatusItem
 from app.schemas.dashboard import (
     AccountHealthRow,
     ContractualComplianceSummary,
+    HealthMatrixRow,
+    HighlightRow,
     MilestonePaymentSummary,
     ProjectHealthRow,
     ProjectTypeBreakdownRow,
@@ -39,6 +45,12 @@ class DashboardFilters:
     account_id: UUID | None = None
     project_type_id: UUID | None = None
     health_status: HealthRating | None = None
+    # Role-scoping for the Geo Head / Account Manager dashboards — a user can
+    # own more than one geo/account (see user_geos/user_accounts), so these
+    # are separate from the single-value filters above used by the generic
+    # Dashboard page's manual filter dropdown.
+    geo_ids: list[UUID] | None = None
+    account_ids: list[UUID] | None = None
 
 
 def _project_conditions(filters: DashboardFilters) -> list:
@@ -47,6 +59,10 @@ def _project_conditions(filters: DashboardFilters) -> list:
         conditions.append(Project.geo_id == filters.geo_id)
     if filters.account_id is not None:
         conditions.append(Project.account_id == filters.account_id)
+    if filters.geo_ids is not None:
+        conditions.append(Project.geo_id.in_(filters.geo_ids))
+    if filters.account_ids is not None:
+        conditions.append(Project.account_id.in_(filters.account_ids))
     if filters.project_type_id is not None:
         conditions.append(Project.project_type_id == filters.project_type_id)
     if filters.health_status is not None:
@@ -256,3 +272,127 @@ async def milestone_payment_summary(db: AsyncSession, filters: DashboardFilters)
             upcoming += 1
 
     return MilestonePaymentSummary(upcoming_count=upcoming, overdue_count=overdue, paid_count=paid)
+
+
+# Governance Matrix (CXO/Geo Head/Account Manager dashboard redesign) — full
+# 6-category breakdown per account/project, unlike account_health_rows'/
+# project_health_rows' single rolled-up overall_health. No bulk "latest
+# declaration per entity" query exists elsewhere, so this fetches every
+# matching declaration for the in-scope id set in one query and reduces to
+# the latest per entity by created_at in Python (no window functions/DISTINCT
+# ON, staying portable across this app's Postgres/SQLite dual setup — same
+# approach this module's docstring already endorses for grouping math).
+
+
+async def account_health_matrix(db: AsyncSession, filters: DashboardFilters) -> list[HealthMatrixRow]:
+    accounts = await account_health_rows(db, filters)
+    if not accounts:
+        return []
+    account_ids = [a.account_id for a in accounts]
+
+    declarations = (
+        await db.execute(select(AccountHealthDeclaration).where(AccountHealthDeclaration.account_id.in_(account_ids)))
+    ).scalars().all()
+    latest: dict[UUID, AccountHealthDeclaration] = {}
+    for decl in declarations:
+        current = latest.get(decl.account_id)
+        if current is None or decl.created_at > current.created_at:
+            latest[decl.account_id] = decl
+
+    rows = [
+        HealthMatrixRow(
+            entity_id=a.account_id,
+            entity_label=a.account_name,
+            core_delivery_rating=latest[a.account_id].core_delivery_rating if a.account_id in latest else None,
+            people_rating=latest[a.account_id].people_rating if a.account_id in latest else None,
+            operational_rating=latest[a.account_id].operational_rating if a.account_id in latest else None,
+            customer_rating=latest[a.account_id].customer_rating if a.account_id in latest else None,
+            financial_rating=latest[a.account_id].financial_rating if a.account_id in latest else None,
+            compliance_rating=latest[a.account_id].compliance_rating if a.account_id in latest else None,
+            overall_rating=latest[a.account_id].overall_rating if a.account_id in latest else None,
+        )
+        for a in accounts
+    ]
+    return sorted(rows, key=lambda r: r.entity_label)
+
+
+async def project_health_matrix(db: AsyncSession, filters: DashboardFilters) -> list[HealthMatrixRow]:
+    projects = await project_health_rows(db, filters)
+    if not projects:
+        return []
+    project_ids = [p.project_id for p in projects]
+
+    declarations = (
+        await db.execute(select(HealthDeclaration).where(HealthDeclaration.project_id.in_(project_ids)))
+    ).scalars().all()
+    latest: dict[UUID, HealthDeclaration] = {}
+    for decl in declarations:
+        current = latest.get(decl.project_id)
+        if current is None or decl.created_at > current.created_at:
+            latest[decl.project_id] = decl
+
+    rows = [
+        HealthMatrixRow(
+            entity_id=p.project_id,
+            entity_label=f"{p.project_code} · {p.project_name}",
+            core_delivery_rating=latest[p.project_id].core_delivery_rating if p.project_id in latest else None,
+            people_rating=latest[p.project_id].people_rating if p.project_id in latest else None,
+            operational_rating=latest[p.project_id].operational_rating if p.project_id in latest else None,
+            customer_rating=latest[p.project_id].customer_rating if p.project_id in latest else None,
+            financial_rating=latest[p.project_id].financial_rating if p.project_id in latest else None,
+            compliance_rating=latest[p.project_id].compliance_rating if p.project_id in latest else None,
+            overall_rating=latest[p.project_id].overall_rating if p.project_id in latest else None,
+        )
+        for p in projects
+    ]
+    return sorted(rows, key=lambda r: r.entity_label)
+
+
+async def account_highlights(db: AsyncSession, filters: DashboardFilters, limit: int = 5) -> list[HighlightRow]:
+    accounts = await account_health_rows(db, filters)
+    if not accounts:
+        return []
+    names = {a.account_id: a.account_name for a in accounts}
+
+    stmt = (
+        select(AccountStatusItem)
+        .where(AccountStatusItem.account_id.in_(names.keys()))
+        .order_by(AccountStatusItem.created_at.desc())
+        .limit(limit)
+    )
+    items = (await db.execute(stmt)).scalars().all()
+    return [
+        HighlightRow(
+            entity_id=item.account_id,
+            entity_label=names.get(item.account_id, "Unknown"),
+            category=item.category,
+            description=item.description,
+            created_at=item.created_at,
+        )
+        for item in items
+    ]
+
+
+async def project_highlights(db: AsyncSession, filters: DashboardFilters, limit: int = 5) -> list[HighlightRow]:
+    projects = await project_health_rows(db, filters)
+    if not projects:
+        return []
+    labels = {p.project_id: f"{p.project_code} · {p.project_name}" for p in projects}
+
+    stmt = (
+        select(ProjectStatusItem)
+        .where(ProjectStatusItem.project_id.in_(labels.keys()))
+        .order_by(ProjectStatusItem.created_at.desc())
+        .limit(limit)
+    )
+    items = (await db.execute(stmt)).scalars().all()
+    return [
+        HighlightRow(
+            entity_id=item.project_id,
+            entity_label=labels.get(item.project_id, "Unknown"),
+            category=item.category,
+            description=item.description,
+            created_at=item.created_at,
+        )
+        for item in items
+    ]

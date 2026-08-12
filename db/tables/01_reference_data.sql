@@ -36,6 +36,7 @@ CREATE TABLE accounts (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     geo_id UUID REFERENCES geos(id),
+    description TEXT, -- short summary about the customer
     is_active BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

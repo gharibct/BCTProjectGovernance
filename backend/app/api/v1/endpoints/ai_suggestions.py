@@ -311,35 +311,6 @@ def _self_assessment_test_fields() -> list[AiFieldSuggestionIn]:
     ]
 
 
-def _project_status_test_fields() -> list[AiFieldSuggestionIn]:
-    return [
-        AiFieldSuggestionIn(
-            field_key="key_accomplishments",
-            value="• Completed UAT sign-off for Finance module\n• Closed 12 of 15 open defects from last cycle",
-            confidence=0.8,
-            source_document="Weekly_Status_Report.pdf",
-            source_location="Page 1",
-            evidence="UAT for the Finance module was signed off this week; 12 of 15 open defects were closed.",
-        ),
-        AiFieldSuggestionIn(
-            field_key="upcoming_key_releases",
-            value="• Go-live for Procurement module targeted next week",
-            confidence=0.68,
-            source_document="Weekly_Status_Report.pdf",
-            source_location="Page 1",
-            evidence="Procurement module go-live is planned for next week pending final approval.",
-        ),
-        AiFieldSuggestionIn(
-            field_key="leadership_support_required",
-            value="• Vendor hardware procurement delay needs escalation",
-            confidence=0.6,
-            source_document="Steering_Committee_Minutes.pdf",
-            source_location="Page 2",
-            evidence="Vendor hardware procurement is running three weeks behind and needs leadership escalation.",
-        ),
-    ]
-
-
 def _measurement_development_test_fields() -> list[AiFieldSuggestionIn]:
     return [
         AiFieldSuggestionIn(
@@ -516,8 +487,6 @@ async def seed_test_suggestions(
         fields = _scope_schedule_test_fields()
     elif screen == "self_assessment":
         fields = _self_assessment_test_fields()
-    elif screen == "project_status":
-        fields = _project_status_test_fields()
     elif screen == "measurement_development":
         fields = _measurement_development_test_fields()
     elif screen == "measurement_support":

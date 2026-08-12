@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -38,6 +39,30 @@ class MilestonePaymentSummary(BaseModel):
     paid_count: int
 
 
+class HealthMatrixRow(BaseModel):
+    """One row of the Account/Project Governance Matrix — the full 6-category
+    breakdown for an account or project, not just the rolled-up overall
+    health that AccountHealthRow/ProjectHealthRow expose."""
+
+    entity_id: UUID
+    entity_label: str
+    core_delivery_rating: HealthRating | None
+    people_rating: HealthRating | None
+    operational_rating: HealthRating | None
+    customer_rating: HealthRating | None
+    financial_rating: HealthRating | None
+    compliance_rating: HealthRating | None
+    overall_rating: HealthRating | None
+
+
+class HighlightRow(BaseModel):
+    entity_id: UUID
+    entity_label: str
+    category: str  # ProjectStatusCategory value
+    description: str
+    created_at: datetime
+
+
 class DashboardSummary(BaseModel):
     active_projects: int
     projects_by_type: list[ProjectTypeBreakdownRow]
@@ -49,3 +74,7 @@ class DashboardSummary(BaseModel):
     account_health: list[AccountHealthRow]
     contractual_compliance: ContractualComplianceSummary
     milestone_payments: MilestonePaymentSummary
+    account_matrix: list[HealthMatrixRow]
+    project_matrix: list[HealthMatrixRow]
+    account_highlights: list[HighlightRow]
+    project_highlights: list[HighlightRow]

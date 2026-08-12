@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Account Review - Narrative Report</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400..900&amp;family=Inter:wght@400..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-container": "#7c839b",
+                      "tertiary": "#000000",
+                      "tertiary-fixed": "#fcdeb5",
+                      "surface-bright": "#f8f9ff",
+                      "outline-variant": "#c6c6cd",
+                      "on-tertiary-fixed-variant": "#574425",
+                      "error": "#ba1a1a",
+                      "primary-fixed-dim": "#bec6e0",
+                      "on-secondary-fixed-variant": "#003ea8",
+                      "surface-container-high": "#dce9ff",
+                      "surface-container-lowest": "#ffffff",
+                      "secondary-container": "#316bf3",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "surface-tint": "#565e74",
+                      "on-secondary-fixed": "#00174b",
+                      "on-error": "#ffffff",
+                      "on-surface-variant": "#45464d",
+                      "on-primary": "#ffffff",
+                      "surface-variant": "#d3e4fe",
+                      "on-surface": "#0b1c30",
+                      "primary-fixed": "#dae2fd",
+                      "surface-container-low": "#eff4ff",
+                      "error-container": "#ffdad6",
+                      "inverse-surface": "#213145",
+                      "secondary-fixed-dim": "#b4c5ff",
+                      "secondary-fixed": "#dbe1ff",
+                      "surface-dim": "#cbdbf5",
+                      "background": "#f8f9ff",
+                      "secondary": "#0051d5",
+                      "tertiary-container": "#271901",
+                      "on-error-container": "#93000a",
+                      "surface-container": "#e5eeff",
+                      "on-tertiary-fixed": "#271901",
+                      "outline": "#76777d",
+                      "on-secondary": "#ffffff",
+                      "on-primary-fixed": "#131b2e",
+                      "on-secondary-container": "#fefcff",
+                      "surface": "#f8f9ff",
+                      "primary": "#000000",
+                      "primary-container": "#131b2e",
+                      "inverse-primary": "#bec6e0",
+                      "surface-container-highest": "#d3e4fe",
+                      "tertiary-fixed-dim": "#dec29a",
+                      "on-tertiary": "#ffffff",
+                      "on-background": "#0b1c30",
+                      "on-tertiary-container": "#98805d",
+                      "inverse-on-surface": "#eaf1ff",
+                      "confidence-high": "#10b981",
+                      "confidence-medium": "#f59e0b",
+                      "confidence-low": "#ef4444"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "margin-desktop": "32px",
+                      "container-max": "1440px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "margin-mobile": "16px",
+                      "sm": "8px",
+                      "xl": "40px",
+                      "gutter": "24px",
+                      "base": "4px"
+              },
+              "fontFamily": {
+                      "data-mono": ["Inter"],
+                      "title-lg": ["Inter"],
+                      "display-lg": ["Hanken Grotesk"],
+                      "label-md": ["Inter"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "body-lg": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "500"}],
+                      "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        .ai-sparkle {
+            background: linear-gradient(135deg, #316bf3, #0051d5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen overflow-x-hidden pt-14 pb-20 md:pb-0">
+<!-- TopAppBar -->
+<!-- header class="fixed top-0 w-full z-50 bg-surface border-b border-outline-variant flex justify-between items-center px-margin-mobile md:px-margin-desktop h-14 w-full">
+<div class="flex items-center gap-sm">
+<button class="text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200 active:opacity-70 p-sm rounded-full md:hidden">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Governance Protocol</h1>
+</div>
+<div class="flex items-center gap-md">
+<nav class="hidden md:flex gap-lg">
+<a class="text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors px-2 py-1 rounded-DEFAULT active:scale-95 duration-150" href="#">Summary</a>
+<a class="text-secondary font-bold font-label-md text-label-md hover:bg-surface-container-high transition-colors px-2 py-1 rounded-DEFAULT active:scale-95 duration-150" href="#">Review</a>
+<a class="text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors px-2 py-1 rounded-DEFAULT active:scale-95 duration-150" href="#">Risks</a>
+<a class="text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors px-2 py-1 rounded-DEFAULT active:scale-95 duration-150" href="#">Milestones</a>
+</nav>
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden border border-outline-variant hidden md:block">
+<img alt="Executive User Profile" class="w-full h-full object-cover" data-alt="A professional headshot of an executive user in a modern corporate setting, soft high-key lighting, corporate modern aesthetic with white and blue tones, conveying authority and trust." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD04KCW05ECLEVLEQW0qU4f5VrB2JnB20QBLfR3sRL0_9v-g7bq-0E5ciboYzhtkx0o_KpjEybNyyWO0Z0glw48kZFsUfg0ZpzNeaJq3NNUjxtD6zizYccYHlNRrOI0tfDrua_syfGNeJU3Bpi5Q6SIwvFrV1MPpJ35ci_yIcq2RgSBwc2IhTqMe5jGa7aAj25-3awnn8PTuoEDLvBLo2mE292K1MNaSRkJymVVJvSEkfl1t6x17s9ZWQ"/>
+</div>
+<button class="text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200 active:opacity-70 p-sm rounded-full md:hidden">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</header -->
+<!-- Main Layout Grid -->
+<div class="pt-4 md:pt-16 max-w-container-max mx-auto lg:flex">
+<!-- NavigationDrawer (Desktop) -->
+<!-- aside class="hidden lg:flex flex-col p-md gap-sm bg-surface-container-low fixed left-0 top-0 h-full w-72 pt-24 border-r border-outline-variant transition-transform duration-200 ease-in-out z-40">
+<div class="flex items-center gap-md mb-lg">
+<div class="w-12 h-12 rounded-full bg-surface-container overflow-hidden">
+<img alt="Project Lead" class="w-full h-full object-cover" data-alt="A portrait of a project lead in a well-lit office, wearing business casual attire, corporate modern style, emphasizing reliability and professional project governance." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHbv_s_cg0HFegE9zzn2crTQvH8N4gBPn_1QfIPrHq4_HVedN6bwBji3Z7d8O0r-5B_7xd2s_ipxTJm5Y-scNAssC835mJ_xMDOcV3vnQ_jHAup2GsGihFVIHcZjHo4lv3S5g4VV9zUFBTyOuPO-g3gpwH0g5aQSjS1xXa5pQ3jVub4hPIUyB6jHaxY740wDXtXawo3cFrgPYqAIvKEGlr6qWoNpTQ5iIC3JH7ejOex68wkZfQCrDwLA"/>
+</div>
+<div>
+<h3 class="font-title-lg text-title-lg text-primary">Account Governance</h3>
+<p class="font-label-md text-label-md text-on-surface-variant">AI-Assisted Insights</p>
+</div>
+</div>
+<nav class="flex flex-col gap-xs">
+<a class="flex items-center gap-sm px-4 py-3 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Summary</span>
+</a>
+<a class="flex items-center gap-sm px-4 py-3 rounded-full bg-secondary-container text-on-secondary-container hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-label-md text-label-md">Review</span>
+</a>
+<a class="flex items-center gap-sm px-4 py-3 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="warning">warning</span>
+<span class="font-label-md text-label-md">Risks</span>
+</a>
+<a class="flex items-center gap-sm px-4 py-3 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="event_upcoming">event_upcoming</span>
+<span class="font-label-md text-label-md">Milestones</span>
+</a>
+</nav>
+</aside -->
+<!-- Main Content Area -->
+<main class="flex-1 lg:ml-72 p-margin-mobile md:p-margin-desktop bg-surface min-h-screen">
+<div class="max-w-6xl mx-auto space-y-md pb-8">
+<!-- Customer Snapshot Header -->
+<section class="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl flex flex-col gap-md">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-xs">Customer Snapshot</p>
+<h1 class="font-display-lg text-display-lg text-primary">Customer Overview</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-sm">Q3 Enterprise Account Review</p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-md mt-md">
+<div class="bg-surface-container-low p-md rounded-xl border border-outline-variant/30">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-xs">Revenue</p>
+<p class="font-headline-md text-headline-md font-bold text-primary">$4.2M</p>
+</div>
+<div class="bg-surface-container-low p-md rounded-xl border border-outline-variant/30">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-xs">Projects</p>
+<p class="font-headline-md text-headline-md font-bold text-primary">12</p>
+</div>
+<div class="bg-surface-container-low p-md rounded-xl border border-outline-variant/30">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-xs">ON:OFF FTE</p>
+<p class="font-headline-md text-headline-md font-bold text-primary">45:55</p>
+</div>
+<div class="bg-surface-container-low p-md rounded-xl border border-outline-variant/30">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-xs">RAG Status</p>
+<div class="flex items-center gap-sm mt-1">
+<span class="w-3 h-3 rounded-full bg-confidence-medium"></span>
+<p class="font-title-lg text-title-lg text-confidence-medium">Amber</p>
+</div>
+</div>
+</div>
+</section>
+<!-- 4-Quadrant Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- Top Left: Key Accomplishments -->
+<section class="bg-surface-container-lowest border border-outline-variant p-lg rounded-xl flex flex-col gap-md">
+<h2 class="font-title-lg text-title-lg text-[#00174b] uppercase tracking-wider mb-sm pb-xs border-b-2 border-confidence-high/30">Key Accomplishments</h2>
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant/30 border-l-4 border-l-confidence-high p-md rounded-xl text-sm">
+<div class="flex items-center justify-between mb-sm">
+<span class="flex items-center gap-xs bg-confidence-high/10 text-confidence-high px-2 py-0.5 rounded-full font-label-md text-[10px]">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle">check_circle</span>
+                    High Confidence
+                </span>
+</div>
+<div class="font-body-md text-body-md text-on-surface space-y-sm">
+<p>Successfully deployed the Vanguard System across 3 regional hubs ahead of schedule. The integration phase realized a 15% efficiency gain in processing times over the initial baseline projections.</p>
+<ul class="list-disc pl-5 font-body-md text-on-surface-variant">
+<li>Vanguard System deployment completed in NA, EMEA, and APAC.</li>
+<li>Zero critical downtime during the migration window.</li>
+</ul>
+</div>
+<div class="mt-md pt-sm border-t border-outline-variant/30 flex items-start gap-sm">
+<span class="material-symbols-outlined text-confidence-high mt-0.5 text-[18px]" data-icon="psychology">psychology</span>
+<div>
+<p class="font-data-mono text-data-mono text-on-surface-variant mb-xs"><strong class="text-on-surface">Source:</strong> Q2 Migration Report.pdf</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Top Right: Upcoming Key Releases/Milestones/Actions -->
+<section class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex flex-col h-full">
+<h2 class="font-title-lg text-title-lg text-[#00174b] uppercase tracking-wider mb-sm pb-xs border-b-2 border-confidence-high/30">Upcoming Key Releases/ Milestones/ Actions</h2>
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant/30 border-l-4 border-l-confidence-high p-md rounded-xl text-sm">
+<div class="flex items-center justify-between mb-sm">
+<span class="flex items-center gap-xs bg-confidence-high/10 text-confidence-high px-2 py-0.5 rounded-full font-label-md text-[10px]">
+<span class="material-symbols-outlined text-[12px]" data-icon="check_circle">check_circle</span>
+                    High Confidence
+                </span>
+</div>
+<div class="font-body-md text-body-md text-on-surface space-y-sm">
+<ul class="list-decimal pl-5 font-body-md text-on-surface-variant space-y-xs">
+<li>Phase 2 Kickoff - Oct 15</li>
+<li>Security Audit Completion - Nov 1</li>
+<li>End of Year Review - Dec 10</li>
+</ul>
+</div>
+<div class="mt-md pt-sm border-t border-outline-variant/30 flex items-start gap-sm">
+<span class="material-symbols-outlined text-confidence-high mt-0.5 text-[18px]" data-icon="psychology">psychology</span>
+<div>
+<p class="font-data-mono text-data-mono text-on-surface-variant mb-xs"><strong class="text-on-surface">Source:</strong> Q3_Project_Plan.pdf</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Left: Key Risks/Issues -->
+<section class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex flex-col h-full">
+<h2 class="font-title-lg text-title-lg text-[#00174b] uppercase tracking-wider mb-sm pb-xs border-b-2 border-confidence-medium/30">Key Risks/ Issues</h2>
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant/30 border-l-4 border-l-confidence-medium p-md rounded-xl text-sm">
+<div class="flex items-center justify-between mb-sm">
+<span class="flex items-center gap-xs bg-confidence-medium/10 text-confidence-medium px-2 py-0.5 rounded-full font-label-md text-[10px]">
+<span class="material-symbols-outlined text-[12px]" data-icon="warning">warning</span>
+                    Medium Confidence
+                </span>
+</div>
+<div class="font-body-md text-body-md text-on-surface space-y-sm">
+<p>Resource constraints in the data engineering team may impact the timeline for the Q4 analytics rollout. Mitigation strategy requires backfilling 2 contractor positions immediately.</p>
+</div>
+<div class="mt-md pt-sm border-t border-outline-variant/30 flex items-start gap-sm">
+<span class="material-symbols-outlined text-confidence-medium mt-0.5 text-[18px]" data-icon="psychology">psychology</span>
+<div>
+<p class="font-data-mono text-data-mono text-on-surface-variant mb-xs"><strong class="text-on-surface">Source:</strong> Slack Thread - Data Team (Sep 28)</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Right: Leadership Support/Attention Required -->
+<section class="bg-surface-container-lowest border border-outline-variant p-md rounded-xl flex flex-col h-full">
+<h2 class="font-title-lg text-title-lg text-[#00174b] uppercase tracking-wider mb-sm pb-xs border-b-2 border-confidence-low/30">Leadership Support/ Attention Required</h2>
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant/30 border-l-4 border-l-confidence-low p-md rounded-xl text-sm">
+<div class="flex items-center justify-between mb-sm">
+<span class="flex items-center gap-xs bg-confidence-low/10 text-confidence-low px-2 py-0.5 rounded-full font-label-md text-[10px]">
+<span class="material-symbols-outlined text-[12px]" data-icon="flag">flag</span>
+                    Action Required
+                </span>
+</div>
+<div class="font-body-md text-body-md text-on-surface space-y-sm">
+<p>Executive intervention is requested to finalize the licensing agreement for Phase 2 expansion. Current negotiations are stalled regarding the SLA penalty clauses.</p>
+<div class="bg-surface p-sm border border-outline-variant rounded mt-sm">
+<p class="font-label-md text-label-md text-on-surface-variant mb-xs">Requested Action:</p>
+<p class="font-data-mono text-data-mono text-primary">Schedule sync with Global Tech VP of Procurement before Oct 15th.</p>
+</div>
+</div>
+<div class="mt-md pt-sm border-t border-outline-variant/30 flex items-start gap-sm">
+<span class="material-symbols-outlined text-confidence-low mt-0.5 text-[18px]" data-icon="psychology">psychology</span>
+<div>
+<p class="font-data-mono text-data-mono text-on-surface-variant mb-xs"><strong class="text-on-surface">Source:</strong> Procurement_Meeting_Notes.pdf</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+</div>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-2 bg-surface-container z-50 border-t border-outline-variant shadow-lg h-16">
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant scale-98 duration-100" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Summary</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1 active:bg-surface-variant scale-98 duration-100" href="#">
+<span class="material-symbols-outlined fill mb-1" data-icon="tab">tab</span>
+<span class="font-label-md text-label-md font-bold">Review</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant scale-98 duration-100" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="error">error</span>
+<span class="font-label-md text-label-md">Risks</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant active:bg-surface-variant scale-98 duration-100" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="flag">flag</span>
+<span class="font-label-md text-label-md">Milestones</span>
+</a>
+</nav>
+</body></html>

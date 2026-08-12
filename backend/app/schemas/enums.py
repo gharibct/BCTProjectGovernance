@@ -19,7 +19,9 @@ HEALTH_RATING_SEVERITY = [HealthRating.RED, HealthRating.POTENTIAL_RED, HealthRa
 
 class RoleCode(StrEnum):
     ADMIN = "ADMIN"
-    EXECUTIVE = "EXECUTIVE"
+    CXO = "CXO"
+    ACCOUNT_MANAGER = "ACCOUNT_MANAGER"
+    GEO_HEAD = "GEO_HEAD"
     PROJECT_MANAGER = "PROJECT_MANAGER"
     TEAM_MEMBER = "TEAM_MEMBER"
     DELIVERY_EXCELLENCE = "DELIVERY_EXCELLENCE"
@@ -343,6 +345,24 @@ class PeriodType(StrEnum):
 class ReportStatus(StrEnum):
     DRAFT = "Draft"
     SUBMITTED = "Submitted"
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+
+
+class ProjectStatusCategory(StrEnum):
+    KEY_ACCOMPLISHMENTS = "Key Accomplishments"
+    UPCOMING_KEY_RELEASES = "Upcoming Key Releases / Milestones / Actions"
+    LEADERSHIP_SUPPORT_REQUIRED = "Leadership Support / Attention Required"
+    KEY_RISKS_ISSUES = "Key Risks / Issues"
+
+
+# Project -> Account rollup (see services/account_rollup.py): whether a
+# project's own status item has been pulled into the account's register,
+# dismissed, or is still awaiting a decision.
+class RollupStatus(StrEnum):
+    PENDING = "Pending"
+    PULLED = "Pulled"
+    IGNORED = "Ignored"
 
 
 class DocumentContext(StrEnum):

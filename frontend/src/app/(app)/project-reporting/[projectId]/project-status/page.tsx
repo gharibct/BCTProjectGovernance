@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { StatusForm } from "@/components/project-status/status-form";
+import { ProjectStatusTabs } from "@/components/project-status/project-status-tabs";
 import { StatusHeader } from "@/components/project-status/status-header";
 
 export const metadata: Metadata = {
@@ -12,7 +12,7 @@ export default function ProjectStatusPage() {
     <div className="mx-auto max-w-6xl">
       <StatusHeader />
       <div className="mt-8">
-        <StatusForm />
+        <ProjectStatusTabs />
       </div>
     </div>
   );

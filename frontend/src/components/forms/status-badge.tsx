@@ -38,6 +38,7 @@ const TONE_MAP: Record<string, string> = {
   completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   implemented: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   approved: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  rejected: "bg-red-50 text-red-700 ring-red-200",
   submitted: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   validated: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   met: "bg-emerald-50 text-emerald-700 ring-emerald-200",

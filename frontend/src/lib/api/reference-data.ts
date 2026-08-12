@@ -11,7 +11,13 @@ export type ProjectType = {
   description: string | null;
   is_active: boolean;
 };
-export type Account = { id: string; name: string; geo_id: string | null; is_active: boolean };
+export type Account = {
+  id: string;
+  name: string;
+  geo_id: string | null;
+  description: string | null;
+  is_active: boolean;
+};
 
 export type PeriodType = "Weekly" | "Monthly" | "Baseline";
 export type ReportingPeriod = {

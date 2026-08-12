@@ -3,34 +3,16 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useSearchParams } from "next/navigation";
-import {
-  CalendarDays,
-  Circle,
-  CircleCheck,
-  ClipboardList,
-  FileText,
-  ShieldCheck,
-  Sparkles,
-  type LucideIcon,
-} from "lucide-react";
+import { CalendarDays, Circle, CircleCheck, ClipboardList, FileText, ShieldCheck, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
 import { useReportingPeriods } from "@/lib/api/reference-data";
-
-// Every item is its own route (mirrors New Project's nav) so the browser
-// URL, back button, and this nav's active state all agree — no in-page
-// section switching. `done` marks whether the task is completed for the
-// current reporting period (sample values until there's a backend).
-type NavItem = {
-  label: string;
-  href: string;
-  done: boolean;
-};
+import { activeClass, childClass, idleClass, StatusIcon, type NavGroup } from "./nav-primitives";
 
 // Every href is relative to the current :projectId route segment (see
 // buildGroups) so navigating between tabs stays on the same project.
-function buildGroups(base: string): { heading: string; icon: LucideIcon; items: NavItem[] }[] {
+function buildGroups(base: string): NavGroup[] {
   return [
     {
       heading: "Project Charter",
@@ -50,6 +32,11 @@ function buildGroups(base: string): { heading: string; icon: LucideIcon; items: 
       items: [
         { label: "Project Status", href: `${base}/project-status`, done: true },
         {
+          label: "RAG Status",
+          href: `${base}/project-charter/self-assessment`,
+          done: false,
+        },
+        {
           label: "Resource Allocation",
           href: `${base}/resource-allocation`,
           done: false,
@@ -67,11 +54,6 @@ function buildGroups(base: string): { heading: string; icon: LucideIcon; items: 
       heading: "Delivery Excellence",
       icon: ShieldCheck,
       items: [
-        {
-          label: "Self Assessment",
-          href: `${base}/project-charter/self-assessment`,
-          done: false,
-        },
         { label: "DE Assessment", href: `${base}/de-assessment`, done: false },
       ],
     },
@@ -88,35 +70,18 @@ function buildGroups(base: string): { heading: string; icon: LucideIcon; items: 
   ];
 }
 
-const childClass =
-  "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors";
-const activeClass = "bg-[#d9eafc] font-bold text-[#15406b]";
-const idleClass = "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900";
-
-function StatusIcon({ done }: { done: boolean }) {
-  const title = done
-    ? `Completed for ${CURRENT_PERIOD}`
-    : `Pending for ${CURRENT_PERIOD}`;
-  return done ? (
-    <CircleCheck className="size-4 shrink-0 text-emerald-500">
-      <title>{title}</title>
-    </CircleCheck>
-  ) : (
-    <Circle className="size-4 shrink-0 text-slate-300">
-      <title>{title}</title>
-    </Circle>
-  );
-}
-
-// Weekly reports only cover Project Status — the remaining Project
-// Reporting tabs and the whole Delivery Excellence group only apply to
-// Monthly reporting, so they're hidden while a Weekly period is selected.
-function weeklyGroups(groups: ReturnType<typeof buildGroups>) {
+// Weekly reports only cover Project Status and RAG Status — the remaining
+// Project Reporting tabs and the whole Delivery Excellence group only apply
+// to Monthly reporting, so they're hidden while a Weekly period is selected.
+function weeklyGroups(groups: NavGroup[]): NavGroup[] {
   return groups
     .filter((group) => group.heading !== "Delivery Excellence")
     .map((group) => {
       if (group.heading === "Project Reporting") {
-        return { ...group, items: group.items.filter((item) => item.label === "Project Status") };
+        return {
+          ...group,
+          items: group.items.filter((item) => item.label === "Project Status" || item.label === "RAG Status"),
+        };
       }
       if (group.heading === "Project Charter") {
         return { ...group, items: group.items.filter((item) => item.label !== "Scope and Schedule") };
@@ -131,13 +96,7 @@ function weeklyGroups(groups: ReturnType<typeof buildGroups>) {
 // Allocation, RAIDO, Document Processing, ...) to read it the same way
 // status-header.tsx does. Split out from ProjectNav because useSearchParams
 // requires a Suspense boundary at prerender.
-function NavLinks({
-  groups,
-  pathname,
-}: {
-  groups: ReturnType<typeof buildGroups>;
-  pathname: string;
-}) {
+function NavLinks({ groups, pathname }: { groups: NavGroup[]; pathname: string }) {
   const searchParams = useSearchParams();
   const period = searchParams.get("period");
   const suffix = period ? `?period=${period}` : "";

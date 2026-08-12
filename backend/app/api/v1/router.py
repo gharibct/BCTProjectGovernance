@@ -1,14 +1,19 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    account_health_declarations,
+    account_rollup,
     ai_row_suggestions,
     ai_suggestions,
     audit,
+    auth,
     contractual,
     dashboard,
     data_integrity,
     de_assessment,
     documents,
+    geo_health_declarations,
+    geo_rollup,
     health_declarations,
     integrations,
     measurement,
@@ -17,11 +22,13 @@ from app.api.v1.endpoints import (
     projects,
     raid,
     reference_data,
+    regional_status,
     users,
 )
 
 api_router = APIRouter()
 
+api_router.include_router(auth.router)
 api_router.include_router(reference_data.router)
 api_router.include_router(users.router)
 api_router.include_router(projects.router)
@@ -30,6 +37,7 @@ api_router.include_router(ai_row_suggestions.router)
 api_router.include_router(documents.router)
 api_router.include_router(health_declarations.router)
 api_router.include_router(project_status.router)
+api_router.include_router(project_status.items_router)
 api_router.include_router(raid.router)
 api_router.include_router(measurement.router)
 api_router.include_router(metric_target.router)
@@ -39,3 +47,11 @@ api_router.include_router(data_integrity.router)
 api_router.include_router(integrations.router)
 api_router.include_router(audit.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(regional_status.account_status_router)
+api_router.include_router(regional_status.geo_status_router)
+api_router.include_router(regional_status.account_status_items_router)
+api_router.include_router(regional_status.geo_status_items_router)
+api_router.include_router(account_health_declarations.router)
+api_router.include_router(geo_health_declarations.router)
+api_router.include_router(account_rollup.router)
+api_router.include_router(geo_rollup.router)

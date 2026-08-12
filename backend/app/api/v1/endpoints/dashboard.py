@@ -17,9 +17,16 @@ def _filters(
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     health_status: HealthRating | None = Query(default=None),
+    geo_ids: list[UUID] | None = Query(default=None),
+    account_ids: list[UUID] | None = Query(default=None),
 ) -> DashboardFilters:
     return DashboardFilters(
-        geo_id=geo_id, account_id=account_id, project_type_id=project_type_id, health_status=health_status
+        geo_id=geo_id,
+        account_id=account_id,
+        project_type_id=project_type_id,
+        health_status=health_status,
+        geo_ids=geo_ids,
+        account_ids=account_ids,
     )
 
 
@@ -39,4 +46,8 @@ async def get_dashboard_summary(
         account_health=await dashboard_service.account_health_rows(db, filters),
         contractual_compliance=await dashboard_service.contractual_compliance_summary(db, filters),
         milestone_payments=await dashboard_service.milestone_payment_summary(db, filters),
+        account_matrix=await dashboard_service.account_health_matrix(db, filters),
+        project_matrix=await dashboard_service.project_health_matrix(db, filters),
+        account_highlights=await dashboard_service.account_highlights(db, filters),
+        project_highlights=await dashboard_service.project_highlights(db, filters),
     )

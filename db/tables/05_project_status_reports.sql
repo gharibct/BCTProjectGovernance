@@ -8,10 +8,20 @@ CREATE TABLE project_status_reports (
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     period_id UUID NOT NULL REFERENCES reporting_periods(id),
     status TEXT NOT NULL DEFAULT 'Draft', -- Draft, Submitted
+    -- Key Metrics — captured once per report alongside the narrative tabs.
+    revenue NUMERIC(18, 2),
+    onsite_fte NUMERIC(5, 2),
+    offshore_fte NUMERIC(5, 2),
+    projects_count INTEGER,
     key_accomplishments TEXT,
     upcoming_key_releases TEXT,
     leadership_support_required TEXT,
     created_by UUID REFERENCES users(id),
+    -- Review/sign-off by the level above (Account Head/Geo Head/CXO) — set
+    -- once the report transitions Submitted -> Approved/Rejected.
+    reviewed_by UUID REFERENCES users(id),
+    reviewed_at TIMESTAMPTZ,
+    review_comment TEXT,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 

@@ -8,51 +8,47 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-function OktaMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
-      <circle cx="12" cy="12" r="10" fill="#007DC1" />
-      <circle cx="12" cy="12" r="4.5" fill="#fff" />
-    </svg>
-  );
-}
+import { ApiError } from "@/lib/api/client";
+import { useLogin } from "@/lib/api/auth";
+import { ROLE_LANDING_ROUTE } from "@/lib/menu-config";
+import { useSession } from "@/stores/session";
 
 export function LoginForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
+  const [email, setEmail] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+  const login = useLogin();
+  const setSessionUser = useSession((s) => s.signIn);
 
-  // No auth backend yet (LDAP planned) — any credentials enter the app.
-  const signIn = () => router.push("/dashboard");
+  // No password check — this prototype has no auth system yet (LDAP
+  // planned); the identifier just has to resolve to an active user (see
+  // backend/app/api/v1/endpoints/auth.py).
+  const signIn = () => {
+    setError(null);
+    if (!email.trim()) {
+      setError("Enter your corporate email or LDAP username.");
+      return;
+    }
+    login.mutate(email.trim(), {
+      onSuccess: (user) => {
+        setSessionUser(user);
+        router.push(ROLE_LANDING_ROUTE[user.role.code]);
+      },
+      onError: (err) => {
+        setError(err instanceof ApiError && err.status === 404 ? "No active user found for that identifier." : "Sign-in failed. Try again.");
+      },
+    });
+  };
 
   return (
     <div>
       <h2 className="text-3xl font-bold tracking-tight text-slate-900">
         Sign In
       </h2>
-      <p className="mt-2 text-slate-500">
-        Please enter your credentials to access the console.
-      </p>
-
-      <Button
-        variant="outline"
-        onClick={signIn}
-        className="mt-10 h-12 w-full gap-3 text-sm font-semibold text-slate-800"
-      >
-        <OktaMark />
-        Sign in with Okta
-      </Button>
-
-      <div className="mt-8 flex items-center gap-4">
-        <div className="flex-1 border-t border-slate-200" />
-        <span className="text-xs font-medium tracking-[0.25em] text-slate-500">
-          OR EMAIL LOGIN
-        </span>
-        <div className="flex-1 border-t border-slate-200" />
-      </div>
 
       <form
-        className="mt-8"
+        className="mt-10"
         onSubmit={(e) => {
           e.preventDefault();
           signIn();
@@ -72,10 +68,14 @@ export function LoginForm() {
               type="email"
               placeholder="name@company.com"
               autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="h-12 rounded-lg bg-slate-50 pl-11 text-slate-900 placeholder:text-slate-400"
             />
           </div>
         </div>
+
+        {error ? <p className="mt-3 text-sm font-medium text-red-600">{error}</p> : null}
 
         <div className="mt-6">
           <div className="flex items-center justify-between">

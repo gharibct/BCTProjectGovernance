@@ -1,0 +1,225 @@
+<!DOCTYPE html><html lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Focus Area Status</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error": "#ffffff",
+                      "background": "#f8f9ff",
+                      "on-primary-container": "#7c839b",
+                      "on-primary-fixed": "#131b2e",
+                      "primary-container": "#131b2e",
+                      "on-secondary-fixed-variant": "#003ea8",
+                      "secondary-fixed-dim": "#b4c5ff",
+                      "surface-bright": "#f8f9ff",
+                      "secondary-fixed": "#dbe1ff",
+                      "tertiary": "#000000",
+                      "outline-variant": "#c6c6cd",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "on-primary": "#ffffff",
+                      "surface-container-highest": "#d3e4fe",
+                      "inverse-on-surface": "#eaf1ff",
+                      "tertiary-fixed": "#fcdeb5",
+                      "on-background": "#0b1c30",
+                      "surface-container-lowest": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "surface": "#f8f9ff",
+                      "on-tertiary": "#ffffff",
+                      "surface-dim": "#cbdbf5",
+                      "primary-fixed": "#dae2fd",
+                      "outline": "#76777d",
+                      "surface-container": "#e5eeff",
+                      "tertiary-fixed-dim": "#dec29a",
+                      "on-surface": "#0b1c30",
+                      "surface-container-high": "#dce9ff",
+                      "error-container": "#ffdad6",
+                      "on-error-container": "#93000a",
+                      "surface-tint": "#565e74",
+                      "on-tertiary-fixed": "#271901",
+                      "primary-fixed-dim": "#bec6e0",
+                      "on-tertiary-container": "#98805d",
+                      "on-secondary-fixed": "#00174b",
+                      "surface-container-low": "#eff4ff",
+                      "error": "#ba1a1a",
+                      "secondary": "#0051d5",
+                      "surface-variant": "#d3e4fe",
+                      "on-surface-variant": "#45464d",
+                      "tertiary-container": "#271901",
+                      "on-tertiary-fixed-variant": "#574425",
+                      "inverse-primary": "#bec6e0",
+                      "on-secondary-container": "#fefcff",
+                      "secondary-container": "#316bf3",
+                      "primary": "#000000",
+                      "inverse-surface": "#213145"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "md": "16px",
+                      "xl": "40px",
+                      "gutter": "24px",
+                      "margin-mobile": "16px",
+                      "container-max": "1440px",
+                      "sm": "8px",
+                      "base": "4px",
+                      "margin-desktop": "32px",
+                      "xs": "4px"
+              },
+              "fontFamily": {
+                      "data-mono": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Hanken Grotesk"
+                      ],
+                      "title-lg": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Hanken Grotesk"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "headline-lg": [
+                              "Hanken Grotesk"
+                      ]
+              },
+              "fontSize": {
+                      "data-mono": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-lg": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "title-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .rag-green { background-color: rgba(16, 185, 129, 0.1); color: #047857; border: 1px solid #10B981; }
+        .rag-amber { background-color: rgba(245, 158, 11, 0.1); color: #B45309; border: 1px solid #F59E0B; }
+        .rag-red { background-color: rgba(239, 68, 68, 0.1); color: #B91C1C; border: 1px solid #EF4444; }
+      </style>
+</head>
+<body class="bg-background text-on-background antialiased pb-24 pt-16">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-container-low fixed top-0 w-full z-50 border-b border-outline-variant dark:border-outline flex items-center justify-between px-margin-mobile h-14 w-full">
+<button class="text-primary dark:text-inverse-primary hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors duration-200 active:opacity-70 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-on-surface">Focus Area Status</h1>
+<button class="text-primary dark:text-inverse-primary hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors duration-200 active:opacity-70 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="px-margin-mobile md:px-margin-desktop space-y-md max-w-container-max mx-auto mt-md">
+<!-- Core Delivery Card -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col relative"><div class="absolute left-0 top-0 bottom-0 w-1 bg-[#10B981]"></div><div class="flex items-center p-md pl-lg gap-md"><div class="flex-1"><div><h2 class="font-title-lg text-title-lg text-on-background">Core Delivery</h2><p class="font-body-md text-body-md text-on-surface-variant mt-xs">Scope, Cost, Schedule, Quality, Contractual SLA, KPI</p></div><div class="mt-sm bg-[#F1F5F9] rounded-lg p-sm border-l-2 border-[#10B981]"><div class="flex items-center gap-xs mb-1"><span class="material-symbols-outlined text-secondary text-[16px]">psychology</span><span class="font-label-md text-label-md text-secondary">AI Insight</span></div><p class="font-body-md text-body-md text-on-surface-variant">All KPIs tracking within 5% variance of baseline. Schedule optimization opportunities identified in Phase 3.</p><p class="font-data-mono text-data-mono text-outline mt-2">Source: Q3 Delivery Report</p></div></div><div class="shrink-0 flex items-center justify-center"><div class="w-16 h-16 rounded-full bg-[#10B981] shadow-sm"></div></div></div></article>
+<!-- People Card -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col relative"><div class="absolute left-0 top-0 bottom-0 w-1 bg-[#F59E0B]"></div><div class="flex items-center p-md pl-lg gap-md"><div class="flex-1"><div><h2 class="font-title-lg text-title-lg text-on-background">People</h2><p class="font-body-md text-body-md text-on-surface-variant mt-xs">Resourcing, Fulfilment, Skilling, Performance, Attrition</p></div><div class="mt-sm bg-[#F1F5F9] rounded-lg p-sm border-l-2 border-[#F59E0B]"><div class="flex items-center gap-xs mb-1"><span class="material-symbols-outlined text-secondary text-[16px]">psychology</span><span class="font-label-md text-label-md text-secondary">AI Insight</span></div><p class="font-body-md text-body-md text-on-surface-variant">Attrition in critical skill pods trending 2% above acceptable threshold. Resourcing bottleneck projected for Q4.</p><p class="font-data-mono text-data-mono text-outline mt-2">Source: HR Analytics Dashboard</p></div></div><div class="shrink-0 flex items-center justify-center"><div class="w-16 h-16 rounded-full bg-[#F59E0B] shadow-sm"></div></div></div></article>
+<!-- Operational Card -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col relative"><div class="absolute left-0 top-0 bottom-0 w-1 bg-[#10B981]"></div><div class="flex items-center p-md pl-lg gap-md"><div class="flex-1"><div><h2 class="font-title-lg text-title-lg text-on-background">Operational</h2></div></div><div class="shrink-0 flex items-center justify-center"><div class="w-16 h-16 rounded-full bg-[#10B981] shadow-sm"></div></div></div></article>
+<!-- Customer Card -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col relative"><div class="absolute left-0 top-0 bottom-0 w-1 bg-[#10B981]"></div><div class="flex items-center p-md pl-lg gap-md"><div class="flex-1"><div><h2 class="font-title-lg text-title-lg text-on-background">Customer</h2><p class="font-body-md text-body-md text-on-surface-variant mt-xs">Relation, Pulse, Feedback, Opportunities</p></div><div class="mt-sm bg-[#F1F5F9] rounded-lg p-sm border-l-2 border-[#10B981]"><div class="flex items-center gap-xs mb-1"><span class="material-symbols-outlined text-secondary text-[16px]">psychology</span><span class="font-label-md text-label-md text-secondary">AI Insight</span></div><p class="font-body-md text-body-md text-on-surface-variant">Client sentiment analysis indicates high satisfaction with recent milestone delivery.</p><p class="font-data-mono text-data-mono text-outline mt-2">Source: Monthly Pulse Survey</p></div></div><div class="shrink-0 flex items-center justify-center"><div class="w-16 h-16 rounded-full bg-[#10B981] shadow-sm"></div></div></div></article>
+<!-- Financial Card -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col relative"><div class="absolute left-0 top-0 bottom-0 w-1 bg-[#F59E0B]"></div><div class="flex items-center p-md pl-lg gap-md"><div class="flex-1"><div><h2 class="font-title-lg text-title-lg text-on-background">Financial</h2><p class="font-body-md text-body-md text-on-surface-variant mt-xs">Forecast, Margin, MIP</p></div><div class="mt-sm bg-[#F1F5F9] rounded-lg p-sm border-l-2 border-[#F59E0B]"><div class="flex items-center gap-xs mb-1"><span class="material-symbols-outlined text-secondary text-[16px]">psychology</span><span class="font-label-md text-label-md text-secondary">AI Insight</span></div><p class="font-body-md text-body-md text-on-surface-variant">Margin compression detected due to unexpected infrastructure costs in Phase 2.</p><p class="font-data-mono text-data-mono text-outline mt-2">Source: P&amp;L Statement Sept</p></div></div><div class="shrink-0 flex items-center justify-center"><div class="w-16 h-16 rounded-full bg-[#F59E0B] shadow-sm"></div></div></div></article>
+<!-- Compliance Card -->
+<article class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col relative"><div class="absolute left-0 top-0 bottom-0 w-1 bg-[#10B981]"></div><div class="flex items-center p-md pl-lg gap-md"><div class="flex-1"><div><h2 class="font-title-lg text-title-lg text-on-background">Compliance</h2><p class="font-body-md text-body-md text-on-surface-variant mt-xs">Security, Regulatory, etc.</p></div></div><div class="shrink-0 flex items-center justify-center"><div class="w-16 h-16 rounded-full bg-[#10B981] shadow-sm"></div></div></div></article>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-surface dark:bg-surface-container fixed bottom-0 w-full z-50 rounded-t-xl border-t border-outline-variant dark:border-outline shadow-sm dark:shadow-none flex justify-around items-center h-16 w-full px-2 md:hidden">
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-full px-4 py-1 scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-secondary dark:hover:text-secondary-fixed scale-95 active:scale-90 transition-transform px-4 py-1" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="warning">warning</span>
+<span class="font-label-md text-label-md">Risks</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-secondary dark:hover:text-secondary-fixed scale-95 active:scale-90 transition-transform px-4 py-1" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="psychology">psychology</span>
+<span class="font-label-md text-label-md">AI Insights</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-secondary dark:hover:text-secondary-fixed scale-95 active:scale-90 transition-transform px-4 py-1" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+
+
+</body></html>

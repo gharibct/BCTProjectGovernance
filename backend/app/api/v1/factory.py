@@ -6,6 +6,7 @@ resources, and as a building block for the RAID log and Measurement routers
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import PaginationParams, pagination_params
@@ -61,6 +62,13 @@ def build_crud_router(
             obj = await crud.get(db, item_id)
             if obj is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
-            await crud.delete(db, obj)
+            try:
+                await crud.delete(db, obj)
+            except IntegrityError as exc:
+                await db.rollback()
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Cannot delete — still referenced by other records. Mark it inactive instead.",
+                ) from exc
 
     return router

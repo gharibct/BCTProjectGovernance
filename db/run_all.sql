@@ -35,3 +35,11 @@
 \ir tables/30_ai_field_suggestions.sql
 \ir tables/31_ai_row_suggestions.sql
 \ir tables/32_project_documents.sql
+\ir tables/33_user_scope_assignments.sql
+\ir tables/34_account_geo_status_reports.sql
+\ir tables/35_project_status_items.sql
+\ir tables/36_account_geo_status_items.sql
+\ir tables/37_account_health_declarations.sql
+\ir tables/38_geo_health_declarations.sql
+\ir tables/39_project_status_item_rollup.sql
+\ir tables/40_account_status_item_rollup.sql

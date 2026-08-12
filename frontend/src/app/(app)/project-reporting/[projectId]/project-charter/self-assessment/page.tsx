@@ -4,7 +4,7 @@ import { SelfAssessmentForm } from "@/components/project-charter/charter-form";
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "Project Charter — Self Assessment | Project Governance Tool",
+  title: "Project Charter — RAG Status | Project Governance Tool",
 };
 
 export default function ProjectCharterSelfAssessmentPage() {

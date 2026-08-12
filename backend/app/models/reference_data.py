@@ -38,6 +38,7 @@ class Account(Base, UUIDPrimaryKey, TimestampColumns):
 
     name: Mapped[str] = mapped_column(unique=True)
     geo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("geos.id"))
+    description: Mapped[str | None]  # short summary about the customer
     is_active: Mapped[bool]
 
 

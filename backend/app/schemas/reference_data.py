@@ -74,6 +74,7 @@ class ProjectTypeRead(ProjectTypeBase):
 class AccountBase(BaseModel):
     name: str
     geo_id: UUID | None = None
+    description: str | None = None
     is_active: bool = True
 
 
@@ -84,6 +85,7 @@ class AccountCreate(AccountBase):
 class AccountUpdate(BaseModel):
     name: str | None = None
     geo_id: UUID | None = None
+    description: str | None = None
     is_active: bool | None = None
 
 

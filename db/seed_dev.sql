@@ -5,7 +5,9 @@
 
 INSERT INTO roles (id, code, name, description) VALUES
     (gen_random_uuid(), 'ADMIN', 'Admin', 'Full system administration'),
-    (gen_random_uuid(), 'EXECUTIVE', 'Executive', 'CEO / CDO / GEO Head / Delivery Manager read-mostly access'),
+    (gen_random_uuid(), 'CXO', 'CXO', 'CEO / CDO / Delivery Manager read-mostly access'),
+    (gen_random_uuid(), 'ACCOUNT_MANAGER', 'Account Manager', 'Owns account-level commercial relationship and oversight'),
+    (gen_random_uuid(), 'GEO_HEAD', 'Geo Head', 'Read-mostly oversight across projects in their GEO'),
     (gen_random_uuid(), 'PROJECT_MANAGER', 'Project Manager', 'Owns project charter and delivery'),
     (gen_random_uuid(), 'TEAM_MEMBER', 'Team Member', 'Delivery team member'),
     (gen_random_uuid(), 'DELIVERY_EXCELLENCE', 'Delivery Excellence', 'DE assessments and governance'),
@@ -35,11 +37,32 @@ INSERT INTO accounts (id, name, geo_id, is_active, created_at, updated_at) VALUE
     (gen_random_uuid(), 'Liberty Insurance Co', (SELECT id FROM geos WHERE code = 'US'), true, now(), now());
 
 INSERT INTO users (id, ldap_username, full_name, email, role_id, is_active, mfa_enrolled, created_at, updated_at) VALUES
-    (gen_random_uuid(), 'hari.g', 'Hari G', 'hari.g@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'PMO'), true, false, now(), now()),
-    (gen_random_uuid(), 'rohan.mehta', 'Rohan Mehta', 'rohan.mehta@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'PROJECT_MANAGER'), true, false, now(), now()),
-    (gen_random_uuid(), 'ayesha.khan', 'Ayesha Khan', 'ayesha.khan@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'EXECUTIVE'), true, false, now(), now()),
+    -- Admin role so this login (the primary dev/test account) sees every
+    -- menu — Admin's sidebar is the union of every other role's (see
+    -- frontend/src/lib/menu-config.ts).
+    (gen_random_uuid(), 'hari.g', 'Hari G', 'hari.g@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ADMIN'), true, false, now(), now()),
     (gen_random_uuid(), 'daniel.osei', 'Daniel Osei', 'daniel.osei@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'DELIVERY_EXCELLENCE'), true, false, now(), now()),
-    (gen_random_uuid(), 'priya.nair', 'Priya Nair', 'priya.nair@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'PROJECT_MANAGER'), true, false, now(), now());
+    (gen_random_uuid(), 'admin.user', 'Admin User', 'admin.user@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ADMIN'), true, false, now(), now()),
+    -- Role-shorthand demo logins (identifier doubles as ldap_username/email
+    -- prefix) so testing each new role's menu/dashboard doesn't require
+    -- remembering a person's name.
+    (gen_random_uuid(), 'pm', 'Project Manager', 'pm@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'PROJECT_MANAGER'), true, false, now(), now()),
+    (gen_random_uuid(), 'cxo', 'CXO', 'cxo@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'CXO'), true, false, now(), now()),
+    (gen_random_uuid(), 'acchead', 'Account Manager', 'acchead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ACCOUNT_MANAGER'), true, false, now(), now()),
+    (gen_random_uuid(), 'geohead', 'Geo Head', 'geohead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'GEO_HEAD'), true, false, now(), now());
+
+-- Which geo(s)/account(s) each Geo Head / Account Manager owns — many-to-many
+-- (see db/tables/33_user_scope_assignments.sql), drives their dashboard
+-- pre-filtering.
+INSERT INTO user_accounts (id, user_id, account_id, created_at) VALUES
+    (gen_random_uuid(), (SELECT id FROM users WHERE ldap_username = 'acchead'),
+     (SELECT id FROM accounts WHERE name = 'Gulf National Bank'), now()),
+    (gen_random_uuid(), (SELECT id FROM users WHERE ldap_username = 'acchead'),
+     (SELECT id FROM accounts WHERE name = 'Liberty Insurance Co'), now());
+
+INSERT INTO user_geos (id, user_id, geo_id, created_at) VALUES
+    (gen_random_uuid(), (SELECT id FROM users WHERE ldap_username = 'geohead'),
+     (SELECT id FROM geos WHERE code = 'APAC'), now());
 
 -- Reporting Period lookup (see 01_reference_data.sql) — all ISO weeks/months
 -- of 2026 so Measurement and Project Status have periods to report against.

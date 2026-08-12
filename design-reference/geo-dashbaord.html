@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GovIntel - Geo Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-surface-variant": "#45464d",
+                      "secondary-fixed-dim": "#b4c5ff",
+                      "on-secondary-fixed-variant": "#003ea8",
+                      "on-primary-fixed": "#131b2e",
+                      "error": "#ba1a1a",
+                      "on-error": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "outline": "#76777d",
+                      "primary-fixed-dim": "#bec6e0",
+                      "surface-bright": "#f8f9ff",
+                      "surface-container": "#e5eeff",
+                      "error-container": "#ffdad6",
+                      "primary": "#000000",
+                      "on-secondary-container": "#fefcff",
+                      "secondary": "#0051d5",
+                      "inverse-surface": "#213145",
+                      "surface-variant": "#d3e4fe",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-high": "#dce9ff",
+                      "tertiary-fixed-dim": "#dec29a",
+                      "on-error-container": "#93000a",
+                      "secondary-container": "#316bf3",
+                      "on-tertiary-container": "#98805d",
+                      "inverse-primary": "#bec6e0",
+                      "surface-container-highest": "#d3e4fe",
+                      "on-tertiary-fixed-variant": "#574425",
+                      "on-tertiary-fixed": "#271901",
+                      "on-surface": "#0b1c30",
+                      "primary-fixed": "#dae2fd",
+                      "primary-container": "#131b2e",
+                      "on-background": "#0b1c30",
+                      "inverse-on-surface": "#eaf1ff",
+                      "surface-container-low": "#eff4ff",
+                      "tertiary-fixed": "#fcdeb5",
+                      "secondary-fixed": "#dbe1ff",
+                      "on-primary": "#ffffff",
+                      "tertiary": "#000000",
+                      "tertiary-container": "#271901",
+                      "surface-tint": "#565e74",
+                      "background": "#f8f9ff",
+                      "on-secondary-fixed": "#00174b",
+                      "surface-dim": "#cbdbf5",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "surface": "#f8f9ff",
+                      "outline-variant": "#c6c6cd",
+                      "on-primary-container": "#7c839b",
+                      // Semantic RAG overrides for specific matrix requirement
+                      "status-green": "#10b981",
+                      "status-amber": "#f59e0b",
+                      "status-red": "#ef4444"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "xs": "4px",
+                      "xl": "40px",
+                      "sm": "8px",
+                      "margin-mobile": "16px",
+                      "margin-desktop": "32px",
+                      "base": "4px",
+                      "container-max": "1440px",
+                      "lg": "24px",
+                      "md": "16px"
+              },
+              "fontFamily": {
+                      "title-lg": ["Inter"],
+                      "label-md": ["Inter"],
+                      "data-mono": ["Inter"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "body-lg": ["Inter"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "body-md": ["Inter"],
+                      "display-lg": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "title-lg": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "500"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .rag-indicator {
+            width: 100%;
+            height: 32px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .rag-green { background-color: #10b981; }
+        .rag-amber { background-color: #f59e0b; }
+        .rag-red { background-color: #ef4444; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased overflow-hidden flex h-screen w-full">
+<!-- SideNavBar -->
+<!-- nav class="hidden md:flex flex-col h-full py-lg bg-surface-container-low dark:bg-on-primary-container w-64 border-r border-outline-variant dark:border-on-surface-variant flex-shrink-0 relative z-20 shadow-[4px_0_12px_rgba(15,23,42,0.02)]">
+<div class="px-lg mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_balance</span>
+</div>
+<div>
+<h1 class="text-headline-md font-headline-md text-primary dark:text-inverse-primary leading-tight">Regions</h1>
+<p class="text-label-md font-label-md text-on-surface-variant">Geo-Dashboards</p>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto px-md space-y-1">
+<-- Active Tab -- >
+<a class="flex items-center gap-3 px-4 py-3 text-primary dark:text-secondary-fixed-dim font-bold bg-surface-container-highest dark:bg-on-secondary-fixed-variant rounded-full scale-98 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="public">public</span>
+<span class="text-label-md font-label-md">North America</span>
+</a>
+<!-- Inactive Tabs -- >
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:text-secondary hover:bg-surface-container dark:hover:bg-on-primary-fixed-variant transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" data-icon="map">map</span>
+<span class="text-label-md font-label-md">EMEA</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:text-secondary hover:bg-surface-container dark:hover:bg-on-primary-fixed-variant transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="text-label-md font-label-md">APAC</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:text-secondary hover:bg-surface-container dark:hover:bg-on-primary-fixed-variant transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" data-icon="language">language</span>
+<span class="text-label-md font-label-md">LATAM</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-outline-variant hover:text-secondary hover:bg-surface-container dark:hover:bg-on-primary-fixed-variant transition-all rounded-full" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="text-label-md font-label-md">Global Core</span>
+</a>
+</div>
+<div class="px-md mt-6 mb-4">
+<button class="w-full flex items-center justify-center gap-2 py-3 bg-secondary text-on-secondary rounded-lg font-label-md text-label-md hover:bg-secondary-container hover:text-on-secondary-container transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[18px]">add_moderator</span>
+                AI Risk Assessment
+            </button>
+</div>
+<div class="px-md border-t border-outline-variant dark:border-on-surface-variant pt-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant dark:text-outline-variant hover:text-secondary hover:bg-surface-container transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span class="text-label-md font-label-md">Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-error hover:bg-error-container transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="text-label-md font-label-md">Logout</span>
+</a>
+</div>
+</nav -->
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 overflow-hidden bg-surface relative">
+<!-- TopNavBar -->
+<!-- header class="flex justify-between items-center w-full px-margin-desktop bg-surface-container-lowest dark:bg-inverse-surface border-b border-outline-variant dark:border-on-surface-variant full-width top-0 h-16 flex-shrink-0 z-10 relative">
+<div class="flex items-center gap-8 h-full">
+<span class="text-title-lg font-title-lg font-bold text-on-surface dark:text-inverse-on-surface mr-4">GovIntel Dashboard</span>
+<nav class="hidden md:flex items-center h-full gap-6">
+<a class="h-full flex items-center text-secondary dark:text-secondary-fixed-dim border-b-2 border-secondary font-bold opacity-80 scale-95 transition-all duration-200 px-2 text-body-md font-body-md" href="#">Portfolio</a>
+<a class="h-full flex items-center text-on-surface-variant dark:text-outline-variant hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 px-2 rounded-t-sm text-body-md font-body-md" href="#">Insights</a>
+<a class="h-full flex items-center text-on-surface-variant dark:text-outline-variant hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 px-2 rounded-t-sm text-body-md font-body-md" href="#">Reports</a>
+<a class="h-full flex items-center text-on-surface-variant dark:text-outline-variant hover:text-on-surface hover:bg-surface-container-low transition-colors duration-200 px-2 rounded-t-sm text-body-md font-body-md" href="#">Archive</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+<input class="w-64 h-10 pl-10 pr-4 bg-surface-container-low border-outline-variant border rounded-full text-body-md font-body-md focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-all" placeholder="Search accounts..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors hidden sm:block">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+<div class="w-8 h-8 rounded-full ml-2 border border-outline-variant overflow-hidden">
+<img alt="Administrator profile photo" class="w-full h-full object-cover" data-alt="A professional headshot of an administrator in a corporate setting, soft lighting, sharp focus, wearing business casual attire." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBCNWPmkGrGVoOtXYeBady-D7sVwAl4HVisDXLSCPO15R3PzzkxPGdnL37UIh3J_hs-W1pFu34n4u7iaDIACKqpCWf17wtHiF3K9yWy2Etnei77ErR4ZdxGu_urMj7d3FYOXlllkT9DCgqLcpAx-5MYqxmEuBOr3-Bny9oEH21wBG7Mx84jC8icTAIghLgigAVUqlxSeph2E6df7cFoZ5AFWalaxeCXFs0FC6K4C8kowMAT2geZMncwA"/>
+</div>
+</div>
+</div>
+</header -->
+<!-- Scrollable Canvas -->
+<div class="flex-1 overflow-auto p-gutter lg:p-margin-desktop">
+<div class="max-w-container-max mx-auto space-y-8">
+<!-- Page Header -->
+<div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+<div>
+<h2 class="text-headline-lg font-headline-lg text-on-surface">Account Governance Matrix</h2>
+<p class="text-body-lg font-body-lg text-on-surface-variant mt-1">North America Region Status Overview</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2 border border-outline-variant rounded-lg text-label-md font-label-md text-on-surface hover:bg-surface-container-low transition-colors bg-surface-container-lowest">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                            Filter
+                        </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary-container rounded-lg text-label-md font-label-md hover:opacity-90 transition-opacity shadow-sm">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                            Export Report
+                        </button>
+</div>
+</div>
+<!-- Matrix Data Grid -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden shadow-[0_4px_12px_rgba(15,23,42,0.03)]">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container border-b border-outline-variant text-label-md font-label-md text-on-surface uppercase tracking-wider">
+<th class="py-4 px-4 min-w-[200px] border-r border-outline-variant">Customer Account</th>
+<th class="py-4 px-4 min-w-[120px] border-r-2 border-outline-variant text-center font-bold">Overall Status</th>
+<th class="py-4 px-4 min-w-[140px] text-center border-r border-outline-variant">Core Delivery</th>
+<th class="py-4 px-4 min-w-[140px] text-center border-r border-outline-variant">People</th>
+<th class="py-4 px-4 min-w-[140px] text-center border-r border-outline-variant">Operational</th>
+<th class="py-4 px-4 min-w-[140px] text-center border-r border-outline-variant">Financial</th>
+<th class="py-4 px-4 min-w-[140px] text-center border-r border-outline-variant">Customer</th>
+<th class="py-4 px-4 min-w-[140px] text-center">Compliance</th>
+</tr>
+</thead>
+<tbody class="text-data-mono font-data-mono">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors h-12">
+<td class="py-2 px-4 border-r border-outline-variant font-semibold text-on-surface">AlphaTech Industries</td>
+<td class="py-2 px-4 border-r-2 border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-outline-variant bg-surface-bright hover:bg-surface-container-low transition-colors h-12">
+<td class="py-2 px-4 border-r border-outline-variant font-semibold text-on-surface">Beta Corp Global</td>
+<td class="py-2 px-4 border-r-2 border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors h-12">
+<td class="py-2 px-4 border-r border-outline-variant font-semibold text-on-surface">Gamma Logistics</td>
+<td class="py-2 px-4 border-r-2 border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+</tr>
+<!-- Row 4 -->
+<tr class="border-b border-outline-variant bg-surface-bright hover:bg-surface-container-low transition-colors h-12">
+<td class="py-2 px-4 border-r border-outline-variant font-semibold text-on-surface">Delta Systems Inc.</td>
+<td class="py-2 px-4 border-r-2 border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-amber"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-amber"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-amber"></div></td>
+<td class="py-2 px-4 bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+</tr>
+<!-- Row 5 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors h-12">
+<td class="py-2 px-4 border-r border-outline-variant font-semibold text-on-surface">Epsilon Health</td>
+<td class="py-2 px-4 border-r-2 border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-amber"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-amber"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+</tr>
+<!-- Row 6 -->
+<tr class="border-b border-outline-variant bg-surface-bright hover:bg-surface-container-low transition-colors h-12">
+<td class="py-2 px-4 border-r border-outline-variant font-semibold text-on-surface">Zeta Financial LLC</td>
+<td class="py-2 px-4 border-r-2 border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+</tr>
+<!-- Row 7 -->
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors h-12">
+<td class="py-2 px-4 border-r border-outline-variant font-semibold text-on-surface">Omega Retail Partners</td>
+<td class="py-2 px-4 border-r-2 border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-red"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 border-r border-outline-variant bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+<td class="py-2 px-4 bg-surface-container-lowest"><div class="rag-indicator rag-green"></div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Top 5 Highlights Card -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-6 shadow-sm relative overflow-hidden">
+<div class="absolute right-0 top-0 w-64 h-full opacity-10 pointer-events-none hidden md:block">
+<!-- img class="w-full h-full object-cover" data-alt="Abstract subtle geometric background pattern implying data connectivity and network structures in a corporate blue color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWOMmFJNw7C3yZvjbVXxPaikjPBSEsmIrKfdTcbSaEBAM8jgt7AfqN0bEMUE66qKgK2h7NLncjLJ1cGh9W7upsfUf-TsZss4ajIzUwZxleakSs1UOTToTRsfcD_kKhrtUwZCbXqfjQE0mZMeFCE4-Ib_LLuctl79mLH2A8f9BH0vx4uu3qQJgB9qKB4Y2t08HT-s7P8to27B5tgFdlIYS-jCr-4C57_zj8OOQIY7R1nkZaDrK4X18SGNfIHBH2tFdC-qY"/ -->
+</div>
+<h3 class="text-title-lg font-title-lg text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">insights</span>
+                        Top 5 Highlights <span class="text-body-md font-body-md text-on-surface-variant font-normal">(Accomplishment/ Upcoming Milestone/ Risk/ Issue/ Attention/ Support)</span>
+</h3>
+<ul class="space-y-3 text-body-md font-body-md text-on-surface">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-secondary text-[16px] mt-1 shrink-0">fiber_manual_record</span>
+<span><strong>Zeta Financial Risk Mitigation:</strong> Implementation of new automated compliance checks scheduled for Q3 rollout to address critical operational gaps.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-secondary text-[16px] mt-1 shrink-0">fiber_manual_record</span>
+<span><strong>Delta Systems Expansion:</strong> Upcoming milestone for Phase 2 deployment on track; resource reallocation required to maintain customer satisfaction metrics.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-secondary text-[16px] mt-1 shrink-0">fiber_manual_record</span>
+<span><strong>Overall Portfolio Health:</strong> Core delivery remains stable across 85% of accounts, driven by successful adoption of the new governance framework in Q1.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-secondary text-[16px] mt-1 shrink-0">fiber_manual_record</span>
+<span><strong>Attention Required (Epsilon Health):</strong> Escalated staffing shortages in the Northeast sector are impacting operational SLA compliance. Remediation plan drafted.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-secondary text-[16px] mt-1 shrink-0">fiber_manual_record</span>
+<span><em>Action Item:</em> Please add individual plain slides for any specific parameter / every parameter (as required) for detailed update in bullet form for tomorrow's executive review.</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</main>
+</body></html>

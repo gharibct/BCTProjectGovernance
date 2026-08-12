@@ -603,7 +603,7 @@ export function ResourceAllocationForm() {
   );
 }
 
-export function SelfAssessmentForm() {
+function SelfAssessmentFormInner() {
   const form = useHealthDeclarationForm();
   return (
     <div>
@@ -619,9 +619,19 @@ export function SelfAssessmentForm() {
           onClick={form.submit}
         >
           {form.isSubmitting ? <ButtonSpinner /> : null}
-          Save Self Assessment
+          Save RAG Status
         </Button>
       </div>
     </div>
+  );
+}
+
+export function SelfAssessmentForm() {
+  // useHealthDeclarationForm reads ?period= (useSearchParams), which
+  // requires a Suspense boundary at prerender.
+  return (
+    <React.Suspense fallback={null}>
+      <SelfAssessmentFormInner />
+    </React.Suspense>
   );
 }

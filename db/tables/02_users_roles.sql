@@ -3,14 +3,15 @@
 
 CREATE TABLE roles (
     id UUID PRIMARY KEY,
-    code TEXT NOT NULL UNIQUE, -- ADMIN, EXECUTIVE, PROJECT_MANAGER, TEAM_MEMBER, DELIVERY_EXCELLENCE, PMO
+    code TEXT NOT NULL UNIQUE, -- ADMIN, CXO, ACCOUNT_MANAGER, GEO_HEAD, PROJECT_MANAGER, TEAM_MEMBER, DELIVERY_EXCELLENCE, PMO
     name TEXT NOT NULL,
     description TEXT
 );
 
--- 'EXECUTIVE' covers the combined CEO / CDO / GEO Head / Delivery Manager
--- read-mostly access group described in UX §2; split into distinct roles later
--- if their permissions diverge.
+-- 'CXO' covers the combined CEO / CDO / Delivery Manager read-mostly access
+-- group described in UX §2 (originally bundled with GEO Head under
+-- 'EXECUTIVE' — GEO Head has since split out into its own 'GEO_HEAD' role,
+-- alongside the net-new 'ACCOUNT_MANAGER' role).
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     ldap_username TEXT NOT NULL UNIQUE,
