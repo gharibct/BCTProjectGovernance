@@ -123,13 +123,19 @@ export function AppSidebar() {
   // Account Heads review their accounts' projects, Geo Heads review their
   // geos' accounts, CXO reviews every geo (no scope restriction, same
   // precedent as services/dashboard.py's DashboardFilters).
-  const reviewProjects = isAdmin
-    ? reportingProjects
-    : projects.filter(
-        (p) => isApproved(p.project_status) && !!p.account_id && user?.account_ids.includes(p.account_id)
-      );
-  const reviewAccounts = isAdmin ? accounts : accounts.filter((a) => !!a.geo_id && user?.geo_ids.includes(a.geo_id));
-  const reviewGeos = geos;
+  const reviewProjects =
+    isAdmin || user?.role.code === "PROJECT_MANAGER"
+      ? reportingProjects
+      : projects.filter(
+          (p) => isApproved(p.project_status) && !!p.account_id && user?.account_ids.includes(p.account_id)
+        );
+  const reviewAccounts = isAdmin
+    ? accounts
+    : user?.role.code === "ACCOUNT_MANAGER"
+      ? accounts.filter((a) => user?.account_ids.includes(a.id))
+      : accounts.filter((a) => !!a.geo_id && user?.geo_ids.includes(a.geo_id));
+  const reviewGeos =
+    isAdmin || user?.role.code === "CXO" ? geos : geos.filter((g) => user?.geo_ids.includes(g.id));
 
   const isDashboard = pathname === "/dashboard";
   const isNewProject = pathname.startsWith("/new-project");
@@ -157,6 +163,63 @@ export function AppSidebar() {
   // this is here purely as a defensive fallback (e.g. mid-sign-out render).
   const menu: MenuEntryId[] = user ? (ROLE_MENUS[user.role.code] ?? []) : [];
   const has = (id: MenuEntryId) => menu.includes(id);
+
+  // Geo Head wants "Account Dashboard" below "Geo Reporting" instead of
+  // grouped with the other one-click Dashboard shortcuts up top (where every
+  // other role that has it — Account Manager, Admin — keeps it).
+  const accountDashboardGroup = (
+    <CollapsibleGroup icon={ShieldCheck} label="Account Dashboard" active={isAccountReview} defaultOpen={isAccountReview}>
+      {reviewAccounts.map((account) => {
+        const active = account.id === reviewAccountId;
+        return (
+          <Link
+            key={account.id}
+            href={`/account-review/${account.id}`}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "block w-full rounded-md px-3 py-2 text-left text-[13px] transition-colors",
+              active ? "bg-white/15 font-semibold text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+            )}
+          >
+            {account.name}
+          </Link>
+        );
+      })}
+      {reviewAccounts.length === 0 ? (
+        <p className="px-3 py-2 text-[13px] text-slate-400">No accounts to review yet.</p>
+      ) : null}
+    </CollapsibleGroup>
+  );
+  const isGeoHead = user?.role.code === "GEO_HEAD";
+
+  // Account Manager wants "Project Dashboard" last instead of grouped with
+  // the other one-click Dashboard shortcuts up top (where Project Manager
+  // and Admin keep it).
+  const projectDashboardGroup = (
+    <CollapsibleGroup icon={ClipboardCheck} label="Project Dashboard" active={isProjectReview} defaultOpen={isProjectReview}>
+      {reviewProjects.map((project) => {
+        const active = project.id === reviewProjectId;
+        const href = `/project-review/${project.id}`;
+        return (
+          <Link
+            key={project.id}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "block w-full rounded-md px-3 py-2 text-left font-mono text-[13px] transition-colors",
+              active ? "bg-white/15 font-semibold text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+            )}
+          >
+            {project.project_code}
+          </Link>
+        );
+      })}
+      {reviewProjects.length === 0 ? (
+        <p className="px-3 py-2 text-[13px] text-slate-400">No projects to review yet.</p>
+      ) : null}
+    </CollapsibleGroup>
+  );
+  const isAccountManager = user?.role.code === "ACCOUNT_MANAGER";
 
   return (
     <aside className="w-64 shrink-0 bg-[#1a4a7a] py-6">
@@ -196,6 +259,45 @@ export function AppSidebar() {
             active={pathname === "/dashboard/geo-head"}
           />
         ) : null}
+
+        {has("new-project") ? (
+          <SimpleLink
+            href="/new-project/new/project-charter"
+            icon={Plus}
+            label="New Project"
+            active={isNewProject && !isMaintaining}
+          />
+        ) : null}
+
+        {has("geo-review") ? (
+          <CollapsibleGroup icon={CheckCircle2} label="Geo Dashboard" active={isGeoReview} defaultOpen={isGeoReview}>
+            {reviewGeos.map((geo) => {
+              const active = geo.id === reviewGeoId;
+              return (
+                <Link
+                  key={geo.id}
+                  href={`/geo-review/${geo.id}`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "block w-full rounded-md px-3 py-2 text-left text-[13px] transition-colors",
+                    active
+                      ? "bg-white/15 font-semibold text-white"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  {geo.name}
+                </Link>
+              );
+            })}
+            {reviewGeos.length === 0 ? (
+              <p className="px-3 py-2 text-[13px] text-slate-400">No geos to review yet.</p>
+            ) : null}
+          </CollapsibleGroup>
+        ) : null}
+
+        {has("account-review") && !isGeoHead ? accountDashboardGroup : null}
+
+        {has("project-review") && !isAccountManager ? projectDashboardGroup : null}
 
         {has("account-reporting") ? (
           <CollapsibleGroup
@@ -259,14 +361,7 @@ export function AppSidebar() {
           </CollapsibleGroup>
         ) : null}
 
-        {has("new-project") ? (
-          <SimpleLink
-            href="/new-project/new/project-charter"
-            icon={Plus}
-            label="New Project"
-            active={isNewProject && !isMaintaining}
-          />
-        ) : null}
+        {has("account-review") && isGeoHead ? accountDashboardGroup : null}
 
         {has("maintain-project") ? (
           <CollapsibleGroup
@@ -332,95 +427,6 @@ export function AppSidebar() {
           </CollapsibleGroup>
         ) : null}
 
-        {has("project-review") ? (
-          <CollapsibleGroup
-            icon={ClipboardCheck}
-            label="Project Review"
-            active={isProjectReview}
-            defaultOpen={isProjectReview}
-          >
-            {reviewProjects.map((project) => {
-              const active = project.id === reviewProjectId;
-              const href = `/project-review/${project.id}`;
-              return (
-                <Link
-                  key={project.id}
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "block w-full rounded-md px-3 py-2 text-left font-mono text-[13px] transition-colors",
-                    active
-                      ? "bg-white/15 font-semibold text-white"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {project.project_code}
-                </Link>
-              );
-            })}
-            {reviewProjects.length === 0 ? (
-              <p className="px-3 py-2 text-[13px] text-slate-400">No projects to review yet.</p>
-            ) : null}
-          </CollapsibleGroup>
-        ) : null}
-
-        {has("account-review") ? (
-          <CollapsibleGroup
-            icon={ShieldCheck}
-            label="Account Review"
-            active={isAccountReview}
-            defaultOpen={isAccountReview}
-          >
-            {reviewAccounts.map((account) => {
-              const active = account.id === reviewAccountId;
-              return (
-                <Link
-                  key={account.id}
-                  href={`/account-review/${account.id}`}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "block w-full rounded-md px-3 py-2 text-left text-[13px] transition-colors",
-                    active
-                      ? "bg-white/15 font-semibold text-white"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {account.name}
-                </Link>
-              );
-            })}
-            {reviewAccounts.length === 0 ? (
-              <p className="px-3 py-2 text-[13px] text-slate-400">No accounts to review yet.</p>
-            ) : null}
-          </CollapsibleGroup>
-        ) : null}
-
-        {has("geo-review") ? (
-          <CollapsibleGroup icon={CheckCircle2} label="Geo Review" active={isGeoReview} defaultOpen={isGeoReview}>
-            {reviewGeos.map((geo) => {
-              const active = geo.id === reviewGeoId;
-              return (
-                <Link
-                  key={geo.id}
-                  href={`/geo-review/${geo.id}`}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "block w-full rounded-md px-3 py-2 text-left text-[13px] transition-colors",
-                    active
-                      ? "bg-white/15 font-semibold text-white"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {geo.name}
-                </Link>
-              );
-            })}
-            {reviewGeos.length === 0 ? (
-              <p className="px-3 py-2 text-[13px] text-slate-400">No geos to review yet.</p>
-            ) : null}
-          </CollapsibleGroup>
-        ) : null}
-
         {has("system-health") ? (
           <Link href="#" className={cn(itemClass, idleClass)}>
             <ChartColumn className="size-5 shrink-0" />
@@ -445,6 +451,8 @@ export function AppSidebar() {
             active={pathname.startsWith("/admin/accounts")}
           />
         ) : null}
+
+        {has("project-review") && isAccountManager ? projectDashboardGroup : null}
       </nav>
     </aside>
   );

@@ -21,11 +21,9 @@ import {
 // Geo Dashboard), as opposed to the editable form at
 // components/regional-reporting/executive-update-view.tsx.
 
-// Each section gets its own colored header band, PPT-section-divider style,
-// so Delivery/People/Financials/... read as distinct topics at a glance
-// instead of blending into one long scroll — colors come from the shared
-// sectionAccentColor sequence (lib/section-accent-colors.ts), also used by
-// the Geo Dashboard's Summary header above these sections.
+// Each section gets a colored header band, PPT-section-divider style — all
+// sections share the same blue (sectionAccentColor(0), lib/section-accent-colors.ts),
+// matching the Geo Dashboard's Summary header directly above these sections.
 
 // A fitting icon for each default section name; anything renamed/custom
 // falls back to a generic one.
@@ -109,15 +107,13 @@ function TableBlockView({ block }: { block: TableBlock }) {
 
 function SectionView({
   section,
-  index,
   resolveImageUrl,
 }: {
   section: ExecutiveSection;
-  index: number;
   resolveImageUrl?: (imageUrl: string) => Promise<string>;
 }) {
   const visibleBlocks = section.blocks.filter((b) => !isEmptyBlock(b));
-  const color = sectionAccentColor(index);
+  const color = sectionAccentColor(0);
   const Icon = SECTION_ICONS[section.title] ?? FileStack;
 
   return (
@@ -159,8 +155,8 @@ export function ExecutiveContentView({
 
   return (
     <div className="flex flex-col gap-6">
-      {value.sections.map((section, index) => (
-        <SectionView key={section.id} section={section} index={index} resolveImageUrl={resolveImageUrl} />
+      {value.sections.map((section) => (
+        <SectionView key={section.id} section={section} resolveImageUrl={resolveImageUrl} />
       ))}
     </div>
   );

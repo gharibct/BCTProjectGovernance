@@ -16,9 +16,9 @@ import { ReviewActions } from "./review-actions";
 import { ExecutiveUpdateSection } from "@/components/regional-reporting/executive-update-section";
 
 const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
-  project: "Project Review",
-  account: "Account Review",
-  geo: "Geo Review",
+  project: "Project Dashboard",
+  account: "Account Dashboard",
+  geo: "Geo Dashboard",
 };
 
 const SCOPE_NAV_HREF: Record<ReviewScope, string> = {

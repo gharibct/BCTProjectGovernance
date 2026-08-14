@@ -14,11 +14,10 @@ import { sectionAccentColor } from "@/lib/section-accent-colors";
 // latest declaration (the dashboard summary has no period concept), not
 // necessarily the period selected on this review page.
 //
-// Shared between /geo-review (CXO's plain reviewer screen) and the Geo
+// Shared between /geo-review (CXO's Geo Dashboard) and the Geo Head's own
 // Dashboard (regional-reporting/dashboard-view.tsx) — `accented` opts into
-// the Dashboard's "Summary" heading + colored PPT-divider header (accent
-// slot 6, violet — distinct from Delivery's blue directly underneath it on
-// that page) without changing /geo-review's look.
+// the "Summary" heading + blue PPT-divider header, matching the Executive
+// Update section colors on both pages.
 export function GeoAccountMatrixSection({ geoId, accented }: { geoId: string; accented?: boolean }) {
   const { data } = useDashboardSummary({ geo_ids: [geoId] });
 
@@ -26,7 +25,7 @@ export function GeoAccountMatrixSection({ geoId, accented }: { geoId: string; ac
     <GovernanceMatrix
       heading={accented ? "Summary" : "Account Governance Matrix"}
       icon={accented ? LayoutGrid : undefined}
-      accentColor={accented ? sectionAccentColor(6) : undefined}
+      accentColor={accented ? sectionAccentColor(0) : undefined}
       entityColumnLabel="Accounts"
       rows={data?.account_matrix}
       entityHref={(id) => `/account-review/${id}`}

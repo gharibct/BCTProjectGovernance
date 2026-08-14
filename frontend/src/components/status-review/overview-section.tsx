@@ -65,6 +65,15 @@ function QuadrantCard({
   );
 }
 
+// Geo's Overview reads as a roll-up of that geo's accounts rather than a
+// single entity's own status, so its heading calls that out explicitly;
+// Project/Account scopes keep the generic "Overview" label.
+const OVERVIEW_HEADING: Record<ReviewScope, string> = {
+  project: "Overview",
+  account: "Overview",
+  geo: "Account Rollup",
+};
+
 export function OverviewSection({
   scope,
   scopeId,
@@ -89,7 +98,7 @@ export function OverviewSection({
     <section className="flex flex-col gap-4">
       <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
         <BarChart3 className="size-5 text-[#1a6fc4]" />
-        Overview
+        {OVERVIEW_HEADING[scope]}
       </h2>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">

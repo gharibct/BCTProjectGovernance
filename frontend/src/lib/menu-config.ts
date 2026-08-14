@@ -23,6 +23,7 @@ export type MenuEntryId =
 
 const PROJECT_MANAGER_MENU: MenuEntryId[] = [
   "dashboard",
+  "project-review",
   "new-project",
   "maintain-project",
   "project-reporting",
@@ -36,8 +37,8 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
   TEAM_MEMBER: DASHBOARD_ONLY_MENU,
   DELIVERY_EXCELLENCE: DASHBOARD_ONLY_MENU,
   PMO: DASHBOARD_ONLY_MENU,
-  ACCOUNT_MANAGER: ["account-manager-dashboard", "account-reporting", "project-review"],
-  GEO_HEAD: ["geo-head-dashboard", "geo-reporting", "account-review"],
+  ACCOUNT_MANAGER: ["account-manager-dashboard", "account-review", "account-reporting", "project-review"],
+  GEO_HEAD: ["geo-head-dashboard", "geo-review", "geo-reporting", "account-review"],
   CXO: ["cxo-dashboard", "geo-review"],
   ADMIN: [
     "admin-dashboard",
