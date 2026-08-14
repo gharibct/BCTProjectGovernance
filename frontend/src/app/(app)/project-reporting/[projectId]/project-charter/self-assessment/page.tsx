@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function ProjectCharterSelfAssessmentPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader />
+      <ProjectHeader subheading="RAG Status" />
       <div className="mt-8">
         <SelfAssessmentForm />
       </div>

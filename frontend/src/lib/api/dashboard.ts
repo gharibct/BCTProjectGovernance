@@ -41,6 +41,10 @@ export type MilestonePaymentSummary = {
 export type HealthMatrixRow = {
   entity_id: string;
   entity_label: string;
+  // Populated on project_matrix rows only (which account the project
+  // belongs to) — always null on account_matrix rows.
+  account_id: string | null;
+  account_name: string | null;
   core_delivery_rating: HealthRating | null;
   people_rating: HealthRating | null;
   operational_rating: HealthRating | null;

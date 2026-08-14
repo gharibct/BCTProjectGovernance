@@ -21,7 +21,11 @@ export function SectionCard({
   aside,
 }: {
   icon: LucideIcon;
-  title: string;
+  // ReactNode (not just string) so a caller can swap the title for an
+  // inline rename input (see components/executive-content-builder/section.tsx)
+  // — every existing caller already passes a plain string, which is valid
+  // ReactNode, so this is backward-compatible.
+  title: React.ReactNode;
   children: React.ReactNode;
   aside?: React.ReactNode;
 }) {

@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     account_health_declarations,
+    account_health_rollup,
     account_rollup,
     ai_row_suggestions,
     ai_suggestions,
@@ -12,6 +13,7 @@ from app.api.v1.endpoints import (
     data_integrity,
     de_assessment,
     documents,
+    executive_updates,
     geo_health_declarations,
     geo_rollup,
     health_declarations,
@@ -36,6 +38,7 @@ api_router.include_router(ai_suggestions.router)
 api_router.include_router(ai_row_suggestions.router)
 api_router.include_router(documents.router)
 api_router.include_router(health_declarations.router)
+api_router.include_router(health_declarations.items_router)
 api_router.include_router(project_status.router)
 api_router.include_router(project_status.items_router)
 api_router.include_router(raid.router)
@@ -52,6 +55,9 @@ api_router.include_router(regional_status.geo_status_router)
 api_router.include_router(regional_status.account_status_items_router)
 api_router.include_router(regional_status.geo_status_items_router)
 api_router.include_router(account_health_declarations.router)
+api_router.include_router(account_health_declarations.items_router)
 api_router.include_router(geo_health_declarations.router)
 api_router.include_router(account_rollup.router)
+api_router.include_router(account_health_rollup.router)
 api_router.include_router(geo_rollup.router)
+api_router.include_router(executive_updates.router)

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Rocket, TrendingUp, Trophy, Users } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
@@ -17,25 +17,12 @@ import {
 } from "@/lib/api/regional-status";
 import { useAccountRollup, usePullRollupItem, useSetItemRollupStatus } from "@/lib/api/account-rollup";
 import { useGeoRollup, usePullGeoRollupItem, useSetAccountItemRollupStatus } from "@/lib/api/geo-rollup";
+import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
 import { StatusItemsTab } from "./status-items-tab";
 import type { RollupSourceItem } from "./rollup-source-panel";
 
 // Mirrors components/project-status/project-status-tabs.tsx exactly,
 // generalized by scope ("account" | "geo").
-const TABS = [
-  { label: "Key Accomplishments", category: "Key Accomplishments" as const, icon: Trophy },
-  {
-    label: "Upcoming Releases",
-    category: "Upcoming Key Releases / Milestones / Actions" as const,
-    icon: Rocket,
-  },
-  {
-    label: "Leadership Support",
-    category: "Leadership Support / Attention Required" as const,
-    icon: Users,
-  },
-  { label: "Key Risks / Issues", category: "Key Risks / Issues" as const, icon: AlertTriangle },
-] as const;
 
 const BLANK_METRICS = { revenue: "", onsite_fte: "", offshore_fte: "", projects_count: "" };
 

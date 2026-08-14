@@ -8,7 +8,7 @@ export function AccountManagerDashboard() {
 
   return (
     <DashboardView
-      title="Account Manager Dashboard"
+      title="My Summary"
       subtitle="Delivery health across the accounts you own"
       scope={{ account_ids: accountIds }}
       rowScope="project"

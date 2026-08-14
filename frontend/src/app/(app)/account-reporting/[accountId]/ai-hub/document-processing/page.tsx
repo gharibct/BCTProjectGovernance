@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Sparkles } from "lucide-react";
 
+import { RegionalHeader } from "@/components/regional-reporting/regional-header";
+
 export const metadata: Metadata = {
   title: "Account Reporting — AI Document Processing | Project Governance Tool",
 };
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
 export default function AccountAiDocumentProcessingPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="text-3xl font-bold tracking-tight text-slate-900">AI Document Processing</h1>
+      <RegionalHeader scope="account" paramName="accountId" subheading="AI Document Processing" />
       <div className="mt-8 flex flex-col items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-16 text-center">
         <Sparkles className="size-8 text-slate-400" />
         <p className="text-sm font-semibold text-slate-600">Coming soon</p>

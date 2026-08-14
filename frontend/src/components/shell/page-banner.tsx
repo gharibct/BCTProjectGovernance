@@ -25,10 +25,10 @@ const VARIANT_STYLES: Record<BannerVariant, { wrap: string; icon: LucideIcon; ic
 };
 
 // Renders directly below the page header wherever it's mounted (see
-// project-header.tsx / new-project-header.tsx / status-header.tsx) — the
-// single visible surface for "important" success/error/warning feedback,
-// per the app-wide notification standard. Minor/transient notices stay as
-// sonner toasts (top-right) and don't go through this component.
+// project-header.tsx / new-project-header.tsx) — the single visible surface
+// for "important" success/error/warning feedback, per the app-wide
+// notification standard. Minor/transient notices stay as sonner toasts
+// (top-right) and don't go through this component.
 export function PageBanner() {
   const banner = usePageBanner((state) => state.banner);
   const dismiss = usePageBanner((state) => state.dismiss);

@@ -81,22 +81,7 @@ export function StaffingTab({ projectId }: { projectId: string }) {
         periodId={periodId || null}
         ai={ai}
       />
-      <SectionCard
-        icon={ChartColumn}
-        title="Metrics"
-        aside={
-          <div className="flex items-end gap-4">
-            <Button
-              onClick={submit}
-              disabled={!periodId || isSaving}
-              className="h-10 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-            >
-              {isSaving ? <ButtonSpinner /> : null}
-              Save Measurements
-            </Button>
-          </div>
-        }
-      >
+      <SectionCard icon={ChartColumn} title="Metrics">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {PRIORITIES.map((p) => (
             <MetricTile
@@ -226,6 +211,17 @@ export function StaffingTab({ projectId }: { projectId: string }) {
           </Field>
         </div>
       </SectionCard>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={submit}
+          disabled={!periodId || isSaving}
+          className="h-10 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+        >
+          {isSaving ? <ButtonSpinner /> : null}
+          Save Measurements
+        </Button>
+      </div>
     </div>
   );
 }

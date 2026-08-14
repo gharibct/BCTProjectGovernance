@@ -730,7 +730,7 @@ export function ScopeScheduleForm() {
   );
 }
 
-export function SelfAssessmentForm() {
+function SelfAssessmentFormInner() {
   const form = useHealthDeclarationForm();
   return (
     <div>
@@ -760,5 +760,16 @@ export function SelfAssessmentForm() {
         </p>
       </div>
     </div>
+  );
+}
+
+export function SelfAssessmentForm() {
+  // HealthDeclaration now renders HealthItemsTab, which reads ?period=
+  // (useSearchParams) — that requires a Suspense boundary at prerender,
+  // same reason project-charter/charter-form.tsx's SelfAssessmentForm wraps.
+  return (
+    <React.Suspense fallback={null}>
+      <SelfAssessmentFormInner />
+    </React.Suspense>
   );
 }

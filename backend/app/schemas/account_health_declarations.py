@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.enums import HealthRating
+from app.schemas.enums import Category, HealthRating
 
 
 class AccountHealthDeclarationCreate(BaseModel):
@@ -65,3 +65,24 @@ class AccountHealthDeclarationRead(BaseModel):
     overall_rating: HealthRating
     declared_by: UUID | None = None
     created_at: datetime
+
+
+class AccountHealthItemCreate(BaseModel):
+    period_id: UUID
+    category: Category
+    description: str
+
+
+class AccountHealthItemUpdate(BaseModel):
+    description: str
+
+
+class AccountHealthItemRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    account_id: UUID
+    period_id: UUID
+    category: Category
+    description: str
+    created_at: datetime
+    updated_at: datetime

@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 
-import { StatusHeader } from "./status-header";
+import { RegionalHeader } from "./regional-header";
 import { StatusTabs } from "./status-tabs";
 import type { RegionalScope } from "@/lib/api/regional-status";
 
@@ -11,7 +11,7 @@ export function StatusPage({ scope, paramName }: { scope: RegionalScope; paramNa
   const scopeId = params[paramName] ?? "";
   return (
     <div className="mx-auto max-w-6xl">
-      <StatusHeader scope={scope} scopeId={scopeId} />
+      <RegionalHeader scope={scope} paramName={paramName} dynamicSubheading />
       <div className="mt-8">
         <StatusTabs scope={scope} scopeId={scopeId} />
       </div>

@@ -9,12 +9,14 @@ import {
   RATING_FROM_API,
   type HealthRating,
 } from "@/components/project-charter/health-declaration";
-import { useReviewHealthDeclaration, type ReviewScope } from "@/lib/api/status-review";
+import { useReviewHealthDeclaration, useReviewHealthItems, type ReviewScope } from "@/lib/api/status-review";
+import { HEALTH_CATEGORIES } from "@/lib/health-categories";
 
 // Section 2 of a Status Review page — "RAG Status" (renamed from "Focus
 // Area Status"), one card per health-declaration category. Inspired by
 // design-reference/RAG Status.html's card structure only — no "AI Insight"
-// framing; the card body is plainly the category's own declared notes.
+// framing; the card body is plainly the category's own declared notes,
+// now a bulleted list of RAG items instead of a single description string.
 
 // Static Tailwind classes matching HEALTH_LEVELS' dotClass colors — kept as
 // an explicit map (not derived via string replace) so the JIT scanner picks
@@ -25,6 +27,50 @@ const BORDER_CLASS: Record<HealthRating, string> = {
   "potential-red": "border-l-orange-500",
   red: "border-l-red-500",
 };
+
+function RagCategoryCard({
+  scope,
+  scopeId,
+  periodId,
+  category,
+  rating,
+}: {
+  scope: ReviewScope;
+  scopeId: string;
+  periodId: string;
+  category: (typeof CATEGORIES)[number];
+  rating: HealthRating;
+}) {
+  const tab = HEALTH_CATEGORIES.find((t) => t.category === category.name)!;
+  const { data: items = [] } = useReviewHealthItems(scope, scopeId, periodId, tab.category);
+  const level = HEALTH_LEVELS.find((l) => l.value === rating)!;
+
+  return (
+    <article
+      className={cn(
+        "flex flex-col gap-2 rounded-xl border border-slate-200 border-l-4 bg-white p-5 shadow-sm",
+        BORDER_CLASS[rating]
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">{category.name}</h3>
+          <p className="mt-1 text-xs text-slate-500">{category.covers}</p>
+        </div>
+        <span className={cn("size-8 shrink-0 rounded-full", level.dotClass)} title={level.label} />
+      </div>
+      {items.length === 0 ? (
+        <p className="text-sm text-slate-400">No notes recorded.</p>
+      ) : (
+        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+          {items.map((item) => (
+            <li key={item.id}>{item.description}</li>
+          ))}
+        </ul>
+      )}
+    </article>
+  );
+}
 
 export function RagStatusSection({
   scope,
@@ -50,32 +96,16 @@ export function RagStatusSection({
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {CATEGORIES.map((category) => {
-            const rating = RATING_FROM_API[declaration[category.ratingField]];
-            const level = HEALTH_LEVELS.find((l) => l.value === rating)!;
-            const description = declaration[category.descriptionField];
-            return (
-              <article
-                key={category.key}
-                className={cn(
-                  "flex flex-col gap-2 rounded-xl border border-slate-200 border-l-4 bg-white p-5 shadow-sm",
-                  BORDER_CLASS[rating]
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">{category.name}</h3>
-                    <p className="mt-1 text-xs text-slate-500">{category.covers}</p>
-                  </div>
-                  <span className={cn("size-8 shrink-0 rounded-full", level.dotClass)} title={level.label} />
-                </div>
-                <p className={cn("mt-1 inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1", level.pillClass)}>
-                  {level.label}
-                </p>
-                <p className="text-sm text-slate-700">{description || "No notes recorded."}</p>
-              </article>
-            );
-          })}
+          {CATEGORIES.map((category) => (
+            <RagCategoryCard
+              key={category.key}
+              scope={scope}
+              scopeId={scopeId}
+              periodId={periodId}
+              category={category}
+              rating={RATING_FROM_API[declaration[category.ratingField]]}
+            />
+          ))}
         </div>
       )}
     </section>

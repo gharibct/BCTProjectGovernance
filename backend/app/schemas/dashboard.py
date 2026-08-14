@@ -18,6 +18,8 @@ class ProjectHealthRow(BaseModel):
     project_code: str
     project_name: str
     overall_project_health: HealthRating | None
+    account_id: UUID | None = None
+    account_name: str | None = None
 
 
 class AccountHealthRow(BaseModel):
@@ -46,6 +48,11 @@ class HealthMatrixRow(BaseModel):
 
     entity_id: UUID
     entity_label: str
+    # Populated on project_matrix rows only (which account the project
+    # belongs to) — always None on account_matrix rows, where the entity
+    # itself is the account.
+    account_id: UUID | None = None
+    account_name: str | None = None
     core_delivery_rating: HealthRating | None
     people_rating: HealthRating | None
     operational_rating: HealthRating | None

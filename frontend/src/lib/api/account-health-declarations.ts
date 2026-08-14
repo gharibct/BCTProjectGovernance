@@ -97,3 +97,88 @@ export function useUpdateAccountHealthDeclaration(accountId: string | null) {
     onSuccess: () => invalidateAccountHealthDeclarations(queryClient, accountId),
   });
 }
+
+// --- RAG Status grids (account-level equivalent of health-declarations.ts's
+// item hooks — see backend/app/api/v1/endpoints/account_health_declarations.py's
+// items_router). Deliberately its own hooks here (not folded into
+// regional-status.ts's scope="account"|"geo" scaffolding), same reasoning as
+// the declaration hooks above: this feature is account-only. ---
+
+export type HealthCategory = "Core Delivery" | "People" | "Operational" | "Customer" | "Financial" | "Compliance";
+
+export type AccountHealthItem = {
+  id: string;
+  account_id: string;
+  period_id: string;
+  category: HealthCategory;
+  description: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AccountHealthItemPayload = {
+  period_id: string;
+  category: HealthCategory;
+  description: string;
+};
+
+export type AccountHealthItemUpdatePayload = { description: string };
+
+function accountHealthItemsQuery(accountId: string, periodId: string, category: HealthCategory): string {
+  return `/accounts/${accountId}/health-items?period_id=${periodId}&category=${encodeURIComponent(category)}`;
+}
+
+export function useAccountHealthItems(accountId: string | null, periodId: string | null, category: HealthCategory) {
+  return useQuery({
+    queryKey: ["account-health-items", accountId, periodId, category],
+    queryFn: () => api.get<AccountHealthItem[]>(accountHealthItemsQuery(accountId!, periodId!, category)),
+    enabled: !!accountId && !!periodId,
+  });
+}
+
+function invalidateAccountHealthItems(
+  queryClient: ReturnType<typeof useQueryClient>,
+  accountId: string | null,
+  periodId: string | null,
+  category: HealthCategory
+) {
+  queryClient.invalidateQueries({ queryKey: ["account-health-items", accountId, periodId, category] });
+}
+
+export function useCreateAccountHealthItem(
+  accountId: string | null,
+  periodId: string | null,
+  category: HealthCategory
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: AccountHealthItemPayload) =>
+      api.post<AccountHealthItem>(`/accounts/${accountId}/health-items`, payload),
+    onSuccess: () => invalidateAccountHealthItems(queryClient, accountId, periodId, category),
+  });
+}
+
+export function useUpdateAccountHealthItem(
+  accountId: string | null,
+  periodId: string | null,
+  category: HealthCategory
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: AccountHealthItemUpdatePayload }) =>
+      api.put<AccountHealthItem>(`/accounts/${accountId}/health-items/${id}`, payload),
+    onSuccess: () => invalidateAccountHealthItems(queryClient, accountId, periodId, category),
+  });
+}
+
+export function useDeleteAccountHealthItem(
+  accountId: string | null,
+  periodId: string | null,
+  category: HealthCategory
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/accounts/${accountId}/health-items/${id}`),
+    onSuccess: () => invalidateAccountHealthItems(queryClient, accountId, periodId, category),
+  });
+}

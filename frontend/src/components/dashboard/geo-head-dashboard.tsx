@@ -8,7 +8,7 @@ export function GeoHeadDashboard() {
 
   return (
     <DashboardView
-      title="Geo Head Dashboard"
+      title="My Summary"
       subtitle="Delivery health across the geo(s) you own"
       scope={{ geo_ids: geoIds }}
       rowScope="account"

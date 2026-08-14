@@ -46,7 +46,7 @@ export function Dashboard() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            Portfolio Dashboard
+            My Summary
           </h1>
           <p className="mt-1.5 text-slate-500">
             Delivery health across all active engagements

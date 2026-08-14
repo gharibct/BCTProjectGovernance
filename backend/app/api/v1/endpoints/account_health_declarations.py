@@ -6,14 +6,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
-from app.crud.account_health_declarations import account_health_declaration_crud
-from app.models.account_health_declarations import AccountHealthDeclaration
+from app.crud.account_health_declarations import account_health_declaration_crud, account_health_item_crud
+from app.models.account_health_declarations import AccountHealthDeclaration, AccountHealthItem
 from app.models.reference_data import ReportingPeriod
 from app.schemas.account_health_declarations import (
     AccountHealthDeclarationCreate,
     AccountHealthDeclarationRead,
     AccountHealthDeclarationUpdate,
+    AccountHealthItemCreate,
+    AccountHealthItemRead,
+    AccountHealthItemUpdate,
 )
+from app.schemas.enums import Category
 from app.services.health_rollup import compute_overall_rating
 
 # Account RAG Status — account-level equivalent of health_declarations.py,
@@ -95,3 +99,53 @@ async def update_account_health_declaration(
     await db.flush()
     await db.refresh(declaration)
     return declaration
+
+
+# RAG Status grids (mirrors health_declarations.py's items_router exactly —
+# see db/tables/41_health_items.sql). No rollup-status endpoint here: there
+# is no further Account -> Geo rollup for RAG Status notes.
+items_router = APIRouter(prefix="/accounts/{account_id}/health-items", tags=["Account Reporting"])
+
+
+@items_router.get("", response_model=list[AccountHealthItemRead])
+async def list_account_health_items(
+    account_id: UUID,
+    period_id: UUID,
+    category: Category,
+    db: AsyncSession = Depends(get_db),
+):
+    items, _ = await account_health_item_crud.list(
+        db,
+        filters={
+            AccountHealthItem.account_id: account_id,
+            AccountHealthItem.period_id: period_id,
+            AccountHealthItem.category: category,
+        },
+        limit=500,
+    )
+    return items
+
+
+@items_router.post("", response_model=AccountHealthItemRead, status_code=status.HTTP_201_CREATED)
+async def create_account_health_item(
+    account_id: UUID, payload: AccountHealthItemCreate, db: AsyncSession = Depends(get_db)
+):
+    return await account_health_item_crud.create(db, payload, account_id=account_id)
+
+
+@items_router.put("/{item_id}", response_model=AccountHealthItemRead)
+async def update_account_health_item(
+    account_id: UUID, item_id: UUID, payload: AccountHealthItemUpdate, db: AsyncSession = Depends(get_db)
+):
+    obj = await account_health_item_crud.get(db, item_id)
+    if obj is None or obj.account_id != account_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    return await account_health_item_crud.update(db, obj, payload)
+
+
+@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account_health_item(account_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
+    obj = await account_health_item_crud.get(db, item_id)
+    if obj is None or obj.account_id != account_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    await account_health_item_crud.delete(db, obj)

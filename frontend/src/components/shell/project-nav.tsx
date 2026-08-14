@@ -3,7 +3,16 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useSearchParams } from "next/navigation";
-import { CalendarDays, Circle, CircleCheck, ClipboardList, FileText, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  CalendarDays,
+  Circle,
+  CircleCheck,
+  ClipboardList,
+  FileText,
+  LayoutGrid,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
@@ -64,7 +73,7 @@ function buildGroups(base: string): NavGroup[] {
       // pending/done signal to derive — always shown as done so it never
       // reads as an outstanding checklist item.
       items: [
-        { label: "AI Document Processing", href: `${base}/ai-hub/document-processing`, done: true },
+        { label: "Document Processing", href: `${base}/ai-hub/document-processing`, done: true },
       ],
     },
   ];
@@ -94,9 +103,9 @@ function weeklyGroups(groups: NavGroup[]): NavGroup[] {
 // period picked once (e.g. via Project Status) stays attached to the URL as
 // the user moves between tabs, ready for any other screen (Resource
 // Allocation, RAIDO, Document Processing, ...) to read it the same way
-// status-header.tsx does. Split out from ProjectNav because useSearchParams
+// project-header.tsx does. Split out from ProjectNav because useSearchParams
 // requires a Suspense boundary at prerender.
-function NavLinks({ groups, pathname }: { groups: NavGroup[]; pathname: string }) {
+function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: string; base: string }) {
   const searchParams = useSearchParams();
   const period = searchParams.get("period");
   const suffix = period ? `?period=${period}` : "";
@@ -105,8 +114,27 @@ function NavLinks({ groups, pathname }: { groups: NavGroup[]; pathname: string }
   const isWeekly = periods.find((p) => p.id === period)?.period_type === "Weekly";
   const visibleGroups = isWeekly ? weeklyGroups(groups) : groups;
 
+  // Standalone entry (not part of a heading+items group like the ones
+  // below) — the Project Manager's read-first counterpart to the Account
+  // Manager's Project Review screen, always available regardless of the
+  // Weekly/Monthly filtering that only applies to the reporting checklist.
+  const dashboardHref = `${base}/dashboard`;
+  const dashboardActive = pathname === dashboardHref;
+
   return (
     <nav className="mt-4 flex flex-col gap-2">
+      <Link
+        href={`${dashboardHref}${suffix}`}
+        aria-current={dashboardActive ? "page" : undefined}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold transition-colors",
+          dashboardActive ? "bg-[#d9eafc] text-[#15406b]" : "text-slate-800 hover:bg-slate-100"
+        )}
+      >
+        <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
+        Project Dashboard
+      </Link>
+
       {visibleGroups.map((group) => (
         <div key={group.heading}>
           <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
@@ -138,13 +166,14 @@ function NavLinks({ groups, pathname }: { groups: NavGroup[]; pathname: string }
 export function ProjectNav() {
   const pathname = usePathname();
   const { projectId } = useParams<{ projectId: string }>();
-  const groups = buildGroups(`/project-reporting/${projectId}`);
+  const base = `/project-reporting/${projectId}`;
+  const groups = buildGroups(base);
 
   // The hub page (/project-reporting/:projectId) is a menu of cards linking
   // into each reporting area — it isn't itself a Weekly/Monthly reporting
   // screen, so this nav (which tracks period completion for those screens)
   // doesn't apply there.
-  const isHub = pathname === `/project-reporting/${projectId}`;
+  const isHub = pathname === base;
   if (isHub) return null;
 
   return (
@@ -155,7 +184,7 @@ export function ProjectNav() {
       </p>
 
       <Suspense fallback={null}>
-        <NavLinks groups={groups} pathname={pathname} />
+        <NavLinks groups={groups} pathname={pathname} base={base} />
       </Suspense>
 
       <p className="mt-6 flex flex-col gap-1.5 border-t border-slate-100 px-3 pt-4 text-xs text-slate-500">

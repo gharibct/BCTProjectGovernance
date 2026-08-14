@@ -4,13 +4,13 @@ import { DocumentProcessing } from "@/components/ai-hub/document-processing";
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "AI Document Processing | Project Governance Tool",
+  title: "Document Processing | Project Governance Tool",
 };
 
 export default function DocumentProcessingPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader />
+      <ProjectHeader subheading="Document Processing" />
       <div className="mt-8">
         <DocumentProcessing />
       </div>

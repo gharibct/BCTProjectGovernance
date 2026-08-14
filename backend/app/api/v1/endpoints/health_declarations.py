@@ -6,11 +6,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
-from app.crud.health_declarations import health_declaration_crud
+from app.crud.health_declarations import health_declaration_crud, project_health_item_crud
 from app.crud.projects import project_crud
-from app.models.health_declarations import HealthDeclaration
+from app.models.health_declarations import HealthDeclaration, ProjectHealthItem
 from app.models.reference_data import ReportingPeriod
-from app.schemas.health_declarations import HealthDeclarationCreate, HealthDeclarationRead, HealthDeclarationUpdate
+from app.schemas.enums import Category
+from app.schemas.health_declarations import (
+    HealthDeclarationCreate,
+    HealthDeclarationRead,
+    HealthDeclarationUpdate,
+    ProjectHealthItemCreate,
+    ProjectHealthItemRead,
+    ProjectHealthItemRollupStatusUpdate,
+    ProjectHealthItemUpdate,
+)
 from app.services.health_rollup import compute_overall_project_health, compute_overall_rating
 
 # History (UX §4.3 / §7 item 1): list + latest + create + edit, one
@@ -118,3 +127,72 @@ async def update_health_declaration(
     await db.flush()
 
     return declaration
+
+
+# RAG Status grids (redesign of the per-category free-text description
+# columns above into per-category add/edit/delete registers — see
+# db/tables/41_health_items.sql). Same shape as project_status.py's
+# items_router.
+items_router = APIRouter(prefix="/projects/{project_id}/health-items", tags=["Health Declarations"])
+
+
+@items_router.get("", response_model=list[ProjectHealthItemRead])
+async def list_health_items(
+    project_id: UUID,
+    period_id: UUID,
+    category: Category,
+    db: AsyncSession = Depends(get_db),
+):
+    items, _ = await project_health_item_crud.list(
+        db,
+        filters={
+            ProjectHealthItem.project_id: project_id,
+            ProjectHealthItem.period_id: period_id,
+            ProjectHealthItem.category: category,
+        },
+        limit=500,
+    )
+    return items
+
+
+@items_router.post("", response_model=ProjectHealthItemRead, status_code=status.HTTP_201_CREATED)
+async def create_health_item(project_id: UUID, payload: ProjectHealthItemCreate, db: AsyncSession = Depends(get_db)):
+    return await project_health_item_crud.create(db, payload, project_id=project_id)
+
+
+@items_router.put("/{item_id}", response_model=ProjectHealthItemRead)
+async def update_health_item(
+    project_id: UUID, item_id: UUID, payload: ProjectHealthItemUpdate, db: AsyncSession = Depends(get_db)
+):
+    obj = await project_health_item_crud.get(db, item_id)
+    if obj is None or obj.project_id != project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    return await project_health_item_crud.update(db, obj, payload)
+
+
+@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_health_item(project_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
+    obj = await project_health_item_crud.get(db, item_id)
+    if obj is None or obj.project_id != project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    await project_health_item_crud.delete(db, obj)
+
+
+# Project -> Account rollup (see services/account_health_rollup.py): Ignore /
+# Undo both go through this one endpoint — Pulled is only ever set by the
+# pull action itself (POST /accounts/{account_id}/health-rollup/pull), never
+# here.
+@items_router.patch("/{item_id}/rollup-status", response_model=ProjectHealthItemRead)
+async def update_health_item_rollup_status(
+    project_id: UUID,
+    item_id: UUID,
+    payload: ProjectHealthItemRollupStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    obj = await project_health_item_crud.get(db, item_id)
+    if obj is None or obj.project_id != project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    obj.account_rollup_status = payload.status
+    await db.flush()
+    await db.refresh(obj)
+    return obj

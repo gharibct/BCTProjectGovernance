@@ -4,7 +4,6 @@ import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Activity, HeartPulse } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
 import {
@@ -22,6 +21,8 @@ import {
   type HealthDeclaration as ApiHealthDeclaration,
   type HealthRating as ApiHealthRating,
 } from "@/lib/api/health-declarations";
+import { HEALTH_CATEGORIES } from "@/lib/health-categories";
+import { HealthItemsTab } from "./health-items-tab";
 
 import { Field, SectionCard } from "@/components/forms/form-primitives";
 import { usePageBanner } from "@/stores/page-banner";
@@ -141,15 +142,6 @@ export const DEFAULT_RATINGS: Record<CategoryKey, HealthRating> = {
   compliance: "green",
 };
 
-export const EMPTY_DESCRIPTIONS: Record<CategoryKey, string> = {
-  "core-delivery": "",
-  people: "",
-  operational: "",
-  customer: "",
-  financial: "",
-  compliance: "",
-};
-
 // Severity order for roll-ups: worst rating wins.
 const SEVERITY: HealthRating[] = ["green", "amber", "potential-red", "red"];
 
@@ -176,12 +168,10 @@ export const RATING_FROM_API: Record<ApiHealthRating, HealthRating> = {
 
 function fromDeclaration(declaration: ApiHealthDeclaration) {
   const ratings = {} as Record<CategoryKey, HealthRating>;
-  const descriptions = {} as Record<CategoryKey, string>;
   for (const category of CATEGORIES) {
     ratings[category.key] = RATING_FROM_API[declaration[category.ratingField]];
-    descriptions[category.key] = declaration[category.descriptionField] ?? "";
   }
-  return { ratings, descriptions };
+  return { ratings };
 }
 
 // Owns all state + the submit mutation; the SelfAssessmentForm action bar
@@ -205,7 +195,6 @@ export function useHealthDeclarationForm() {
   const existing = declarations?.find((d) => d.period_id === periodId);
 
   const [ratings, setRatings] = React.useState<Record<CategoryKey, HealthRating>>(DEFAULT_RATINGS);
-  const [descriptions, setDescriptions] = React.useState<Record<CategoryKey, string>>(EMPTY_DESCRIPTIONS);
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
 
   const key = existing ? existing.id : `blank:${periodId}`;
@@ -214,10 +203,8 @@ export function useHealthDeclarationForm() {
     if (existing) {
       const seeded = fromDeclaration(existing);
       setRatings(seeded.ratings);
-      setDescriptions(seeded.descriptions);
     } else {
       setRatings(DEFAULT_RATINGS);
-      setDescriptions(EMPTY_DESCRIPTIONS);
     }
   }
 
@@ -235,8 +222,6 @@ export function useHealthDeclarationForm() {
 
   const setRating = (categoryKey: CategoryKey, value: HealthRating) =>
     setRatings((prev) => ({ ...prev, [categoryKey]: value }));
-  const setDescription = (categoryKey: CategoryKey, value: string) =>
-    setDescriptions((prev) => ({ ...prev, [categoryKey]: value }));
 
   const declaredOverall = worstOf(Object.values(ratings));
   const deAssessedHealth = project?.de_assessed_project_health
@@ -254,17 +239,11 @@ export function useHealthDeclarationForm() {
     try {
       const fields = {
         core_delivery_rating: RATING_TO_API[ratings["core-delivery"]],
-        core_delivery_description: descriptions["core-delivery"] || undefined,
         people_rating: RATING_TO_API[ratings.people],
-        people_description: descriptions.people || undefined,
         operational_rating: RATING_TO_API[ratings.operational],
-        operational_description: descriptions.operational || undefined,
         customer_rating: RATING_TO_API[ratings.customer],
-        customer_description: descriptions.customer || undefined,
         financial_rating: RATING_TO_API[ratings.financial],
-        financial_description: descriptions.financial || undefined,
         compliance_rating: RATING_TO_API[ratings.compliance],
-        compliance_description: descriptions.compliance || undefined,
       };
       await Promise.all([
         existing
@@ -287,8 +266,6 @@ export function useHealthDeclarationForm() {
     projectId,
     ratings,
     setRating,
-    descriptions,
-    setDescription,
     applicablePhase,
     setApplicablePhase,
     projectStatus,
@@ -360,16 +337,10 @@ export function HealthDeclaration({
 }: {
   form: ReturnType<typeof useHealthDeclarationForm>;
 }) {
-  const {
-    ratings,
-    setRating,
-    descriptions,
-    setDescription,
-    applicablePhase,
-    setApplicablePhase,
-    projectStatus,
-    setProjectStatus,
-  } = form;
+  const { ratings, setRating, applicablePhase, setApplicablePhase, projectStatus, setProjectStatus } = form;
+  const [tab, setTab] = React.useState<(typeof HEALTH_CATEGORIES)[number]["label"]>(HEALTH_CATEGORIES[0].label);
+  const activeTab = HEALTH_CATEGORIES.find((t) => t.label === tab)!;
+  const activeCategory = CATEGORIES.find((c) => c.name === activeTab.category)!;
 
   if (!form.projectId) {
     return (
@@ -414,36 +385,46 @@ export function HealthDeclaration({
         </div>
       </SectionCard>
 
-      <SectionCard icon={HeartPulse} title="Delivery Declared Project Health">
-        <div className="flex flex-col divide-y divide-slate-100">
-          {CATEGORIES.map((category) => (
-            <div
-              key={category.key}
-              className="grid grid-cols-1 items-center gap-4 py-5 first:pt-0 last:pb-0 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,20rem)]"
+      <div>
+        <div className="flex items-center gap-3 pb-4 text-lg font-bold text-slate-900">
+          <HeartPulse className="size-5 text-slate-700" />
+          Delivery Declared Project Health
+        </div>
+        <div role="tablist" className="flex gap-8 border-b border-slate-200">
+          {HEALTH_CATEGORIES.map((t) => (
+            <button
+              key={t.label}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.label}
+              onClick={() => setTab(t.label)}
+              className={cn(
+                "-mb-px border-b-2 pb-3 text-sm font-semibold whitespace-nowrap transition-colors",
+                tab === t.label
+                  ? "border-[#1a4a7a] text-[#1a4a7a]"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              )}
             >
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-800">
-                  {category.name}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-slate-400">
-                  {category.covers}
-                </p>
-              </div>
-              <HealthPicker
-                value={ratings[category.key]}
-                onChange={(value) => setRating(category.key, value)}
-              />
-              <Input
-                aria-label={`${category.name} health description`}
-                placeholder="Short description…"
-                className="h-10"
-                value={descriptions[category.key]}
-                onChange={(e) => setDescription(category.key, e.target.value)}
-              />
-            </div>
+              {t.label}
+            </button>
           ))}
         </div>
-      </SectionCard>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-800">{activeCategory.name}</p>
+            <p className="mt-0.5 text-xs text-slate-400">{activeCategory.covers}</p>
+          </div>
+          <HealthPicker
+            value={ratings[activeCategory.key]}
+            onChange={(value) => setRating(activeCategory.key, value)}
+          />
+        </div>
+
+        <div className="mt-6">
+          <HealthItemsTab category={activeTab.category} title={activeTab.label} icon={activeTab.icon} />
+        </div>
+      </div>
     </div>
   );
 }

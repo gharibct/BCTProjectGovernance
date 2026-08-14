@@ -70,7 +70,7 @@ INSERT INTO user_geos (id, user_id, geo_id, created_at) VALUES
 INSERT INTO reporting_periods (id, period_type, code, label, start_date, end_date, is_active, created_at, updated_at)
 SELECT gen_random_uuid(), 'Weekly',
        to_char(d, 'IYYY') || '-W' || to_char(d, 'IW'),
-       'Week ' || to_char(d, 'IW') || ', ' || to_char(d, 'IYYY'),
+       to_char(d, 'Mon DD, YYYY'),
        d::date, (d::date + 6), true, now(), now()
 FROM generate_series('2025-12-29'::date, '2027-01-03'::date, '7 days') AS d;
 

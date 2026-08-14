@@ -22,7 +22,7 @@ function KpiCard({ label, value, hint, valueClass }: { label: string; value: num
 // Reusable dashboard for the role-specific screens (Admin/CXO unfiltered,
 // Account Manager/Geo Head pre-filtered by their mapped account(s)/geo(s)) —
 // backed by the real /dashboard/summary aggregation, unlike the sample-data
-// Portfolio Dashboard at /dashboard.
+// "My Summary" page (dashboard.tsx) at /dashboard.
 //
 // `rowScope` picks which Governance Matrix/Highlights the page shows one
 // level of the org hierarchy: "account" (CXO/Admin/Geo Head — matrix rows
@@ -124,6 +124,8 @@ export function DashboardView({
 
           <GovernanceMatrix
             heading={rowScope === "account" ? "Account Governance Matrix" : "Project Governance Matrix"}
+            entityColumnLabel={rowScope === "account" ? "Accounts" : "Projects"}
+            showAccountColumn={rowScope === "project"}
             rows={rowScope === "account" ? data.account_matrix : data.project_matrix}
             entityHref={(id) => (rowScope === "account" ? `/account-review/${id}` : `/project-review/${id}`)}
             emptyLabel={rowScope === "account" ? "No accounts in scope." : "No projects in scope."}

@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useSearchParams } from "next/navigation";
-import { CalendarDays, Circle, CircleCheck, ClipboardList, Sparkles } from "lucide-react";
+import { CalendarDays, Circle, CircleCheck, ClipboardList, LayoutGrid, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
@@ -35,13 +35,31 @@ function buildGroups(base: string): NavGroup[] {
 // Forwards the current ?period= (if any) onto every link, same as
 // project-nav.tsx's NavLinks. Split out because useSearchParams requires a
 // Suspense boundary at prerender.
-function NavLinks({ groups, pathname }: { groups: NavGroup[]; pathname: string }) {
+function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: string; base: string }) {
   const searchParams = useSearchParams();
   const period = searchParams.get("period");
   const suffix = period ? `?period=${period}` : "";
 
+  // Standalone entry (not part of a heading+items group like the ones
+  // below) — the Account Manager's read-first counterpart to the Geo Head's
+  // Account Review screen, mirrors project-nav.tsx's "Project Dashboard".
+  const dashboardHref = `${base}/dashboard`;
+  const dashboardActive = pathname === dashboardHref;
+
   return (
     <nav className="mt-4 flex flex-col gap-2">
+      <Link
+        href={`${dashboardHref}${suffix}`}
+        aria-current={dashboardActive ? "page" : undefined}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold transition-colors",
+          dashboardActive ? "bg-[#d9eafc] text-[#15406b]" : "text-slate-800 hover:bg-slate-100"
+        )}
+      >
+        <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
+        Account Dashboard
+      </Link>
+
       {groups.map((group) => (
         <div key={group.heading}>
           <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
@@ -73,12 +91,13 @@ function NavLinks({ groups, pathname }: { groups: NavGroup[]; pathname: string }
 export function AccountNav() {
   const pathname = usePathname();
   const { accountId } = useParams<{ accountId: string }>();
-  const groups = buildGroups(`/account-reporting/${accountId}`);
+  const base = `/account-reporting/${accountId}`;
+  const groups = buildGroups(base);
 
   // The hub page (/account-reporting/:accountId) is a menu of cards linking
   // into each reporting area — this nav doesn't apply there, same as
   // ProjectNav's isHub check.
-  const isHub = pathname === `/account-reporting/${accountId}`;
+  const isHub = pathname === base;
   if (isHub) return null;
 
   return (
@@ -89,7 +108,7 @@ export function AccountNav() {
       </p>
 
       <Suspense fallback={null}>
-        <NavLinks groups={groups} pathname={pathname} />
+        <NavLinks groups={groups} pathname={pathname} base={base} />
       </Suspense>
 
       <p className="mt-6 flex flex-col gap-1.5 border-t border-slate-100 px-3 pt-4 text-xs text-slate-500">

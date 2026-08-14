@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { AlertTriangle, Rocket, TrendingUp, Trophy, Users } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
@@ -14,25 +14,10 @@ import {
   useStatusReports,
   useUpdateStatusReport,
 } from "@/lib/api/project-status";
+import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
 import { StatusItemsTab } from "./status-items-tab";
 
-// Tab order matches the original 3 free-text sections, plus the new 4th
-// "Key Risks / Issues" section. Same plain client-state tab bar as
-// raido/raido-tabs.tsx — no route/query-param sync.
-const TABS = [
-  { label: "Key Accomplishments", category: "Key Accomplishments" as const, icon: Trophy },
-  {
-    label: "Upcoming Releases",
-    category: "Upcoming Key Releases / Milestones / Actions" as const,
-    icon: Rocket,
-  },
-  {
-    label: "Leadership Support",
-    category: "Leadership Support / Attention Required" as const,
-    icon: Users,
-  },
-  { label: "Key Risks / Issues", category: "Key Risks / Issues" as const, icon: AlertTriangle },
-] as const;
+// Same plain client-state tab bar as raido/raido-tabs.tsx — no route/query-param sync.
 
 const BLANK_METRICS = { revenue: "", onsite_fte: "", offshore_fte: "", projects_count: "" };
 

@@ -49,19 +49,22 @@ export function ReportingHub() {
   const { data: project } = useProject(projectId ?? null);
   const { data: periods = [] } = useReportingPeriods();
   const { data: reports = [] } = useStatusReports(projectId ?? null);
-  const statusHref = `/project-reporting/${projectId}/project-status`;
+  // Project Dashboard (the consolidated report preview + submit screen) is
+  // where entering the reporting flow for a period should land — Project
+  // Status/RAG Status stay reachable from its nav for actually editing.
+  const dashboardHref = `/project-reporting/${projectId}/dashboard`;
 
   // The list endpoint already orders by the period's start_date desc, so
   // the first row is the latest report across both Weekly and Monthly.
   const latestReport = reports[0];
-  const latestReportHref = latestReport ? `${statusHref}?period=${latestReport.period_id}` : statusHref;
+  const latestReportHref = latestReport ? `${dashboardHref}?period=${latestReport.period_id}` : dashboardHref;
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-            {project?.project_code ?? "Project Reporting"}
+            {project?.project_code ? `${project.project_code} - Reporting Summary` : "Project Reporting"}
           </h1>
           <p className="mt-2 max-w-3xl text-slate-500">
             {project?.project_scope_description || project?.customer_overview || project?.project_name}
@@ -183,7 +186,7 @@ export function ReportingHub() {
                           variant="outline"
                           className="h-8 w-20 text-xs font-semibold"
                         >
-                          <Link href={`${statusHref}?period=${report.period_id}`}>Open</Link>
+                          <Link href={`${dashboardHref}?period=${report.period_id}`}>Open</Link>
                         </Button>
                       </td>
                     </tr>

@@ -52,23 +52,11 @@ export function MeasurementTabs() {
   const Active = activeTab.content;
 
   return (
-    <div>
-      <div role="tablist" className="flex gap-8 border-b border-slate-200">
-        <span
-          role="tab"
-          aria-selected="true"
-          className="-mb-px border-b-2 border-[#1a4a7a] pb-3 text-sm font-semibold whitespace-nowrap text-[#1a4a7a]"
-        >
-          {activeTab.label}
-        </span>
-      </div>
-
-      <div className="mt-8">
-        {/* useSearchParams (for the period) requires a Suspense boundary */}
-        <Suspense fallback={null}>
-          <Active projectId={projectId} />
-        </Suspense>
-      </div>
-    </div>
+    // A project only ever matches one Project Type, so there's never
+    // anything to switch between — no tab chrome, just the one form.
+    // useSearchParams (for the period) requires a Suspense boundary.
+    <Suspense fallback={null}>
+      <Active projectId={projectId} />
+    </Suspense>
   );
 }

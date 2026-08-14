@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function ContractualCompliancePage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader />
+      <ProjectHeader subheading="Contractual Compliance" />
       <div className="mt-8">
         <ContractualComplianceForm />
       </div>

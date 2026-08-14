@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AutoBadge, SectionCard } from "@/components/forms/form-primitives";
 import type { RollupStatus } from "@/lib/api/account-rollup";
-import type { ProjectStatusCategory } from "@/lib/api/project-status";
 
 // Scope-agnostic shape both the Project->Account and Account->Geo rollup
 // hooks map their raw (differently-shaped) API items into — callers build
@@ -20,7 +19,11 @@ export type RollupSourceItem = {
   // caller's onIgnore/onUndo handlers to address the right sub-resource.
   sourceEntityId: string;
   sourceLabel: string;
-  category: ProjectStatusCategory;
+  // A plain string (not a literal union) since this panel is reused for
+  // both Project Status rollup (ProjectStatusCategory) and RAG Status
+  // rollup (HealthCategory) — it only ever does a `===` comparison against
+  // `category` below, so it doesn't need either literal union.
+  category: string;
   description: string;
   account_rollup_status: RollupStatus;
 };
@@ -45,7 +48,7 @@ export function RollupSourcePanel({
 }: {
   heading: string;
   emptyLabel: string;
-  category: ProjectStatusCategory;
+  category: string;
   items: RollupSourceItem[];
   onPull: (item: RollupSourceItem) => void;
   onIgnore: (item: RollupSourceItem) => void;

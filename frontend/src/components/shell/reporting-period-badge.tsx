@@ -20,19 +20,14 @@ export function useReportingPeriod() {
 }
 
 // Presentational pill, split out so screens with a real reporting_periods
-// selection (see components/project-status/status-header.tsx) can render the
-// same bubble with a real period label instead of this file's generic
-// sample-data hook.
+// selection (see components/shell/project-header.tsx) can render the same
+// bubble with a real period label instead of this file's generic sample-data
+// hook.
 export function ReportingPeriodPill({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3.5 py-1.5 text-sm font-bold whitespace-nowrap text-[#15406b]">
       <CalendarDays className="size-4" />
-      Reporting Period: {label}
+      {label}
     </span>
   );
-}
-
-export function ReportingPeriodBadge() {
-  const period = useReportingPeriod();
-  return <ReportingPeriodPill label={period} />;
 }

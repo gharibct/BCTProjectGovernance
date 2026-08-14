@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function ProjectCharterPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader />
+      <ProjectHeader subheading="Project Profile" />
       <div className="mt-8">
         <ProjectProfileForm />
       </div>

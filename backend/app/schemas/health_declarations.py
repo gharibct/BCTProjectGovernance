@@ -1,9 +1,10 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.enums import HealthRating
+from app.schemas.enums import Category, HealthRating, RollupStatus
 
 
 class HealthDeclarationCreate(BaseModel):
@@ -65,3 +66,31 @@ class HealthDeclarationRead(BaseModel):
     overall_rating: HealthRating
     declared_by: UUID | None = None
     created_at: datetime
+
+
+class ProjectHealthItemCreate(BaseModel):
+    period_id: UUID
+    category: Category
+    description: str
+
+
+class ProjectHealthItemUpdate(BaseModel):
+    description: str
+
+
+class ProjectHealthItemRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    project_id: UUID
+    period_id: UUID
+    category: Category
+    description: str
+    account_rollup_status: RollupStatus
+    rolled_up_account_item_id: UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProjectHealthItemRollupStatusUpdate(BaseModel):
+    # Pulled is never client-settable — only the pull action sets it.
+    status: Literal[RollupStatus.PENDING, RollupStatus.IGNORED]

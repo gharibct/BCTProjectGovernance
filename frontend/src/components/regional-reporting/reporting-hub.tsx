@@ -32,10 +32,13 @@ export function ReportingHub({ scope, scopeId }: { scope: RegionalScope; scopeId
 
   const { data: periods = [] } = useReportingPeriods();
   const { data: reports = [] } = useRegionalStatusReports(scope, scopeId);
-  const statusHref = `/${scope}-reporting/${scopeId}/status`;
+  // Both Account and Geo Reporting have a Dashboard preview + submit screen
+  // (like Project Reporting's) — opening a report from the hub always lands
+  // there first; Status Reporting stays reachable from the nav for edits.
+  const entryHref = `/${scope}-reporting/${scopeId}/dashboard`;
 
   const latestReport = reports[0];
-  const latestReportHref = latestReport ? `${statusHref}?period=${latestReport.period_id}` : statusHref;
+  const latestReportHref = latestReport ? `${entryHref}?period=${latestReport.period_id}` : entryHref;
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -105,7 +108,7 @@ export function ReportingHub({ scope, scopeId }: { scope: RegionalScope; scopeId
                       <td className="px-3 py-3.5 text-slate-700">{formatDate(report.updated_at)}</td>
                       <td className="px-6 py-3.5 text-right">
                         <Button asChild variant="outline" className="h-8 w-20 text-xs font-semibold">
-                          <Link href={`${statusHref}?period=${report.period_id}`}>Open</Link>
+                          <Link href={`${entryHref}?period=${report.period_id}`}>Open</Link>
                         </Button>
                       </td>
                     </tr>

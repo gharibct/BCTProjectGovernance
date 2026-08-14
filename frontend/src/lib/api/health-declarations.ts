@@ -99,3 +99,75 @@ export function useUpdateHealthDeclaration(projectId: string | null) {
     onSuccess: () => invalidateHealthDeclarations(queryClient, projectId),
   });
 }
+
+// --- RAG Status grids (redesign of the *_description fields above, one
+// per category, into per-category add/edit/delete registers — see
+// backend/app/api/v1/endpoints/health_declarations.py's items_router) ---
+
+export type HealthCategory = "Core Delivery" | "People" | "Operational" | "Customer" | "Financial" | "Compliance";
+
+export type HealthItem = {
+  id: string;
+  project_id: string;
+  period_id: string;
+  category: HealthCategory;
+  description: string;
+  account_rollup_status: "Pending" | "Pulled" | "Ignored";
+  rolled_up_account_item_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type HealthItemPayload = {
+  period_id: string;
+  category: HealthCategory;
+  description: string;
+};
+
+export type HealthItemUpdatePayload = { description: string };
+
+function healthItemsQuery(projectId: string, periodId: string, category: HealthCategory): string {
+  return `/projects/${projectId}/health-items?period_id=${periodId}&category=${encodeURIComponent(category)}`;
+}
+
+export function useHealthItems(projectId: string | null, periodId: string | null, category: HealthCategory) {
+  return useQuery({
+    queryKey: ["health-items", projectId, periodId, category],
+    queryFn: () => api.get<HealthItem[]>(healthItemsQuery(projectId!, periodId!, category)),
+    enabled: !!projectId && !!periodId,
+  });
+}
+
+function invalidateHealthItems(
+  queryClient: ReturnType<typeof useQueryClient>,
+  projectId: string | null,
+  periodId: string | null,
+  category: HealthCategory
+) {
+  queryClient.invalidateQueries({ queryKey: ["health-items", projectId, periodId, category] });
+}
+
+export function useCreateHealthItem(projectId: string | null, periodId: string | null, category: HealthCategory) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: HealthItemPayload) => api.post<HealthItem>(`/projects/${projectId}/health-items`, payload),
+    onSuccess: () => invalidateHealthItems(queryClient, projectId, periodId, category),
+  });
+}
+
+export function useUpdateHealthItem(projectId: string | null, periodId: string | null, category: HealthCategory) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: HealthItemUpdatePayload }) =>
+      api.put<HealthItem>(`/projects/${projectId}/health-items/${id}`, payload),
+    onSuccess: () => invalidateHealthItems(queryClient, projectId, periodId, category),
+  });
+}
+
+export function useDeleteHealthItem(projectId: string | null, periodId: string | null, category: HealthCategory) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/projects/${projectId}/health-items/${id}`),
+    onSuccess: () => invalidateHealthItems(queryClient, projectId, periodId, category),
+  });
+}

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function ResourceAllocationPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader />
+      <ProjectHeader subheading="Resource Allocation" />
       <div className="mt-8">
         <ResourceAllocationForm />
       </div>

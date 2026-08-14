@@ -168,21 +168,62 @@ async def count_pending_approvals(db: AsyncSession, filters: DashboardFilters) -
 
 async def project_health_rows(db: AsyncSession, filters: DashboardFilters) -> list[ProjectHealthRow]:
     conditions = _project_conditions(filters)
-    stmt = select(Project.id, Project.project_code, Project.project_name, Project.overall_project_health).where(
-        *conditions
+    stmt = (
+        select(
+            Project.id,
+            Project.project_code,
+            Project.project_name,
+            Project.overall_project_health,
+            Project.account_id,
+            Account.name,
+        )
+        .outerjoin(Account, Account.id == Project.account_id)
+        .where(*conditions)
     )
     rows = (await db.execute(stmt)).all()
     return [
-        ProjectHealthRow(project_id=r[0], project_code=r[1], project_name=r[2], overall_project_health=r[3])
+        ProjectHealthRow(
+            project_id=r[0],
+            project_code=r[1],
+            project_name=r[2],
+            overall_project_health=r[3],
+            account_id=r[4],
+            account_name=r[5],
+        )
         for r in rows
     ]
 
 
+def _account_conditions(filters: DashboardFilters) -> list:
+    conditions = []
+    if filters.geo_id is not None:
+        conditions.append(Account.geo_id == filters.geo_id)
+    if filters.geo_ids is not None:
+        conditions.append(Account.geo_id.in_(filters.geo_ids))
+    if filters.account_id is not None:
+        conditions.append(Account.id == filters.account_id)
+    if filters.account_ids is not None:
+        conditions.append(Account.id.in_(filters.account_ids))
+    return conditions
+
+
 async def account_health_rows(db: AsyncSession, filters: DashboardFilters) -> list[AccountHealthRow]:
-    conditions = _project_conditions(filters)
-    stmt = select(Project.account_id, Project.overall_project_health).where(
-        Project.account_id.is_not(None), *conditions
+    # Candidate accounts are scoped directly off Account (geo/account_id),
+    # not derived from having any Project rows — an account with a submitted
+    # status report or health declaration but zero projects (e.g. a brand
+    # new account) must still appear here, just with project_count=0,
+    # instead of silently vanishing from every screen built on this (the
+    # Governance Matrix, Top Highlights, ...).
+    account_conditions = _account_conditions(filters)
+    accounts_stmt = select(Account.id, Account.name).where(*account_conditions) if account_conditions else select(
+        Account.id, Account.name
     )
+    account_names: dict[UUID, str] = dict((await db.execute(accounts_stmt)).all())
+    if not account_names:
+        return []
+
+    conditions = [*_project_conditions(filters), Project.account_id.in_(account_names.keys())]
+    stmt = select(Project.account_id, Project.overall_project_health).where(*conditions)
     rows = (await db.execute(stmt)).all()
 
     by_account: dict[UUID, list[HealthRating]] = defaultdict(list)
@@ -192,21 +233,14 @@ async def account_health_rows(db: AsyncSession, filters: DashboardFilters) -> li
         if health is not None:
             by_account[account_id].append(health)
 
-    if not counts:
-        return []
-
-    account_names = dict(
-        (await db.execute(select(Account.id, Account.name).where(Account.id.in_(counts.keys())))).all()
-    )
-
     return [
         AccountHealthRow(
             account_id=account_id,
-            account_name=account_names.get(account_id, "Unknown"),
-            overall_health=compute_overall_rating(by_account[account_id]) if by_account[account_id] else None,
-            project_count=counts[account_id],
+            account_name=name,
+            overall_health=compute_overall_rating(by_account[account_id]) if by_account.get(account_id) else None,
+            project_count=counts.get(account_id, 0),
         )
-        for account_id in counts
+        for account_id, name in account_names.items()
     ]
 
 
@@ -335,6 +369,8 @@ async def project_health_matrix(db: AsyncSession, filters: DashboardFilters) -> 
         HealthMatrixRow(
             entity_id=p.project_id,
             entity_label=f"{p.project_code} · {p.project_name}",
+            account_id=p.account_id,
+            account_name=p.account_name,
             core_delivery_rating=latest[p.project_id].core_delivery_rating if p.project_id in latest else None,
             people_rating=latest[p.project_id].people_rating if p.project_id in latest else None,
             operational_rating=latest[p.project_id].operational_rating if p.project_id in latest else None,

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function MeasurementPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader />
+      <ProjectHeader subheading="Measurement" />
       <div className="mt-8">
         <MeasurementTabs />
       </div>

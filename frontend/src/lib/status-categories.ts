@@ -17,10 +17,10 @@ export const STATUS_CATEGORIES: {
     category: "Upcoming Key Releases / Milestones / Actions",
     icon: Rocket,
   },
+  { label: "Key Risks / Issues", category: "Key Risks / Issues", icon: AlertTriangle },
   {
     label: "Leadership Support",
     category: "Leadership Support / Attention Required",
     icon: Users,
   },
-  { label: "Key Risks / Issues", category: "Key Risks / Issues", icon: AlertTriangle },
 ];

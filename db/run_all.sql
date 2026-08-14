@@ -43,3 +43,6 @@
 \ir tables/38_geo_health_declarations.sql
 \ir tables/39_project_status_item_rollup.sql
 \ir tables/40_account_status_item_rollup.sql
+\ir tables/41_health_items.sql
+\ir tables/42_project_health_item_rollup.sql
+\ir tables/43_executive_updates.sql

@@ -15,8 +15,12 @@ import {
   type RegionalScope,
   type RegionalStatusReport,
 } from "./regional-status";
-import { useHealthDeclarations, type HealthDeclaration } from "./health-declarations";
-import { useAccountHealthDeclarations, type AccountHealthDeclaration } from "./account-health-declarations";
+import { useHealthDeclarations, useHealthItems, type HealthCategory, type HealthDeclaration } from "./health-declarations";
+import {
+  useAccountHealthDeclarations,
+  useAccountHealthItems,
+  type AccountHealthDeclaration,
+} from "./account-health-declarations";
 import { useGeoHealthDeclarations, type GeoHealthDeclaration } from "./geo-health-declarations";
 
 // Status Review (Project Review / Account Review / Geo Review): the single
@@ -67,6 +71,21 @@ export function useReviewStatusItems(
     category
   );
   return scope === "project" ? project : regional;
+}
+
+// RAG Status notes for a category (see project-charter/health-items-tab.tsx
+// / account-reporting/health-items-tab.tsx) — no Geo variant exists (no
+// geo_health_items table), so "geo" scope stays disabled/empty, same as
+// account-rollup.ts's Account -> Geo case not applying to RAG Status.
+export function useReviewHealthItems(
+  scope: ReviewScope,
+  scopeId: string | null,
+  periodId: string | null,
+  category: HealthCategory
+) {
+  const project = useHealthItems(scope === "project" ? scopeId : null, periodId, category);
+  const account = useAccountHealthItems(scope === "account" ? scopeId : null, periodId, category);
+  return scope === "project" ? project : account;
 }
 
 export function useReviewHealthDeclaration(scope: ReviewScope, scopeId: string | null, periodId: string | null) {

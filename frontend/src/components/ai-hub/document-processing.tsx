@@ -44,7 +44,7 @@ function hasAiOutput(status: ProjectDocument["ai_status"]): boolean {
   return status === "Processed" || status === "Excluded";
 }
 
-// Reads the ?period= reporting_periods.id that status-header.tsx/status-
+// Reads the ?period= reporting_periods.id that project-header.tsx/status-
 // form.tsx also read (and that project-nav.tsx now forwards across every
 // Project Reporting tab) to decide which "<project_name>_<period code>"
 // folder new uploads land in. Falls back to auto-detecting the current

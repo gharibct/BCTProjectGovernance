@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function ProjectCharterSchedulePage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader />
+      <ProjectHeader subheading="Scope and Schedule" />
       <div className="mt-8">
         <ScopeScheduleForm />
       </div>

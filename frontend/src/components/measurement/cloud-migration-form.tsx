@@ -103,25 +103,15 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
         icon={ChartColumn}
         title="Metrics"
         aside={
-          <div className="flex items-end gap-4">
-            <Field label="As Of Date" htmlFor="as-of-date" badge={<MandatoryBadge />}>
-              <Input
-                id="as-of-date"
-                type="date"
-                className="h-10 w-44"
-                value={asOfDate}
-                onChange={(e) => setAsOfDate(e.target.value)}
-              />
-            </Field>
-            <Button
-              onClick={submit}
-              disabled={!asOfDate || createMutation.isPending}
-              className="h-10 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-            >
-              {createMutation.isPending ? <ButtonSpinner /> : null}
-              Save Measurements
-            </Button>
-          </div>
+          <Field label="As Of Date" htmlFor="as-of-date" badge={<MandatoryBadge />}>
+            <Input
+              id="as-of-date"
+              type="date"
+              className="h-10 w-44"
+              value={asOfDate}
+              onChange={(e) => setAsOfDate(e.target.value)}
+            />
+          </Field>
         }
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -208,6 +198,17 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
           </Field>
         </div>
       </SectionCard>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={submit}
+          disabled={!asOfDate || createMutation.isPending}
+          className="h-10 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+        >
+          {createMutation.isPending ? <ButtonSpinner /> : null}
+          Save Measurements
+        </Button>
+      </div>
     </div>
   );
 }

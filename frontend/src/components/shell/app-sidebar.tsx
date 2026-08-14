@@ -162,7 +162,7 @@ export function AppSidebar() {
     <aside className="w-64 shrink-0 bg-[#1a4a7a] py-6">
       <nav className="flex flex-col gap-2 px-3">
         {has("dashboard") ? (
-          <SimpleLink href="/dashboard" icon={LayoutGrid} label="Dashboard" active={isDashboard} />
+          <SimpleLink href="/dashboard" icon={LayoutGrid} label="My Summary" active={isDashboard} />
         ) : null}
         {has("admin-dashboard") ? (
           <SimpleLink
@@ -176,7 +176,7 @@ export function AppSidebar() {
           <SimpleLink
             href="/dashboard/cxo"
             icon={LayoutGrid}
-            label="CXO Dashboard"
+            label="My Summary"
             active={pathname === "/dashboard/cxo"}
           />
         ) : null}
@@ -184,7 +184,7 @@ export function AppSidebar() {
           <SimpleLink
             href="/dashboard/account-manager"
             icon={LayoutGrid}
-            label="Account Manager Dashboard"
+            label="My Summary"
             active={pathname === "/dashboard/account-manager"}
           />
         ) : null}
@@ -192,7 +192,7 @@ export function AppSidebar() {
           <SimpleLink
             href="/dashboard/geo-head"
             icon={LayoutGrid}
-            label="Geo Head Dashboard"
+            label="My Summary"
             active={pathname === "/dashboard/geo-head"}
           />
         ) : null}

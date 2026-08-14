@@ -25,7 +25,7 @@ export function StarterCards() {
   const weekId = weekOverride ?? currentWeek?.id ?? "";
   const monthId = monthOverride ?? currentMonth?.id ?? "";
 
-  const statusHref = `/project-reporting/${projectId}/project-status`;
+  const dashboardHref = `/project-reporting/${projectId}/dashboard`;
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -39,7 +39,7 @@ export function StarterCards() {
         value={weekId}
         onChange={setWeekOverride}
         cta="Start Weekly Draft"
-        href={weekId ? `${statusHref}?period=${weekId}` : statusHref}
+        href={weekId ? `${dashboardHref}?period=${weekId}` : dashboardHref}
       />
       <StarterCard
         icon={<CalendarDays className="size-6" />}
@@ -50,8 +50,8 @@ export function StarterCards() {
         currentId={currentMonth?.id}
         value={monthId}
         onChange={setMonthOverride}
-        cta="Start Monthly Audit"
-        href={monthId ? `${statusHref}?period=${monthId}` : statusHref}
+        cta="Start Monthly Draft"
+        href={monthId ? `${dashboardHref}?period=${monthId}` : dashboardHref}
       />
     </div>
   );

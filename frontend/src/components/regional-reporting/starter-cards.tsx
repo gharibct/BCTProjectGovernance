@@ -23,7 +23,10 @@ export function StarterCards({ scope, scopeId }: { scope: RegionalScope; scopeId
   const weekId = weekOverride ?? currentWeek?.id ?? "";
   const monthId = monthOverride ?? currentMonth?.id ?? "";
 
-  const statusHref = `/${scope}-reporting/${scopeId}/status`;
+  // Both Account and Geo Reporting have a Dashboard preview + submit screen
+  // (like Project Reporting's) — these starter CTAs always land there first;
+  // Status Reporting stays reachable from the nav for edits.
+  const entryHref = `/${scope}-reporting/${scopeId}/dashboard`;
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -37,7 +40,7 @@ export function StarterCards({ scope, scopeId }: { scope: RegionalScope; scopeId
         value={weekId}
         onChange={setWeekOverride}
         cta="Start Weekly Draft"
-        href={weekId ? `${statusHref}?period=${weekId}` : statusHref}
+        href={weekId ? `${entryHref}?period=${weekId}` : entryHref}
       />
       <StarterCard
         icon={<CalendarDays className="size-6" />}
@@ -49,7 +52,7 @@ export function StarterCards({ scope, scopeId }: { scope: RegionalScope; scopeId
         value={monthId}
         onChange={setMonthOverride}
         cta="Start Monthly Audit"
-        href={monthId ? `${statusHref}?period=${monthId}` : statusHref}
+        href={monthId ? `${entryHref}?period=${monthId}` : entryHref}
       />
     </div>
   );

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function RaidoPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader />
+      <ProjectHeader subheading="Project RAIDO Register" />
       <div className="mt-8">
         <RaidoTabs />
       </div>

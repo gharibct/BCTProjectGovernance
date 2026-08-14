@@ -5,7 +5,7 @@ from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
-from app.models.mixins import UUIDPrimaryKey
+from app.models.mixins import TimestampColumns, UUIDPrimaryKey
 
 
 # Account RAG Status — account-level equivalent of HealthDeclaration (see
@@ -19,6 +19,9 @@ class AccountHealthDeclaration(Base, UUIDPrimaryKey):
 
     # Rating values (all *_rating columns): Red, Potential Red, Amber, Green.
     core_delivery_rating: Mapped[str]
+    # Deprecated — superseded by AccountHealthItem's per-category grids
+    # below. Left in place (unused going forward) rather than dropped, to
+    # avoid destructive schema changes against a live shared dev database.
     core_delivery_description: Mapped[str | None]
     people_rating: Mapped[str]
     people_description: Mapped[str | None]
@@ -35,3 +38,16 @@ class AccountHealthDeclaration(Base, UUIDPrimaryKey):
 
     declared_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+# One row per line item in an Account RAG Status grid (see
+# db/tables/41_health_items.sql) — mirrors ProjectHealthItem
+# (models/health_declarations.py), minus the rollup columns since there is
+# no further Account -> Geo rollup for RAG Status notes.
+class AccountHealthItem(Base, UUIDPrimaryKey, TimestampColumns):
+    __tablename__ = "account_health_items"
+
+    account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
+    category: Mapped[str]  # Category
+    description: Mapped[str]

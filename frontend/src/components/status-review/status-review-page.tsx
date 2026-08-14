@@ -6,7 +6,6 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { ChevronRight } from "lucide-react";
 
 import { NativeSelect } from "@/components/ui/native-select";
-import { StatusBadge } from "@/components/forms/status-badge";
 import { useProjects } from "@/lib/api/projects";
 import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-data";
 import { useReviewStatusReports, type ReviewScope } from "@/lib/api/status-review";
@@ -14,6 +13,7 @@ import { GeoAccountMatrixSection } from "./geo-account-matrix-section";
 import { OverviewSection } from "./overview-section";
 import { RagStatusSection } from "./rag-status-section";
 import { ReviewActions } from "./review-actions";
+import { ExecutiveUpdateSection } from "@/components/regional-reporting/executive-update-section";
 
 const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
   project: "Project Review",
@@ -70,22 +70,28 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
             </>
           ) : null}
         </nav>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900">{name}</h1>
-            {report ? <StatusBadge value={report.status} size="lg" /> : null}
-          </div>
+        <div className="mt-4 flex items-center gap-4">
+          <h1 className="min-w-0 flex-1 truncate text-4xl font-bold tracking-tight text-slate-900">
+            {period ? `${name} - ${period.period_type} Report` : name}
+          </h1>
           {reports.length > 0 ? (
-            <NativeSelect value={periodId ?? ""} onChange={onPeriodChange} className="w-56">
-              {reports.map((r) => {
-                const p = periods.find((pd) => pd.id === r.period_id);
-                return (
-                  <option key={r.id} value={r.period_id}>
-                    {p?.label ?? r.period_id} — {r.status}
-                  </option>
-                );
-              })}
-            </NativeSelect>
+            <div className="w-64 shrink-0">
+              <NativeSelect
+                value={periodId ?? ""}
+                onChange={onPeriodChange}
+                chevronClassName="text-[#1a6fc4]"
+                className="h-11 rounded-full border-2 border-[#1a6fc4] bg-blue-50 pl-4 pr-10 text-sm font-bold text-[#15406b] shadow-sm transition-colors hover:bg-blue-100"
+              >
+                {reports.map((r) => {
+                  const p = periods.find((pd) => pd.id === r.period_id);
+                  return (
+                    <option key={r.id} value={r.period_id}>
+                      {p?.label ?? r.period_id} — {r.status}
+                    </option>
+                  );
+                })}
+              </NativeSelect>
+            </div>
           ) : null}
         </div>
       </div>
@@ -96,11 +102,17 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
         </p>
       ) : (
         <>
-          <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
           {scope === "geo" ? (
-            <GeoAccountMatrixSection geoId={scopeId} />
+            <>
+              <GeoAccountMatrixSection geoId={scopeId} accented />
+              <ExecutiveUpdateSection geoId={scopeId} periodId={periodId} />
+              <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
+            </>
           ) : (
-            <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
+            <>
+              <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
+              <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
+            </>
           )}
           <ReviewActions scope={scope} scopeId={scopeId} report={report} />
         </>

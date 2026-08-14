@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function DeAssessmentPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader hidePeriod />
+      <ProjectHeader subheading="DE Assessment" />
       <div className="mt-8">
         <DeAssessmentForm />
       </div>

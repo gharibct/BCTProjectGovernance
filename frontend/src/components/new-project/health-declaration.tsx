@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { HeartPulse } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useProject } from "@/lib/api/projects";
@@ -16,8 +16,9 @@ import {
   type HealthDeclaration as ApiHealthDeclaration,
   type HealthRating as ApiHealthRating,
 } from "@/lib/api/health-declarations";
+import { HEALTH_CATEGORIES } from "@/lib/health-categories";
+import { HealthItemsTab } from "@/components/project-charter/health-items-tab";
 
-import { SectionCard } from "@/components/forms/form-primitives";
 import { AiFieldBadge } from "@/components/ai/ai-field-badge";
 import { useAiFieldBinding } from "@/components/ai/use-ai-field-binding";
 
@@ -142,43 +143,34 @@ const DEFAULT_RATINGS: Record<CategoryKey, HealthRating> = {
   compliance: "green",
 };
 
-const EMPTY_DESCRIPTIONS: Record<CategoryKey, string> = {
-  "core-delivery": "",
-  people: "",
-  operational: "",
-  customer: "",
-  financial: "",
-  compliance: "",
-};
-
 function fromDeclaration(declaration: ApiHealthDeclaration) {
   const ratings = {} as Record<CategoryKey, HealthRating>;
-  const descriptions = {} as Record<CategoryKey, string>;
   for (const category of CATEGORIES) {
     ratings[category.key] = RATING_FROM_API[declaration[category.ratingField]];
-    descriptions[category.key] = declaration[category.descriptionField] ?? "";
   }
-  return { ratings, descriptions };
+  return { ratings };
 }
 
 // AI suggestion field_keys use the API's flat, snake_case names
-// (core_delivery_rating, core_delivery_description, ...) — matching
-// HealthDeclarationCreate's payload shape, same convention as ProjectPayload's
-// keys elsewhere. `ratings`/`descriptions` below are UI-shaped (kebab-case
-// CategoryKey, UI-cased HealthRating) for the picker/pill components, so
-// this is a thin adapter view over that same state, purely for
-// useAiFieldBinding's benefit — rating values round-trip through
-// RATING_TO_API/RATING_FROM_API same as the submit payload does.
-type HealthAiValues = Record<
-  (typeof CATEGORIES)[number]["ratingField"] | (typeof CATEGORIES)[number]["descriptionField"],
-  string
->;
+// (core_delivery_rating, ...) — matching HealthDeclarationCreate's payload
+// shape, same convention as ProjectPayload's keys elsewhere. `ratings`
+// below is UI-shaped (kebab-case CategoryKey, UI-cased HealthRating) for
+// the picker component, so this is a thin adapter view over that same
+// state, purely for useAiFieldBinding's benefit — rating values round-trip
+// through RATING_TO_API/RATING_FROM_API same as the submit payload does.
+// Descriptions are no longer part of this binding — a category's RAG notes
+// are now a multi-row register (HealthItemsTab), and an AI suggestion can't
+// cleanly target one row of a list, so that field's AI wiring was dropped
+// (the rating picker's AI badge below is unaffected).
+type HealthAiValues = Record<(typeof CATEGORIES)[number]["ratingField"], string>;
 
 // Owns all state + the submit mutation; the SelfAssessmentForm action bar
 // (in charter-form.tsx) calls `submit` from the same hook instance so the
 // Submit button acts on the values rendered here.
 export function useHealthDeclarationForm() {
   const projectId = useNewProjectId();
+  const router = useRouter();
+  const pathname = usePathname();
   const { data: project } = useProject(projectId);
   const { data: declarations } = useHealthDeclarations(projectId);
   const createDeclaration = useCreateHealthDeclaration(projectId);
@@ -186,15 +178,22 @@ export function useHealthDeclarationForm() {
 
   // The wizard's initial declaration isn't tied to a real calendar period —
   // it references the sentinel "Baseline" reporting_periods row (see
-  // 04_health_declarations.sql) instead, so there's no period to pick here.
+  // 04_health_declarations.sql) instead, so there's no period picker here.
   // The recurring monthly review lives on the Project Charter's Self
   // Assessment tab (project-charter/health-declaration.tsx), which does
-  // show a Reporting Month picker.
+  // show a Reporting Month picker. HealthItemsTab (shared with that screen)
+  // reads its period from ?period= in the URL, so once the baseline id
+  // resolves it's synced into the URL here rather than passed as a prop.
   const periodId = useBaselinePeriodId() ?? "";
   const existing = declarations?.find((d) => d.period_id === periodId);
 
+  React.useEffect(() => {
+    if (periodId) {
+      router.replace(`${pathname}?period=${periodId}`, { scroll: false });
+    }
+  }, [periodId, pathname, router]);
+
   const [ratings, setRatings] = React.useState<Record<CategoryKey, HealthRating>>(DEFAULT_RATINGS);
-  const [descriptions, setDescriptions] = React.useState<Record<CategoryKey, string>>(EMPTY_DESCRIPTIONS);
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
 
   const key = existing ? existing.id : `blank:${periodId}`;
@@ -203,32 +202,23 @@ export function useHealthDeclarationForm() {
     if (existing) {
       const seeded = fromDeclaration(existing);
       setRatings(seeded.ratings);
-      setDescriptions(seeded.descriptions);
     } else {
       setRatings(DEFAULT_RATINGS);
-      setDescriptions(EMPTY_DESCRIPTIONS);
     }
   }
 
   const setRating = (categoryKey: CategoryKey, value: HealthRating) =>
     setRatings((prev) => ({ ...prev, [categoryKey]: value }));
-  const setDescription = (categoryKey: CategoryKey, value: string) =>
-    setDescriptions((prev) => ({ ...prev, [categoryKey]: value }));
 
   const aiValues = {} as HealthAiValues;
   for (const category of CATEGORIES) {
     aiValues[category.ratingField] = RATING_TO_API[ratings[category.key]];
-    aiValues[category.descriptionField] = descriptions[category.key];
   }
   function setAiValue<K extends keyof HealthAiValues>(fieldKey: K) {
     return (value: HealthAiValues[K]) => {
-      const category = CATEGORIES.find((c) => c.ratingField === fieldKey || c.descriptionField === fieldKey);
+      const category = CATEGORIES.find((c) => c.ratingField === fieldKey);
       if (!category) return;
-      if (category.ratingField === fieldKey) {
-        setRating(category.key, RATING_FROM_API[value as ApiHealthRating]);
-      } else {
-        setDescription(category.key, value);
-      }
+      setRating(category.key, RATING_FROM_API[value as ApiHealthRating]);
     };
   }
   const { ai, fieldAi, setAndClear } = useAiFieldBinding(
@@ -251,17 +241,11 @@ export function useHealthDeclarationForm() {
     if (!projectId || !periodId) return;
     const fields = {
       core_delivery_rating: RATING_TO_API[ratings["core-delivery"]],
-      core_delivery_description: descriptions["core-delivery"] || undefined,
       people_rating: RATING_TO_API[ratings.people],
-      people_description: descriptions.people || undefined,
       operational_rating: RATING_TO_API[ratings.operational],
-      operational_description: descriptions.operational || undefined,
       customer_rating: RATING_TO_API[ratings.customer],
-      customer_description: descriptions.customer || undefined,
       financial_rating: RATING_TO_API[ratings.financial],
-      financial_description: descriptions.financial || undefined,
       compliance_rating: RATING_TO_API[ratings.compliance],
-      compliance_description: descriptions.compliance || undefined,
     };
     const onSuccess = () => {
       ai.resolveAll();
@@ -282,8 +266,6 @@ export function useHealthDeclarationForm() {
     periodId: periodId || null,
     ratings,
     setRating,
-    descriptions,
-    setDescription,
     declaredOverall,
     deAssessedHealth,
     overall,
@@ -354,7 +336,11 @@ export function HealthDeclaration({
 }: {
   form: ReturnType<typeof useHealthDeclarationForm>;
 }) {
-  const { ratings, descriptions } = form;
+  const { ratings } = form;
+  const [tab, setTab] = React.useState<(typeof HEALTH_CATEGORIES)[number]["label"]>(HEALTH_CATEGORIES[0].label);
+  const activeTab = HEALTH_CATEGORIES.find((t) => t.label === tab)!;
+  const activeCategory = CATEGORIES.find((c) => c.name === activeTab.category)!;
+  const ratingAi = form.fieldAi(activeCategory.ratingField);
 
   if (!form.projectId) {
     return (
@@ -366,52 +352,49 @@ export function HealthDeclaration({
 
   return (
     <div className="flex flex-col gap-8">
-      <SectionCard icon={HeartPulse} title="Delivery Declared Project Health">
-        <div className="flex flex-col divide-y divide-slate-100">
-          {CATEGORIES.map((category) => {
-            const ratingAi = form.fieldAi(category.ratingField);
-            const descriptionAi = form.fieldAi(category.descriptionField);
-            return (
-              <div
-                key={category.key}
-                className="grid grid-cols-1 items-center gap-4 py-5 first:pt-0 last:pb-0 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,20rem)]"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-slate-800">
-                    {category.name}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-slate-400">
-                    {category.covers}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {ratingAi ? (
-                    <AiFieldBadge suggestion={ratingAi.suggestion} onRevert={ratingAi.onRevert} />
-                  ) : null}
-                  <HealthPicker
-                    value={ratings[category.key]}
-                    onChange={(value) =>
-                      form.setAndClear(category.ratingField)(RATING_TO_API[value])
-                    }
-                  />
-                </div>
-                <div className="flex min-w-0 items-center gap-2">
-                  {descriptionAi ? (
-                    <AiFieldBadge suggestion={descriptionAi.suggestion} onRevert={descriptionAi.onRevert} />
-                  ) : null}
-                  <Input
-                    aria-label={`${category.name} health description`}
-                    placeholder="Short description…"
-                    className="h-10 min-w-0 flex-1"
-                    value={descriptions[category.key]}
-                    onChange={(e) => form.setAndClear(category.descriptionField)(e.target.value)}
-                  />
-                </div>
-              </div>
-            );
-          })}
+      <div>
+        <div className="flex items-center gap-3 pb-4 text-lg font-bold text-slate-900">
+          <HeartPulse className="size-5 text-slate-700" />
+          Delivery Declared Project Health
         </div>
-      </SectionCard>
+        <div role="tablist" className="flex gap-8 border-b border-slate-200">
+          {HEALTH_CATEGORIES.map((t) => (
+            <button
+              key={t.label}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.label}
+              onClick={() => setTab(t.label)}
+              className={cn(
+                "-mb-px border-b-2 pb-3 text-sm font-semibold whitespace-nowrap transition-colors",
+                tab === t.label
+                  ? "border-[#1a4a7a] text-[#1a4a7a]"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-800">{activeCategory.name}</p>
+            <p className="mt-0.5 text-xs text-slate-400">{activeCategory.covers}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {ratingAi ? <AiFieldBadge suggestion={ratingAi.suggestion} onRevert={ratingAi.onRevert} /> : null}
+            <HealthPicker
+              value={ratings[activeCategory.key]}
+              onChange={(value) => form.setAndClear(activeCategory.ratingField)(RATING_TO_API[value])}
+            />
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <HealthItemsTab category={activeTab.category} title={activeTab.label} icon={activeTab.icon} />
+        </div>
+      </div>
     </div>
   );
 }
