@@ -25,6 +25,12 @@ export type AiSuggestion = {
   created_at: string;
 };
 
+// Session-scoped by design: `enabled: false` means this never auto-fetches
+// on mount, no matter what's still `pending` server-side from an old,
+// abandoned session that clicked "Apply AI Results" and never saved. The
+// only writers of this query's cache are the mutations below (seed/ignore/
+// resolve) — a fresh mount always starts clean until the user explicitly
+// asks for suggestions again this visit (see use-ai-review.ts).
 export function useAiSuggestions(projectId: string | null, screen: string, periodId: string | null) {
   return useQuery({
     queryKey: ["ai-suggestions", projectId, screen, periodId],
@@ -32,7 +38,7 @@ export function useAiSuggestions(projectId: string | null, screen: string, perio
       api.get<AiSuggestion[]>(
         `/projects/${projectId}/ai-suggestions?screen=${encodeURIComponent(screen)}&period_id=${encodeURIComponent(periodId!)}`
       ),
-    enabled: !!projectId && !!periodId,
+    enabled: false,
   });
 }
 
@@ -41,8 +47,10 @@ export function useIgnoreAiSuggestion(projectId: string | null, screen: string, 
   return useMutation({
     mutationFn: (suggestionId: string) =>
       api.post<AiSuggestion>(`/projects/${projectId}/ai-suggestions/${suggestionId}/ignore`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ai-suggestions", projectId, screen, periodId] });
+    onSuccess: (_data, suggestionId) => {
+      queryClient.setQueryData<AiSuggestion[]>(["ai-suggestions", projectId, screen, periodId], (old) =>
+        (old ?? []).filter((s) => s.id !== suggestionId)
+      );
     },
   });
 }
@@ -57,7 +65,7 @@ export function useResolveAiSuggestions(projectId: string | null, screen: string
         `/projects/${projectId}/ai-suggestions/resolve?screen=${encodeURIComponent(screen)}&period_id=${encodeURIComponent(periodId!)}`
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ai-suggestions", projectId, screen, periodId] });
+      queryClient.setQueryData(["ai-suggestions", projectId, screen, periodId], []);
     },
   });
 }

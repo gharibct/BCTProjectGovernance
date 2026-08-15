@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { usePageBanner } from "@/stores/page-banner";
 import { useAccounts, useGeos, type Account } from "@/lib/api/reference-data";
-import { useCreateAccount, useDeleteAccount, useUpdateAccount } from "@/lib/api/accounts";
+import { useCreateAccount, useDeleteAccount, useUpdateAccount, type AccountPayload } from "@/lib/api/accounts";
 
 function toValues(account: Account): Record<string, string> {
   return {
@@ -17,6 +18,15 @@ function toValues(account: Account): Record<string, string> {
     geo_id: account.geo_id ?? "",
     description: account.description ?? "",
     is_active: account.is_active ? "Yes" : "No",
+  };
+}
+
+function buildAccountPayload(values: Record<string, string>): AccountPayload {
+  return {
+    name: values.name,
+    geo_id: values.geo_id || undefined,
+    description: values.description || undefined,
+    is_active: values.is_active !== "No",
   };
 }
 
@@ -73,12 +83,7 @@ export function CreateAccountPanel() {
 
   async function submit() {
     if (!values.name?.trim()) return;
-    const payload = {
-      name: values.name,
-      geo_id: values.geo_id || undefined,
-      description: values.description || undefined,
-      is_active: values.is_active !== "No",
-    };
+    const payload = buildAccountPayload(values);
 
     try {
       if (editingId) {
@@ -100,6 +105,12 @@ export function CreateAccountPanel() {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={Building2} title="Account Directory">
+        <RegisterImportToolbar
+          defs={fields}
+          itemLabelPlural="Accounts"
+          buildPayload={buildAccountPayload}
+          createMutation={createAccount}
+        />
         <RegisterTable
           items={accounts}
           emptyLabel="No accounts yet."

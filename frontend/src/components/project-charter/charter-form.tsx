@@ -27,6 +27,7 @@ import {
 } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   useAccounts,
@@ -358,6 +359,14 @@ function toValues(item: ProjectResource): Record<string, string> {
   };
 }
 
+function buildResourcePayload(values: Record<string, string>): ProjectResourcePayload {
+  return {
+    resource_name: values.resource_name,
+    role: values.role,
+    fte_allocation: values.fte_allocation || "0",
+  };
+}
+
 function ResourceAllocationTab() {
   const { projectId } = useParams<{ projectId: string }>();
   const { data: resources = [] } = useProjectResources(projectId);
@@ -393,11 +402,7 @@ function ResourceAllocationTab() {
 
   const submit = () => {
     if (!values.resource_name?.trim() || !values.role?.trim()) return;
-    const payload: ProjectResourcePayload = {
-      resource_name: values.resource_name,
-      role: values.role,
-      fte_allocation: values.fte_allocation || "0",
-    };
+    const payload = buildResourcePayload(values);
 
     if (editingId) {
       updateResource.mutate(
@@ -471,6 +476,12 @@ function ResourceAllocationTab() {
           </div>
         }
       >
+        <RegisterImportToolbar
+          defs={RESOURCE_FIELDS}
+          itemLabelPlural="Resources"
+          buildPayload={buildResourcePayload}
+          createMutation={createResource}
+        />
         <RegisterTable
           items={resources}
           emptyLabel="No resources allocated yet."

@@ -12,6 +12,7 @@ import {
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { Button } from "@/components/ui/button";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import {
@@ -167,6 +168,12 @@ export function CommitmentsTab() {
         title="Commitments Register"
         aside={<AutoBadge label={`${items.length} logged`} />}
       >
+        <RegisterImportToolbar
+          defs={COMMITMENT_FIELDS}
+          itemLabelPlural="Commitments"
+          buildPayload={buildCommitmentPayload}
+          createMutation={createCommitment}
+        />
         <RegisterTable
           items={items}
           emptyLabel="No commitments defined yet."

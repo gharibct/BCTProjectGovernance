@@ -1,11 +1,14 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { ClipboardPaste, Plus, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BlockActions } from "../block-actions";
 import type { TableBlock } from "../types";
+import { ClipboardPermissionError, readClipboardTableSource } from "@/lib/clipboard-api";
+import { parseClipboardTable } from "@/lib/clipboard-table-parse";
 
 // Deliberately plain controlled <input> cells (not contentEditable) for
 // predictable state, and no grid library — this is a small KPI/summary
@@ -55,13 +58,57 @@ export function TableBlockEditor({
     });
   };
 
+  // Replaces the whole table with a pasted Excel range. Only hijacks the
+  // paste when multiple cells are involved — a single pasted value falls
+  // through to the focused cell's normal single-value paste, so pasting one
+  // number into one cell never wipes out the rest of the table.
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!e.clipboardData) return;
+    const html = e.clipboardData.getData("text/html") || undefined;
+    const text = e.clipboardData.getData("text/plain") || undefined;
+    const parsed = parseClipboardTable(html, text);
+    if (!parsed) return;
+
+    if (parsed.columns.length <= 1 && parsed.rows.length <= 1 && (parsed.rows[0]?.length ?? 0) <= 1) return;
+
+    e.preventDefault();
+    onChange({ columns: parsed.columns, rows: parsed.rows });
+    if (parsed.hadMergedCells) {
+      toast.info("Merged cells were converted to standard table cells.");
+    }
+  };
+
+  // Explicit button click, not a paste landing on a focused cell — always
+  // applies the full parsed result (no single-cell fall-through to guard).
+  const handlePasteClick = async () => {
+    try {
+      const source = await readClipboardTableSource();
+      const parsed = source ? parseClipboardTable(source.html, source.text) : null;
+      if (!parsed) {
+        toast.info("No table data found on clipboard.");
+        return;
+      }
+      onChange({ columns: parsed.columns, rows: parsed.rows });
+      if (parsed.hadMergedCells) {
+        toast.info("Merged cells were converted to standard table cells.");
+      }
+    } catch (err) {
+      if (err instanceof ClipboardPermissionError) {
+        toast.error("Clipboard access was blocked — press Ctrl+V instead.");
+      } else {
+        console.error("Paste Table failed:", err);
+        toast.error("Couldn't read the clipboard — try Ctrl+V instead.");
+      }
+    }
+  };
+
   return (
     <div className="rounded-lg border border-slate-200 bg-white">
       <div className="flex items-center justify-end border-b border-slate-100 bg-slate-50 px-1.5 py-1">
         <BlockActions {...actions} />
       </div>
 
-      <div className="overflow-x-auto p-4">
+      <div className="overflow-x-auto p-4" onPaste={handlePaste}>
         <table className="w-full border-separate border-spacing-1 text-sm">
           <thead>
             <tr>
@@ -128,6 +175,10 @@ export function TableBlockEditor({
           <Button type="button" variant="outline" size="sm" onClick={addColumn}>
             <Plus className="size-3.5" />
             Add Column
+          </Button>
+          <Button type="button" variant="default" size="sm" onClick={handlePasteClick}>
+            <ClipboardPaste className="size-3.5" />
+            Paste Table
           </Button>
         </div>
       </div>

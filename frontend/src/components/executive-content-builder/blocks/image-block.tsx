@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { ImagePlus, Loader2, Repeat } from "lucide-react";
+import { ClipboardPaste, ImagePlus, Loader2, Repeat } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BlockActions } from "../block-actions";
 import type { ImageBlock } from "../types";
+import { ClipboardPermissionError, readClipboardImageFile } from "@/lib/clipboard-api";
 
 // Resolves `block.imageUrl` into something an <img> can actually render.
 // With no `resolveImageUrl` prop, `imageUrl` is used as-is (covers the
@@ -90,10 +92,57 @@ export function ImageBlockEditor({
     }
   };
 
+  // Covers both OS screenshots/"Copy Image" (arrive via .items with
+  // kind: "file", often before .files is populated) and copied image files
+  // (arrive via .files).
+  const extractImageFile = (clipboardData: DataTransfer): File | null => {
+    for (let i = 0; i < clipboardData.items.length; i++) {
+      const item = clipboardData.items[i];
+      if (item.kind === "file" && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) return file;
+      }
+    }
+    for (let i = 0; i < clipboardData.files.length; i++) {
+      if (clipboardData.files[i].type.startsWith("image/")) return clipboardData.files[i];
+    }
+    return null;
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!e.clipboardData) return;
+    const file = extractImageFile(e.clipboardData);
+    if (!file) return; // no image on clipboard — silent no-op
+    e.preventDefault();
+    void handleFile(file);
+  };
+
+  const handlePasteClick = async () => {
+    try {
+      const file = await readClipboardImageFile();
+      if (!file) {
+        toast.info("No image found on clipboard.");
+        return;
+      }
+      await handleFile(file);
+    } catch (err) {
+      if (err instanceof ClipboardPermissionError) {
+        toast.error("Clipboard access was blocked — press Ctrl+V instead.");
+      } else {
+        console.error("Paste Image failed:", err);
+        toast.error("Couldn't read the clipboard — try Ctrl+V instead.");
+      }
+    }
+  };
+
   const busy = uploading || resolving;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white">
+    <div
+      tabIndex={0}
+      onPaste={handlePaste}
+      className="rounded-lg border border-slate-200 bg-white outline-none focus-visible:ring-2 focus-visible:ring-[#1a6fc4]"
+    >
       <div className="flex items-center justify-end border-b border-slate-100 bg-slate-50 px-1.5 py-1">
         <BlockActions {...actions} />
       </div>
@@ -141,6 +190,10 @@ export function ImageBlockEditor({
               >
                 Delete
               </Button>
+              <Button type="button" variant="default" size="sm" disabled={busy} onClick={handlePasteClick}>
+                <ClipboardPaste className="size-3.5" />
+                Paste
+              </Button>
             </div>
             <Input
               placeholder="Caption (optional)"
@@ -149,21 +202,31 @@ export function ImageBlockEditor({
             />
           </div>
         ) : (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => inputRef.current?.click()}
-            className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center transition-colors hover:border-[#1a6fc4] hover:bg-blue-50/40 disabled:pointer-events-none disabled:opacity-50"
-          >
+          <div className="flex w-full flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center">
             {busy ? (
               <Loader2 className="size-6 animate-spin text-slate-400" />
             ) : (
               <ImagePlus className="size-6 text-slate-400" />
             )}
             <span className="text-sm font-semibold text-slate-600">
-              {busy ? "Uploading…" : "Click to upload an image"}
+              {busy ? "Uploading…" : "Upload an image or paste one from your clipboard"}
             </span>
-          </button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+              >
+                Upload
+              </Button>
+              <Button type="button" variant="default" size="sm" disabled={busy} onClick={handlePasteClick}>
+                <ClipboardPaste className="size-3.5" />
+                Paste Image
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </div>

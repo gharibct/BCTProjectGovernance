@@ -7,6 +7,7 @@ import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-p
 import { usePageBanner } from "@/stores/page-banner";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { Button } from "@/components/ui/button";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import {
@@ -112,6 +113,12 @@ export function AlertRegisterTab({
       />
 
       <SectionCard icon={Siren} title="Alert Register" aside={<AutoBadge label={`${items.length} logged`} />}>
+        <RegisterImportToolbar
+          defs={ALERT_FIELDS}
+          itemLabelPlural="Alerts"
+          buildPayload={buildAlertPayload}
+          createMutation={createAlert}
+        />
         <RegisterTable
           items={items}
           emptyLabel="No alerts raised yet."

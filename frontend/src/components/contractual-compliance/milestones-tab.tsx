@@ -12,6 +12,7 @@ import {
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { Button } from "@/components/ui/button";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import {
@@ -144,6 +145,12 @@ export function MilestonesTab() {
         title="Milestones Register"
         aside={<AutoBadge label={`${items.length} logged`} />}
       >
+        <RegisterImportToolbar
+          defs={MILESTONE_FIELDS}
+          itemLabelPlural="Milestones"
+          buildPayload={buildMilestonePayload}
+          createMutation={createMilestone}
+        />
         <RegisterTable
           items={items}
           emptyLabel="No milestones defined yet."

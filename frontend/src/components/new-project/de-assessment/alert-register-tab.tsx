@@ -7,12 +7,22 @@ import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-p
 import { usePageBanner } from "@/stores/page-banner";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { Button } from "@/components/ui/button";
 import {
   useCreateDEAssessmentAlert,
   type DEAssessment,
   type DEAssessmentAlertPayload,
 } from "@/lib/api/de-assessment";
+
+function buildAlertPayload(values: Record<string, string>): DEAssessmentAlertPayload {
+  return {
+    alert_category: values.alert_category || undefined,
+    brief_description: values.brief_description,
+    detailed_description: values.detailed_description || undefined,
+    raised_on: values.raised_on || undefined,
+  };
+}
 
 // Category enum shared with Risk Category (see backend Category StrEnum).
 const ALERT_CATEGORIES = [
@@ -64,12 +74,7 @@ export function AlertRegisterTab({
       return;
     }
     setDescriptionError(null);
-    const payload: DEAssessmentAlertPayload = {
-      alert_category: values.alert_category || undefined,
-      brief_description: values.brief_description,
-      detailed_description: values.detailed_description || undefined,
-      raised_on: values.raised_on || undefined,
-    };
+    const payload = buildAlertPayload(values);
     createAlert.mutate(payload, {
       onSuccess: () => {
         reset();
@@ -92,6 +97,12 @@ export function AlertRegisterTab({
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={Siren} title="Alert Register" aside={<AutoBadge label={`${items.length} logged`} />}>
+        <RegisterImportToolbar
+          defs={ALERT_FIELDS}
+          itemLabelPlural="Alerts"
+          buildPayload={buildAlertPayload}
+          createMutation={createAlert}
+        />
         <RegisterTable
           items={items}
           emptyLabel="No alerts raised yet."

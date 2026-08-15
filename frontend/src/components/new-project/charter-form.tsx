@@ -178,223 +178,227 @@ function ProjectDescriptionTab({
         </div>
       </SectionCard>
 
-      <SectionCard icon={Info} title="Project Details">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Contract Type" htmlFor="contract-type" ai={fieldAi("contract_type")}>
-            <NativeSelect
-              id="contract-type"
-              value={values.contract_type ?? ""}
-              onChange={(e) =>
-                setAndClear("contract_type")(e.target.value as ProjectPayload["contract_type"])
-              }
-              disabled={locked}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {CONTRACT_TYPES.map((type) => (
-                <option key={type}>{type}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field label="Project Type" htmlFor="project-type" ai={fieldAi("project_type_id")}>
-            <NativeSelect
-              id="project-type"
-              value={values.project_type_id ?? ""}
-              onChange={(e) => setAndClear("project_type_id")(e.target.value)}
-              disabled={locked}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {(projectTypes ?? []).map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
+      {projectId ? (
+        <>
+        <SectionCard icon={Info} title="Project Details">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+            <Field label="Contract Type" htmlFor="contract-type" ai={fieldAi("contract_type")}>
+              <NativeSelect
+                id="contract-type"
+                value={values.contract_type ?? ""}
+                onChange={(e) =>
+                  setAndClear("contract_type")(e.target.value as ProjectPayload["contract_type"])
+                }
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
                 </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field label="Engagement Type" ai={fieldAi("engagement_type")}>
-            <Segmented
-              options={[
-                { value: "Implementation", label: "Implementation" },
-                { value: "Support", label: "Support" },
-              ]}
-              value={values.engagement_type ?? "Implementation"}
-              onChange={(v) => setAndClear("engagement_type")(v as ProjectPayload["engagement_type"])}
-              activeClassName={segmentedActiveClass}
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Project Owned" htmlFor="project-owned" ai={fieldAi("project_owned")}>
-            <NativeSelect
-              id="project-owned"
-              value={values.project_owned ?? ""}
-              onChange={(e) =>
-                setAndClear("project_owned")(e.target.value as ProjectPayload["project_owned"])
-              }
-              disabled={locked}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {PROJECT_OWNED_OPTIONS.map((owned) => (
-                <option key={owned}>{owned}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field label="Organization" ai={fieldAi("organization_id")}>
-            <Segmented
-              options={(organizations ?? []).map((org) => ({ value: org.id, label: org.code }))}
-              value={values.organization_id ?? ""}
-              onChange={(v) => setAndClear("organization_id")(v)}
-              activeClassName={segmentedActiveClass}
-              disabled={locked}
-            />
-          </Field>
-          <Field label="GEO" ai={fieldAi("geo_id")}>
-            <Segmented
-              options={(geos ?? []).map((geo) => ({ value: geo.id, label: geo.code }))}
-              value={values.geo_id ?? ""}
-              onChange={(v) => setAndClear("geo_id")(v)}
-              activeClassName={segmentedActiveClass}
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Account Name" htmlFor="account-name" ai={fieldAi("account_id")}>
-            <NativeSelect
-              id="account-name"
-              value={values.account_id ?? ""}
-              onChange={(e) => setAndClear("account_id")(e.target.value)}
-              disabled={locked}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {(accounts ?? []).map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
+                {CONTRACT_TYPES.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label="Project Type" htmlFor="project-type" ai={fieldAi("project_type_id")}>
+              <NativeSelect
+                id="project-type"
+                value={values.project_type_id ?? ""}
+                onChange={(e) => setAndClear("project_type_id")(e.target.value)}
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
                 </option>
-              ))}
-            </NativeSelect>
-          </Field>
-        </div>
-      </SectionCard>
+                {(projectTypes ?? []).map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label="Engagement Type" ai={fieldAi("engagement_type")}>
+              <Segmented
+                options={[
+                  { value: "Implementation", label: "Implementation" },
+                  { value: "Support", label: "Support" },
+                ]}
+                value={values.engagement_type ?? "Implementation"}
+                onChange={(v) => setAndClear("engagement_type")(v as ProjectPayload["engagement_type"])}
+                activeClassName={segmentedActiveClass}
+                disabled={locked}
+              />
+            </Field>
+            <Field label="Project Owned" htmlFor="project-owned" ai={fieldAi("project_owned")}>
+              <NativeSelect
+                id="project-owned"
+                value={values.project_owned ?? ""}
+                onChange={(e) =>
+                  setAndClear("project_owned")(e.target.value as ProjectPayload["project_owned"])
+                }
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
+                </option>
+                {PROJECT_OWNED_OPTIONS.map((owned) => (
+                  <option key={owned}>{owned}</option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label="Organization" ai={fieldAi("organization_id")}>
+              <Segmented
+                options={(organizations ?? []).map((org) => ({ value: org.id, label: org.code }))}
+                value={values.organization_id ?? ""}
+                onChange={(v) => setAndClear("organization_id")(v)}
+                activeClassName={segmentedActiveClass}
+                disabled={locked}
+              />
+            </Field>
+            <Field label="GEO" ai={fieldAi("geo_id")}>
+              <Segmented
+                options={(geos ?? []).map((geo) => ({ value: geo.id, label: geo.code }))}
+                value={values.geo_id ?? ""}
+                onChange={(v) => setAndClear("geo_id")(v)}
+                activeClassName={segmentedActiveClass}
+                disabled={locked}
+              />
+            </Field>
+            <Field label="Account Name" htmlFor="account-name" ai={fieldAi("account_id")}>
+              <NativeSelect
+                id="account-name"
+                value={values.account_id ?? ""}
+                onChange={(e) => setAndClear("account_id")(e.target.value)}
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
+                </option>
+                {(accounts ?? []).map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          </div>
+        </SectionCard>
 
-      <SectionCard icon={UserRound} title="Delivery Team">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
-          <Field label="Project Manager" htmlFor="project-manager" ai={fieldAi("project_manager_id")}>
-            <NativeSelect
-              id="project-manager"
-              value={values.project_manager_id ?? ""}
-              onChange={(e) => setAndClear("project_manager_id")(e.target.value)}
-              disabled={locked}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {(users ?? []).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name}
+        <SectionCard icon={UserRound} title="Delivery Team">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
+            <Field label="Project Manager" htmlFor="project-manager" ai={fieldAi("project_manager_id")}>
+              <NativeSelect
+                id="project-manager"
+                value={values.project_manager_id ?? ""}
+                onChange={(e) => setAndClear("project_manager_id")(e.target.value)}
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
                 </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field
-            label="Delivery Manager"
-            htmlFor="delivery-manager"
-            ai={fieldAi("delivery_manager_id")}
-          >
-            <NativeSelect
-              id="delivery-manager"
-              value={values.delivery_manager_id ?? ""}
-              onChange={(e) => setAndClear("delivery_manager_id")(e.target.value)}
-              disabled={locked}
+                {(users ?? []).map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field
+              label="Delivery Manager"
+              htmlFor="delivery-manager"
+              ai={fieldAi("delivery_manager_id")}
             >
-              <option value="" disabled>
-                Select…
-              </option>
-              {(users ?? []).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name}
+              <NativeSelect
+                id="delivery-manager"
+                value={values.delivery_manager_id ?? ""}
+                onChange={(e) => setAndClear("delivery_manager_id")(e.target.value)}
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
                 </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field
-            label="Delivery Excellence"
-            htmlFor="delivery-excellence"
-            ai={fieldAi("delivery_excellence_id")}
-          >
-            <NativeSelect
-              id="delivery-excellence"
-              value={values.delivery_excellence_id ?? ""}
-              onChange={(e) => setAndClear("delivery_excellence_id")(e.target.value)}
-              disabled={locked}
+                {(users ?? []).map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field
+              label="Delivery Excellence"
+              htmlFor="delivery-excellence"
+              ai={fieldAi("delivery_excellence_id")}
             >
-              <option value="" disabled>
-                Select…
-              </option>
-              {(users ?? []).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name}
+              <NativeSelect
+                id="delivery-excellence"
+                value={values.delivery_excellence_id ?? ""}
+                onChange={(e) => setAndClear("delivery_excellence_id")(e.target.value)}
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
                 </option>
-              ))}
-            </NativeSelect>
-          </Field>
-        </div>
-      </SectionCard>
+                {(users ?? []).map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.full_name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          </div>
+        </SectionCard>
 
-      <SectionCard icon={Banknote} title="Commercials">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Project Revenue" htmlFor="project-revenue" ai={fieldAi("project_revenue")}>
-            <Input
-              id="project-revenue"
-              type="number"
-              min={0}
-              placeholder="0.00"
-              value={values.project_revenue ?? ""}
-              onChange={(e) =>
-                setAndClear("project_revenue")(e.target.value === "" ? undefined : e.target.value)
-              }
-              className={inputClass}
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Project Currency" htmlFor="project-currency" ai={fieldAi("project_currency")}>
-            <NativeSelect
-              id="project-currency"
-              value={values.project_currency ?? ""}
-              onChange={(e) => setAndClear("project_currency")(e.target.value)}
-              disabled={locked}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {["USD", "OMR", "AED", "SAR", "INR", "EUR"].map((currency) => (
-                <option key={currency}>{currency}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field label="Billing Type" htmlFor="billing-type" ai={fieldAi("billing_type")}>
-            <NativeSelect
-              id="billing-type"
-              value={values.billing_type ?? ""}
-              onChange={(e) =>
-                setAndClear("billing_type")(e.target.value as ProjectPayload["billing_type"])
-              }
-              disabled={locked}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {BILLING_TYPES.map((type) => (
-                <option key={type}>{type}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-        </div>
-      </SectionCard>
+        <SectionCard icon={Banknote} title="Commercials">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+            <Field label="Project Revenue" htmlFor="project-revenue" ai={fieldAi("project_revenue")}>
+              <Input
+                id="project-revenue"
+                type="number"
+                min={0}
+                placeholder="0.00"
+                value={values.project_revenue ?? ""}
+                onChange={(e) =>
+                  setAndClear("project_revenue")(e.target.value === "" ? undefined : e.target.value)
+                }
+                className={inputClass}
+                disabled={locked}
+              />
+            </Field>
+            <Field label="Project Currency" htmlFor="project-currency" ai={fieldAi("project_currency")}>
+              <NativeSelect
+                id="project-currency"
+                value={values.project_currency ?? ""}
+                onChange={(e) => setAndClear("project_currency")(e.target.value)}
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
+                </option>
+                {["USD", "OMR", "AED", "SAR", "INR", "EUR"].map((currency) => (
+                  <option key={currency}>{currency}</option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label="Billing Type" htmlFor="billing-type" ai={fieldAi("billing_type")}>
+              <NativeSelect
+                id="billing-type"
+                value={values.billing_type ?? ""}
+                onChange={(e) =>
+                  setAndClear("billing_type")(e.target.value as ProjectPayload["billing_type"])
+                }
+                disabled={locked}
+              >
+                <option value="" disabled>
+                  Select…
+                </option>
+                {BILLING_TYPES.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </NativeSelect>
+            </Field>
+          </div>
+        </SectionCard>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -545,7 +549,7 @@ function ProjectDescriptionActions({
       // Survives the redirect below so it's visible on the destination page
       // instead of flashing away before the navigation completes.
       showSuccess("Project Created Successfully", { persistThroughNavigation: true });
-      router.push(`/new-project/${created.id}/project-charter`);
+      router.push(`/new-project/${created.id}/map-oracle-projects`);
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to create project.");
     }
@@ -606,38 +610,44 @@ function ProjectDescriptionActions({
   return (
     <>
       <div className="flex justify-end gap-3">
-        <Button
-          className={cn(secondaryClass, "gap-2")}
-          disabled={!isCreated || busy}
-          onClick={handleEdit}
-        >
-          {pendingAction === "edit" ? <ButtonSpinner /> : null}
-          Edit Project
-        </Button>
-        <Button
-          className={cn(primaryClass, "gap-2")}
-          disabled={isCreated || busy}
-          onClick={handleCreate}
-        >
-          {createProject.isPending ? <ButtonSpinner /> : null}
-          Create Project
-        </Button>
-        <Button
-          className={cn(primaryClass, "gap-2")}
-          disabled={!isCreated || locked || busy}
-          onClick={handleSave}
-        >
-          {pendingAction === "save" ? <ButtonSpinner /> : null}
-          Send To Approval
-        </Button>
-        <Button
-          className={cn(primaryClass, "gap-2")}
-          disabled={status !== "Pending Approval" || busy}
-          onClick={handleApprove}
-        >
-          {pendingAction === "approve" ? <ButtonSpinner /> : null}
-          Approve
-        </Button>
+        {!isCreated ? (
+          <Button
+            className={cn(primaryClass, "gap-2")}
+            disabled={busy}
+            onClick={handleCreate}
+          >
+            {createProject.isPending ? <ButtonSpinner /> : null}
+            Create Project
+          </Button>
+        ) : null}
+        {isCreated ? (
+          <>
+            <Button
+              className={cn(secondaryClass, "gap-2")}
+              disabled={busy}
+              onClick={handleEdit}
+            >
+              {pendingAction === "edit" ? <ButtonSpinner /> : null}
+              Edit Project
+            </Button>
+            <Button
+              className={cn(primaryClass, "gap-2")}
+              disabled={locked || busy}
+              onClick={handleSave}
+            >
+              {pendingAction === "save" ? <ButtonSpinner /> : null}
+              Send To Approval
+            </Button>
+            <Button
+              className={cn(primaryClass, "gap-2")}
+              disabled={status !== "Pending Approval" || busy}
+              onClick={handleApprove}
+            >
+              {pendingAction === "approve" ? <ButtonSpinner /> : null}
+              Approve
+            </Button>
+          </>
+        ) : null}
       </div>
       <p className="flex items-center gap-2 text-sm text-slate-500">
         <Lock className="size-4" />

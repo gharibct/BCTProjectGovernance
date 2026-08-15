@@ -13,6 +13,7 @@ import {
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useUsers } from "@/lib/api/reference-data";
 import {
@@ -179,6 +180,12 @@ export function OpportunityLog() {
         title="Opportunity Register"
         aside={<AutoBadge label={`${items.length} logged`} />}
       >
+        <RegisterImportToolbar
+          defs={fields}
+          itemLabelPlural="Opportunities"
+          buildPayload={buildOpportunityPayload}
+          createMutation={createOpportunity}
+        />
         <RegisterTable
           items={items}
           emptyLabel="No opportunities logged yet."

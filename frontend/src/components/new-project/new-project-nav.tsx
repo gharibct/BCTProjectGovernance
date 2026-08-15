@@ -7,7 +7,6 @@ import {
   CircleCheck,
   ClipboardList,
   FileText,
-  ShieldCheck,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -24,8 +23,6 @@ import {
   useOpportunities,
   useRisks,
 } from "@/lib/api/raid";
-import { useLatestHealthDeclaration } from "@/lib/api/health-declarations";
-import { useLatestDEAssessment } from "@/lib/api/de-assessment";
 
 // Copy of the project navigation rail scoped to the New Project screens.
 // Every item is its own route so the browser URL, back button, and this
@@ -34,9 +31,10 @@ import { useLatestDEAssessment } from "@/lib/api/de-assessment";
 // Profile and Scope & Schedule are backed by the project's derived
 // profile_completion_flag/schedule_completion_flag; Map Oracle Projects,
 // Contractual Compliance, and RAIDO are done once their registers have at
-// least one row each; Self Assessment and DE Assessment are done once at
-// least one declaration/assessment has been submitted. Measurement is the
-// only one still a sample value, pending its own backend wiring.
+// least one row each. Measurement is the only one still a sample value,
+// pending its own backend wiring. Self Assessment ("RAG Status") and DE
+// Assessment live only in the Project Reporting nav (project-nav.tsx), not
+// here — they're period-driven reporting tasks, not creation-time setup.
 type NavItem = {
   label: string;
   href: string;
@@ -52,24 +50,32 @@ function buildGroups(
   oracleMapped: boolean,
   contractualComplianceComplete: boolean,
   raidoComplete: boolean,
-  selfAssessmentComplete: boolean,
-  deAssessmentComplete: boolean,
 ): { heading: string; icon: LucideIcon; items: NavItem[] }[] {
   return [
+    {
+      heading: "AI Hub",
+      icon: Sparkles,
+      // Not a period-completion task like the groups below, so there's no
+      // pending/done signal to derive — always shown as done so it never
+      // reads as an outstanding checklist item.
+      items: [
+        { label: "AI Document Processing", href: `${base}/ai-hub/document-processing`, done: true },
+      ],
+    },
     {
       heading: "Project Charter",
       icon: FileText,
       items: [
+        {
+          label: "Map Oracle Projects",
+          href: `${base}/map-oracle-projects`,
+          done: oracleMapped,
+        },
         { label: "Project Profile", href: `${base}/project-charter`, done: profileComplete },
         {
           label: "Scope & Schedule",
           href: `${base}/project-charter/schedule`,
           done: scheduleComplete,
-        },
-        {
-          label: "Map Oracle Projects",
-          href: `${base}/map-oracle-projects`,
-          done: oracleMapped,
         },
       ],
     },
@@ -84,28 +90,6 @@ function buildGroups(
           done: contractualComplianceComplete,
         },
         { label: "Project RAIDO Register", href: `${base}/raido`, done: raidoComplete },
-      ],
-    },
-    {
-      heading: "Baseline Assessment",
-      icon: ShieldCheck,
-      items: [
-        {
-          label: "Self Assessment",
-          href: `${base}/project-charter/self-assessment`,
-          done: selfAssessmentComplete,
-        },
-        { label: "DE Assessment", href: `${base}/de-assessment`, done: deAssessmentComplete },
-      ],
-    },
-    {
-      heading: "AI Hub",
-      icon: Sparkles,
-      // Not a period-completion task like the groups above, so there's no
-      // pending/done signal to derive — always shown as done so it never
-      // reads as an outstanding checklist item.
-      items: [
-        { label: "AI Document Processing", href: `${base}/ai-hub/document-processing`, done: true },
       ],
     },
   ];
@@ -144,8 +128,6 @@ export function NewProjectNav() {
   const { data: dependencies } = useDependencies(newProjectId);
   const { data: assumptions } = useAssumptions(newProjectId);
   const { data: opportunities } = useOpportunities(newProjectId);
-  const { data: healthDeclaration } = useLatestHealthDeclaration(newProjectId);
-  const { data: deAssessment } = useLatestDEAssessment(newProjectId);
   const groups = buildGroups(
     `/new-project/${projectId}`,
     project?.profile_completion_flag ?? false,
@@ -157,8 +139,6 @@ export function NewProjectNav() {
       (dependencies?.length ?? 0) > 0 &&
       (assumptions?.length ?? 0) > 0 &&
       (opportunities?.length ?? 0) > 0,
-    !!healthDeclaration,
-    !!deAssessment,
   );
 
   return (
@@ -173,6 +153,21 @@ export function NewProjectNav() {
             <div className="mt-1 mb-1 ml-5 flex flex-col gap-0.5 border-l border-slate-200 pl-3">
               {group.items.map((item) => {
                 const active = pathname === item.href;
+                // Every tab but the one you're on is locked until the
+                // project exists — there's nothing to show them yet.
+                const locked = !newProjectId && item.label !== "Project Profile";
+                if (locked) {
+                  return (
+                    <span
+                      key={item.label}
+                      aria-disabled="true"
+                      className={cn(childClass, "cursor-not-allowed text-slate-300")}
+                    >
+                      {item.label}
+                      <StatusIcon done={item.done} />
+                    </span>
+                  );
+                }
                 return (
                   <Link
                     key={item.label}

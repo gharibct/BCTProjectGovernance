@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   useAiSuggestions,
@@ -15,9 +16,21 @@ import {
 // (AI-Implementation.md §9), without waiting on the resolve-on-save
 // round-trip that clears them for good server-side.
 export function useAiReview(projectId: string | null, screen: string, periodId: string | null) {
+  const queryClient = useQueryClient();
   const { data: remoteSuggestions = [] } = useAiSuggestions(projectId, screen, periodId);
   const ignoreMutation = useIgnoreAiSuggestion(projectId, screen, periodId);
   const resolveMutation = useResolveAiSuggestions(projectId, screen, periodId);
+
+  // Applied-but-unsaved suggestions must not survive leaving this screen —
+  // otherwise navigating away and back (or reopening later) would show them
+  // again even though nothing was saved. Clearing on unmount/identity change
+  // covers both in-app navigation and a fresh reload/session.
+  React.useEffect(() => {
+    const key = ["ai-suggestions", projectId, screen, periodId];
+    return () => {
+      queryClient.removeQueries({ queryKey: key });
+    };
+  }, [queryClient, projectId, screen, periodId]);
 
   // TEMP (backend down / no project yet): suggestions loaded via
   // loadLocalSuggestions bypass the server entirely — used only while

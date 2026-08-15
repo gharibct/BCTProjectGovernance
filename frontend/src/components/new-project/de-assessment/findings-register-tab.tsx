@@ -6,6 +6,7 @@ import { Table } from "lucide-react";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { Button } from "@/components/ui/button";
 import { usePageBanner } from "@/stores/page-banner";
 import {
@@ -40,6 +41,34 @@ export function FindingsRegisterTab({
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
+  const buildFindingPayload = (v: Record<string, string>): DEAssessmentFindingPayload => ({
+    sequence_no: (assessment?.findings.length ?? 0) + 1,
+    classification: v.classification as FindingClassification,
+    action_taken: v.action_taken || undefined,
+    finding_date: v.finding_date || undefined,
+    status: (v.status as FindingStatus) || "Open",
+    remarks: v.remarks || undefined,
+  });
+
+  // Bulk import creates several rows in one sequential loop without a
+  // re-render in between, so buildFindingPayload's `assessment.findings.length`
+  // snapshot would give every row the same sequence_no — this variant
+  // advances its own counter (in a ref, since it must survive being called
+  // repeatedly after this render has already committed) across the batch.
+  // The ref is only read/written inside the callback itself (never during
+  // render), rebasing to the current findings count whenever that's grown
+  // past the ref (i.e. after any successful create).
+  const importSeqRef = React.useRef<number | null>(null);
+  const buildFindingPayloadForImport = (v: Record<string, string>): DEAssessmentFindingPayload => {
+    const base = (assessment?.findings.length ?? 0) + 1;
+    if (importSeqRef.current === null || importSeqRef.current < base) {
+      importSeqRef.current = base;
+    }
+    const payload = { ...buildFindingPayload(v), sequence_no: importSeqRef.current };
+    importSeqRef.current += 1;
+    return payload;
+  };
+
   const addFinding = () => {
     if (!assessment) return;
     if (!values.classification) {
@@ -49,14 +78,7 @@ export function FindingsRegisterTab({
       return;
     }
     setClassificationError(null);
-    const payload: DEAssessmentFindingPayload = {
-      sequence_no: assessment.findings.length + 1,
-      classification: values.classification as FindingClassification,
-      action_taken: values.action_taken || undefined,
-      finding_date: values.finding_date || undefined,
-      status: (values.status as FindingStatus) || "Open",
-      remarks: values.remarks || undefined,
-    };
+    const payload = buildFindingPayload(values);
     createFinding.mutate(payload, {
       onSuccess: () => {
         reset();
@@ -79,6 +101,12 @@ export function FindingsRegisterTab({
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={Table} title="Findings Register" aside={<AutoBadge label={`${items.length} logged`} />}>
+        <RegisterImportToolbar
+          defs={FINDING_FIELDS}
+          itemLabelPlural="Findings"
+          buildPayload={buildFindingPayloadForImport}
+          createMutation={createFinding}
+        />
         <RegisterTable
           items={items}
           emptyLabel="No findings logged yet."

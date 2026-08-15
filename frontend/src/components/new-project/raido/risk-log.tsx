@@ -12,6 +12,7 @@ import {
   type FieldDef,
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
+import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useUsers } from "@/lib/api/reference-data";
@@ -160,6 +161,12 @@ export function RiskLog() {
         title="Risk Register"
         aside={<AutoBadge label={`${items.length} logged`} />}
       >
+        <RegisterImportToolbar
+          defs={fields}
+          itemLabelPlural="Risks"
+          buildPayload={buildRiskPayload}
+          createMutation={createRisk}
+        />
         <RegisterTable
           items={items}
           emptyLabel="No risks logged yet."

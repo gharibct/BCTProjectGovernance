@@ -142,7 +142,7 @@ export function OracleMappingForm() {
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
             {addOracleId.isPending ? <ButtonSpinner /> : null}
-            Add Oracle Project
+            Add Projects
           </Button>
         </div>
       </SectionCard>
