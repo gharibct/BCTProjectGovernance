@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.crud.health_declarations import health_declaration_crud, project_health_item_crud
 from app.crud.projects import project_crud
 from app.models.health_declarations import HealthDeclaration, ProjectHealthItem
 from app.models.reference_data import ReportingPeriod
-from app.schemas.enums import Category
+from app.schemas.enums import Category, RoleCode
 from app.schemas.health_declarations import (
     HealthDeclarationCreate,
     HealthDeclarationRead,
@@ -26,6 +27,8 @@ from app.services.health_rollup import compute_overall_project_health, compute_o
 # declaration per project+period — same shape as Project Status
 # (project_status.py) minus the Draft/Submitted status.
 router = APIRouter(prefix="/projects/{project_id}/health-declarations", tags=["Health Declarations"])
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
 
 
 # Declarations are keyed off a reporting_periods row rather than a raw date
@@ -62,7 +65,7 @@ async def get_latest_health_declaration(project_id: UUID, db: AsyncSession = Dep
     return items[0]
 
 
-@router.post("", response_model=HealthDeclarationRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=HealthDeclarationRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
 async def create_health_declaration(
     project_id: UUID,
     payload: HealthDeclarationCreate,
@@ -92,7 +95,7 @@ async def create_health_declaration(
     return declaration
 
 
-@router.put("/{declaration_id}", response_model=HealthDeclarationRead)
+@router.put("/{declaration_id}", response_model=HealthDeclarationRead, dependencies=_pm_write)
 async def update_health_declaration(
     project_id: UUID,
     declaration_id: UUID,
@@ -155,12 +158,12 @@ async def list_health_items(
     return items
 
 
-@items_router.post("", response_model=ProjectHealthItemRead, status_code=status.HTTP_201_CREATED)
+@items_router.post("", response_model=ProjectHealthItemRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
 async def create_health_item(project_id: UUID, payload: ProjectHealthItemCreate, db: AsyncSession = Depends(get_db)):
     return await project_health_item_crud.create(db, payload, project_id=project_id)
 
 
-@items_router.put("/{item_id}", response_model=ProjectHealthItemRead)
+@items_router.put("/{item_id}", response_model=ProjectHealthItemRead, dependencies=_pm_write)
 async def update_health_item(
     project_id: UUID, item_id: UUID, payload: ProjectHealthItemUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -170,7 +173,7 @@ async def update_health_item(
     return await project_health_item_crud.update(db, obj, payload)
 
 
-@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_health_item(project_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await project_health_item_crud.get(db, item_id)
     if obj is None or obj.project_id != project_id:
@@ -182,7 +185,7 @@ async def delete_health_item(project_id: UUID, item_id: UUID, db: AsyncSession =
 # Undo both go through this one endpoint — Pulled is only ever set by the
 # pull action itself (POST /accounts/{account_id}/health-rollup/pull), never
 # here.
-@items_router.patch("/{item_id}/rollup-status", response_model=ProjectHealthItemRead)
+@items_router.patch("/{item_id}/rollup-status", response_model=ProjectHealthItemRead, dependencies=_pm_write)
 async def update_health_item_rollup_status(
     project_id: UUID,
     item_id: UUID,

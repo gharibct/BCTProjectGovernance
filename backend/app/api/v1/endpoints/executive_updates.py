@@ -8,11 +8,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_geo_scope
 from app.core.config import settings
 from app.core.db import get_db
 from app.crud.executive_updates import executive_update_crud
 from app.models.executive_updates import ExecutiveUpdate
 from app.models.reference_data import ReportingPeriod
+from app.schemas.enums import RoleCode
 from app.schemas.executive_updates import ExecutiveUpdateCreate, ExecutiveUpdateRead, ExecutiveUpdateUpdate
 
 # Geo Head's Executive Update for CXO (see db/tables/43_executive_updates.sql)
@@ -22,6 +24,8 @@ from app.schemas.executive_updates import ExecutiveUpdateCreate, ExecutiveUpdate
 # blocks lives on this same router: images are referenced from `content`
 # only, no DB row of their own, so there's nothing to CRUD beyond the file.
 router = APIRouter(prefix="/geos/{geo_id}/executive-updates", tags=["Executive Update"])
+
+_geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 _IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
 
@@ -46,7 +50,7 @@ async def list_executive_updates(geo_id: UUID, db: AsyncSession = Depends(get_db
     return items
 
 
-@router.post("", response_model=ExecutiveUpdateRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ExecutiveUpdateRead, status_code=status.HTTP_201_CREATED, dependencies=_geo_head_write)
 async def create_executive_update(
     geo_id: UUID,
     payload: ExecutiveUpdateCreate,
@@ -55,7 +59,7 @@ async def create_executive_update(
     return await executive_update_crud.create(db, payload, geo_id=geo_id)
 
 
-@router.put("/{update_id}", response_model=ExecutiveUpdateRead)
+@router.put("/{update_id}", response_model=ExecutiveUpdateRead, dependencies=_geo_head_write)
 async def update_executive_update(
     geo_id: UUID,
     update_id: UUID,
@@ -75,7 +79,9 @@ class ExecutiveUpdateImageUploaded(BaseModel):
     path: str
 
 
-@router.post("/images", response_model=ExecutiveUpdateImageUploaded, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/images", response_model=ExecutiveUpdateImageUploaded, status_code=status.HTTP_201_CREATED, dependencies=_geo_head_write
+)
 async def upload_executive_update_image(
     geo_id: UUID,
     file: UploadFile = File(...),

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.crud.de_assessment import de_assessment_alert_crud, de_assessment_crud, de_assessment_finding_crud
 from app.crud.projects import project_crud
@@ -19,10 +20,13 @@ from app.schemas.de_assessment import (
     DEAssessmentRead,
     DEAssessmentReadWithDetails,
 )
+from app.schemas.enums import RoleCode
 from app.services.code_generator import generate_code
 from app.services.health_rollup import compute_overall_project_health
 
 router = APIRouter(prefix="/projects/{project_id}/de-assessments", tags=["DE Assessment"])
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
 
 
 async def _load_with_details(db: AsyncSession, assessment: DEAssessment) -> DEAssessmentReadWithDetails:
@@ -81,7 +85,9 @@ async def get_assessment(project_id: UUID, assessment_id: UUID, db: AsyncSession
     return await _load_with_details(db, obj)
 
 
-@router.post("", response_model=DEAssessmentReadWithDetails, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=DEAssessmentReadWithDetails, status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+)
 async def create_assessment(project_id: UUID, payload: DEAssessmentCreate, db: AsyncSession = Depends(get_db)):
     project = await project_crud.get(db, project_id)
     if project is None:
@@ -112,7 +118,12 @@ async def create_assessment(project_id: UUID, payload: DEAssessmentCreate, db: A
     return await _load_with_details(db, assessment)
 
 
-@router.post("/{assessment_id}/alerts", response_model=DEAssessmentAlertRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{assessment_id}/alerts",
+    response_model=DEAssessmentAlertRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_pm_write,
+)
 async def add_alert(project_id: UUID, assessment_id: UUID, payload: DEAssessmentAlertIn, db: AsyncSession = Depends(get_db)):
     assessment = await de_assessment_crud.get(db, assessment_id)
     if assessment is None or assessment.project_id != project_id:
@@ -127,7 +138,12 @@ async def add_alert(project_id: UUID, assessment_id: UUID, payload: DEAssessment
     )
 
 
-@router.post("/{assessment_id}/findings", response_model=DEAssessmentFindingRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{assessment_id}/findings",
+    response_model=DEAssessmentFindingRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_pm_write,
+)
 async def add_finding(project_id: UUID, assessment_id: UUID, payload: DEAssessmentFindingIn, db: AsyncSession = Depends(get_db)):
     assessment = await de_assessment_crud.get(db, assessment_id)
     if assessment is None or assessment.project_id != project_id:
@@ -135,7 +151,7 @@ async def add_finding(project_id: UUID, assessment_id: UUID, payload: DEAssessme
     return await de_assessment_finding_crud.create(db, payload, assessment_id=assessment_id)
 
 
-@router.put("/{assessment_id}/findings/{finding_id}", response_model=DEAssessmentFindingRead)
+@router.put("/{assessment_id}/findings/{finding_id}", response_model=DEAssessmentFindingRead, dependencies=_pm_write)
 async def update_finding(
     project_id: UUID,
     assessment_id: UUID,

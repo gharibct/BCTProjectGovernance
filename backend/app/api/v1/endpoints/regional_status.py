@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_account_geo_scope, require_account_scope, require_geo_scope, require_role
 from app.core.db import get_db
 from app.crud.regional_status import (
     account_status_item_crud,
@@ -15,7 +16,7 @@ from app.crud.regional_status import (
 )
 from app.models.reference_data import ReportingPeriod
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusItem, GeoStatusReport
-from app.schemas.enums import ProjectStatusCategory, ReportStatus
+from app.schemas.enums import ProjectStatusCategory, ReportStatus, RoleCode
 from app.schemas.regional_status import (
     AccountStatusItemCreate,
     AccountStatusItemRead,
@@ -39,6 +40,11 @@ from app.schemas.status_review import StatusReportReviewRequest
 # reports are a retained audit trail.
 account_status_router = APIRouter(prefix="/accounts/{account_id}/status-reports", tags=["Account Reporting"])
 geo_status_router = APIRouter(prefix="/geos/{geo_id}/status-reports", tags=["Geo Reporting"])
+
+_account_manager_write = [Depends(require_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))]
+_geo_head_review = [Depends(require_account_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_cxo_review = [Depends(require_role(RoleCode.CXO, RoleCode.ADMIN))]
 
 
 def _by_period_start(model: type) -> Any:
@@ -69,7 +75,9 @@ async def get_latest_account_status_report(account_id: UUID, db: AsyncSession = 
     return items[0]
 
 
-@account_status_router.post("", response_model=AccountStatusReportRead, status_code=status.HTTP_201_CREATED)
+@account_status_router.post(
+    "", response_model=AccountStatusReportRead, status_code=status.HTTP_201_CREATED, dependencies=_account_manager_write
+)
 async def create_account_status_report(
     account_id: UUID,
     payload: AccountStatusReportCreate,
@@ -78,7 +86,7 @@ async def create_account_status_report(
     return await account_status_report_crud.create(db, payload, account_id=account_id)
 
 
-@account_status_router.put("/{report_id}", response_model=AccountStatusReportRead)
+@account_status_router.put("/{report_id}", response_model=AccountStatusReportRead, dependencies=_account_manager_write)
 async def update_account_status_report(
     account_id: UUID,
     report_id: UUID,
@@ -93,7 +101,7 @@ async def update_account_status_report(
 
 # Review/sign-off (Account Review, for Geo Heads): a Submitted report
 # transitions to Approved/Rejected by the level above.
-@account_status_router.patch("/{report_id}/review", response_model=AccountStatusReportRead)
+@account_status_router.patch("/{report_id}/review", response_model=AccountStatusReportRead, dependencies=_geo_head_review)
 async def review_account_status_report(
     account_id: UUID,
     report_id: UUID,
@@ -139,7 +147,9 @@ async def get_latest_geo_status_report(geo_id: UUID, db: AsyncSession = Depends(
     return items[0]
 
 
-@geo_status_router.post("", response_model=GeoStatusReportRead, status_code=status.HTTP_201_CREATED)
+@geo_status_router.post(
+    "", response_model=GeoStatusReportRead, status_code=status.HTTP_201_CREATED, dependencies=_geo_head_write
+)
 async def create_geo_status_report(
     geo_id: UUID,
     payload: GeoStatusReportCreate,
@@ -148,7 +158,7 @@ async def create_geo_status_report(
     return await geo_status_report_crud.create(db, payload, geo_id=geo_id)
 
 
-@geo_status_router.put("/{report_id}", response_model=GeoStatusReportRead)
+@geo_status_router.put("/{report_id}", response_model=GeoStatusReportRead, dependencies=_geo_head_write)
 async def update_geo_status_report(
     geo_id: UUID,
     report_id: UUID,
@@ -163,7 +173,7 @@ async def update_geo_status_report(
 
 # Review/sign-off (Geo Review, for CXO): a Submitted report transitions to
 # Approved/Rejected by the level above.
-@geo_status_router.patch("/{report_id}/review", response_model=GeoStatusReportRead)
+@geo_status_router.patch("/{report_id}/review", response_model=GeoStatusReportRead, dependencies=_cxo_review)
 async def review_geo_status_report(
     geo_id: UUID,
     report_id: UUID,
@@ -210,14 +220,16 @@ async def list_account_status_items(
     return items
 
 
-@account_status_items_router.post("", response_model=AccountStatusItemRead, status_code=status.HTTP_201_CREATED)
+@account_status_items_router.post(
+    "", response_model=AccountStatusItemRead, status_code=status.HTTP_201_CREATED, dependencies=_account_manager_write
+)
 async def create_account_status_item(
     account_id: UUID, payload: AccountStatusItemCreate, db: AsyncSession = Depends(get_db)
 ):
     return await account_status_item_crud.create(db, payload, account_id=account_id)
 
 
-@account_status_items_router.put("/{item_id}", response_model=AccountStatusItemRead)
+@account_status_items_router.put("/{item_id}", response_model=AccountStatusItemRead, dependencies=_account_manager_write)
 async def update_account_status_item(
     account_id: UUID, item_id: UUID, payload: AccountStatusItemUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -227,7 +239,9 @@ async def update_account_status_item(
     return await account_status_item_crud.update(db, obj, payload)
 
 
-@account_status_items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@account_status_items_router.delete(
+    "/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_account_manager_write
+)
 async def delete_account_status_item(account_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await account_status_item_crud.get(db, item_id)
     if obj is None or obj.account_id != account_id:
@@ -238,7 +252,9 @@ async def delete_account_status_item(account_id: UUID, item_id: UUID, db: AsyncS
 # Account -> Geo rollup (see services/geo_rollup.py): Ignore / Undo both go
 # through this one endpoint — Pulled is only ever set by the pull action
 # itself (POST /geos/{geo_id}/rollup/pull), never here.
-@account_status_items_router.patch("/{item_id}/rollup-status", response_model=AccountStatusItemRead)
+@account_status_items_router.patch(
+    "/{item_id}/rollup-status", response_model=AccountStatusItemRead, dependencies=_account_manager_write
+)
 async def update_account_status_item_rollup_status(
     account_id: UUID,
     item_id: UUID,
@@ -273,12 +289,14 @@ async def list_geo_status_items(
     return items
 
 
-@geo_status_items_router.post("", response_model=GeoStatusItemRead, status_code=status.HTTP_201_CREATED)
+@geo_status_items_router.post(
+    "", response_model=GeoStatusItemRead, status_code=status.HTTP_201_CREATED, dependencies=_geo_head_write
+)
 async def create_geo_status_item(geo_id: UUID, payload: GeoStatusItemCreate, db: AsyncSession = Depends(get_db)):
     return await geo_status_item_crud.create(db, payload, geo_id=geo_id)
 
 
-@geo_status_items_router.put("/{item_id}", response_model=GeoStatusItemRead)
+@geo_status_items_router.put("/{item_id}", response_model=GeoStatusItemRead, dependencies=_geo_head_write)
 async def update_geo_status_item(
     geo_id: UUID, item_id: UUID, payload: GeoStatusItemUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -288,7 +306,7 @@ async def update_geo_status_item(
     return await geo_status_item_crud.update(db, obj, payload)
 
 
-@geo_status_items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@geo_status_items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_geo_head_write)
 async def delete_geo_status_item(geo_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await geo_status_item_crud.get(db, item_id)
     if obj is None or obj.geo_id != geo_id:

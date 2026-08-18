@@ -5,10 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_geo_scope
 from app.core.db import get_db
 from app.crud.geo_health_declarations import geo_health_declaration_crud
 from app.models.geo_health_declarations import GeoHealthDeclaration
 from app.models.reference_data import ReportingPeriod
+from app.schemas.enums import RoleCode
 from app.schemas.geo_health_declarations import (
     GeoHealthDeclarationCreate,
     GeoHealthDeclarationRead,
@@ -18,6 +20,8 @@ from app.services.health_rollup import compute_overall_rating
 
 # Geo RAG Status — geo-level equivalent of account_health_declarations.py.
 router = APIRouter(prefix="/geos/{geo_id}/health-declarations", tags=["Geo Reporting"])
+
+_geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
 def _by_period_start(model: type) -> Any:
@@ -48,7 +52,9 @@ async def get_latest_geo_health_declaration(geo_id: UUID, db: AsyncSession = Dep
     return items[0]
 
 
-@router.post("", response_model=GeoHealthDeclarationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=GeoHealthDeclarationRead, status_code=status.HTTP_201_CREATED, dependencies=_geo_head_write
+)
 async def create_geo_health_declaration(
     geo_id: UUID,
     payload: GeoHealthDeclarationCreate,
@@ -67,7 +73,7 @@ async def create_geo_health_declaration(
     return await geo_health_declaration_crud.create(db, payload, geo_id=geo_id, overall_rating=overall)
 
 
-@router.put("/{declaration_id}", response_model=GeoHealthDeclarationRead)
+@router.put("/{declaration_id}", response_model=GeoHealthDeclarationRead, dependencies=_geo_head_write)
 async def update_geo_health_declaration(
     geo_id: UUID,
     declaration_id: UUID,

@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import PaginationParams, pagination_params
+from app.api.deps import PaginationParams, pagination_params, require_role
 from app.core.db import get_db
 from app.crud.projects import project_crud, project_oracle_id_crud, project_resource_crud
 from app.models.projects import ProjectOracleId, ProjectResource
 from app.schemas.common import Page
-from app.schemas.enums import ProjectStatus
+from app.schemas.enums import ProjectStatus, RoleCode
 from app.schemas.projects import (
     ProjectCreate,
     ProjectOracleIdCreate,
@@ -25,6 +25,12 @@ from app.services.code_generator import generate_code
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
+# Project creation/maintenance is the Project Manager's flow (menu-config.ts
+# "new-project"/"maintain-project"); no per-PM project-assignment scoping
+# exists in the schema (user_projects is unused groundwork), so this is a
+# role-only gate, same as every other write below.
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+
 
 @router.get("", response_model=Page[ProjectRead])
 async def list_projects(
@@ -35,7 +41,7 @@ async def list_projects(
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
 async def create_project(payload: ProjectCreate, db: AsyncSession = Depends(get_db)):
     code = await generate_code(db, "PROJECT")
     return await project_crud.create(db, payload, project_code=code, project_status=ProjectStatus.DRAFT)
@@ -49,7 +55,7 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     return obj
 
 
-@router.put("/{project_id}", response_model=ProjectRead)
+@router.put("/{project_id}", response_model=ProjectRead, dependencies=_pm_write)
 async def update_project(project_id: UUID, payload: ProjectUpdate, db: AsyncSession = Depends(get_db)):
     obj = await project_crud.get(db, project_id)
     if obj is None:
@@ -68,12 +74,17 @@ async def list_oracle_ids(project_id: UUID, db: AsyncSession = Depends(get_db)):
     return items
 
 
-@router.post("/{project_id}/oracle-ids", response_model=ProjectOracleIdRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{project_id}/oracle-ids",
+    response_model=ProjectOracleIdRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_pm_write,
+)
 async def add_oracle_id(project_id: UUID, payload: ProjectOracleIdCreate, db: AsyncSession = Depends(get_db)):
     return await project_oracle_id_crud.create(db, payload, project_id=project_id)
 
 
-@router.delete("/{project_id}/oracle-ids/{oracle_id_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{project_id}/oracle-ids/{oracle_id_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_oracle_id(project_id: UUID, oracle_id_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await project_oracle_id_crud.get(db, oracle_id_id)
     if obj is None or obj.project_id != project_id:
@@ -102,12 +113,17 @@ async def list_resources(project_id: UUID, db: AsyncSession = Depends(get_db)):
     return items
 
 
-@router.post("/{project_id}/resources", response_model=ProjectResourceRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{project_id}/resources",
+    response_model=ProjectResourceRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_pm_write,
+)
 async def add_resource(project_id: UUID, payload: ProjectResourceCreate, db: AsyncSession = Depends(get_db)):
     return await project_resource_crud.create(db, payload, project_id=project_id)
 
 
-@router.put("/{project_id}/resources/{resource_id}", response_model=ProjectResourceRead)
+@router.put("/{project_id}/resources/{resource_id}", response_model=ProjectResourceRead, dependencies=_pm_write)
 async def update_resource(
     project_id: UUID,
     resource_id: UUID,
@@ -120,7 +136,7 @@ async def update_resource(
     return await project_resource_crud.update(db, obj, payload)
 
 
-@router.delete("/{project_id}/resources/{resource_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{project_id}/resources/{resource_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_resource(project_id: UUID, resource_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await project_resource_crud.get(db, resource_id)
     if obj is None or obj.project_id != project_id:

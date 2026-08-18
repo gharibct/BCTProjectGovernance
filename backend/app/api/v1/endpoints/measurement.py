@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import PaginationParams, pagination_params
+from app.api.deps import PaginationParams, pagination_params, require_role
 from app.core.db import get_db
 from app.crud.base import CRUDBase
 from app.crud.measurement import (
@@ -38,7 +38,7 @@ from app.models.measurement import (
 )
 from app.models.reference_data import ReportingPeriod
 from app.schemas.common import Page
-from app.schemas.enums import SdlcStage, StaffingPriority
+from app.schemas.enums import RoleCode, SdlcStage, StaffingPriority
 from app.schemas.measurement import (
     MeasurementCloudMaintenanceCreate,
     MeasurementCloudMaintenanceRead,
@@ -73,6 +73,8 @@ from app.services.measurement_metrics import (
 )
 
 router = APIRouter()
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
 
 
 # Most Measurement tabs key their snapshots off a reporting_periods row rather
@@ -135,7 +137,7 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No measurement data recorded for this project")
         return items[0]
 
-    @sub.post("", response_model=cfg.read_schema, status_code=status.HTTP_201_CREATED)
+    @sub.post("", response_model=cfg.read_schema, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
     async def create_item(project_id: UUID, payload: cfg.create_schema, db: AsyncSession = Depends(get_db)):
         metrics = cfg.compute_metrics(payload.model_dump())
         return await crud.create(db, payload, project_id=project_id, **metrics)
@@ -147,7 +149,7 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
         return obj
 
-    @sub.put("/{item_id}", response_model=cfg.read_schema)
+    @sub.put("/{item_id}", response_model=cfg.read_schema, dependencies=_pm_write)
     async def update_item(
         project_id: UUID, item_id: UUID, payload: cfg.update_schema, db: AsyncSession = Depends(get_db)
     ):
@@ -161,7 +163,7 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
         await db.flush()
         return obj
 
-    @sub.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @sub.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
     async def delete_item(project_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
         obj = await crud.get(db, item_id)
         if obj is None or obj.project_id != project_id:
@@ -286,7 +288,9 @@ async def get_latest_development(project_id: UUID, db: AsyncSession = Depends(ge
     return await _load_development_with_defects(db, items[0])
 
 
-@dev_router.post("", response_model=MeasurementDevelopmentReadWithDefects, status_code=status.HTTP_201_CREATED)
+@dev_router.post(
+    "", response_model=MeasurementDevelopmentReadWithDefects, status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+)
 async def create_development(project_id: UUID, payload: MeasurementDevelopmentCreate, db: AsyncSession = Depends(get_db)):
     data = payload.model_dump(exclude={"defects_by_stage"})
     metrics = compute_development_metrics(data)
@@ -318,7 +322,7 @@ async def get_development(project_id: UUID, measurement_id: UUID, db: AsyncSessi
     return await _load_development_with_defects(db, obj)
 
 
-@dev_router.put("/{measurement_id}", response_model=MeasurementDevelopmentReadWithDefects)
+@dev_router.put("/{measurement_id}", response_model=MeasurementDevelopmentReadWithDefects, dependencies=_pm_write)
 async def update_development(
     project_id: UUID,
     measurement_id: UUID,
@@ -342,7 +346,7 @@ async def update_development(
     return await _load_development_with_defects(db, obj)
 
 
-@dev_router.delete("/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT)
+@dev_router.delete("/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_development(project_id: UUID, measurement_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await measurement_development_crud.get(db, measurement_id)
     if obj is None or obj.project_id != project_id:
@@ -350,7 +354,9 @@ async def delete_development(project_id: UUID, measurement_id: UUID, db: AsyncSe
     await measurement_development_crud.delete(db, obj)
 
 
-@dev_router.put("/{measurement_id}/defects/{sdlc_stage}", response_model=MeasurementDevelopmentDefectRead)
+@dev_router.put(
+    "/{measurement_id}/defects/{sdlc_stage}", response_model=MeasurementDevelopmentDefectRead, dependencies=_pm_write
+)
 async def upsert_defect(
     project_id: UUID,
     measurement_id: UUID,
@@ -427,7 +433,9 @@ async def get_latest_staffing(project_id: UUID, db: AsyncSession = Depends(get_d
     return await _load_staffing_with_priorities(db, items[0])
 
 
-@staffing_router.post("", response_model=MeasurementStaffingReadWithPriorities, status_code=status.HTTP_201_CREATED)
+@staffing_router.post(
+    "", response_model=MeasurementStaffingReadWithPriorities, status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+)
 async def create_staffing(project_id: UUID, payload: MeasurementStaffingCreate, db: AsyncSession = Depends(get_db)):
     data = payload.model_dump(exclude={"priority_metrics"})
     metrics = compute_staffing_metrics(data)
@@ -467,7 +475,7 @@ async def get_staffing(project_id: UUID, measurement_id: UUID, db: AsyncSession 
     return await _load_staffing_with_priorities(db, obj)
 
 
-@staffing_router.put("/{measurement_id}", response_model=MeasurementStaffingReadWithPriorities)
+@staffing_router.put("/{measurement_id}", response_model=MeasurementStaffingReadWithPriorities, dependencies=_pm_write)
 async def update_staffing(
     project_id: UUID,
     measurement_id: UUID,
@@ -487,7 +495,7 @@ async def update_staffing(
     return await _load_staffing_with_priorities(db, obj)
 
 
-@staffing_router.delete("/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT)
+@staffing_router.delete("/{measurement_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_staffing(project_id: UUID, measurement_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await measurement_staffing_crud.get(db, measurement_id)
     if obj is None or obj.project_id != project_id:
@@ -495,7 +503,11 @@ async def delete_staffing(project_id: UUID, measurement_id: UUID, db: AsyncSessi
     await measurement_staffing_crud.delete(db, obj)
 
 
-@staffing_router.put("/{measurement_id}/priorities/{priority}", response_model=MeasurementStaffingPriorityMetricRead)
+@staffing_router.put(
+    "/{measurement_id}/priorities/{priority}",
+    response_model=MeasurementStaffingPriorityMetricRead,
+    dependencies=_pm_write,
+)
 async def upsert_priority_metric(
     project_id: UUID,
     measurement_id: UUID,

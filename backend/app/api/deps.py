@@ -1,11 +1,16 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.session import SESSION_COOKIE_NAME, decode_session_token
-from app.models.users import User
+from app.models.projects import Project
+from app.models.reference_data import Account
+from app.models.users import Role, User, UserAccount, UserGeo
+from app.schemas.enums import RoleCode
 
 
 @dataclass
@@ -32,3 +37,127 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Not authenticated.")
 
     return user
+
+
+async def _role_code(db: AsyncSession, user: User) -> RoleCode | None:
+    role = await db.get(Role, user.role_id)
+    if role is None:
+        return None
+    try:
+        return RoleCode(role.code)
+    except ValueError:
+        return None
+
+
+async def _owned_account_ids(db: AsyncSession, user: User) -> set[UUID]:
+    rows = (await db.execute(select(UserAccount.account_id).where(UserAccount.user_id == user.id))).scalars().all()
+    return set(rows)
+
+
+async def _owned_geo_ids(db: AsyncSession, user: User) -> set[UUID]:
+    rows = (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == user.id))).scalars().all()
+    return set(rows)
+
+
+_FORBIDDEN = HTTPException(status.HTTP_403_FORBIDDEN, detail="Not authorized for this action.")
+_NO_ACCOUNT_ACCESS = HTTPException(status.HTTP_403_FORBIDDEN, detail="You do not have access to this account.")
+_NO_GEO_ACCESS = HTTPException(status.HTTP_403_FORBIDDEN, detail="You do not have access to this geo.")
+
+
+def require_role(*allowed_roles: RoleCode):
+    """Raises 403 unless current_user.role.code is one of allowed_roles."""
+
+    async def dependency(
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        role_code = await _role_code(db, current_user)
+        if role_code not in allowed_roles:
+            raise _FORBIDDEN
+        return current_user
+
+    return dependency
+
+
+def require_account_scope(*allowed_roles: RoleCode):
+    """Role check plus: the `account_id` path param must be one of the
+    caller's owned accounts (user_accounts), unless the caller is ADMIN."""
+
+    async def dependency(
+        account_id: UUID,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        role_code = await _role_code(db, current_user)
+        if role_code not in allowed_roles:
+            raise _FORBIDDEN
+        if role_code != RoleCode.ADMIN and account_id not in await _owned_account_ids(db, current_user):
+            raise _NO_ACCOUNT_ACCESS
+        return current_user
+
+    return dependency
+
+
+def require_geo_scope(*allowed_roles: RoleCode):
+    """Role check plus: the `geo_id` path param must be one of the caller's
+    owned geos (user_geos), unless the caller is ADMIN."""
+
+    async def dependency(
+        geo_id: UUID,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        role_code = await _role_code(db, current_user)
+        if role_code not in allowed_roles:
+            raise _FORBIDDEN
+        if role_code != RoleCode.ADMIN and geo_id not in await _owned_geo_ids(db, current_user):
+            raise _NO_GEO_ACCESS
+        return current_user
+
+    return dependency
+
+
+def require_project_account_scope(*allowed_roles: RoleCode):
+    """Role check plus: the `project_id` path param's project must belong to
+    one of the caller's owned accounts, unless the caller is ADMIN."""
+
+    async def dependency(
+        project_id: UUID,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        role_code = await _role_code(db, current_user)
+        if role_code not in allowed_roles:
+            raise _FORBIDDEN
+        if role_code != RoleCode.ADMIN:
+            project = await db.get(Project, project_id)
+            if project is None or project.account_id is None:
+                raise _NO_ACCOUNT_ACCESS
+            if project.account_id not in await _owned_account_ids(db, current_user):
+                raise _NO_ACCOUNT_ACCESS
+        return current_user
+
+    return dependency
+
+
+def require_account_geo_scope(*allowed_roles: RoleCode):
+    """Role check plus: the `account_id` path param's account must belong to
+    one of the caller's owned geos, unless the caller is ADMIN."""
+
+    async def dependency(
+        account_id: UUID,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        role_code = await _role_code(db, current_user)
+        if role_code not in allowed_roles:
+            raise _FORBIDDEN
+        if role_code != RoleCode.ADMIN:
+            account = await db.get(Account, account_id)
+            if account is None or account.geo_id is None:
+                raise _NO_GEO_ACCESS
+            if account.geo_id not in await _owned_geo_ids(db, current_user):
+                raise _NO_GEO_ACCESS
+        return current_user
+
+    return dependency

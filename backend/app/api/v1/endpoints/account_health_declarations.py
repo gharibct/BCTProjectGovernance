@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_account_scope
 from app.core.db import get_db
 from app.crud.account_health_declarations import account_health_declaration_crud, account_health_item_crud
 from app.models.account_health_declarations import AccountHealthDeclaration, AccountHealthItem
@@ -17,13 +18,15 @@ from app.schemas.account_health_declarations import (
     AccountHealthItemRead,
     AccountHealthItemUpdate,
 )
-from app.schemas.enums import Category
+from app.schemas.enums import Category, RoleCode
 from app.services.health_rollup import compute_overall_rating
 
 # Account RAG Status — account-level equivalent of health_declarations.py,
 # minus the Project-record side-effect writes (accounts has no cached-health
 # columns for anything to read one today).
 router = APIRouter(prefix="/accounts/{account_id}/health-declarations", tags=["Account Reporting"])
+
+_account_manager_write = [Depends(require_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))]
 
 
 def _by_period_start(model: type) -> Any:
@@ -54,7 +57,12 @@ async def get_latest_account_health_declaration(account_id: UUID, db: AsyncSessi
     return items[0]
 
 
-@router.post("", response_model=AccountHealthDeclarationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=AccountHealthDeclarationRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_account_manager_write,
+)
 async def create_account_health_declaration(
     account_id: UUID,
     payload: AccountHealthDeclarationCreate,
@@ -73,7 +81,7 @@ async def create_account_health_declaration(
     return await account_health_declaration_crud.create(db, payload, account_id=account_id, overall_rating=overall)
 
 
-@router.put("/{declaration_id}", response_model=AccountHealthDeclarationRead)
+@router.put("/{declaration_id}", response_model=AccountHealthDeclarationRead, dependencies=_account_manager_write)
 async def update_account_health_declaration(
     account_id: UUID,
     declaration_id: UUID,
@@ -126,14 +134,16 @@ async def list_account_health_items(
     return items
 
 
-@items_router.post("", response_model=AccountHealthItemRead, status_code=status.HTTP_201_CREATED)
+@items_router.post(
+    "", response_model=AccountHealthItemRead, status_code=status.HTTP_201_CREATED, dependencies=_account_manager_write
+)
 async def create_account_health_item(
     account_id: UUID, payload: AccountHealthItemCreate, db: AsyncSession = Depends(get_db)
 ):
     return await account_health_item_crud.create(db, payload, account_id=account_id)
 
 
-@items_router.put("/{item_id}", response_model=AccountHealthItemRead)
+@items_router.put("/{item_id}", response_model=AccountHealthItemRead, dependencies=_account_manager_write)
 async def update_account_health_item(
     account_id: UUID, item_id: UUID, payload: AccountHealthItemUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -143,7 +153,7 @@ async def update_account_health_item(
     return await account_health_item_crud.update(db, obj, payload)
 
 
-@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_account_manager_write)
 async def delete_account_health_item(account_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await account_health_item_crud.get(db, item_id)
     if obj is None or obj.account_id != account_id:

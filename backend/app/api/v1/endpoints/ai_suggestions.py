@@ -3,12 +3,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.crud import ai_suggestions as crud
 from app.crud.projects import project_crud
 from app.crud.reference_data import account_crud, geo_crud, organization_crud, project_type_crud
 from app.crud.users import user_crud
 from app.schemas.ai_suggestions import AiFieldSuggestionIn, AiSuggestionBatchIn, AiSuggestionRead
+from app.schemas.enums import RoleCode
 
 # AI-Implementation.md: the app never writes AI values directly into business
 # tables — these endpoints only store/serve the extraction JSON for review on
@@ -16,6 +18,8 @@ from app.schemas.ai_suggestions import AiFieldSuggestionIn, AiSuggestionBatchIn,
 # that JSON (a local-LLM pipeline fed by Kafka, per the doc) posts to; this
 # app does no extraction itself.
 router = APIRouter(prefix="/projects/{project_id}/ai-suggestions", tags=["AI Suggestions"])
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
 
 
 async def _get_project_or_404(project_id: UUID, db: AsyncSession):
@@ -32,7 +36,7 @@ async def list_pending_suggestions(
     return await crud.list_pending(db, project_id, screen, period_id)
 
 
-@router.post("", response_model=list[AiSuggestionRead], status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=list[AiSuggestionRead], status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
 async def ingest_suggestions(
     project_id: UUID, payload: AiSuggestionBatchIn, db: AsyncSession = Depends(get_db)
 ):
@@ -466,7 +470,9 @@ def _de_assessment_profile_test_fields() -> list[AiFieldSuggestionIn]:
     ]
 
 
-@router.post("/seed-test-data", response_model=list[AiSuggestionRead], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/seed-test-data", response_model=list[AiSuggestionRead], status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+)
 async def seed_test_suggestions(
     project_id: UUID,
     period_id: UUID,
@@ -507,7 +513,7 @@ async def seed_test_suggestions(
     return await crud.upsert_batch(db, project_id, screen, period_id, fields)
 
 
-@router.post("/{suggestion_id}/ignore", response_model=AiSuggestionRead)
+@router.post("/{suggestion_id}/ignore", response_model=AiSuggestionRead, dependencies=_pm_write)
 async def ignore_suggestion(project_id: UUID, suggestion_id: UUID, db: AsyncSession = Depends(get_db)):
     suggestion = await crud.get_one_by_id(db, suggestion_id)
     if suggestion is None or suggestion.project_id != project_id:
@@ -515,7 +521,7 @@ async def ignore_suggestion(project_id: UUID, suggestion_id: UUID, db: AsyncSess
     return await crud.ignore(db, suggestion)
 
 
-@router.post("/resolve", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/resolve", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def resolve_suggestions(
     project_id: UUID, screen: str, period_id: UUID, db: AsyncSession = Depends(get_db)
 ):

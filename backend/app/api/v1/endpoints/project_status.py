@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_project_account_scope, require_role
 from app.core.db import get_db
 from app.crud.project_status import project_status_item_crud, project_status_report_crud
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
 from app.models.reference_data import ReportingPeriod
-from app.schemas.enums import ProjectStatusCategory, ReportStatus
+from app.schemas.enums import ProjectStatusCategory, ReportStatus, RoleCode
 from app.schemas.project_status import (
     ProjectStatusItemCreate,
     ProjectStatusItemRead,
@@ -25,6 +26,9 @@ from app.schemas.status_review import StatusReportReviewRequest
 # Weekly/Monthly history (UX §4.4 / §7 items 2-3): list (period-sorted) +
 # latest + create + edit. No delete — reports are a retained audit trail.
 router = APIRouter(prefix="/projects/{project_id}/status-reports", tags=["Project Status"])
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+_account_manager_review = [Depends(require_project_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))]
 
 
 # Reports are keyed off a reporting_periods row rather than a raw date (see
@@ -61,7 +65,9 @@ async def get_latest_status_report(project_id: UUID, db: AsyncSession = Depends(
     return items[0]
 
 
-@router.post("", response_model=ProjectStatusReportRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=ProjectStatusReportRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+)
 async def create_status_report(
     project_id: UUID,
     payload: ProjectStatusReportCreate,
@@ -70,7 +76,7 @@ async def create_status_report(
     return await project_status_report_crud.create(db, payload, project_id=project_id)
 
 
-@router.put("/{report_id}", response_model=ProjectStatusReportRead)
+@router.put("/{report_id}", response_model=ProjectStatusReportRead, dependencies=_pm_write)
 async def update_status_report(
     project_id: UUID,
     report_id: UUID,
@@ -87,7 +93,7 @@ async def update_status_report(
 # transitions to Approved/Rejected by the level above. Direct field
 # assignment rather than CRUDBase.update since it needs the status-transition
 # guard and a server-set reviewed_at timestamp.
-@router.patch("/{report_id}/review", response_model=ProjectStatusReportRead)
+@router.patch("/{report_id}/review", response_model=ProjectStatusReportRead, dependencies=_account_manager_review)
 async def review_status_report(
     project_id: UUID,
     report_id: UUID,
@@ -136,12 +142,12 @@ async def list_status_items(
     return items
 
 
-@items_router.post("", response_model=ProjectStatusItemRead, status_code=status.HTTP_201_CREATED)
+@items_router.post("", response_model=ProjectStatusItemRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
 async def create_status_item(project_id: UUID, payload: ProjectStatusItemCreate, db: AsyncSession = Depends(get_db)):
     return await project_status_item_crud.create(db, payload, project_id=project_id)
 
 
-@items_router.put("/{item_id}", response_model=ProjectStatusItemRead)
+@items_router.put("/{item_id}", response_model=ProjectStatusItemRead, dependencies=_pm_write)
 async def update_status_item(
     project_id: UUID, item_id: UUID, payload: ProjectStatusItemUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -151,7 +157,7 @@ async def update_status_item(
     return await project_status_item_crud.update(db, obj, payload)
 
 
-@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@items_router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_status_item(project_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await project_status_item_crud.get(db, item_id)
     if obj is None or obj.project_id != project_id:
@@ -162,7 +168,7 @@ async def delete_status_item(project_id: UUID, item_id: UUID, db: AsyncSession =
 # Project -> Account rollup (see services/account_rollup.py): Ignore / Undo
 # both go through this one endpoint — Pulled is only ever set by the pull
 # action itself (POST /accounts/{account_id}/rollup/pull), never here.
-@items_router.patch("/{item_id}/rollup-status", response_model=ProjectStatusItemRead)
+@items_router.patch("/{item_id}/rollup-status", response_model=ProjectStatusItemRead, dependencies=_pm_write)
 async def update_status_item_rollup_status(
     project_id: UUID,
     item_id: UUID,

@@ -3,12 +3,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_account_scope
 from app.core.db import get_db
 from app.schemas.account_rollup import AccountRollupResponse, PullRollupItemRequest
+from app.schemas.enums import RoleCode
 from app.schemas.regional_status import AccountStatusItemRead
 from app.services import account_rollup as account_rollup_service
 
 router = APIRouter(prefix="/accounts/{account_id}/rollup", tags=["Account Reporting"])
+
+_account_manager_write = [Depends(require_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))]
 
 
 @router.get("", response_model=AccountRollupResponse)
@@ -16,7 +20,9 @@ async def get_account_rollup(account_id: UUID, period_id: UUID, db: AsyncSession
     return await account_rollup_service.compute_account_rollup(db, account_id, period_id)
 
 
-@router.post("/pull", response_model=AccountStatusItemRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/pull", response_model=AccountStatusItemRead, status_code=status.HTTP_201_CREATED, dependencies=_account_manager_write
+)
 async def pull_account_rollup_item(
     account_id: UUID,
     payload: PullRollupItemRequest,

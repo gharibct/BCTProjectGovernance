@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.models.metric_target import (
     MetricTargetCloudMaintenance,
@@ -26,7 +27,7 @@ from app.models.metric_target import (
     MetricTargetSupport,
     MetricTargetTesting,
 )
-from app.schemas.enums import StaffingPriority
+from app.schemas.enums import RoleCode, StaffingPriority
 from app.schemas.metric_target import (
     MetricTargetCloudMaintenanceIn,
     MetricTargetCloudMaintenanceRead,
@@ -45,6 +46,8 @@ from app.schemas.metric_target import (
 )
 
 router = APIRouter()
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
 
 
 # --- Generic factory for the 5 single-row targets ---
@@ -74,7 +77,7 @@ def build_metric_target_router(cfg: MetricTargetConfig) -> APIRouter:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No targets set for this project")
         return obj
 
-    @sub.put("", response_model=cfg.read_schema)
+    @sub.put("", response_model=cfg.read_schema, dependencies=_pm_write)
     async def upsert_target(project_id: UUID, payload: cfg.in_schema, db: AsyncSession = Depends(get_db)):
         now = datetime.now(UTC)
         obj = await _get(db, project_id)
@@ -89,7 +92,7 @@ def build_metric_target_router(cfg: MetricTargetConfig) -> APIRouter:
         await db.refresh(obj)
         return obj
 
-    @sub.delete("", status_code=status.HTTP_204_NO_CONTENT)
+    @sub.delete("", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
     async def delete_target(project_id: UUID, db: AsyncSession = Depends(get_db)):
         obj = await _get(db, project_id)
         if obj is None:
@@ -187,7 +190,7 @@ async def get_staffing_target(project_id: UUID, db: AsyncSession = Depends(get_d
     return await _load_staffing_target_with_priorities(db, target)
 
 
-@staffing_router.put("", response_model=MetricTargetStaffingRead)
+@staffing_router.put("", response_model=MetricTargetStaffingRead, dependencies=_pm_write)
 async def upsert_staffing_target(project_id: UUID, payload: MetricTargetStaffingIn, db: AsyncSession = Depends(get_db)):
     now = datetime.now(UTC)
     target = await _get_staffing_target(db, project_id)
@@ -224,7 +227,7 @@ async def upsert_staffing_target(project_id: UUID, payload: MetricTargetStaffing
     return await _load_staffing_target_with_priorities(db, target)
 
 
-@staffing_router.put("/priorities/{priority}", response_model=MetricTargetStaffingPriorityRead)
+@staffing_router.put("/priorities/{priority}", response_model=MetricTargetStaffingPriorityRead, dependencies=_pm_write)
 async def upsert_staffing_priority_target(
     project_id: UUID,
     priority: StaffingPriority,
@@ -252,7 +255,7 @@ async def upsert_staffing_priority_target(
     return existing
 
 
-@staffing_router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+@staffing_router.delete("", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_staffing_target(project_id: UUID, db: AsyncSession = Depends(get_db)):
     target = await _get_staffing_target(db, project_id)
     if target is None:

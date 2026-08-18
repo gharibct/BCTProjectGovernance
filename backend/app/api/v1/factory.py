@@ -3,6 +3,7 @@ resources, and as a building block for the RAID log and Measurement routers
 (which add their own filters on top).
 """
 
+from collections.abc import Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -24,8 +25,14 @@ def build_crud_router(
     create_schema: type,
     update_schema: type | None = None,
     allow_delete: bool = True,
+    write_dependencies: Sequence[Depends] | None = None,
 ) -> APIRouter:
+    """`write_dependencies` (e.g. `[Depends(require_role(RoleCode.ADMIN))]`)
+    gates create/update/delete only — list/get stay open to every
+    authenticated caller, matching this router's existing read behavior."""
+
     router = APIRouter(prefix=prefix, tags=tags)
+    write_dependencies = list(write_dependencies) if write_dependencies else []
 
     @router.get("", response_model=Page[read_schema])
     async def list_items(
@@ -35,7 +42,7 @@ def build_crud_router(
         items, total = await crud.list(db, skip=pagination.skip, limit=pagination.limit)
         return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
-    @router.post("", response_model=read_schema, status_code=status.HTTP_201_CREATED)
+    @router.post("", response_model=read_schema, status_code=status.HTTP_201_CREATED, dependencies=write_dependencies)
     async def create_item(payload: create_schema, db: AsyncSession = Depends(get_db)):
         return await crud.create(db, payload)
 
@@ -48,7 +55,7 @@ def build_crud_router(
 
     if update_schema is not None:
 
-        @router.put("/{item_id}", response_model=read_schema)
+        @router.put("/{item_id}", response_model=read_schema, dependencies=write_dependencies)
         async def update_item(item_id: UUID, payload: update_schema, db: AsyncSession = Depends(get_db)):
             obj = await crud.get(db, item_id)
             if obj is None:
@@ -57,7 +64,7 @@ def build_crud_router(
 
     if allow_delete:
 
-        @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+        @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=write_dependencies)
         async def delete_item(item_id: UUID, db: AsyncSession = Depends(get_db)):
             obj = await crud.get(db, item_id)
             if obj is None:

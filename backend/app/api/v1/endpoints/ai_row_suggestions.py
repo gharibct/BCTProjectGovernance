@@ -3,11 +3,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.crud import ai_row_suggestions as crud
 from app.crud.projects import project_crud
 from app.schemas.ai_row_suggestions import AiRowSuggestionBatchIn, AiRowSuggestionIn, AiRowSuggestionRead
-from app.schemas.enums import AiRowSuggestionStatus
+from app.schemas.enums import AiRowSuggestionStatus, RoleCode
 
 # AI-Implementation.md §10: for grids (Risks/Issues/Dependencies/Assumptions/
 # Opportunities), AI confidence applies to a whole candidate row, not a
@@ -17,6 +18,8 @@ from app.schemas.enums import AiRowSuggestionStatus
 # entity's own create endpoint with the suggested values, same as manual
 # entry; /apply here only marks the suggestion consumed afterward.
 router = APIRouter(prefix="/projects/{project_id}/ai-row-suggestions", tags=["AI Row Suggestions"])
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
 
 
 async def _get_project_or_404(project_id: UUID, db: AsyncSession):
@@ -33,7 +36,9 @@ async def list_pending_suggestions(
     return await crud.list_pending(db, project_id, screen, period_id)
 
 
-@router.post("", response_model=list[AiRowSuggestionRead], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=list[AiRowSuggestionRead], status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+)
 async def ingest_suggestions(
     project_id: UUID, payload: AiRowSuggestionBatchIn, db: AsyncSession = Depends(get_db)
 ):
@@ -309,7 +314,12 @@ _TEST_ROW_BUILDERS = {
 }
 
 
-@router.post("/seed-test-data", response_model=list[AiRowSuggestionRead], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/seed-test-data",
+    response_model=list[AiRowSuggestionRead],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_pm_write,
+)
 async def seed_test_suggestions(
     project_id: UUID, screen: str, period_id: UUID, db: AsyncSession = Depends(get_db)
 ):
@@ -326,7 +336,7 @@ async def seed_test_suggestions(
     return await crud.replace_pending(db, project_id, screen, period_id, builder())
 
 
-@router.post("/{suggestion_id}/ignore", response_model=AiRowSuggestionRead)
+@router.post("/{suggestion_id}/ignore", response_model=AiRowSuggestionRead, dependencies=_pm_write)
 async def ignore_suggestion(project_id: UUID, suggestion_id: UUID, db: AsyncSession = Depends(get_db)):
     suggestion = await crud.get_one_by_id(db, suggestion_id)
     if suggestion is None or suggestion.project_id != project_id:
@@ -334,7 +344,7 @@ async def ignore_suggestion(project_id: UUID, suggestion_id: UUID, db: AsyncSess
     return await crud.mark_status(db, suggestion, AiRowSuggestionStatus.IGNORED)
 
 
-@router.post("/{suggestion_id}/apply", response_model=AiRowSuggestionRead)
+@router.post("/{suggestion_id}/apply", response_model=AiRowSuggestionRead, dependencies=_pm_write)
 async def apply_suggestion(project_id: UUID, suggestion_id: UUID, db: AsyncSession = Depends(get_db)):
     """Called by the frontend right after it creates the real Risk/Issue/etc
     row from this suggestion's values via that entity's own create endpoint

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_role
 from app.core.db import get_db
 from app.crud.contractual import (
     contractual_commitment_actual_crud,
@@ -29,8 +30,11 @@ from app.schemas.contractual import (
     MilestonePaymentRead,
     MilestonePaymentUpdate,
 )
+from app.schemas.enums import RoleCode
 
 router = APIRouter(tags=["Contractual Compliance"])
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
 
 
 # --- Commitments ---
@@ -46,7 +50,9 @@ async def list_commitments(project_id: UUID, db: AsyncSession = Depends(get_db))
     return items
 
 
-@commitments_router.post("", response_model=ContractualCommitmentRead, status_code=status.HTTP_201_CREATED)
+@commitments_router.post(
+    "", response_model=ContractualCommitmentRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+)
 async def create_commitment(project_id: UUID, payload: ContractualCommitmentCreate, db: AsyncSession = Depends(get_db)):
     return await contractual_commitment_crud.create(db, payload, project_id=project_id)
 
@@ -59,7 +65,7 @@ async def get_commitment(project_id: UUID, commitment_id: UUID, db: AsyncSession
     return obj
 
 
-@commitments_router.put("/{commitment_id}", response_model=ContractualCommitmentRead)
+@commitments_router.put("/{commitment_id}", response_model=ContractualCommitmentRead, dependencies=_pm_write)
 async def update_commitment(
     project_id: UUID, commitment_id: UUID, payload: ContractualCommitmentUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -69,7 +75,7 @@ async def update_commitment(
     return await contractual_commitment_crud.update(db, obj, payload)
 
 
-@commitments_router.delete("/{commitment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@commitments_router.delete("/{commitment_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_commitment(project_id: UUID, commitment_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await contractual_commitment_crud.get(db, commitment_id)
     if obj is None or obj.project_id != project_id:
@@ -92,7 +98,10 @@ async def list_commitment_actuals(project_id: UUID, commitment_id: UUID, db: Asy
 
 
 @commitments_router.post(
-    "/{commitment_id}/actuals", response_model=ContractualCommitmentActualRead, status_code=status.HTTP_201_CREATED
+    "/{commitment_id}/actuals",
+    response_model=ContractualCommitmentActualRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_pm_write,
 )
 async def create_commitment_actual(
     project_id: UUID,
@@ -117,7 +126,9 @@ async def list_milestones(project_id: UUID, db: AsyncSession = Depends(get_db)):
     return items
 
 
-@milestones_router.post("", response_model=MilestonePaymentRead, status_code=status.HTTP_201_CREATED)
+@milestones_router.post(
+    "", response_model=MilestonePaymentRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+)
 async def create_milestone(project_id: UUID, payload: MilestonePaymentCreate, db: AsyncSession = Depends(get_db)):
     return await milestone_payment_crud.create(db, payload, project_id=project_id)
 
@@ -130,7 +141,7 @@ async def get_milestone(project_id: UUID, milestone_id: UUID, db: AsyncSession =
     return obj
 
 
-@milestones_router.put("/{milestone_id}", response_model=MilestonePaymentRead)
+@milestones_router.put("/{milestone_id}", response_model=MilestonePaymentRead, dependencies=_pm_write)
 async def update_milestone(
     project_id: UUID, milestone_id: UUID, payload: MilestonePaymentUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -140,7 +151,7 @@ async def update_milestone(
     return await milestone_payment_crud.update(db, obj, payload)
 
 
-@milestones_router.delete("/{milestone_id}", status_code=status.HTTP_204_NO_CONTENT)
+@milestones_router.delete("/{milestone_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
 async def delete_milestone(project_id: UUID, milestone_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await milestone_payment_crud.get(db, milestone_id)
     if obj is None or obj.project_id != project_id:
@@ -161,7 +172,7 @@ async def get_milestone_actual(project_id: UUID, milestone_id: UUID, db: AsyncSe
     return items[0]
 
 
-@milestones_router.put("/{milestone_id}/actual", response_model=MilestonePaymentActualRead)
+@milestones_router.put("/{milestone_id}/actual", response_model=MilestonePaymentActualRead, dependencies=_pm_write)
 async def upsert_milestone_actual(
     project_id: UUID,
     milestone_id: UUID,

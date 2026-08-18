@@ -5,10 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_role
 from app.api.v1.factory import build_crud_router
 from app.core.db import get_db
 from app.crud.users import user_crud
 from app.models.users import Role, User, UserAccount, UserGeo
+from app.schemas.enums import RoleCode
 from app.schemas.users import (
     RoleRead,
     UserAccountsUpdate,
@@ -20,6 +22,8 @@ from app.schemas.users import (
 
 router = APIRouter()
 
+_admin_only = [Depends(require_role(RoleCode.ADMIN))]
+
 router.include_router(
     build_crud_router(
         prefix="/users",
@@ -28,29 +32,30 @@ router.include_router(
         read_schema=UserRead,
         create_schema=UserCreate,
         update_schema=UserUpdate,
-    )
+    ),
+    dependencies=_admin_only,
 )
 
 
-@router.get("/roles", response_model=list[RoleRead], tags=["Users"])
+@router.get("/roles", response_model=list[RoleRead], tags=["Users"], dependencies=_admin_only)
 async def list_roles(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Role))
     return result.scalars().all()
 
 
-@router.get("/users/{user_id}/accounts", response_model=list[UUID], tags=["Users"])
+@router.get("/users/{user_id}/accounts", response_model=list[UUID], tags=["Users"], dependencies=_admin_only)
 async def get_user_accounts(user_id: UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserAccount.account_id).where(UserAccount.user_id == user_id))
     return list(result.scalars().all())
 
 
-@router.get("/users/{user_id}/geos", response_model=list[UUID], tags=["Users"])
+@router.get("/users/{user_id}/geos", response_model=list[UUID], tags=["Users"], dependencies=_admin_only)
 async def get_user_geos(user_id: UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == user_id))
     return list(result.scalars().all())
 
 
-@router.put("/users/{user_id}/accounts", response_model=list[UUID], tags=["Users"])
+@router.put("/users/{user_id}/accounts", response_model=list[UUID], tags=["Users"], dependencies=_admin_only)
 async def set_user_accounts(
     user_id: UUID, body: UserAccountsUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -81,7 +86,7 @@ async def set_user_accounts(
     return list(result)
 
 
-@router.put("/users/{user_id}/geos", response_model=list[UUID], tags=["Users"])
+@router.put("/users/{user_id}/geos", response_model=list[UUID], tags=["Users"], dependencies=_admin_only)
 async def set_user_geos(user_id: UUID, body: UserGeosUpdate, db: AsyncSession = Depends(get_db)):
     user = await db.get(User, user_id)
     if user is None:

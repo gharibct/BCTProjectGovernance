@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_role
 from app.core.config import settings
 from app.core.db import get_db
 from app.crud.documents import project_document_crud
@@ -17,7 +18,7 @@ from app.crud.reference_data import reporting_period_crud
 from app.models.documents import ProjectDocument
 from app.models.reference_data import ReportingPeriod
 from app.schemas.documents import ProjectDocumentCreate, ProjectDocumentRead
-from app.schemas.enums import DocumentAiStatus, DocumentContext
+from app.schemas.enums import DocumentAiStatus, DocumentContext, RoleCode
 
 # AI Hub > Document Processing (New Project and Project Reporting both use
 # this one router). Files are stored on local disk under
@@ -31,6 +32,8 @@ from app.schemas.enums import DocumentAiStatus, DocumentContext
 #   extraction — see ai_suggestions.py / ai_row_suggestions.py, the same
 #   boundary applies here: no real AI/LLM pipeline exists in this repo yet.
 router = APIRouter(prefix="/projects/{project_id}/documents", tags=["Documents"])
+
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
 
 _UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9_-]+")
 
@@ -87,7 +90,7 @@ async def list_documents(project_id: UUID, db: AsyncSession = Depends(get_db)):
     return items
 
 
-@router.post("", response_model=ProjectDocumentRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProjectDocumentRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
 async def upload_document(
     project_id: UUID,
     file: UploadFile = File(...),
@@ -142,7 +145,7 @@ class DocumentProcessRequest(BaseModel):
     document_ids: list[UUID]
 
 
-@router.post("/process", response_model=list[ProjectDocumentRead])
+@router.post("/process", response_model=list[ProjectDocumentRead], dependencies=_pm_write)
 async def process_documents(
     project_id: UUID,
     payload: DocumentProcessRequest,
@@ -176,7 +179,7 @@ async def process_documents(
     return docs
 
 
-@router.delete("/{document_id}")
+@router.delete("/{document_id}", dependencies=_pm_write)
 async def delete_document(project_id: UUID, document_id: UUID, db: AsyncSession = Depends(get_db)):
     doc = await _get_document_or_404(project_id, document_id, db)
 

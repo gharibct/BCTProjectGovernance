@@ -1,7 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.deps import require_role
 from app.api.v1.factory import build_crud_router
 from app.crud.reference_data import account_crud, geo_crud, organization_crud, project_type_crud, reporting_period_crud
+from app.schemas.enums import RoleCode
 from app.schemas.reference_data import (
     AccountCreate,
     AccountRead,
@@ -22,6 +24,11 @@ from app.schemas.reference_data import (
 
 router = APIRouter()
 
+# Foundational master data (orgs/geos/accounts/project types/reporting
+# periods) — only ADMIN creates/edits these; every authenticated role still
+# reads them (dropdowns, filters, etc.).
+_admin_write = [Depends(require_role(RoleCode.ADMIN))]
+
 router.include_router(
     build_crud_router(
         prefix="/organizations",
@@ -30,6 +37,7 @@ router.include_router(
         read_schema=OrganizationRead,
         create_schema=OrganizationCreate,
         update_schema=OrganizationUpdate,
+        write_dependencies=_admin_write,
     )
 )
 router.include_router(
@@ -40,6 +48,7 @@ router.include_router(
         read_schema=GeoRead,
         create_schema=GeoCreate,
         update_schema=GeoUpdate,
+        write_dependencies=_admin_write,
     )
 )
 router.include_router(
@@ -50,6 +59,7 @@ router.include_router(
         read_schema=ProjectTypeRead,
         create_schema=ProjectTypeCreate,
         update_schema=ProjectTypeUpdate,
+        write_dependencies=_admin_write,
     )
 )
 router.include_router(
@@ -60,6 +70,7 @@ router.include_router(
         read_schema=AccountRead,
         create_schema=AccountCreate,
         update_schema=AccountUpdate,
+        write_dependencies=_admin_write,
     )
 )
 router.include_router(
@@ -70,5 +81,6 @@ router.include_router(
         read_schema=ReportingPeriodRead,
         create_schema=ReportingPeriodCreate,
         update_schema=ReportingPeriodUpdate,
+        write_dependencies=_admin_write,
     )
 )

@@ -3,12 +3,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_account_scope
 from app.core.db import get_db
 from app.schemas.account_health_declarations import AccountHealthItemRead
 from app.schemas.account_health_rollup import AccountHealthRollupResponse, PullHealthRollupItemRequest
+from app.schemas.enums import RoleCode
 from app.services import account_health_rollup as account_health_rollup_service
 
 router = APIRouter(prefix="/accounts/{account_id}/health-rollup", tags=["Account Reporting"])
+
+_account_manager_write = [Depends(require_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))]
 
 
 @router.get("", response_model=AccountHealthRollupResponse)
@@ -16,7 +20,12 @@ async def get_account_health_rollup(account_id: UUID, period_id: UUID, db: Async
     return await account_health_rollup_service.compute_account_health_rollup(db, account_id, period_id)
 
 
-@router.post("/pull", response_model=AccountHealthItemRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/pull",
+    response_model=AccountHealthItemRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=_account_manager_write,
+)
 async def pull_account_health_rollup_item(
     account_id: UUID,
     payload: PullHealthRollupItemRequest,

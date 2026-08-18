@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import PaginationParams, pagination_params
+from app.api.deps import PaginationParams, pagination_params, require_role
 from app.core.db import get_db
 from app.crud.base import CRUDBase
 from app.crud.raid import (
@@ -25,6 +25,7 @@ from app.crud.raid import (
 )
 from app.models.raid import AssumptionLog, DependencyLog, IssueLog, OpportunityLog, RiskLog
 from app.schemas.common import Page
+from app.schemas.enums import RoleCode
 from app.schemas.raid import (
     AssumptionLogCreate,
     AssumptionLogRead,
@@ -64,6 +65,9 @@ class RaidConfig:
     has_review_dates: bool = True
 
 
+_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+
+
 def build_raid_router(cfg: RaidConfig) -> APIRouter:
     router = APIRouter(prefix=f"/projects/{{project_id}}/{cfg.prefix}", tags=[cfg.tag])
     model = cfg.model
@@ -97,7 +101,7 @@ def build_raid_router(cfg: RaidConfig) -> APIRouter:
         items = (await db.execute(stmt)).scalars().all()
         return Page(items=list(items), total=total, skip=pagination.skip, limit=pagination.limit)
 
-    @router.post("", response_model=cfg.read_schema, status_code=status.HTTP_201_CREATED)
+    @router.post("", response_model=cfg.read_schema, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
     async def create_item(project_id: UUID, payload: cfg.create_schema, db: AsyncSession = Depends(get_db)):
         code = await generate_code(db, cfg.entity_code)
         return await crud.create(db, payload, project_id=project_id, **{cfg.code_field: code}, **cfg.default_values)
@@ -109,7 +113,7 @@ def build_raid_router(cfg: RaidConfig) -> APIRouter:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
         return obj
 
-    @router.put("/{item_id}", response_model=cfg.read_schema)
+    @router.put("/{item_id}", response_model=cfg.read_schema, dependencies=_pm_write)
     async def update_item(
         project_id: UUID, item_id: UUID, payload: cfg.update_schema, db: AsyncSession = Depends(get_db)
     ):
@@ -118,7 +122,7 @@ def build_raid_router(cfg: RaidConfig) -> APIRouter:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
         return await crud.update(db, obj, payload)
 
-    @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
     async def delete_item(project_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
         obj = await crud.get(db, item_id)
         if obj is None or obj.project_id != project_id:
