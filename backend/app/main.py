@@ -1,6 +1,9 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
+from app.api.deps import get_current_user
+from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.security import verify_api_key
@@ -15,10 +18,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Only used transiently by Authlib to hold OIDC state/nonce/PKCE during the
+# OneLogin redirect round-trip (see auth.py's onelogin_login/onelogin_callback)
+# — separate from our own long-lived pg_session app cookie (core/session.py).
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret,
+    same_site="lax",
+    https_only=settings.session_cookie_secure,
+)
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-app.include_router(api_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
+# /auth/* must stay reachable without an existing session (login/callback/config).
+app.include_router(auth_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
+# Everything else now requires both the shared API key and a valid session.
+app.include_router(
+    api_router,
+    prefix="/api/v1",
+    dependencies=[Depends(verify_api_key), Depends(get_current_user)],
+)

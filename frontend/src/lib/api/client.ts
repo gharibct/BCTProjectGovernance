@@ -1,4 +1,9 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+import { useSession } from "@/stores/session";
+
+// Relative — proxied to the backend by next.config.ts's rewrite so the
+// browser sees it as same-origin, which is what lets the OneLogin session
+// cookie (httpOnly, SameSite=Lax) work without needing HTTPS locally.
+const BASE_URL = "/api/v1";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
 
 export class ApiError extends Error {
@@ -12,14 +17,25 @@ export class ApiError extends Error {
   }
 }
 
-// Every FastAPI route in this backend requires X-API-Key (see
-// backend/app/core/security.py). There's no user auth/session yet, so this
-// key is a build-time public env var like the rest of this prototype's
-// "no auth system" screens — move it behind a server-side proxy before this
-// ships past internal/local use.
+// A 401 means the session cookie is missing/expired/invalid — clear the
+// locally cached user and bounce to /login rather than leaving the app
+// showing stale role/scope data for a session that no longer exists
+// server-side.
+function handleUnauthorized() {
+  if (typeof window === "undefined") return;
+  useSession.getState().signOut();
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+}
+
+// Every FastAPI route in this backend also requires X-API-Key (see
+// backend/app/core/security.py) as a defense-in-depth shared secret on top
+// of the per-user session cookie (credentials: "include" below).
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "X-API-Key": API_KEY,
@@ -27,6 +43,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
+  if (res.status === 401) handleUnauthorized();
   if (res.status === 204) return undefined as T;
 
   const isJson = res.headers.get("content-type")?.includes("application/json");
@@ -45,10 +62,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 async function postForm<T>(path: string, formData: FormData): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
+    credentials: "include",
     headers: { "X-API-Key": API_KEY },
     body: formData,
   });
 
+  if (res.status === 401) handleUnauthorized();
   if (res.status === 204) return undefined as T;
 
   const isJson = res.headers.get("content-type")?.includes("application/json");
@@ -66,8 +85,11 @@ async function postForm<T>(path: string, formData: FormData): Promise<T> {
 // fetch a Blob here and the caller turns it into a synthetic anchor click.
 async function getBlob(path: string): Promise<Blob> {
   const res = await fetch(`${BASE_URL}${path}`, {
+    credentials: "include",
     headers: { "X-API-Key": API_KEY },
   });
+
+  if (res.status === 401) handleUnauthorized();
 
   if (!res.ok) {
     const isJson = res.headers.get("content-type")?.includes("application/json");

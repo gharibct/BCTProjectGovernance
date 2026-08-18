@@ -6,10 +6,27 @@ API_KEY=<pick a real secret>
 CORS_ORIGINS=http://<new-server-ip-or-domain>:3000
 Keep the DB host as 192.168.1.175 (unchanged). Set CORS_ORIGINS to wherever the frontend will actually be reached from — otherwise the browser will get CORS errors.
 
+Auth (see the OneLogin SSO integration plan for the full picture):
+AUTH_TYPE=no_password | onelogin
+SESSION_SECRET=<pick a real secret>
+SESSION_TTL_MINUTES=480
+SESSION_COOKIE_SECURE=false   # set true once this box is served over HTTPS
+FRONTEND_BASE_URL=http://<new-server-ip-or-domain>:3000
+ONELOGIN_CLIENT_ID=, ONELOGIN_CLIENT_SECRET=, ONELOGIN_ISSUER=, ONELOGIN_REDIRECT_URI=
+  — only needed once AUTH_TYPE=onelogin; AUTH_TYPE=onelogin also requires
+  HTTPS on this box (OneLogin won't redirect to a plain-HTTP non-localhost
+  URL) — keep AUTH_TYPE=no_password until the reverse-proxy/TLS setup below
+  is in place.
+
 frontend/.env.local:
-NEXT_PUBLIC_API_BASE_URL=http://<new-server-ip-or-domain>:8000/api/v1
 NEXT_PUBLIC_API_KEY=<same value as backend API_KEY>
-These two must match — the frontend sends NEXT_PUBLIC_API_KEY as the X-API-Key header, and the backend checks it against API_KEY.
+API_PROXY_TARGET=http://<new-server-ip-or-domain>:8000
+NEXT_PUBLIC_API_KEY must match the backend's API_KEY — the frontend sends it
+as the X-API-Key header, and the backend checks it against API_KEY.
+API_PROXY_TARGET is where next.config.ts's rewrite proxies /api/v1/* to — the
+browser always calls the frontend's own origin (same-origin, no CORS, and
+required for the OneLogin session cookie to work), and Next.js forwards those
+requests server-side to the backend.
 
 Steps
 

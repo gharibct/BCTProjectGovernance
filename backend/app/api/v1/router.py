@@ -7,7 +7,6 @@ from app.api.v1.endpoints import (
     ai_row_suggestions,
     ai_suggestions,
     audit,
-    auth,
     contractual,
     dashboard,
     data_integrity,
@@ -30,7 +29,8 @@ from app.api.v1.endpoints import (
 
 api_router = APIRouter()
 
-api_router.include_router(auth.router)
+# auth.router is mounted separately in app.main (it must stay reachable
+# without an existing session — login/callback/config).
 api_router.include_router(reference_data.router)
 api_router.include_router(users.router)
 api_router.include_router(projects.router)

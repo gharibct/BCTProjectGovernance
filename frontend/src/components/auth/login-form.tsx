@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/client";
-import { useLogin } from "@/lib/api/auth";
+import { useAuthConfig, useLogin } from "@/lib/api/auth";
 import { ROLE_LANDING_ROUTE } from "@/lib/menu-config";
 import { useSession } from "@/stores/session";
 
@@ -18,6 +18,7 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  const authConfig = useAuthConfig();
   const login = useLogin();
   const setSessionUser = useSession((s) => s.signIn);
 
@@ -40,6 +41,43 @@ export function LoginForm() {
       },
     });
   };
+
+  if (authConfig.isPending) {
+    return null;
+  }
+
+  if (authConfig.data?.auth_type === "onelogin") {
+    return (
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+          Sign In
+        </h2>
+
+        <p className="mt-4 text-sm text-slate-600">
+          This app now signs in through your organization&apos;s OneLogin
+          account.
+        </p>
+
+        <Button
+          type="button"
+          onClick={() => {
+            window.location.href = "/api/v1/auth/onelogin/login";
+          }}
+          className="mt-8 h-12 w-full rounded-lg bg-[#16283e] text-sm font-semibold tracking-[0.08em] text-white uppercase hover:bg-[#1d3350]"
+        >
+          Sign in with OneLogin
+        </Button>
+
+        <div className="mt-8 flex items-start gap-3 rounded-xl bg-slate-100 p-4">
+          <ShieldCheck className="mt-0.5 size-5 shrink-0 text-slate-500" />
+          <p className="text-sm leading-relaxed text-slate-600">
+            Authorized personnel only. Secure login is monitored via session
+            auditing. Version 0.1.0 — internal build.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

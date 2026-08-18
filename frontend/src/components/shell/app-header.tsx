@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Bell, LayoutGrid, LogOut, Menu } from "lucide-react";
 
+import { useLogout } from "@/lib/api/auth";
 import { useSession } from "@/stores/session";
 
 function initials(fullName: string): string {
@@ -17,6 +18,7 @@ export function AppHeader() {
   const router = useRouter();
   const user = useSession((s) => s.user);
   const signOut = useSession((s) => s.signOut);
+  const logout = useLogout();
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5">
@@ -56,8 +58,16 @@ export function AppHeader() {
               type="button"
               aria-label="Sign out"
               onClick={() => {
-                signOut();
-                router.push("/login");
+                logout.mutate(undefined, {
+                  onSettled: (data) => {
+                    signOut();
+                    if (data?.logout_url) {
+                      window.location.href = data.logout_url;
+                    } else {
+                      router.push("/login");
+                    }
+                  },
+                });
               }}
               className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
             >
