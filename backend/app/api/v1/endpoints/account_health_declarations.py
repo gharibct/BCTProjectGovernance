@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_account_scope
+from app.api.deps import require_account_or_geo_scope
 from app.core.db import get_db
 from app.crud.account_health_declarations import account_health_declaration_crud, account_health_item_crud
 from app.models.account_health_declarations import AccountHealthDeclaration, AccountHealthItem
@@ -26,7 +26,9 @@ from app.services.health_rollup import compute_overall_rating
 # columns for anything to read one today).
 router = APIRouter(prefix="/accounts/{account_id}/health-declarations", tags=["Account Reporting"])
 
-_account_manager_write = [Depends(require_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))]
+# Account-Head work — also reachable by a Geo Head via the top-bar Work Context,
+# for accounts in their own geo (require_account_or_geo_scope).
+_account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
 def _by_period_start(model: type) -> Any:

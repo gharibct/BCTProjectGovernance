@@ -1,8 +1,9 @@
 "use client";
 
+import * as React from "react";
 import { Bot, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
-import type { UseMutationResult } from "@tanstack/react-query";
+import { useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,18 @@ export function AiRowSuggestionsPanel<TPayload>({
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
+  // Applied-but-unignored suggestions must not survive leaving this screen —
+  // otherwise navigating away and back (or reopening later) would show them
+  // again even though "Apply AI Changes" wasn't clicked this visit. Same
+  // pattern as use-ai-review.ts's cleanup for the field-level counterpart.
+  const queryClient = useQueryClient();
+  React.useEffect(() => {
+    const key = ["ai-row-suggestions", projectId, screen, periodId];
+    return () => {
+      queryClient.removeQueries({ queryKey: key });
+    };
+  }, [queryClient, projectId, screen, periodId]);
+
   // The literal "Apply AI Changes" action per the notification spec — it
   // mutates a real register row (create/update), so success/failure go
   // through the page banner like every other Save/Add/Update action.
@@ -136,12 +149,15 @@ export function AiRowSuggestionsPanel<TPayload>({
     ignoreMutation.mutate(suggestion.id);
   };
 
+  // Hidden on screen launch: the "AI-Identified …s" section only exists once
+  // "Apply AI Changes" has pulled suggestions into the cache this visit (the
+  // query is `enabled: false` and cleared on unmount). With none present
+  // there is nothing to review, so render nothing rather than an empty card.
+  if (suggestions.length === 0) return null;
+
   return (
     <SectionCard icon={Bot} title={`AI-Identified ${itemLabel}s`}>
-      {suggestions.length === 0 ? (
-        <p className="text-sm text-slate-500">No {itemLabel.toLowerCase()}s found in uploaded documents yet.</p>
-      ) : (
-        <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
           {suggestions.map((suggestion) => {
             const tier = confidenceTier(suggestion.confidence);
             const [titleField, ...restFields] = previewFields;
@@ -209,8 +225,7 @@ export function AiRowSuggestionsPanel<TPayload>({
               </div>
             );
           })}
-        </div>
-      )}
+      </div>
     </SectionCard>
   );
 }

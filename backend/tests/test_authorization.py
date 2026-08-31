@@ -43,6 +43,15 @@ class _ExecResult:
     def scalar_one(self):
         return len(self._values)
 
+    def scalar_one_or_none(self):
+        return self._values[0] if self._values else None
+
+    def all(self):
+        return self._values
+
+    def one(self):
+        return self._values[0]
+
 
 class FakeDB:
     """Answers db.get(Role, ...) with a canned role, db.get(Project/Account, ...)
@@ -67,6 +76,33 @@ class FakeDB:
         if "user_geos" in compiled:
             return _ExecResult(self._owned_geo_ids)
         return _ExecResult([])
+
+    # No-op write surface — endpoint tests that get past a role/scope gate
+    # (see override_auth below) still run the real endpoint body, which for
+    # create/update/delete calls these. FakeDB has no real storage, so these
+    # just let the call complete instead of raising AttributeError; the
+    # object handed to add()/refresh() is left as whatever the endpoint
+    # already constructed in memory.
+    def add(self, obj):
+        pass
+
+    def add_all(self, objs):
+        pass
+
+    async def flush(self):
+        pass
+
+    async def refresh(self, obj):
+        pass
+
+    async def delete(self, obj):
+        pass
+
+    async def commit(self):
+        pass
+
+    async def rollback(self):
+        pass
 
 
 def make_user():

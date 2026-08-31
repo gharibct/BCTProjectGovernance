@@ -92,6 +92,21 @@ class MetricTargetTestingRead(MetricTargetTestingIn):
     project_id: UUID
 
 
+# --- Consulting ---
+
+
+class MetricTargetConsultingIn(BaseModel):
+    target_effort_variation_pct: Decimal | None = None
+    target_schedule_performance_index: Decimal | None = None
+    target_cost_performance_index: Decimal | None = None
+
+
+class MetricTargetConsultingRead(MetricTargetConsultingIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    project_id: UUID
+
+
 # --- Cloud Maintenance ---
 
 

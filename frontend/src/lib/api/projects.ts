@@ -6,6 +6,7 @@ export type ContractType = "FPP" | "T&M" | "Capped T&M" | "Internal";
 export type ProjectOwned = "Fully Owned" | "Co-Owned" | "Customer Driven";
 export type BillingType = "FPP" | "FB" | "T&M" | "Product" | "Unit Based Billing" | "Others";
 export type EngagementType = "Implementation" | "Support";
+export type YesNo = "Yes" | "No";
 export type ApplicablePhase =
   | "Requirement"
   | "Design"
@@ -36,6 +37,7 @@ export type Project = {
   organization_id: string | null;
   project_owned: ProjectOwned | null;
   geo_id: string | null;
+  region_id: string | null;
   account_id: string | null;
   project_manager_id: string | null;
   delivery_manager_id: string | null;
@@ -48,6 +50,9 @@ export type Project = {
   project_currency: string | null;
   billing_type: BillingType | null;
   engagement_type: EngagementType | null;
+  critical_flag: YesNo | null;
+  product_flag: YesNo | null;
+  product_id: string | null;
   planned_start_date: string | null;
   actual_start_date: string | null;
   planned_end_date: string | null;
@@ -80,6 +85,7 @@ export type ProjectPayload = Partial<{
   organization_id: string;
   project_owned: ProjectOwned;
   geo_id: string;
+  region_id: string;
   account_id: string;
   project_manager_id: string;
   delivery_manager_id: string;
@@ -90,6 +96,9 @@ export type ProjectPayload = Partial<{
   project_currency: string;
   billing_type: BillingType;
   engagement_type: EngagementType;
+  critical_flag: YesNo;
+  product_flag: YesNo;
+  product_id: string;
   planned_start_date: string;
   actual_start_date: string;
   planned_end_date: string;
@@ -239,6 +248,35 @@ export function useDeleteOracleId(projectId: string | null) {
     mutationFn: (oracleIdId: string) => api.delete(`/projects/${projectId}/oracle-ids/${oracleIdId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-oracle-ids", projectId] });
+    },
+  });
+}
+
+// Creates the project and maps every pending Oracle Project ID onto it in
+// one client-side operation, so New Project Creation can require at least
+// one Oracle mapping before the project exists at all (no projectId is
+// available yet to instantiate useAddOracleId with).
+export function useCreateProjectWithOracleIds() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      payload,
+      oracleProjectIds,
+    }: {
+      payload: ProjectPayload;
+      oracleProjectIds: string[];
+    }) => {
+      const project = await api.post<Project>("/projects", payload);
+      for (const oracleProjectId of oracleProjectIds) {
+        await api.post<ProjectOracleId>(`/projects/${project.id}/oracle-ids`, {
+          oracle_project_id: oracleProjectId,
+        });
+      }
+      return project;
+    },
+    onSuccess: (project) => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["project-oracle-ids", project.id] });
     },
   });
 }

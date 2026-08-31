@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Project Health KPI Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#d2bbff",
+                        "on-tertiary-container": "#c9aeff",
+                        "on-error": "#ffffff",
+                        "tertiary": "#440098",
+                        "background": "#f8f9ff",
+                        "on-secondary-container": "#006f66",
+                        "secondary-fixed": "#89f5e7",
+                        "inverse-surface": "#213145",
+                        "outline-variant": "#c4c5d5",
+                        "secondary-container": "#86f2e4",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed": "#25005a",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed": "#00201d",
+                        "error-container": "#ffdad6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-surface": "#0b1c30",
+                        "surface-dim": "#cbdbf5",
+                        "surface-container": "#e5eeff",
+                        "primary-container": "#1e40af",
+                        "secondary-fixed-dim": "#6bd8cb",
+                        "on-background": "#0b1c30",
+                        "surface": "#f8f9ff",
+                        "primary-fixed": "#dde1ff",
+                        "surface-bright": "#f8f9ff",
+                        "surface-variant": "#d3e4fe",
+                        "on-secondary-fixed-variant": "#005049",
+                        "primary": "#00288e",
+                        "error": "#ba1a1a",
+                        "primary-fixed-dim": "#b8c4ff",
+                        "on-primary-fixed-variant": "#173bab",
+                        "on-tertiary-fixed-variant": "#5a00c6",
+                        "on-error-container": "#93000a",
+                        "surface-container-highest": "#dce9ff",
+                        "inverse-primary": "#b8c4ff",
+                        "on-primary-container": "#a8b8ff",
+                        "surface-container-low": "#eff4ff",
+                        "surface-tint": "#3755c3",
+                        "on-primary-fixed": "#001453",
+                        "tertiary-container": "#5f00d1",
+                        "inverse-on-surface": "#eaf1ff",
+                        "tertiary-fixed": "#eaddff",
+                        "secondary": "#006a61",
+                        "on-surface-variant": "#444653",
+                        "outline": "#757684",
+                        "surface-container-high": "#d3e4fe"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "container-max-width": "1440px",
+                        "margin-desktop": "40px",
+                        "gutter": "24px",
+                        "unit": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "title-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "title-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .kpi-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        }
+        .rag-green { color: #15803d; } /* Custom semantic colors for RAG, avoiding arbitrary classes in HTML */
+        .rag-amber { color: #b45309; }
+        .rag-red { color: #b91c1c; }
+        .rag-blue { color: #1d4ed8; }
+        .interactive-value:hover { text-decoration: underline; cursor: pointer; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md antialiased overflow-hidden flex h-screen">
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col h-full overflow-hidden mr-64 relative z-0">
+<!-- TopNavBar -->
+<nav class="bg-surface-container-lowest text-primary shadow-sm docked full-width top-0 z-20 border-b border-outline-variant">
+<div class="flex justify-between items-center w-full px-margin-desktop py-4 max-w-container-max-width mx-auto">
+<div class="flex items-center gap-4">
+<span class="font-headline-lg text-headline-lg font-bold text-primary">Project Health</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container px-4 py-2 rounded-lg font-label-sm text-label-sm transition-colors shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                        Export
+                    </button>
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center overflow-hidden border border-outline-variant cursor-pointer hover:bg-surface-container transition-colors">
+<img alt="User Profile" class="object-cover w-full h-full" data-alt="A professional headshot of a corporate executive in a modern office, softly lit with cool blue tones and bright white highlights, representing a premium light-mode UI style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJOWIy_Vd1tKGAaErATLkLerKBG6kogrOnkZy4l6XEWoMn16T-OtA13RarwWpr7j3tsITcDorQX8EpAaHpv34WocTV1GmoKfaRwSWd9XYa6-nqR7aUGXU1W7Xp057f0v9X5Jkqhfl2t44RnjJvXvC2sdC4iqIKXmPp3GBHSzcaLKZHG8zNGBdmraQaXgzQg0P2rwaMmp5OrOBc4MGr-G1ZWNFHxV68mZgXYehSx22lBWKt29_73v10ZA"/>
+</div>
+</div>
+</div>
+</nav>
+<!-- Global Filter Bar -->
+<div class="bg-surface-container-lowest border-b border-outline-variant px-margin-desktop py-3 flex items-center justify-between z-10 shadow-sm shrink-0">
+<div class="flex flex-wrap items-center gap-4">
+<span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">filter_list</span> Filters:
+                </span>
+<select class="bg-surface border border-outline-variant text-on-surface rounded-md px-2 py-1 font-body-md text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Geo [All]</option>
+</select>
+<select class="bg-surface border border-outline-variant text-on-surface rounded-md px-2 py-1 font-body-md text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Account [All]</option>
+</select>
+<select class="bg-surface border border-outline-variant text-on-surface rounded-md px-2 py-1 font-body-md text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Project Type [All]</option>
+</select>
+<select class="bg-surface border border-outline-variant text-on-surface rounded-md px-2 py-1 font-body-md text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Project [All]</option>
+</select>
+<select class="bg-surface border border-outline-variant text-on-surface rounded-md px-2 py-1 font-body-md text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Period [Aug-26]</option>
+</select>
+<button class="text-primary hover:text-primary-container font-label-sm text-label-sm underline ml-2">Reset</button>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span> Last updated: Just now
+            </div>
+</div>
+<!-- Scrollable Dashboard Content -->
+<main class="flex-1 overflow-y-auto p-margin-desktop p-gutter relative z-0">
+<div class="max-w-container-max-width mx-auto pb-12">
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-gutter">
+<!-- Core Overviews (Top Row) -->
+<div class="col-span-1 md:col-span-2 lg:col-span-2 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-primary w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-title-md text-title-md text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">folder_open</span> PROJECT PORTFOLIO
+                                </h3>
+<div class="flex justify-between items-end">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-1">Total</p>
+<p class="font-display-lg text-display-lg text-primary">142</p>
+</div>
+<div class="text-right">
+<p class="font-body-md text-body-md text-on-surface-variant"><span class="font-bold text-on-surface">128</span> Active</p>
+<p class="font-body-md text-body-md text-on-surface-variant"><span class="font-bold text-on-surface">14</span> Completed</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-label-sm flex items-center gap-1 group" href="#">
+                                View Project List <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 md:col-span-2 lg:col-span-2 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-secondary w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-title-md text-title-md text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">monitor_heart</span> PROJECT HEALTH
+                                </h3>
+<div class="flex justify-between gap-2">
+<div class="flex-1 bg-green-50 rounded p-2 text-center border border-green-100 cursor-pointer hover:bg-green-100 transition-colors">
+<p class="font-label-sm text-[10px] text-green-700 uppercase mb-1">Green</p>
+<p class="font-headline-lg text-[24px] font-bold text-green-600 interactive-value">96</p>
+</div>
+<div class="flex-1 bg-amber-50 rounded p-2 text-center border border-amber-100 cursor-pointer hover:bg-amber-100 transition-colors">
+<p class="font-label-sm text-[10px] text-amber-700 uppercase mb-1">Amber</p>
+<p class="font-headline-lg text-[24px] font-bold text-amber-600 interactive-value">31</p>
+</div>
+<div class="flex-1 bg-red-50 rounded p-2 text-center border border-red-100 cursor-pointer hover:bg-red-100 transition-colors">
+<p class="font-label-sm text-[10px] text-red-700 uppercase mb-1">Red</p>
+<p class="font-headline-lg text-[24px] font-bold text-red-600 interactive-value">15</p>
+</div>
+<div class="flex-1 bg-surface-variant rounded p-2 text-center border border-outline-variant cursor-pointer hover:bg-surface-container transition-colors">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase mb-1">Reporting Overdue</p>
+<p class="font-headline-lg text-[24px] font-bold text-on-surface interactive-value">8</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-label-sm flex items-center gap-1 group" href="#">
+                                View RAG <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+<!-- RAIDO Group (Row 2) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-gutter mb-gutter">
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-error w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-label-sm text-label-sm text-on-surface-variant mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">warning</span> RISKS
+                                </h3>
+<p class="font-headline-lg text-headline-lg text-error mb-2 interactive-value">42 <span class="text-sm font-normal text-on-surface-variant">Open</span></p>
+<ul class="font-body-md text-sm space-y-1 text-on-surface-variant">
+<li class="flex justify-between"><span>High/Crit:</span> <span class="font-bold text-error interactive-value">12</span></li>
+<li class="flex justify-between"><span>Overdue:</span> <span class="font-bold text-on-surface interactive-value">8</span></li>
+<li class="flex justify-between"><span>No Mitig:</span> <span class="font-bold text-amber-600 interactive-value">4</span></li>
+</ul>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                                View Risks <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-amber-500 w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-label-sm text-label-sm text-on-surface-variant mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">bug_report</span> ISSUES
+                                </h3>
+<p class="font-headline-lg text-headline-lg text-amber-600 mb-2 interactive-value">31 <span class="text-sm font-normal text-on-surface-variant">Open</span></p>
+<ul class="font-body-md text-sm space-y-1 text-on-surface-variant">
+<li class="flex justify-between"><span>Critical:</span> <span class="font-bold text-error interactive-value">5</span></li>
+<li class="flex justify-between"><span>Overdue:</span> <span class="font-bold text-on-surface interactive-value">7</span></li>
+</ul>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                                View Issues <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-tertiary w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-label-sm text-label-sm text-on-surface-variant mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">account_tree</span> DEPENDENCIES
+                                </h3>
+<p class="font-headline-lg text-headline-lg text-tertiary mb-2 interactive-value">18 <span class="text-sm font-normal text-on-surface-variant">Open</span></p>
+<ul class="font-body-md text-sm space-y-1 text-on-surface-variant">
+<li class="flex justify-between"><span>Overdue:</span> <span class="font-bold text-on-surface interactive-value">3</span></li>
+<li class="flex justify-between"><span>Critical:</span> <span class="font-bold text-error interactive-value">2</span></li>
+</ul>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                                View Dependencies <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-blue-500 w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-label-sm text-label-sm text-on-surface-variant mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">psychology</span> ASSUMPTIONS
+                                </h3>
+<p class="font-headline-lg text-headline-lg text-blue-600 mb-2 interactive-value">26 <span class="text-sm font-normal text-on-surface-variant">Open</span></p>
+<ul class="font-body-md text-sm space-y-1 text-on-surface-variant">
+<li class="flex justify-between"><span>Review Due:</span> <span class="font-bold text-amber-600 interactive-value">8</span></li>
+<li class="flex justify-between"><span>Overdue:</span> <span class="font-bold text-error interactive-value">4</span></li>
+</ul>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                                View Assumptions <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-emerald-500 w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-label-sm text-label-sm text-on-surface-variant mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">lightbulb</span> OPPORTUNITIES
+                                </h3>
+<p class="font-headline-lg text-headline-lg text-emerald-600 mb-2 interactive-value">14 <span class="text-sm font-normal text-on-surface-variant">Open</span></p>
+<ul class="font-body-md text-sm space-y-1 text-on-surface-variant">
+<li class="flex justify-between"><span>High Priority:</span> <span class="font-bold text-emerald-700 interactive-value">5</span></li>
+<li class="flex justify-between"><span>Under Review:</span> <span class="font-bold text-on-surface interactive-value">3</span></li>
+</ul>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                                View Opportunities <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Row 3: Metrics, Commitments, Milestones -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-gutter">
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card flex flex-col justify-between overflow-hidden">
+<div class="p-4 pb-2 relative z-10">
+<h3 class="font-title-md text-title-md text-on-surface mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">bar_chart</span> METRICS
+                                </h3>
+<div class="flex items-center gap-4 mb-4">
+<div class="w-16 h-16 rounded-full border-4 border-green-500 flex items-center justify-center shrink-0">
+<span class="font-bold text-lg text-green-700 interactive-value">92%</span>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Compliant</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<div class="bg-surface rounded p-2 border border-outline-variant">
+<p class="text-xl font-bold text-amber-600 interactive-value">14</p>
+<p class="text-[10px] text-on-surface-variant uppercase">Below Target</p>
+</div>
+<div class="bg-surface rounded p-2 border border-outline-variant">
+<p class="text-xl font-bold text-on-surface-variant interactive-value">6</p>
+<p class="text-[10px] text-on-surface-variant uppercase">Not Reported</p>
+</div>
+<div class="bg-error-container rounded p-2 border border-error/20 col-span-2">
+<div class="flex justify-between items-center">
+<p class="text-[10px] text-error uppercase font-semibold">Critical Variance</p>
+<p class="text-xl font-bold text-error interactive-value">4</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-label-sm flex items-center gap-1 group" href="#">
+                                View Metrics <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-secondary-fixed-dim w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-title-md text-title-md text-on-surface mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary-fixed-dim">storefront</span> COMMITMENTS
+                                </h3>
+<div class="mt-4">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase mb-1">Open Commitments</p>
+<p class="font-headline-lg text-headline-lg text-on-surface mb-4 interactive-value">38</p>
+<div class="space-y-2">
+<div class="flex justify-between items-center bg-amber-50 px-3 py-2 rounded border border-amber-100">
+<span class="text-sm font-medium text-amber-700">Due Soon</span>
+<span class="font-bold text-amber-700 interactive-value">9</span>
+</div>
+<div class="flex justify-between items-center bg-error-container px-3 py-2 rounded border border-error/20">
+<span class="text-sm font-medium text-error">Overdue</span>
+<span class="font-bold text-error interactive-value">5</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-label-sm flex items-center gap-1 group" href="#">
+                                View Commitments <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card overflow-hidden flex flex-col justify-between">
+<div>
+<div class="h-1 bg-green-500 w-full"></div>
+<div class="p-4 pb-2">
+<h3 class="font-title-md text-title-md text-on-surface mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-green-500">payments</span> PAYMENT MILESTONES
+                                </h3>
+<div class="mt-4">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase mb-1">Value Due</p>
+<p class="font-headline-lg text-headline-lg text-green-600 mb-4 interactive-value">$1.2M</p>
+<div class="space-y-2">
+<div class="flex justify-between items-center bg-surface-variant px-3 py-2 rounded border border-outline-variant">
+<span class="text-sm font-medium text-on-surface">Due</span>
+<span class="font-bold text-on-surface interactive-value">14</span>
+</div>
+<div class="flex justify-between items-center bg-error-container px-3 py-2 rounded border border-error/20">
+<span class="text-sm font-medium text-error">Overdue</span>
+<span class="font-bold text-error interactive-value">5</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 pt-2 border-t border-outline-variant/50 mt-auto">
+<a class="text-primary hover:text-primary-container font-label-sm text-label-sm flex items-center gap-1 group" href="#">
+                                View Payment Milestones <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Row 4: Findings, Actions, Assessments, Data Integrity -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-gutter">
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card p-4 pb-2 flex flex-col justify-between h-full">
+<div>
+<h3 class="font-title-md text-title-md text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">gavel</span> ACTIONS
+                            </h3>
+<div class="">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase mb-1">Open</p>
+<p class="text-2xl font-bold text-on-surface mb-3 interactive-value">245</p>
+<div class="space-y-1">
+<p class="text-sm flex justify-between"><span class="text-on-surface-variant">In Progress:</span> <span class="font-semibold interactive-value">78</span></p>
+<p class="text-sm flex justify-between"><span class="text-error">Overdue:</span> <span class="font-semibold text-error interactive-value">27</span></p>
+<p class="text-sm flex justify-between"><span class="text-amber-600">Due This Week:</span> <span class="font-semibold text-amber-600 interactive-value">18</span></p>
+</div>
+</div>
+</div>
+<div class="pt-4 mt-4 border-t border-outline-variant/50">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                            View Actions <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card p-4 pb-2 flex flex-col justify-between h-full">
+<div>
+<h3 class="font-title-md text-title-md text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary">search</span> FINDINGS
+                            </h3>
+<div class="">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase mb-1">Open Findings</p>
+<p class="text-2xl font-bold text-on-surface mb-3 interactive-value">156</p>
+<div class="space-y-1">
+<p class="text-sm flex justify-between"><span class="text-tertiary">New This Period:</span> <span class="font-semibold text-tertiary interactive-value">12</span></p>
+<p class="text-sm flex justify-between"><span class="text-error">Overdue:</span> <span class="font-semibold text-error interactive-value">24</span></p>
+<p class="text-sm flex justify-between"><span class="text-on-surface-variant">Awaiting Closure:</span> <span class="font-semibold interactive-value">8</span></p>
+</div>
+</div>
+</div>
+<div class="pt-4 mt-4 border-t border-outline-variant/50">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                            View Findings <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card p-4 pb-2 flex flex-col justify-between h-full">
+<div>
+<h3 class="font-title-md text-title-md text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container">verified</span> DE ASSESSMENTS
+                            </h3>
+<div class="">
+<div class="flex justify-between items-end mb-3">
+<div>
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase mb-1">Completed</p>
+<p class="text-2xl font-bold text-on-surface interactive-value">45</p>
+</div>
+<div class="text-right">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase mb-1">Avg PCI</p>
+<p class="text-xl font-bold text-green-600 interactive-value">84%</p>
+</div>
+</div>
+<div class="space-y-1">
+<p class="text-sm flex justify-between"><span class="text-on-surface-variant">Due:</span> <span class="font-semibold interactive-value">12</span></p>
+<p class="text-sm flex justify-between"><span class="text-error">Red / Amber:</span> <span class="font-semibold text-error interactive-value">14</span></p>
+</div>
+</div>
+</div>
+<div class="pt-4 mt-4 border-t border-outline-variant/50">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                            View Assessments <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="col-span-1 bg-surface-container-lowest rounded-lg border border-outline-variant shadow-sm kpi-card p-4 pb-2 flex flex-col justify-between h-full">
+<div>
+<h3 class="font-title-md text-title-md text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">database</span> DATA INTEGRITY
+                            </h3>
+<div class="">
+<div class="mb-3">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase mb-1">Overall Compliance</p>
+<p class="text-2xl font-bold text-green-600 interactive-value">96%</p>
+</div>
+<div class="space-y-1">
+<p class="text-sm flex justify-between"><span class="text-amber-600">Projects With Gaps:</span> <span class="font-semibold text-amber-600 interactive-value">17</span></p>
+<p class="text-sm flex justify-between"><span class="text-error">Critical Gaps:</span> <span class="font-semibold text-error interactive-value">4</span></p>
+</div>
+</div>
+</div>
+<div class="pt-4 mt-4 border-t border-outline-variant/50">
+<a class="text-primary hover:text-primary-container font-label-sm text-[11px] flex items-center gap-1 group" href="#">
+                            View Data Integrity <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- SideNavBar (Persistent Right) -->
+<aside class="bg-surface-container-lowest dark:bg-inverse-surface border-l border-outline-variant shadow-md fixed right-0 top-0 h-full w-64 flex flex-col py-8 px-4 z-30">
+<div class="mb-6 px-2 flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-primary-container text-on-primary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">dashboard</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md font-black text-on-surface dark:text-inverse-on-surface leading-tight">REPORTS</h2>
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider">Governance Dashboard</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1 overflow-y-auto pr-2 custom-scrollbar text-sm">
+<!-- OVERVIEW Section -->
+<div class="mt-4 mb-1 px-3">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">OVERVIEW</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-primary dark:text-primary-fixed-dim font-bold border-l-4 border-primary bg-surface-container hover:bg-surface-container-high transition-all" href="#">
+<span class="font-label-sm text-label-sm">Project Health</span>
+</a>
+<!-- PROJECT Section -->
+<div class="mt-4 mb-1 px-3">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">PROJECT</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Project List</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">RAG</span>
+</a>
+<!-- RAIDO Section -->
+<div class="mt-4 mb-1 px-3">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">RAIDO</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Risks</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Issues</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Dependencies</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Assumptions</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Opportunities</span>
+</a>
+<!-- PERFORMANCE Section -->
+<div class="mt-4 mb-1 px-3">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">PERFORMANCE</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Metrics</span>
+</a>
+<!-- COMMERCIAL Section -->
+<div class="mt-4 mb-1 px-3">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">COMMERCIAL</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Commitments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Payment Milestones</span>
+</a>
+<!-- DELIVERY EXCELLENCE Section -->
+<div class="mt-4 mb-1 px-3">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">DELIVERY EXCELLENCE</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Assessments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Findings</span>
+</a>
+<!-- GOVERNANCE Section -->
+<div class="mt-4 mb-1 px-3">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">GOVERNANCE</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Actions</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="font-label-sm text-label-sm">Data Integrity</span>
+</a>
+</nav>
+<div class="mt-4 pt-4 border-t border-outline-variant space-y-1 pr-2">
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-outline-variant hover:bg-surface-container hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span class="font-label-sm text-label-sm">Support</span>
+</a>
+</div>
+</aside>
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #c4c5d5;
+        border-radius: 4px;
+    }
+</style>
+</body></html>

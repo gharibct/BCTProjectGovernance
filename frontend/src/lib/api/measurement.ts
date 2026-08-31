@@ -300,6 +300,63 @@ export function useCreateTestingMeasurement(projectId: string | null) {
   });
 }
 
+// --- Consulting ---
+
+export type MeasurementConsultingPayload = {
+  period_id: string;
+  planned_effort_as_on_date?: string;
+  actual_effort_as_on_date?: string;
+  planned_pct_completion?: string;
+  actual_pct_completion?: string;
+  planned_cost?: string;
+  actual_cost?: string;
+  last_updated_date?: string;
+};
+
+export type MeasurementConsultingRead = {
+  id: string;
+  project_id: string;
+  period_id: string;
+  planned_effort_as_on_date: string | null;
+  actual_effort_as_on_date: string | null;
+  planned_pct_completion: string | null;
+  actual_pct_completion: string | null;
+  planned_cost: string | null;
+  actual_cost: string | null;
+  effort_variation_pct: string | null;
+  schedule_performance_index: string | null;
+  cost_performance_index: string | null;
+  last_updated_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export function useLatestConsultingMeasurement(projectId: string | null) {
+  return useQuery({
+    queryKey: ["measurement-consulting-latest", projectId],
+    queryFn: async () => {
+      try {
+        return await api.get<MeasurementConsultingRead>(`/projects/${projectId}/measurements/consulting/latest`);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return null;
+        throw err;
+      }
+    },
+    enabled: !!projectId,
+  });
+}
+
+export function useCreateConsultingMeasurement(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MeasurementConsultingPayload) =>
+      api.post<MeasurementConsultingRead>(`/projects/${projectId}/measurements/consulting`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["measurement-consulting-latest", projectId] });
+    },
+  });
+}
+
 // --- Cloud Maintenance ---
 
 export type MeasurementCloudMaintenancePayload = {

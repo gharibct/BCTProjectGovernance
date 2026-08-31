@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/forms/empty-state";
 import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { cn } from "@/lib/utils";
@@ -102,9 +103,7 @@ export function DocumentProcessing() {
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        Create the project on the Project Profile tab first.
-      </p>
+      <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
     );
   }
 

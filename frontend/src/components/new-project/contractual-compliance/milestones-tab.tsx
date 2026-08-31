@@ -4,6 +4,7 @@ import * as React from "react";
 import { Flag } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { EmptyState } from "@/components/forms/empty-state";
 import { usePageBanner } from "@/stores/page-banner";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
@@ -64,18 +65,16 @@ export function MilestonesTab() {
     createMilestone.mutate(buildMilestonePayload(values), {
       onSuccess: () => {
         reset();
-        showSuccess("Milestone Added Successfully");
+        showSuccess("Payment Milestone Added Successfully");
       },
       onError: (err) =>
-        showError(err instanceof Error ? err.message : "Failed to add milestone."),
+        showError(err instanceof Error ? err.message : "Failed to add payment milestone."),
     });
   };
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        Create the project on the Project Profile tab first.
-      </p>
+      <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
     );
   }
 
@@ -85,25 +84,25 @@ export function MilestonesTab() {
         projectId={projectId}
         screen="milestones"
         periodId={periodId}
-        itemLabel="Milestone"
+        itemLabel="Payment Milestone"
       />
 
       <SectionCard
         icon={Flag}
-        title="Milestones Register"
+        title="Payment Milestones Register"
         aside={<AutoBadge label={`${items.length} logged`} />}
       >
         <RegisterImportToolbar
           defs={MILESTONE_FIELDS}
-          itemLabelPlural="Milestones"
+          itemLabelPlural="Payment Milestones"
           buildPayload={buildMilestonePayload}
           createMutation={createMilestone}
         />
         <RegisterTable
           items={items}
-          emptyLabel="No milestones defined yet."
+          emptyLabel="No payment milestones defined yet."
           columns={[
-            { key: "milestone_name", label: "Milestone" },
+            { key: "milestone_name", label: "Payment Milestone" },
             { key: "expected_date_of_payment", label: "Expected Date" },
             { key: "expected_payment_value", label: "Expected Value", align: "right" },
             { key: "milestone_description", label: "Description" },
@@ -115,13 +114,13 @@ export function MilestonesTab() {
         projectId={projectId}
         screen="milestones"
         periodId={periodId}
-        itemLabel="Milestone"
+        itemLabel="Payment Milestone"
         previewFields={MILESTONE_PREVIEW_FIELDS}
         buildPayload={buildMilestonePayload}
         createMutation={createMilestone}
       />
 
-      <SectionCard icon={Flag} title="New Milestone">
+      <SectionCard icon={Flag} title="New Payment Milestone">
         <EntryFields defs={MILESTONE_FIELDS} values={values} set={set} />
         <div className="mt-6 flex justify-end">
           <Button
@@ -130,7 +129,7 @@ export function MilestonesTab() {
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
             {createMilestone.isPending ? <ButtonSpinner /> : null}
-            Add Milestone
+            Add Payment Milestone
           </Button>
         </div>
       </SectionCard>

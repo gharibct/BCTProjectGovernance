@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_account_scope, require_role
+from app.api.deps import require_project_access
 from app.core.db import get_db
 from app.crud.project_status import project_status_item_crud, project_status_report_crud
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
@@ -27,8 +27,10 @@ from app.schemas.status_review import StatusReportReviewRequest
 # latest + create + edit. No delete — reports are a retained audit trail.
 router = APIRouter(prefix="/projects/{project_id}/status-reports", tags=["Project Status"])
 
-_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
-_account_manager_review = [Depends(require_project_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))]
+# PM work + Account-Head review — both also reachable one level up via the
+# top-bar Work Context, scoped to projects in the caller's own accounts/geo.
+_pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_account_manager_review = [Depends(require_project_access(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
 # Reports are keyed off a reporting_periods row rather than a raw date (see

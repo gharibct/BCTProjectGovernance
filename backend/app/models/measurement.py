@@ -134,6 +134,26 @@ class MeasurementTesting(Base, UUIDPrimaryKey, TimestampColumns):
     last_updated_date: Mapped[date | None]
 
 
+class MeasurementConsulting(Base, UUIDPrimaryKey, TimestampColumns):
+    __tablename__ = "measurement_consulting"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
+
+    planned_effort_as_on_date: Mapped[Decimal | None] = mapped_column(Numeric)
+    actual_effort_as_on_date: Mapped[Decimal | None] = mapped_column(Numeric)
+    planned_pct_completion: Mapped[Decimal | None] = mapped_column(Numeric)
+    actual_pct_completion: Mapped[Decimal | None] = mapped_column(Numeric)
+    planned_cost: Mapped[Decimal | None] = mapped_column(Numeric)
+    actual_cost: Mapped[Decimal | None] = mapped_column(Numeric)
+
+    effort_variation_pct: Mapped[Decimal | None] = mapped_column(Numeric)
+    schedule_performance_index: Mapped[Decimal | None] = mapped_column(Numeric)
+    cost_performance_index: Mapped[Decimal | None] = mapped_column(Numeric)
+
+    last_updated_date: Mapped[date | None]
+
+
 class MeasurementCloudMaintenance(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "measurement_cloud_maintenance"
 

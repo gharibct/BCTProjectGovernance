@@ -7,6 +7,7 @@ import { HeartPulse, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner } from "@/components/forms/form-primitives";
+import { EmptyState } from "@/components/forms/empty-state";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { currentPeriod } from "@/lib/period-utils";
 import {
@@ -183,9 +184,7 @@ function AccountRagStatusFormInner() {
 
   if (!accountId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        No account selected.
-      </p>
+      <EmptyState>No account selected.</EmptyState>
     );
   }
 

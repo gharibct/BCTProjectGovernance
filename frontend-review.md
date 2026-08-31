@@ -363,7 +363,7 @@ Use risk:
 
 Group related duplicate occurrences into **one improvement item**, rather than producing dozens of nearly identical recommendations.
 
-## 18. Componentization Summary
+## 17. Componentization Summary
 
 Provide a separate table specifically for potential reusable components:
 
@@ -387,7 +387,7 @@ These are examples only.
 
 Do not recommend them unless the code actually demonstrates the need.
 
-## 19. Final Recommendation
+## 18. Final Recommendation
 
 At the end, give me:
 
@@ -398,7 +398,6 @@ At the end, give me:
 5. Which improvements can be safely implemented independently.
 6. Which improvements depend on another improvement being completed first.
 7. Any areas that are already well-designed and should NOT be refactored.
-8. Whether the RAID log modules and the Reporting/Review tier pattern are each internally consistent, or have already started to drift from each other.
 
 ## Important Rules
 

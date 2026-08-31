@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/forms/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -23,7 +24,9 @@ import {
   useAccounts,
   useGeos,
   useOrganizations,
+  useProducts,
   useProjectTypes,
+  useRegions,
   useUsers,
 } from "@/lib/api/reference-data";
 import {
@@ -33,6 +36,7 @@ import {
   type Project,
   type ProjectPayload,
 } from "@/lib/api/projects";
+import { useGeoHead } from "@/lib/api/users";
 
 import {
   AutoBadge,
@@ -53,14 +57,17 @@ const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-em
 
 const CONTRACT_TYPES = ["FPP", "T&M", "Capped T&M", "Internal"] as const;
 const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
-const BILLING_TYPES = ["FPP", "FB", "T&M", "Product", "Unit Based Billing", "Others"] as const;
+const YES_NO_OPTIONS = [
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
+] as const;
 
 // Every field the Project Profile page collects (a subset of the Project
 // resource — Scope & Schedule owns the rest on its own page/PUT). Selects
 // backed by reference data (project type, organization, geo, account,
 // PM/DM/DE) store the referenced row's id, not its display label.
 function emptyValues(): ProjectPayload {
-  return { engagement_type: "Implementation" };
+  return {};
 }
 
 function valuesFromProject(project: Project): ProjectPayload {
@@ -71,18 +78,16 @@ function valuesFromProject(project: Project): ProjectPayload {
     organization_id: project.organization_id ?? undefined,
     project_owned: project.project_owned ?? undefined,
     geo_id: project.geo_id ?? undefined,
+    region_id: project.region_id ?? undefined,
     account_id: project.account_id ?? undefined,
     project_manager_id: project.project_manager_id ?? undefined,
     delivery_manager_id: project.delivery_manager_id ?? undefined,
-    delivery_excellence_id: project.delivery_excellence_id ?? undefined,
+    // delivery_excellence_id is set on the DE Project Allocation screen, not here.
     project_revenue: project.project_revenue ?? undefined,
     project_currency: project.project_currency ?? undefined,
-    billing_type: project.billing_type ?? undefined,
-    // Segmented's own fallback (below) only makes "Implementation" look
-    // selected — it never becomes a real value unless the user clicks it. If
-    // the DB has no value yet, seed it here instead so it's an actual value
-    // that gets saved on the next Edit/Save, matching what's on screen.
-    engagement_type: project.engagement_type ?? "Implementation",
+    critical_flag: project.critical_flag ?? undefined,
+    product_flag: project.product_flag ?? undefined,
+    product_id: project.product_id ?? undefined,
     customer_overview: project.customer_overview ?? undefined,
     project_scope_description: project.project_scope_description ?? undefined,
     planned_start_date: project.planned_start_date ?? undefined,
@@ -142,9 +147,12 @@ function ProjectDescriptionTab({
 
   const { data: organizations } = useOrganizations();
   const { data: geos } = useGeos();
+  const { data: regions } = useRegions();
   const { data: projectTypes } = useProjectTypes();
+  const { data: products } = useProducts();
   const { data: accounts } = useAccounts();
   const { data: users } = useUsers();
+  const { data: geoHead } = useGeoHead(values.geo_id ?? null);
 
   return (
     <div className="flex flex-col gap-8">
@@ -216,18 +224,6 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Engagement Type" ai={fieldAi("engagement_type")}>
-              <Segmented
-                options={[
-                  { value: "Implementation", label: "Implementation" },
-                  { value: "Support", label: "Support" },
-                ]}
-                value={values.engagement_type ?? "Implementation"}
-                onChange={(v) => setAndClear("engagement_type")(v as ProjectPayload["engagement_type"])}
-                activeClassName={segmentedActiveClass}
-                disabled={locked}
-              />
-            </Field>
             <Field label="Project Owned" htmlFor="project-owned" ai={fieldAi("project_owned")}>
               <NativeSelect
                 id="project-owned"
@@ -258,10 +254,32 @@ function ProjectDescriptionTab({
               <Segmented
                 options={(geos ?? []).map((geo) => ({ value: geo.id, label: geo.code }))}
                 value={values.geo_id ?? ""}
-                onChange={(v) => setAndClear("geo_id")(v)}
+                onChange={(v) => {
+                  setAndClear("geo_id")(v);
+                  setAndClear("region_id")(undefined);
+                }}
                 activeClassName={segmentedActiveClass}
                 disabled={locked}
               />
+            </Field>
+            <Field label="Region" htmlFor="region" ai={fieldAi("region_id")}>
+              <NativeSelect
+                id="region"
+                value={values.region_id ?? ""}
+                onChange={(e) => setAndClear("region_id")(e.target.value)}
+                disabled={locked || !values.geo_id}
+              >
+                <option value="" disabled>
+                  {values.geo_id ? "Select…" : "Select a GEO first"}
+                </option>
+                {(regions ?? [])
+                  .filter((region) => region.geo_id === values.geo_id)
+                  .map((region) => (
+                    <option key={region.id} value={region.id}>
+                      {region.name}
+                    </option>
+                  ))}
+              </NativeSelect>
             </Field>
             <Field label="Account Name" htmlFor="account-name" ai={fieldAi("account_id")}>
               <NativeSelect
@@ -280,11 +298,51 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
+            <Field label="Critical Flag" ai={fieldAi("critical_flag")}>
+              <Segmented
+                options={YES_NO_OPTIONS}
+                value={values.critical_flag ?? ""}
+                onChange={(v) => setAndClear("critical_flag")(v as ProjectPayload["critical_flag"])}
+                activeClassName={segmentedActiveClass}
+                disabled={locked}
+              />
+            </Field>
+            <Field label="Product Flag" ai={fieldAi("product_flag")}>
+              <Segmented
+                options={YES_NO_OPTIONS}
+                value={values.product_flag ?? ""}
+                onChange={(v) => {
+                  setAndClear("product_flag")(v as ProjectPayload["product_flag"]);
+                  if (v !== "Yes") setAndClear("product_id")(undefined);
+                }}
+                activeClassName={segmentedActiveClass}
+                disabled={locked}
+              />
+            </Field>
+            {values.product_flag === "Yes" ? (
+              <Field label="Product" htmlFor="product" ai={fieldAi("product_id")}>
+                <NativeSelect
+                  id="product"
+                  value={values.product_id ?? ""}
+                  onChange={(e) => setAndClear("product_id")(e.target.value)}
+                  disabled={locked}
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {(products ?? []).map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+            ) : null}
           </div>
         </SectionCard>
 
         <SectionCard icon={UserRound} title="Delivery Team">
-          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
             <Field label="Project Manager" htmlFor="project-manager" ai={fieldAi("project_manager_id")}>
               <NativeSelect
                 id="project-manager"
@@ -323,26 +381,13 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field
-              label="Delivery Excellence"
-              htmlFor="delivery-excellence"
-              ai={fieldAi("delivery_excellence_id")}
-            >
-              <NativeSelect
-                id="delivery-excellence"
-                value={values.delivery_excellence_id ?? ""}
-                onChange={(e) => setAndClear("delivery_excellence_id")(e.target.value)}
-                disabled={locked}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {(users ?? []).map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name}
-                  </option>
-                ))}
-              </NativeSelect>
+            {/* Delivery Excellence is no longer assigned here — a DE (or Admin)
+                picks it up on the DE Project Allocation screen after the PM
+                sends the project for approval (docs/PendingPoints.txt 17-18). */}
+            <Field label="Geo Head" badge={<AutoBadge />}>
+              <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+                {geoHead?.full_name ?? "Not Assigned"}
+              </div>
             </Field>
           </div>
         </SectionCard>
@@ -375,23 +420,6 @@ function ProjectDescriptionTab({
                 </option>
                 {["USD", "OMR", "AED", "SAR", "INR", "EUR"].map((currency) => (
                   <option key={currency}>{currency}</option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Billing Type" htmlFor="billing-type" ai={fieldAi("billing_type")}>
-              <NativeSelect
-                id="billing-type"
-                value={values.billing_type ?? ""}
-                onChange={(e) =>
-                  setAndClear("billing_type")(e.target.value as ProjectPayload["billing_type"])
-                }
-                disabled={locked}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {BILLING_TYPES.map((type) => (
-                  <option key={type}>{type}</option>
                 ))}
               </NativeSelect>
             </Field>
@@ -486,11 +514,11 @@ function ScopeAndScheduleTab({
 }
 
 // Project Profile action bar, mapped onto ProjectStatus's Draft -> Pending
-// Approval -> Approved lifecycle (see lib/api/projects.ts): Create Project
-// (POST), Edit Project (PUT — saves the current fields, and unlocks them if
-// the project is locked), Send To Approval (PUT — saves and moves Draft
-// to Pending Approval, which locks the form), Approve (PUT — moves Pending
-// Approval to Approved).
+// Approval lifecycle (see lib/api/projects.ts): Create Project (POST), Edit
+// Project (PUT — saves the current fields, and unlocks them if the project is
+// locked), Send To Approval (PUT — saves and moves Draft to Pending Approval,
+// which locks the form). Approval itself now happens on the DE Project Approval
+// screen, not here (docs/PendingPoints.txt 16-18).
 function ProjectDescriptionActions({
   values,
   ai,
@@ -517,18 +545,17 @@ function ProjectDescriptionActions({
   const status = project?.project_status;
   const isCreated = !!projectId;
   const isDraft = isDraftStatus(project);
-  // Edit Project, Send To Approval, and Approve all share the one
-  // `updateProject` mutation, so its `isPending` alone can't say which
-  // button was clicked — this tracks that, so only the clicked button shows
-  // a spinner instead of all three lighting up together.
+  // Edit Project and Send To Approval share the one `updateProject` mutation,
+  // so its `isPending` alone can't say which button was clicked — this tracks
+  // that, so only the clicked button shows a spinner.
   const [pendingAction, setPendingAction] = React.useState<
-    "edit" | "save" | "approve" | null
+    "edit" | "save" | null
   >(null);
 
   const statusMessage = isDraft
     ? "Editable by the Project Manager while the project is in Draft."
     : status === "Pending Approval"
-      ? "Pending Approval — click Edit Project to make changes, or Approve to move to Approved."
+      ? "Pending Approval — Delivery Excellence will review and approve. Click Edit Project to make changes."
       : status === "Approved"
         ? "Approved — click Edit Project to make changes."
         : isEditing
@@ -591,19 +618,6 @@ function ProjectDescriptionActions({
     }
   };
 
-  const handleApprove = async () => {
-    onProjectNameErrorChange(null);
-    setPendingAction("approve");
-    try {
-      await updateProject.mutateAsync({ project_status: "Approved" });
-      showSuccess("Project Approved Successfully");
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to approve.");
-    } finally {
-      setPendingAction(null);
-    }
-  };
-
   const busy = createProject.isPending || updateProject.isPending;
   const locked = !isDraft && !isEditing;
 
@@ -637,14 +651,6 @@ function ProjectDescriptionActions({
             >
               {pendingAction === "save" ? <ButtonSpinner /> : null}
               Send To Approval
-            </Button>
-            <Button
-              className={cn(primaryClass, "gap-2")}
-              disabled={status !== "Pending Approval" || busy}
-              onClick={handleApprove}
-            >
-              {pendingAction === "approve" ? <ButtonSpinner /> : null}
-              Approve
             </Button>
           </>
         ) : null}
@@ -694,9 +700,7 @@ export function ScopeScheduleForm() {
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        Create the project on the Project Profile tab first.
-      </p>
+      <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
     );
   }
 

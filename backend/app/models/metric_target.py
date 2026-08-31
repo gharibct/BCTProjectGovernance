@@ -70,6 +70,16 @@ class MetricTargetTesting(Base, UUIDPrimaryKey, TimestampColumns):
     target_test_execution_productivity: Mapped[Decimal | None] = mapped_column(Numeric)
 
 
+class MetricTargetConsulting(Base, UUIDPrimaryKey, TimestampColumns):
+    __tablename__ = "metric_target_consulting"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), unique=True)
+
+    target_effort_variation_pct: Mapped[Decimal | None] = mapped_column(Numeric)
+    target_schedule_performance_index: Mapped[Decimal | None] = mapped_column(Numeric)
+    target_cost_performance_index: Mapped[Decimal | None] = mapped_column(Numeric)
+
+
 class MetricTargetCloudMaintenance(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "metric_target_cloud_maintenance"
 

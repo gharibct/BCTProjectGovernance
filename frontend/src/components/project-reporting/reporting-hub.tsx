@@ -64,7 +64,7 @@ export function ReportingHub() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-            {project?.project_code ? `${project.project_code} - Reporting Summary` : "Project Reporting"}
+            {project?.project_code ? `${project.project_code} - Reporting Summary` : "Report Project"}
           </h1>
           <p className="mt-2 max-w-3xl text-slate-500">
             {project?.project_scope_description || project?.customer_overview || project?.project_name}

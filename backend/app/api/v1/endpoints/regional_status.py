@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_account_geo_scope, require_account_scope, require_geo_scope, require_role
+from app.api.deps import require_account_geo_scope, require_account_or_geo_scope, require_geo_scope, require_role
 from app.core.db import get_db
 from app.crud.regional_status import (
     account_status_item_crud,
@@ -41,7 +41,9 @@ from app.schemas.status_review import StatusReportReviewRequest
 account_status_router = APIRouter(prefix="/accounts/{account_id}/status-reports", tags=["Account Reporting"])
 geo_status_router = APIRouter(prefix="/geos/{geo_id}/status-reports", tags=["Geo Reporting"])
 
-_account_manager_write = [Depends(require_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))]
+# Account-Head work — also reachable by a Geo Head via the top-bar Work Context,
+# for accounts in their own geo (require_account_or_geo_scope).
+_account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _geo_head_review = [Depends(require_account_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _cxo_review = [Depends(require_role(RoleCode.CXO, RoleCode.ADMIN))]

@@ -7,13 +7,15 @@ import { ArrowRight, CalendarDays, Table2 } from "lucide-react";
 
 import { NativeSelect } from "@/components/ui/native-select";
 import { useReportingPeriods, type ReportingPeriod } from "@/lib/api/reference-data";
-import { currentPeriod } from "@/lib/period-utils";
+import { currentPeriod, recentPeriods } from "@/lib/period-utils";
 
 export function StarterCards() {
   const { projectId } = useParams<{ projectId: string }>();
   const { data: periods = [] } = useReportingPeriods();
-  const weeks = periods.filter((p) => p.period_type === "Weekly");
-  const months = periods.filter((p) => p.period_type === "Monthly");
+  // Only offer periods inside the reporting look-back window — no future
+  // periods, 3 months of Weekly cycles and 6 months of Monthly ones.
+  const weeks = recentPeriods(periods, "Weekly", 3);
+  const months = recentPeriods(periods, "Monthly", 6);
   const currentWeek = currentPeriod(periods, "Weekly");
   const currentMonth = currentPeriod(periods, "Monthly");
 

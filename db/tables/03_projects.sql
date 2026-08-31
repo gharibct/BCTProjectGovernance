@@ -10,6 +10,7 @@ CREATE TABLE projects (
     organization_id UUID REFERENCES organizations(id),
     project_owned TEXT, -- Fully Owned, Co-Owned, Customer Driven
     geo_id UUID REFERENCES geos(id),
+    region_id UUID REFERENCES regions(id),
     account_id UUID REFERENCES accounts(id),
     project_manager_id UUID REFERENCES users(id),
     delivery_manager_id UUID REFERENCES users(id),
@@ -20,6 +21,9 @@ CREATE TABLE projects (
     project_currency CHAR(3),
     billing_type TEXT, -- FPP, FB, T&M, Product, Unit Based Billing, Others
     engagement_type TEXT, -- Implementation, Support
+    critical_flag TEXT, -- Yes, No
+    product_flag TEXT, -- Yes, No
+    product_id UUID REFERENCES products(id), -- only meaningful when product_flag = 'Yes'
 
     -- Progress
     planned_start_date DATE,
@@ -46,6 +50,17 @@ CREATE TABLE projects (
     de_assessed_project_health TEXT,
     overall_project_health TEXT,
 
+    -- DE governance approval (design-reference/de-approval). A project moves
+    -- PM "Send To Approval" -> project_status = 'Pending Approval'; the
+    -- allocated DE then reviews and either approves (project_status =
+    -- 'Approved') or returns it (project_status = 'Draft'). de_review_status is
+    -- the review sub-state; NULL = allocated but not yet opened by the DE.
+    de_review_status TEXT, -- In Review, Returned, Approved
+    de_review_remarks TEXT, -- mandatory DE Review Remarks captured at Approve / Return
+    de_reviewed_by UUID REFERENCES users(id),
+    de_reviewed_at TIMESTAMPTZ,
+    de_allocated_at TIMESTAMPTZ, -- set when a DE is assigned via DE Project Allocation
+
     created_by UUID REFERENCES users(id),
     updated_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL,
@@ -55,10 +70,14 @@ CREATE TABLE projects (
 CREATE INDEX idx_projects_project_type_id ON projects(project_type_id);
 CREATE INDEX idx_projects_account_id ON projects(account_id);
 CREATE INDEX idx_projects_geo_id ON projects(geo_id);
+CREATE INDEX idx_projects_region_id ON projects(region_id);
+CREATE INDEX idx_projects_product_id ON projects(product_id);
 CREATE INDEX idx_projects_organization_id ON projects(organization_id);
 CREATE INDEX idx_projects_project_manager_id ON projects(project_manager_id);
 CREATE INDEX idx_projects_overall_project_health ON projects(overall_project_health);
 CREATE INDEX idx_projects_project_status ON projects(project_status);
+CREATE INDEX idx_projects_delivery_excellence_id ON projects(delivery_excellence_id);
+CREATE INDEX idx_projects_de_review_status ON projects(de_review_status);
 
 CREATE TRIGGER trg_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 

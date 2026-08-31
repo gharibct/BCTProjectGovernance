@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import PaginationParams, pagination_params, require_role
+from app.api.deps import PaginationParams, pagination_params, require_project_access, require_role
 from app.core.db import get_db
 from app.crud.projects import project_crud, project_oracle_id_crud, project_resource_crud
-from app.models.projects import ProjectOracleId, ProjectResource
+from app.models.projects import Project, ProjectOracleId, ProjectResource
 from app.schemas.common import Page
 from app.schemas.enums import ProjectStatus, RoleCode
 from app.schemas.projects import (
@@ -25,11 +25,18 @@ from app.services.code_generator import generate_code
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
-# Project creation/maintenance is the Project Manager's flow (menu-config.ts
-# "new-project"/"maintain-project"); no per-PM project-assignment scoping
-# exists in the schema (user_projects is unused groundwork), so this is a
-# role-only gate, same as every other write below.
-_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+# Project creation/maintenance is the Project Manager's flow. Via the top-bar
+# Work Context an Account/Geo Head can also do PM work — but only on projects in
+# their own accounts/geo, which require_project_access enforces off {project_id}.
+# Create has no project_id yet, so it stays a role-only gate.
+_pm_create = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_write = [
+    Depends(
+        require_project_access(
+            RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN
+        )
+    )
+]
 
 
 @router.get("", response_model=Page[ProjectRead])
@@ -37,11 +44,13 @@ async def list_projects(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    items, total = await project_crud.list(db, skip=pagination.skip, limit=pagination.limit)
+    items, total = await project_crud.list(
+        db, skip=pagination.skip, limit=pagination.limit, order_by=Project.updated_at.desc()
+    )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
+@router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_create)
 async def create_project(payload: ProjectCreate, db: AsyncSession = Depends(get_db)):
     code = await generate_code(db, "PROJECT")
     return await project_crud.create(db, payload, project_code=code, project_status=ProjectStatus.DRAFT)

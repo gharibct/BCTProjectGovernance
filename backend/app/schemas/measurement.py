@@ -232,6 +232,39 @@ class MeasurementTestingRead(BaseModel):
     updated_at: datetime
 
 
+# --- Consulting ---
+
+
+class MeasurementConsultingCreate(BaseModel):
+    period_id: UUID
+    planned_effort_as_on_date: Decimal | None = None
+    actual_effort_as_on_date: Decimal | None = None
+    planned_pct_completion: Decimal | None = None
+    actual_pct_completion: Decimal | None = None
+    planned_cost: Decimal | None = None
+    actual_cost: Decimal | None = None
+    last_updated_date: date | None = None
+
+
+class MeasurementConsultingRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    project_id: UUID
+    period_id: UUID
+    planned_effort_as_on_date: Decimal | None = None
+    actual_effort_as_on_date: Decimal | None = None
+    planned_pct_completion: Decimal | None = None
+    actual_pct_completion: Decimal | None = None
+    planned_cost: Decimal | None = None
+    actual_cost: Decimal | None = None
+    effort_variation_pct: Decimal | None = None
+    schedule_performance_index: Decimal | None = None
+    cost_performance_index: Decimal | None = None
+    last_updated_date: date | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 # --- Cloud Maintenance ---
 
 

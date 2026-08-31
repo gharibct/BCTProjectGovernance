@@ -7,6 +7,7 @@ import {
   CircleCheck,
   ClipboardList,
   FileText,
+  NotebookText,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -45,6 +46,7 @@ type NavItem = {
 // buildGroups) so navigating between tabs stays on the same project/draft.
 function buildGroups(
   base: string,
+  hasProject: boolean,
   profileComplete: boolean,
   scheduleComplete: boolean,
   oracleMapped: boolean,
@@ -71,7 +73,15 @@ function buildGroups(
           href: `${base}/map-oracle-projects`,
           done: oracleMapped,
         },
-        { label: "Project Profile", href: `${base}/project-charter`, done: profileComplete },
+        {
+          label: "Project Profile",
+          // Before creation, Project Profile IS the mandatory Create Project
+          // screen (Project Name + at least one Oracle mapping) — route
+          // there instead of straight to the untouched post-creation form,
+          // so the nav rail can't be used to bypass that requirement.
+          href: hasProject ? `${base}/project-charter` : `${base}/create`,
+          done: profileComplete,
+        },
         {
           label: "Scope & Schedule",
           href: `${base}/project-charter/schedule`,
@@ -89,7 +99,15 @@ function buildGroups(
           href: `${base}/contractual-compliance`,
           done: contractualComplianceComplete,
         },
-        { label: "Project RAIDO Register", href: `${base}/raido`, done: raidoComplete },
+      ],
+    },
+    {
+      // RAIDO is not part of the mandatory approval baseline, so it lives in
+      // its own register group rather than under Project Baseline.
+      heading: "Project Register",
+      icon: NotebookText,
+      items: [
+        { label: "RAIDO Register", href: `${base}/raido`, done: raidoComplete },
       ],
     },
   ];
@@ -130,6 +148,7 @@ export function NewProjectNav() {
   const { data: opportunities } = useOpportunities(newProjectId);
   const groups = buildGroups(
     `/new-project/${projectId}`,
+    !!newProjectId,
     project?.profile_completion_flag ?? false,
     project?.schedule_completion_flag ?? false,
     (oracleIds?.length ?? 0) > 0,

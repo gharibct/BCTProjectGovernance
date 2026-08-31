@@ -8,12 +8,19 @@ import { useParams, useSearchParams } from "next/navigation";
 import { ReportingPeriodPill } from "@/components/shell/reporting-period-badge";
 import { PageBanner } from "@/components/shell/page-banner";
 import { StatusBadge } from "@/components/forms/status-badge";
+import { ActionTrackerTrigger } from "@/components/action-tracker/action-tracker-trigger";
+import type { ActionLevel } from "@/lib/api/actions";
 import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-data";
 import { useRegionalStatusReports, type RegionalScope } from "@/lib/api/regional-status";
 
 const SCOPE_LABEL: Record<RegionalScope, string> = {
   account: "Account Reporting",
   geo: "Geo Reporting",
+};
+
+const SCOPE_ACTION_LEVEL: Record<RegionalScope, ActionLevel> = {
+  account: "ACCOUNT",
+  geo: "GEO",
 };
 
 type RegionalHeaderProps = {
@@ -29,6 +36,10 @@ type RegionalHeaderProps = {
   // already resolved one via their own fallback chain — omit to read the raw
   // ?period= off the URL directly (Status page's behavior: no fallback).
   periodId?: string | null;
+  // Account/Geo Dashboard only — the Action Tracker trigger lives on
+  // Account/Geo Dashboard and Account/Geo Review, not every other
+  // Account/Geo Reporting sub-page.
+  showActionTracker?: boolean;
 };
 
 // Reads the ?period= reporting_periods.id that status-form.tsx also reads —
@@ -39,12 +50,14 @@ function PeriodAwareHeading({
   subheading,
   dynamicSubheading,
   periodId: periodIdProp,
+  showActionTracker,
 }: {
   scope: RegionalScope;
   scopeId: string;
   subheading?: string;
   dynamicSubheading?: boolean;
   periodId?: string | null;
+  showActionTracker?: boolean;
 }) {
   const searchParams = useSearchParams();
   const periodId = periodIdProp !== undefined ? periodIdProp : searchParams.get("period");
@@ -81,6 +94,7 @@ function PeriodAwareHeading({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">{heading}</h1>
         <div className="flex flex-wrap items-center gap-4">
+          {showActionTracker ? <ActionTrackerTrigger level={SCOPE_ACTION_LEVEL[scope]} id={scopeId} name={name} /> : null}
           <span className="flex items-center gap-1.5">
             <span className="text-sm font-semibold text-slate-500">Period:</span>
             {period ? <ReportingPeriodPill label={period.label} /> : <span className="text-slate-300">—</span>}
@@ -100,7 +114,14 @@ function PeriodAwareHeading({
 // below — matches the Project Reporting convention (see
 // components/shell/project-header.tsx). `paramName` is "accountId" or
 // "geoId" depending on which rail is rendering this.
-export function RegionalHeader({ scope, paramName, subheading, dynamicSubheading, periodId }: RegionalHeaderProps) {
+export function RegionalHeader({
+  scope,
+  paramName,
+  subheading,
+  dynamicSubheading,
+  periodId,
+  showActionTracker,
+}: RegionalHeaderProps) {
   const params = useParams<Record<string, string>>();
   const scopeId = params[paramName] ?? "";
 
@@ -119,6 +140,7 @@ export function RegionalHeader({ scope, paramName, subheading, dynamicSubheading
           subheading={subheading}
           dynamicSubheading={dynamicSubheading}
           periodId={periodId}
+          showActionTracker={showActionTracker}
         />
       </Suspense>
       {description?.trim() ? (

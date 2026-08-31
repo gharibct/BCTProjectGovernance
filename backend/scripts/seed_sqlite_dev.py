@@ -16,10 +16,24 @@ from uuid import uuid4
 
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
-from app.crud.reference_data import account_crud, geo_crud, organization_crud, project_type_crud
+from app.crud.reference_data import (
+    account_crud,
+    geo_crud,
+    organization_crud,
+    product_crud,
+    project_type_crud,
+    region_crud,
+)
 from app.crud.users import user_crud
 from app.models.users import Role, UserAccount, UserGeo
-from app.schemas.reference_data import AccountCreate, GeoCreate, OrganizationCreate, ProjectTypeCreate
+from app.schemas.reference_data import (
+    AccountCreate,
+    GeoCreate,
+    OrganizationCreate,
+    ProductCreate,
+    ProjectTypeCreate,
+    RegionCreate,
+)
 from app.schemas.users import UserCreate
 
 ROLES = [
@@ -45,6 +59,18 @@ GEOS = [
     GeoCreate(code="US", name="United States"),
 ]
 
+REGIONS = [
+    ("BRUNEI", "Brunei", "APAC"),
+    ("SINGAPORE", "Singapore", "APAC"),
+    ("INDIA", "India", "APAC"),
+    ("US", "United States", "US"),
+    ("UAE", "United Arab Emirates", "MEA"),
+    ("QATAR", "Qatar", "MEA"),
+    ("UK", "United Kingdom", "MEA"),
+    ("OMAN", "Oman", "MEA"),
+    ("SAUDI", "Saudi Arabia", "MEA"),
+]
+
 PROJECT_TYPES = [
     ProjectTypeCreate(code="DEVELOPMENT", name="Development"),
     ProjectTypeCreate(code="PROFESSIONAL_STAFFING", name="Professional Staffing"),
@@ -52,6 +78,16 @@ PROJECT_TYPES = [
     ProjectTypeCreate(code="TESTING", name="Testing"),
     ProjectTypeCreate(code="CLOUD_MAINTENANCE", name="Cloud Maintenance"),
     ProjectTypeCreate(code="CLOUD_MIGRATION", name="Cloud Migration"),
+    ProjectTypeCreate(code="CONSULTING", name="Consulting"),
+]
+
+# Dev-only sample values — no real product catalog was supplied, so these
+# just exercise the Project Profile "Product" dropdown locally. Admin adds
+# the real list via POST /api/v1/products.
+PRODUCTS = [
+    ProductCreate(code="CRM", name="CRM Platform"),
+    ProductCreate(code="ERP", name="ERP Suite"),
+    ProductCreate(code="ANALYTICS", name="Analytics Suite"),
 ]
 
 ACCOUNTS = [
@@ -111,8 +147,14 @@ async def main() -> None:
         for geo in GEOS:
             geos_by_code[geo.code] = await geo_crud.create(db, geo)
 
+        for code, name, geo_code in REGIONS:
+            await region_crud.create(db, RegionCreate(geo_id=geos_by_code[geo_code].id, code=code, name=name))
+
         for pt in PROJECT_TYPES:
             await project_type_crud.create(db, pt)
+
+        for product in PRODUCTS:
+            await product_crud.create(db, product)
 
         accounts_by_name: dict[str, object] = {}
         for name, geo_code in ACCOUNTS:
@@ -155,7 +197,8 @@ async def main() -> None:
         await db.commit()
 
     print(f"Seeded {len(ROLES)} roles, {len(ORGANIZATIONS)} organizations, {len(GEOS)} geos, "
-          f"{len(PROJECT_TYPES)} project types, {len(ACCOUNTS)} accounts, {len(USERS)} users.")
+          f"{len(REGIONS)} regions, {len(PROJECT_TYPES)} project types, {len(PRODUCTS)} products, "
+          f"{len(ACCOUNTS)} accounts, {len(USERS)} users.")
 
 
 if __name__ == "__main__":

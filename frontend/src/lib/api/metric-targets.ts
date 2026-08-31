@@ -128,6 +128,23 @@ export const useTestingTarget = (projectId: string | null, enabled = true) =>
 export const useSaveTestingTarget = (projectId: string | null) =>
   useSaveMetricTarget<MetricTargetTestingPayload, MetricTargetTesting>(projectId, "testing");
 
+// --- Consulting ---
+
+export type MetricTargetConsulting = {
+  id: string;
+  project_id: string;
+  target_effort_variation_pct: number | null;
+  target_schedule_performance_index: number | null;
+  target_cost_performance_index: number | null;
+};
+
+export type MetricTargetConsultingPayload = Omit<MetricTargetConsulting, "id" | "project_id">;
+
+export const useConsultingTarget = (projectId: string | null, enabled = true) =>
+  useMetricTarget<MetricTargetConsulting>(projectId, "consulting", enabled);
+export const useSaveConsultingTarget = (projectId: string | null) =>
+  useSaveMetricTarget<MetricTargetConsultingPayload, MetricTargetConsulting>(projectId, "consulting");
+
 // --- Cloud Maintenance ---
 
 export type MetricTargetCloudMaintenance = {

@@ -5,3 +5,5 @@ __pycache__/
 .env
 *.db
 storage/
+*.xlsx
+master_data_nullable_proposal_*.md

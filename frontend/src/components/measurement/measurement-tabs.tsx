@@ -3,11 +3,13 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 
+import { EmptyState } from "@/components/forms/empty-state";
 import { useProject } from "@/lib/api/projects";
 import { useProjectTypes } from "@/lib/api/reference-data";
 
 import { CloudMaintenanceTab } from "./cloud-maintenance-form";
 import { CloudMigrationTab } from "./cloud-migration-form";
+import { ConsultingTab } from "./consulting-form";
 import { DevelopmentTab } from "./development-form";
 import { StaffingTab } from "./staffing-form";
 import { SupportTab } from "./support-form";
@@ -23,6 +25,7 @@ const TABS = [
   { code: "TESTING", label: "Testing", content: TestingTab },
   { code: "CLOUD_MAINTENANCE", label: "Cloud Maintenance", content: CloudMaintenanceTab },
   { code: "CLOUD_MIGRATION", label: "Cloud Migration", content: CloudMigrationTab },
+  { code: "CONSULTING", label: "Consulting", content: ConsultingTab },
 ] as const;
 
 export function MeasurementTabs() {
@@ -35,9 +38,7 @@ export function MeasurementTabs() {
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        No project selected.
-      </p>
+      <EmptyState>No project selected.</EmptyState>
     );
   }
 

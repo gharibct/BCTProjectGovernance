@@ -24,7 +24,7 @@ CREATE TABLE contractual_commitment_actuals (
     commitment_id UUID NOT NULL REFERENCES contractual_commitments(id) ON DELETE CASCADE,
     period_date DATE NOT NULL, -- the period this reading covers, per the commitment's Frequency
     actual_value TEXT,
-    met_status TEXT, -- Met, Not Met
+    met_status TEXT, -- Met, Not Met, Breached
     recorded_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL,
 

@@ -13,7 +13,7 @@ import {
   type MeasurementSupportPayload,
   type MeasurementSupportRead,
 } from "@/lib/api/measurement";
-import { MetricTile, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
+import { MetricTile, inputClass, num, str, useMeasurementForm } from "./shared";
 
 // Ticket types with Count + Person-Days effort per the Measurement sheet.
 const TICKET_ROWS = [
@@ -89,43 +89,60 @@ export function SupportTab({ projectId }: { projectId: string }) {
         ai={ai}
       />
       <SectionCard icon={ChartColumn} title="Metrics">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl bg-slate-50 p-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Incident MTTR (Overall)"
-            target=""
-            current={fmt(num(latest?.incident_mttr_hours), 1)}
+            formula="(Total Incident Person-Days × 8) ÷ Total Incidents"
+            target={null}
+            current={num(latest?.incident_mttr_hours)}
             unit="Person-Hours / Incident"
+            digits={1}
           />
           <MetricTile
             label="Service Request MTTR"
-            target={str(target?.target_service_request_mttr_hours)}
-            current={fmt(num(latest?.service_request_mttr_hours), 1)}
+            formula="Not computed — no resolution-duration field captured on this form"
+            target={num(target?.target_service_request_mttr_hours)}
+            current={num(latest?.service_request_mttr_hours)}
             unit="Hours"
+            digits={1}
           />
           <MetricTile
             label="User Clarification MTTR"
-            target={str(target?.target_user_clarification_mttr_hours)}
-            current={fmt(num(latest?.user_clarification_mttr_hours), 1)}
+            formula="Not computed — no resolution-duration field captured on this form"
+            target={num(target?.target_user_clarification_mttr_hours)}
+            current={num(latest?.user_clarification_mttr_hours)}
             unit="Hours"
+            digits={1}
           />
           <MetricTile
-            label="SLA Compliance — P1"
-            target={str(target?.target_incident_sla_compliance_p1_pct)}
-            current={fmt(num(latest?.incident_sla_compliance_p1_pct), 1)}
+            label="SLA Compliance"
+            badge="P1"
+            formula="Not computed — no SLA target threshold captured on this form"
+            target={num(target?.target_incident_sla_compliance_p1_pct)}
+            current={num(latest?.incident_sla_compliance_p1_pct)}
             unit="%"
+            digits={1}
           />
           <MetricTile
-            label="SLA Compliance — P2"
-            target={str(target?.target_incident_sla_compliance_p2_pct)}
-            current={fmt(num(latest?.incident_sla_compliance_p2_pct), 1)}
+            label="SLA Compliance"
+            badge="P2"
+            formula="Not computed — no SLA target threshold captured on this form"
+            target={num(target?.target_incident_sla_compliance_p2_pct)}
+            current={num(latest?.incident_sla_compliance_p2_pct)}
             unit="%"
+            digits={1}
           />
           <MetricTile
-            label="SLA Compliance — P3"
-            target={str(target?.target_incident_sla_compliance_p3_pct)}
-            current={fmt(num(latest?.incident_sla_compliance_p3_pct), 1)}
+            label="SLA Compliance"
+            badge="P3"
+            formula="Not computed — no SLA target threshold captured on this form"
+            target={num(target?.target_incident_sla_compliance_p3_pct)}
+            current={num(latest?.incident_sla_compliance_p3_pct)}
             unit="%"
+            digits={1}
           />
+        </div>
         </div>
       </SectionCard>
 

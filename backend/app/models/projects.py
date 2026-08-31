@@ -19,6 +19,7 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     organization_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("organizations.id"))
     project_owned: Mapped[str | None]  # Fully Owned, Co-Owned, Customer Driven
     geo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("geos.id"))
+    region_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("regions.id"))
     account_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("accounts.id"))
     project_manager_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     delivery_manager_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
@@ -29,6 +30,9 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     project_currency: Mapped[str | None]
     billing_type: Mapped[str | None]  # FPP, FB, T&M, Product, Unit Based Billing, Others
     engagement_type: Mapped[str | None]  # Implementation, Support
+    critical_flag: Mapped[str | None]  # Yes, No
+    product_flag: Mapped[str | None]  # Yes, No
+    product_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("products.id"))  # only meaningful when product_flag == Yes
 
     planned_start_date: Mapped[date | None]
     actual_start_date: Mapped[date | None]
@@ -48,6 +52,15 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     delivery_declared_overall_health: Mapped[str | None]
     de_assessed_project_health: Mapped[str | None]
     overall_project_health: Mapped[str | None]
+
+    # DE governance approval (design-reference/de-approval). Set by
+    # de_approval.py / de_allocation.py; NULL de_review_status = allocated to a
+    # DE but not yet opened for review.
+    de_review_status: Mapped[str | None]  # In Review, Returned, Approved
+    de_review_remarks: Mapped[str | None]
+    de_reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    de_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    de_allocated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     updated_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))

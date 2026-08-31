@@ -4,6 +4,7 @@ import { api, type Page } from "./client";
 
 export type Organization = { id: string; code: string; name: string; is_active: boolean };
 export type Geo = { id: string; code: string; name: string; is_active: boolean };
+export type Region = { id: string; geo_id: string; code: string; name: string; is_active: boolean };
 export type ProjectType = {
   id: string;
   code: string;
@@ -11,6 +12,7 @@ export type ProjectType = {
   description: string | null;
   is_active: boolean;
 };
+export type Product = { id: string; code: string; name: string; is_active: boolean };
 export type Account = {
   id: string;
   name: string;
@@ -60,10 +62,26 @@ export function useGeos() {
   });
 }
 
+export function useRegions() {
+  return useQuery({
+    queryKey: ["regions"],
+    queryFn: () => api.get<Page<Region>>(`/regions${REF_LIMIT}`),
+    select: (page) => page.items,
+  });
+}
+
 export function useProjectTypes() {
   return useQuery({
     queryKey: ["project-types"],
     queryFn: () => api.get<Page<ProjectType>>(`/project-types${REF_LIMIT}`),
+    select: (page) => page.items,
+  });
+}
+
+export function useProducts() {
+  return useQuery({
+    queryKey: ["products"],
+    queryFn: () => api.get<Page<Product>>(`/products${REF_LIMIT}`),
     select: (page) => page.items,
   });
 }

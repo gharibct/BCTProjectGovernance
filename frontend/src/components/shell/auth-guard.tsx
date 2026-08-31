@@ -11,13 +11,15 @@ import { useSession } from "@/stores/session";
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const user = useSession((s) => s.user);
-  // useSession.persist only exists client-side (zustand omits it during SSR),
-  // so it can't be touched in the initial render — only inside an effect,
-  // which never runs on the server.
-  const [hydrated, setHydrated] = React.useState(false);
+  // useSession.persist is undefined during SSR (zustand omits it server-side)
+  // — hasHydrated() itself is just a synchronous flag read once we're on the
+  // client, so it's safe inside useState's lazy initializer as long as we
+  // don't touch `.persist` before we know we're client-side.
+  const [hydrated, setHydrated] = React.useState(() =>
+    typeof window === "undefined" ? false : useSession.persist.hasHydrated()
+  );
 
   React.useEffect(() => {
-    setHydrated(useSession.persist.hasHydrated());
     return useSession.persist.onFinishHydration(() => setHydrated(true));
   }, []);
 

@@ -1,0 +1,348 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DE Project Approval</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "background": "#f7f9fb",
+                      "outline": "#75777d",
+                      "primary-fixed": "#d8e3fb",
+                      "on-primary": "#ffffff",
+                      "primary-fixed-dim": "#bcc7de",
+                      "on-primary-fixed-variant": "#3c475a",
+                      "on-surface": "#191c1e",
+                      "on-primary-fixed": "#111c2d",
+                      "on-background": "#191c1e",
+                      "secondary-fixed": "#d8e2ff",
+                      "inverse-surface": "#2d3133",
+                      "error": "#ba1a1a",
+                      "surface-container-highest": "#e0e3e5",
+                      "surface-container": "#eceef0",
+                      "on-secondary-container": "#fefcff",
+                      "on-secondary": "#ffffff",
+                      "inverse-primary": "#bcc7de",
+                      "surface-container-low": "#f2f4f6",
+                      "on-secondary-fixed": "#001a42",
+                      "surface-tint": "#545f73",
+                      "tertiary-fixed-dim": "#4edea3",
+                      "on-primary-container": "#8590a6",
+                      "tertiary-container": "#00301e",
+                      "on-error-container": "#93000a",
+                      "outline-variant": "#c5c6cd",
+                      "surface-dim": "#d8dadc",
+                      "error-container": "#ffdad6",
+                      "secondary-container": "#2170e4",
+                      "surface-variant": "#e0e3e5",
+                      "surface": "#f7f9fb",
+                      "surface-container-lowest": "#ffffff",
+                      "primary": "#091426",
+                      "on-secondary-fixed-variant": "#004395",
+                      "on-tertiary-fixed-variant": "#005236",
+                      "on-tertiary-container": "#00a472",
+                      "surface-container-high": "#e6e8ea",
+                      "on-error": "#ffffff",
+                      "secondary": "#0058be",
+                      "on-surface-variant": "#45474c",
+                      "tertiary-fixed": "#6ffbbe",
+                      "secondary-fixed-dim": "#adc6ff",
+                      "on-tertiary": "#ffffff",
+                      "tertiary": "#00190e",
+                      "on-tertiary-fixed": "#002113",
+                      "primary-container": "#1e293b",
+                      "inverse-on-surface": "#eff1f3",
+                      "surface-bright": "#f7f9fb"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "stack-md": "16px",
+                      "container-padding": "24px",
+                      "gutter": "16px",
+                      "stack-lg": "24px",
+                      "unit": "4px",
+                      "stack-sm": "8px"
+              },
+              "fontFamily": {
+                      "title-md": [
+                              "Inter"
+                      ],
+                      "display": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ],
+                      "mono-data": [
+                              "JetBrains Mono"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "headline": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "title-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "display": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "mono-data": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-sm": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-stack-lg">
+<span class="font-headline text-headline text-primary">GovIntel DE</span>
+<div class="hidden md:flex gap-stack-md ml-stack-lg">
+<a class="text-on-surface-variant font-title-md text-title-md hover:text-secondary transition-colors cursor-pointer px-unit py-unit active:opacity-80" href="#">Dashboard</a>
+<a class="text-secondary border-b-2 border-secondary pb-1 font-title-md text-title-md hover:text-secondary transition-colors cursor-pointer px-unit active:opacity-80" href="#">Findings</a>
+<a class="text-on-surface-variant font-title-md text-title-md hover:text-secondary transition-colors cursor-pointer px-unit py-unit active:opacity-80" href="#">Controls</a>
+<a class="text-on-surface-variant font-title-md text-title-md hover:text-secondary transition-colors cursor-pointer px-unit py-unit active:opacity-80" href="#">Compliance</a>
+</div>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="p-unit text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-unit text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<img alt="User profile" class="w-8 h-8 rounded-full ml-unit object-cover" data-alt="A small circular avatar showing a professional headshot of an enterprise user in a bright office environment, cool corporate lighting, realistic photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDatbjEMCw5_nQ0nMLDhGj6VPi9PHgh2LvT8aYjNRSAJlVYR4yAPCrAij-69lKWdjWaVrBUQKLlurGkytJsYqAgFx-4v57v3yYVIV0qr-UdMij2zDZZXtwddBsGi1h-jeIY_Fp4MkaPLtcEPEB4EaXHaknnOjlF4Nsj1mhHurq8nOkw8cg_ZS4Zh3shKOOpA2DjGMA_38Nul8FfPoPbZEqq16t2kFSO0_dppzBFhA4nxGKcWcrmVRZ0vw">
+</div>
+</nav>
+<!-- SideNavBar -->
+
+<!-- Main Content -->
+<main class="pt-16 p-container-padding">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-stack-lg gap-stack-md">
+<div>
+<h1 class="font-display text-display text-on-surface">DE Project Approval</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-unit">Review and approve project governance completeness</p>
+</div>
+<div class="flex items-center">
+<div class="relative">
+<select class="appearance-none bg-surface-container-lowest border border-outline-variant text-on-surface font-body-sm text-body-sm rounded pl-stack-md pr-[32px] py-stack-sm focus:border-secondary focus:ring-1 focus:ring-secondary outline-none cursor-pointer">
+<option>Reporting Period [Aug 2026]</option>
+<option>Reporting Period [Jul 2026]</option>
+</select>
+<span class="material-symbols-outlined absolute right-unit top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<!-- KPI Bento -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-stack-md mb-stack-lg">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-stack-md border-t-2 border-t-tertiary-fixed-dim">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-stack-sm">Awaiting Review</p>
+<div class="font-display text-display text-on-surface">12</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-stack-md border-t-2 border-t-secondary-fixed-dim">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-stack-sm">In Review</p>
+<div class="font-display text-display text-on-surface">5</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-stack-md border-t-2 border-t-error">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-stack-sm">Returned</p>
+<div class="font-display text-display text-on-surface">3</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-stack-md border-t-2 border-t-tertiary-container">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-stack-sm">Approved</p>
+<div class="font-display text-display text-on-surface">37</div>
+</div>
+</div>
+<!-- Filter Bar -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-stack-sm mb-stack-md flex flex-wrap gap-stack-sm items-center justify-between">
+<div class="flex flex-wrap gap-stack-sm">
+<div class="relative">
+<select class="appearance-none bg-surface-container border border-outline-variant text-on-surface font-body-sm text-body-sm rounded pl-stack-sm pr-[28px] py-[6px] focus:border-secondary outline-none cursor-pointer">
+<option>Geo: All</option>
+<option>NA</option>
+<option>EMEA</option>
+</select>
+<span class="material-symbols-outlined absolute right-[4px] top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant pointer-events-none">arrow_drop_down</span>
+</div>
+<div class="relative">
+<select class="appearance-none bg-surface-container border border-outline-variant text-on-surface font-body-sm text-body-sm rounded pl-stack-sm pr-[28px] py-[6px] focus:border-secondary outline-none cursor-pointer">
+<option>Account: All</option>
+</select>
+<span class="material-symbols-outlined absolute right-[4px] top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant pointer-events-none">arrow_drop_down</span>
+</div>
+<div class="relative">
+<select class="appearance-none bg-surface-container border border-outline-variant text-on-surface font-body-sm text-body-sm rounded pl-stack-sm pr-[28px] py-[6px] focus:border-secondary outline-none cursor-pointer">
+<option>Type: All</option>
+</select>
+<span class="material-symbols-outlined absolute right-[4px] top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant pointer-events-none">arrow_drop_down</span>
+</div>
+<div class="relative">
+<select class="appearance-none bg-surface-container border border-outline-variant text-on-surface font-body-sm text-body-sm rounded pl-stack-sm pr-[28px] py-[6px] focus:border-secondary outline-none cursor-pointer">
+<option>Status: All</option>
+</select>
+<span class="material-symbols-outlined absolute right-[4px] top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant pointer-events-none">arrow_drop_down</span>
+</div>
+</div>
+<div class="relative w-full md:w-64">
+<span class="material-symbols-outlined absolute left-stack-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="w-full bg-surface-container border border-outline-variant text-on-surface font-body-sm text-body-sm rounded pl-[32px] pr-stack-sm py-[6px] focus:border-secondary focus:ring-1 focus:ring-secondary outline-none placeholder:text-on-surface-variant" placeholder="Search projects..." type="text">
+</div>
+</div>
+<!-- Data Grid -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-low">
+<th class="p-stack-sm font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">Project</th>
+<th class="p-stack-sm font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">Account</th>
+<th class="p-stack-sm font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">PM</th>
+<th class="p-stack-sm font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap w-48">Completeness</th>
+<th class="p-stack-sm font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap text-right">Gaps</th>
+<th class="p-stack-sm font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">Status</th>
+<th class="p-stack-sm font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">Last Updated</th>
+<th class="p-stack-sm font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap text-right">Action</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container transition-colors group">
+<td class="p-stack-sm text-on-surface font-medium truncate max-w-[150px]">Project Alpha Revamp</td>
+<td class="p-stack-sm text-on-surface-variant truncate max-w-[120px]">Global Tech Corp</td>
+<td class="p-stack-sm text-on-surface-variant">S. Connor</td>
+<td class="p-stack-sm">
+<div class="flex items-center gap-stack-sm">
+<div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed-dim" style="width: 85%"></div>
+</div>
+<span class="font-mono-data text-mono-data text-on-surface-variant">85%</span>
+</div>
+</td>
+<td class="p-stack-sm font-mono-data text-mono-data text-right">2</td>
+<td class="p-stack-sm">
+<span class="inline-flex items-center px-[6px] py-[2px] rounded bg-tertiary-fixed-dim/20 text-tertiary-container font-label-caps text-label-caps">Awaiting Review</span>
+</td>
+<td class="p-stack-sm text-on-surface-variant font-mono-data text-mono-data">2026-08-12</td>
+<td class="p-stack-sm text-right">
+<button class="font-title-md text-title-md text-secondary hover:text-secondary-container transition-colors">Review</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors group">
+<td class="p-stack-sm text-on-surface font-medium truncate max-w-[150px]">Omega Integration</td>
+<td class="p-stack-sm text-on-surface-variant truncate max-w-[120px]">Stark Industries</td>
+<td class="p-stack-sm text-on-surface-variant">T. Stark</td>
+<td class="p-stack-sm">
+<div class="flex items-center gap-stack-sm">
+<div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary-fixed-dim" style="width: 100%"></div>
+</div>
+<span class="font-mono-data text-mono-data text-on-surface-variant">100%</span>
+</div>
+</td>
+<td class="p-stack-sm font-mono-data text-mono-data text-right">0</td>
+<td class="p-stack-sm">
+<span class="inline-flex items-center px-[6px] py-[2px] rounded bg-secondary-fixed-dim/20 text-secondary-container font-label-caps text-label-caps">In Review</span>
+</td>
+<td class="p-stack-sm text-on-surface-variant font-mono-data text-mono-data">2026-08-10</td>
+<td class="p-stack-sm text-right">
+<button class="font-title-md text-title-md text-secondary hover:text-secondary-container transition-colors">Review</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors group">
+<td class="p-stack-sm text-on-surface font-medium truncate max-w-[150px]">Cloud Migration Q3</td>
+<td class="p-stack-sm text-on-surface-variant truncate max-w-[120px]">Wayne Ent.</td>
+<td class="p-stack-sm text-on-surface-variant">B. Wayne</td>
+<td class="p-stack-sm">
+<div class="flex items-center gap-stack-sm">
+<div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-error" style="width: 60%"></div>
+</div>
+<span class="font-mono-data text-mono-data text-on-surface-variant">60%</span>
+</div>
+</td>
+<td class="p-stack-sm font-mono-data text-mono-data text-right text-error">5</td>
+<td class="p-stack-sm">
+<span class="inline-flex items-center px-[6px] py-[2px] rounded bg-error-container/50 text-error font-label-caps text-label-caps">Returned</span>
+</td>
+<td class="p-stack-sm text-on-surface-variant font-mono-data text-mono-data">2026-08-05</td>
+<td class="p-stack-sm text-right">
+<button class="font-title-md text-title-md text-secondary hover:text-secondary-container transition-colors">Review</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</main>
+
+
+</body></html>

@@ -12,9 +12,11 @@ import { useProjectTypes } from "@/lib/api/reference-data";
 import {
   useCloudMaintenanceTarget,
   useCloudMigrationTarget,
+  useConsultingTarget,
   useDevelopmentTarget,
   useSaveCloudMaintenanceTarget,
   useSaveCloudMigrationTarget,
+  useSaveConsultingTarget,
   useSaveDevelopmentTarget,
   useSaveStaffingTarget,
   useSaveSupportTarget,
@@ -26,6 +28,7 @@ import {
 
 import { CloudMaintenanceTab, fromCloudMaintenanceTarget, toCloudMaintenancePayload } from "./cloud-maintenance-form";
 import { CloudMigrationTab, fromCloudMigrationTarget, toCloudMigrationPayload } from "./cloud-migration-form";
+import { ConsultingTab, fromConsultingTarget, toConsultingPayload } from "./consulting-form";
 import { DevelopmentTab, fromDevelopmentTarget, toDevelopmentPayload } from "./development-form";
 import { useMeasures } from "./shared";
 import { StaffingTab, fromStaffingTarget, toStaffingPayload } from "./staffing-form";
@@ -42,6 +45,7 @@ const TABS = [
   { code: "TESTING", label: "Testing", content: TestingTab },
   { code: "CLOUD_MAINTENANCE", label: "Cloud Maintenance", content: CloudMaintenanceTab },
   { code: "CLOUD_MIGRATION", label: "Cloud Migration", content: CloudMigrationTab },
+  { code: "CONSULTING", label: "Consulting", content: ConsultingTab },
 ] as const;
 
 // Each Project Type's target row has its own shape (see
@@ -75,6 +79,7 @@ function useActiveTarget(projectId: string | null, projectTypeCode: string | und
   const testing = useTestingTarget(projectId, projectTypeCode === "TESTING");
   const cloudMaintenance = useCloudMaintenanceTarget(projectId, projectTypeCode === "CLOUD_MAINTENANCE");
   const cloudMigration = useCloudMigrationTarget(projectId, projectTypeCode === "CLOUD_MIGRATION");
+  const consulting = useConsultingTarget(projectId, projectTypeCode === "CONSULTING");
 
   const saveDevelopment = useSaveDevelopmentTarget(projectId);
   const saveSupport = useSaveSupportTarget(projectId);
@@ -82,6 +87,7 @@ function useActiveTarget(projectId: string | null, projectTypeCode: string | und
   const saveTesting = useSaveTestingTarget(projectId);
   const saveCloudMaintenance = useSaveCloudMaintenanceTarget(projectId);
   const saveCloudMigration = useSaveCloudMigrationTarget(projectId);
+  const saveConsulting = useSaveConsultingTarget(projectId);
 
   switch (projectTypeCode) {
     case "DEVELOPMENT":
@@ -131,6 +137,14 @@ function useActiveTarget(projectId: string | null, projectTypeCode: string | und
         isSaving: saveCloudMigration.isPending,
         submit: (m: Record<string, string>) =>
           saveWithBanner(saveCloudMigration, toCloudMigrationPayload(m), showSuccess, showError),
+      };
+    case "CONSULTING":
+      return {
+        isLoaded: consulting.status === "success",
+        seed: consulting.data ? fromConsultingTarget(consulting.data) : {},
+        isSaving: saveConsulting.isPending,
+        submit: (m: Record<string, string>) =>
+          saveWithBanner(saveConsulting, toConsultingPayload(m), showSuccess, showError),
       };
     default:
       return { isLoaded: false, seed: {} as Record<string, string>, isSaving: false, submit: () => {} };

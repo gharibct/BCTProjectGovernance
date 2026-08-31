@@ -16,11 +16,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_role
+from app.api.deps import require_project_access
 from app.core.db import get_db
 from app.models.metric_target import (
     MetricTargetCloudMaintenance,
     MetricTargetCloudMigration,
+    MetricTargetConsulting,
     MetricTargetDevelopment,
     MetricTargetStaffing,
     MetricTargetStaffingPriority,
@@ -33,6 +34,8 @@ from app.schemas.metric_target import (
     MetricTargetCloudMaintenanceRead,
     MetricTargetCloudMigrationIn,
     MetricTargetCloudMigrationRead,
+    MetricTargetConsultingIn,
+    MetricTargetConsultingRead,
     MetricTargetDevelopmentIn,
     MetricTargetDevelopmentRead,
     MetricTargetStaffingIn,
@@ -47,7 +50,9 @@ from app.schemas.metric_target import (
 
 router = APIRouter()
 
-_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+# PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
+# scoped to projects in their own accounts/geo (require_project_access).
+_pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
 # --- Generic factory for the 5 single-row targets ---
@@ -133,6 +138,17 @@ router.include_router(
             model=MetricTargetTesting,
             in_schema=MetricTargetTestingIn,
             read_schema=MetricTargetTestingRead,
+        )
+    )
+)
+router.include_router(
+    build_metric_target_router(
+        MetricTargetConfig(
+            prefix="consulting",
+            tag="Metric Target - Consulting",
+            model=MetricTargetConsulting,
+            in_schema=MetricTargetConsultingIn,
+            read_schema=MetricTargetConsultingRead,
         )
     )
 )

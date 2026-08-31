@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_role
+from app.api.deps import require_project_access
 from app.core.db import get_db
 from app.crud.health_declarations import health_declaration_crud, project_health_item_crud
 from app.crud.projects import project_crud
@@ -28,7 +28,9 @@ from app.services.health_rollup import compute_overall_project_health, compute_o
 # (project_status.py) minus the Draft/Submitted status.
 router = APIRouter(prefix="/projects/{project_id}/health-declarations", tags=["Health Declarations"])
 
-_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+# PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
+# scoped to projects in their own accounts/geo (require_project_access).
+_pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
 # Declarations are keyed off a reporting_periods row rather than a raw date

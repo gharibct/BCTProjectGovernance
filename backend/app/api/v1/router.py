@@ -4,12 +4,15 @@ from app.api.v1.endpoints import (
     account_health_declarations,
     account_health_rollup,
     account_rollup,
+    actions,
     ai_row_suggestions,
     ai_suggestions,
     audit,
     contractual,
     dashboard,
     data_integrity,
+    de_allocation,
+    de_approval,
     de_assessment,
     documents,
     executive_updates,
@@ -46,6 +49,8 @@ api_router.include_router(measurement.router)
 api_router.include_router(metric_target.router)
 api_router.include_router(contractual.router)
 api_router.include_router(de_assessment.router)
+api_router.include_router(de_allocation.router)
+api_router.include_router(de_approval.router)
 api_router.include_router(data_integrity.router)
 api_router.include_router(integrations.router)
 api_router.include_router(audit.router)
@@ -61,3 +66,4 @@ api_router.include_router(account_rollup.router)
 api_router.include_router(account_health_rollup.router)
 api_router.include_router(geo_rollup.router)
 api_router.include_router(executive_updates.router)
+api_router.include_router(actions.router)

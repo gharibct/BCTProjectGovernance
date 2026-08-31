@@ -3,7 +3,9 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
+import { Info } from "lucide-react";
 
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAiReview } from "@/components/ai/use-ai-review";
 import { usePageBanner } from "@/stores/page-banner";
 
@@ -17,12 +19,8 @@ export function num(value: string | number | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function fmt(value: number | null, digits = 2): string {
-  return value === null ? "—" : value.toFixed(digits);
-}
-
 // String form of a value as it comes back from the API, for seeding an
-// editable text input — no rounding, unlike fmt() which is for display.
+// editable text input.
 export function str(value: number | string | null | undefined): string {
   return value === null || value === undefined ? "" : String(value);
 }
@@ -37,48 +35,127 @@ export function useMeasures() {
   return { m, set, setValue, setAll };
 }
 
-// Four stacked lines: Label, Target, Computed, UOM. Target comes from the
-// project's Metric Target (set in New Project); Computed is the backend's
-// server-derived value from the latest saved Measurement entry for this
-// project — recomputed and persisted at save time, not re-derived here, so
-// it always matches exactly what's stored (and correctly shows "—" for the
-// handful of metrics the backend doesn't model, e.g. Cost Performance Index).
+// Whether a bigger or smaller Computed value is the desired direction for a
+// given metric — drives both the Target-vs-Computed color (green = good, red
+// = off-target) and the progress bar fill. Metrics with no natural target
+// comparison (e.g. counts) don't pass this and stay neutral.
+export type MetricDirection = "higher-is-better" | "lower-is-better";
+
+function clampPct(n: number): number {
+  return Math.max(0, Math.min(100, n));
+}
+
+// A small round badge for the priority-scoped tiles (SLA Compliance P1/P2/P3,
+// Staffing's per-priority Response/Lead Time), replacing a "— P1" suffix in
+// the label so the priority reads as a tag rather than part of the title.
+function MetricPriorityBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="shrink-0 rounded-md bg-[#1a4a7a] px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase">
+      {children}
+    </span>
+  );
+}
+
+// (i) icon that opens a popover with the same formula shown inline under the
+// label — a consistent "more info" affordance across every tile, even though
+// the formula is already visible as the italic line below the label.
+function MetricInfoButton({ formula }: { formula: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="How this metric is calculated"
+          className="shrink-0 text-slate-300 transition-colors hover:text-slate-500"
+        >
+          <Info className="size-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 text-xs text-slate-600">{formula}</PopoverContent>
+    </Popover>
+  );
+}
+
+// Label, formula, Target, Computed (color-coded against Target), and a
+// progress bar. Target comes from the project's Metric Target (set in New
+// Project); Computed is the backend's server-derived value from the latest
+// saved Measurement entry for this project — recomputed and persisted at
+// save time, not re-derived here, so it always matches exactly what's
+// stored. `current === null` renders the whole tile in its muted
+// "not computed" state (both Target and Computed as "—"), used for the
+// handful of metrics the backend doesn't model (e.g. Cost Performance
+// Index) regardless of whether a target value happens to exist for them.
 export function MetricTile({
   label,
+  formula,
   target,
   current,
   unit,
+  direction,
+  digits = 2,
+  badge,
 }: {
   label: string;
-  target: string;
-  current: string;
+  formula: string;
+  target: number | null;
+  current: number | null;
   unit: string;
+  direction?: MetricDirection;
+  digits?: number;
+  badge?: string;
 }) {
+  const notComputed = current === null;
+  const comparable = !notComputed && target !== null && direction !== undefined;
+  const isGood = comparable && (direction === "higher-is-better" ? current >= target : current <= target);
+  const progressPct = comparable
+    ? clampPct((direction === "higher-is-better" ? current / target : target / current) * 100)
+    : 0;
+
+  const computedBoxClass = notComputed
+    ? "bg-slate-50"
+    : !comparable
+      ? "bg-slate-100"
+      : isGood
+        ? "bg-emerald-100"
+        : "bg-red-100";
+  const computedTextClass = notComputed
+    ? "text-slate-300"
+    : !comparable
+      ? "text-slate-700"
+      : isGood
+        ? "text-emerald-700"
+        : "text-red-600";
+  const barClass = isGood ? "bg-emerald-500" : "bg-red-500";
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <p className="text-xs font-bold tracking-wide text-slate-600 uppercase">
-        {label}
-      </p>
+    <div className="rounded-xl bg-white p-4 shadow-md">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-bold tracking-wide text-slate-700 uppercase">{label}</p>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {badge ? <MetricPriorityBadge>{badge}</MetricPriorityBadge> : null}
+          <MetricInfoButton formula={formula} />
+        </div>
+      </div>
+      <p className="mt-0.5 text-[11px] italic text-slate-400">{formula}</p>
 
-      <p className="mt-2 text-[10px] font-bold tracking-wide text-slate-400 uppercase">
-        Target
-      </p>
-      <div className="mt-1 flex h-8 items-center justify-end rounded-md bg-blue-50 px-2.5">
-        <span className="text-sm font-semibold text-[#1a4a7a] tabular-nums">
-          {target || "—"}
+      <p className="mt-3 text-[10px] font-bold tracking-wide text-slate-400 uppercase">Target</p>
+      <div className="mt-1 flex h-11 items-center justify-end rounded-md bg-blue-100 px-2.5">
+        <span className="text-lg font-bold text-[#1a4a7a] tabular-nums">
+          {target === null ? "—" : target.toFixed(digits)}
         </span>
+        {target !== null ? <span className="ml-1 text-[11px] text-[#1a4a7a]/70">{unit}</span> : null}
       </div>
 
-      <p className="mt-2 text-[10px] font-bold tracking-wide text-slate-400 uppercase">
-        Computed
-      </p>
-      <div className="mt-1 flex h-8 items-center justify-end rounded-md bg-emerald-50 px-2.5">
-        <span className="text-sm font-semibold text-emerald-800 tabular-nums">
-          {current}
+      <p className="mt-2 text-[10px] font-bold tracking-wide text-slate-400 uppercase">Computed</p>
+      <div className={`mt-1 flex h-11 items-center justify-end rounded-md px-2.5 ${computedBoxClass}`}>
+        <span className={`text-lg font-bold tabular-nums ${computedTextClass}`}>
+          {notComputed ? "—" : current.toFixed(digits)}
         </span>
+        {!notComputed ? <span className="ml-1 text-[11px] opacity-70">{unit}</span> : null}
       </div>
-
-      <p className="mt-2 text-right text-xs text-slate-400">{unit}</p>
+      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+        {comparable ? <div className={`h-full rounded-full ${barClass}`} style={{ width: `${progressPct}%` }} /> : null}
+      </div>
     </div>
   );
 }

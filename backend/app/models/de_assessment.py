@@ -16,6 +16,8 @@ class DEAssessment(Base, UUIDPrimaryKey, TimestampColumns):
     assessment_date: Mapped[date | None]
     de_assessed_project_health: Mapped[str]  # Red, Potential Red, Amber, Green
     pci_score: Mapped[Decimal | None] = mapped_column(Numeric)
+    remarks: Mapped[str | None]
+    status: Mapped[str] = mapped_column(default="Submitted")  # Draft, Submitted
     next_assessment_due_date: Mapped[date | None]
     assessed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
@@ -38,8 +40,12 @@ class DEAssessmentFinding(Base, UUIDPrimaryKey, TimestampColumns):
 
     assessment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("de_assessments.id", ondelete="CASCADE"))
     sequence_no: Mapped[int]
-    classification: Mapped[str]  # Observation, Recommendation
+    classification: Mapped[str]  # Observation/Recommendation (legacy) or Governance/Performance/Security/Financial
+    description: Mapped[str | None]  # the finding statement
+    severity: Mapped[str | None]  # Low, Medium, High, Critical
+    assigned_to: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     action_taken: Mapped[str | None]
     finding_date: Mapped[date | None]
-    status: Mapped[str]  # Open, Closed, On Hold, Deferred
+    due_date: Mapped[date | None]
+    status: Mapped[str]  # Open, In Progress, Awaiting Closure, Closed, Cancelled (+ legacy On Hold/Deferred)
     remarks: Mapped[str | None]

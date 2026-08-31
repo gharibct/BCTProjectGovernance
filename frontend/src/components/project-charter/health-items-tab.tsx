@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
 import { AutoBadge, SectionCard } from "@/components/forms/form-primitives";
+import { EmptyState } from "@/components/forms/empty-state";
 import { EditableTextList } from "@/components/forms/editable-text-list";
 import { usePageBanner } from "@/stores/page-banner";
 import {
@@ -40,17 +41,13 @@ export function HealthItemsTab({
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        No project selected.
-      </p>
+      <EmptyState>No project selected.</EmptyState>
     );
   }
 
   if (!periodId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        No reporting period selected.
-      </p>
+      <EmptyState>No reporting period selected.</EmptyState>
     );
   }
 

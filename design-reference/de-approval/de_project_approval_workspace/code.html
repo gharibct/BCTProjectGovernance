@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Project Governance Review</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "background": "#f7f9fb",
+                      "outline": "#75777d",
+                      "primary-fixed": "#d8e3fb",
+                      "on-primary": "#ffffff",
+                      "primary-fixed-dim": "#bcc7de",
+                      "on-primary-fixed-variant": "#3c475a",
+                      "on-surface": "#191c1e",
+                      "on-primary-fixed": "#111c2d",
+                      "on-background": "#191c1e",
+                      "secondary-fixed": "#d8e2ff",
+                      "inverse-surface": "#2d3133",
+                      "error": "#ba1a1a",
+                      "surface-container-highest": "#e0e3e5",
+                      "surface-container": "#eceef0",
+                      "on-secondary-container": "#fefcff",
+                      "on-secondary": "#ffffff",
+                      "inverse-primary": "#bcc7de",
+                      "surface-container-low": "#f2f4f6",
+                      "on-secondary-fixed": "#001a42",
+                      "surface-tint": "#545f73",
+                      "tertiary-fixed-dim": "#4edea3",
+                      "on-primary-container": "#8590a6",
+                      "tertiary-container": "#00301e",
+                      "on-error-container": "#93000a",
+                      "outline-variant": "#c5c6cd",
+                      "surface-dim": "#d8dadc",
+                      "error-container": "#ffdad6",
+                      "secondary-container": "#2170e4",
+                      "surface-variant": "#e0e3e5",
+                      "surface": "#f7f9fb",
+                      "surface-container-lowest": "#ffffff",
+                      "primary": "#091426",
+                      "on-secondary-fixed-variant": "#004395",
+                      "on-tertiary-fixed-variant": "#005236",
+                      "on-tertiary-container": "#00a472",
+                      "surface-container-high": "#e6e8ea",
+                      "on-error": "#ffffff",
+                      "secondary": "#0058be",
+                      "on-surface-variant": "#45474c",
+                      "tertiary-fixed": "#6ffbbe",
+                      "secondary-fixed-dim": "#adc6ff",
+                      "on-tertiary": "#ffffff",
+                      "tertiary": "#00190e",
+                      "on-tertiary-fixed": "#002113",
+                      "primary-container": "#1e293b",
+                      "inverse-on-surface": "#eff1f3",
+                      "surface-bright": "#f7f9fb"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "stack-md": "16px",
+                      "container-padding": "24px",
+                      "gutter": "16px",
+                      "stack-lg": "24px",
+                      "unit": "4px",
+                      "stack-sm": "8px"
+              },
+              "fontFamily": {
+                      "title-md": ["Inter"],
+                      "display": ["Inter"],
+                      "label-caps": ["Inter"],
+                      "mono-data": ["JetBrains Mono"],
+                      "body-md": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "headline": ["Inter"]
+              },
+              "fontSize": {
+                      "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                      "display": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "mono-data": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "headline": ["18px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col antialiased selection:bg-secondary-fixed selection:text-on-secondary-fixed">
+<!-- Top Navigation (Suppressed due to transactional nature, showing only Contextual Back) -->
+<nav class="sticky top-0 z-40 bg-surface-container-lowest border-b border-outline-variant px-container-padding h-16 flex items-center shrink-0">
+<a class="flex items-center gap-2 text-on-surface-variant hover:text-secondary transition-colors group" href="#">
+<span class="material-symbols-outlined text-[18px] group-hover:-translate-x-1 transition-transform" data-icon="arrow_back">arrow_back</span>
+<span class="font-title-md text-title-md">Back to DE Project Approval</span>
+</a>
+</nav>
+<!-- Main Workspace -->
+<main class="flex-1 w-full max-w-[1600px] mx-auto p-container-padding flex flex-col gap-stack-lg relative">
+<!-- Header Section -->
+<header class="flex flex-col gap-stack-sm">
+<h1 class="font-display text-display text-primary">Project Governance Review</h1>
+<div class="flex flex-wrap items-center gap-x-6 gap-y-2 font-body-sm text-body-sm text-on-surface-variant">
+<div class="flex items-center gap-1.5">
+<span class="font-label-caps text-label-caps text-outline">PROJECT</span>
+<span class="font-medium text-on-surface">Alpha Migration</span>
+</div>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<div class="flex items-center gap-1.5">
+<span class="font-label-caps text-label-caps text-outline">ACCOUNT</span>
+<span class="font-medium text-on-surface">Healthcare</span>
+</div>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<div class="flex items-center gap-1.5">
+<span class="font-label-caps text-label-caps text-outline">PM</span>
+<div class="flex items-center gap-1">
+<div class="w-5 h-5 rounded-full bg-surface-container-high bg-cover bg-center border border-outline-variant" data-alt="A professional headshot of a corporate project manager in a well-lit modern office, wearing a smart casual dark blazer, looking approachable yet authoritative, soft neutral background, high resolution." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDmTBVblVRMVECZajnNaa2U33--YshpTTp5GsdkKzs-nqSZ_JGGdVp7rNm3WfLvbl9KXo81jasd0B7Nj8WVSY83_D6vYDZ36hVbWgan5rf0xnfsLR6D5IlM0v_nCJIb4z3pN88_avG86t3Karev8HmSlb_E-NtmKw7Pblm74bcKrMXFTtxMQIvUnoS1kCeiYRkbHTRmBid-pQGwdUvllH_H9_Rq2_Etc3dJzrPQ5DDEvLKzaip6sg0Lyg')"></div>
+<span class="font-medium text-on-surface">J. Smith</span>
+</div>
+</div>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<div class="flex items-center gap-1.5">
+<span class="font-label-caps text-label-caps text-outline">PERIOD</span>
+<span class="font-medium text-on-surface">Aug 2026</span>
+</div>
+</div>
+</header>
+<!-- Top Summary Cards -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-stack-md">
+<!-- Overall Completion -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md flex flex-col gap-1 relative overflow-hidden border-t-2 border-t-primary">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Overall Completion</span>
+<div class="flex items-end gap-2">
+<span class="font-display text-display text-on-surface text-[32px] leading-none">87%</span>
+</div>
+<div class="absolute bottom-0 left-0 h-1 bg-surface-container w-full">
+<div class="h-full bg-primary w-[87%]"></div>
+</div>
+</div>
+<!-- Complete -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md flex flex-col gap-1 border-t-2 border-t-on-tertiary-container">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Modules Complete</span>
+<div class="flex items-center justify-between">
+<span class="font-display text-display text-on-surface text-[32px] leading-none">6</span>
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle">check_circle</span>
+</div>
+</div>
+<!-- Incomplete -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md flex flex-col gap-1 border-t-2 border-t-secondary">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Modules Incomplete</span>
+<div class="flex items-center justify-between">
+<span class="font-display text-display text-on-surface text-[32px] leading-none">2</span>
+<span class="material-symbols-outlined text-secondary" data-icon="pending">pending</span>
+</div>
+</div>
+<!-- Critical Gaps -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md flex flex-col gap-1 border-t-2 border-t-error">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Critical Gaps</span>
+<div class="flex items-center justify-between">
+<span class="font-display text-display text-error text-[32px] leading-none">1</span>
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+</div>
+</div>
+</section>
+<!-- Completeness Checklist Matrix -->
+<section class="flex flex-col gap-stack-sm flex-1">
+<h2 class="font-title-md text-title-md text-on-surface">Completeness Checklist</h2>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-x-auto shadow-sm">
+<table class="w-full text-left border-collapse min-w-[1000px]">
+<thead class="bg-surface-container-low border-b border-outline-variant sticky top-0 z-10">
+<tr>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-[25%]">Module</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-[10%]">Completion %</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-[15%]">Review Status</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-[10%]">Gaps</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-[15%]">Last Updated</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-[15%]">DE Assessor Action</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-[10%] text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant font-body-sm text-body-sm text-on-surface">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-3 px-4 font-medium">Project Profile</td>
+<td class="py-3 px-4 font-mono-data text-mono-data">100%</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-on-tertiary-container/10 text-on-tertiary-container font-medium text-[12px]">
+<span class="material-symbols-outlined text-[14px]" data-icon="check">check</span> Complete
+                                </span>
+</td>
+<td class="py-3 px-4 text-outline">0</td>
+<td class="py-3 px-4 text-on-surface-variant">Aug 12, 10:30 AM</td>
+<td class="py-3 px-4">
+<select class="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-body-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none">
+<option>Not Reviewed</option>
+<option selected="">Reviewed</option>
+<option>Gap Identified</option>
+</select>
+</td>
+<td class="py-3 px-4 text-right">
+<a class="text-secondary hover:text-primary font-medium hover:underline" href="#">View</a>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-3 px-4 font-medium">Scope &amp; Schedule</td>
+<td class="py-3 px-4 font-mono-data text-mono-data">100%</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-on-tertiary-container/10 text-on-tertiary-container font-medium text-[12px]">
+<span class="material-symbols-outlined text-[14px]" data-icon="check">check</span> Complete
+                                </span>
+</td>
+<td class="py-3 px-4 text-outline">0</td>
+<td class="py-3 px-4 text-on-surface-variant">Aug 13, 09:15 AM</td>
+<td class="py-3 px-4">
+<select class="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-body-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none">
+<option>Not Reviewed</option>
+<option>Reviewed</option>
+<option selected="">Gap Identified</option>
+</select>
+</td>
+<td class="py-3 px-4 text-right">
+<a class="text-secondary hover:text-primary font-medium hover:underline" href="#">View</a>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-3 px-4 font-medium">Financials</td>
+<td class="py-3 px-4 font-mono-data text-mono-data text-secondary">75%</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/10 text-secondary font-medium text-[12px]">
+<span class="material-symbols-outlined text-[14px]" data-icon="sync">sync</span> Incomplete
+                                </span>
+</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center justify-center w-5 h-5 rounded bg-error/10 text-error font-medium text-[12px]">1</span>
+</td>
+<td class="py-3 px-4 text-on-surface-variant">Aug 14, 14:20 PM</td>
+<td class="py-3 px-4">
+<select class="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-body-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none">
+<option selected="">Not Reviewed</option>
+<option>Reviewed</option>
+<option>Gap Identified</option>
+</select>
+</td>
+<td class="py-3 px-4 text-right">
+<a class="text-secondary hover:text-primary font-medium hover:underline" href="#">View</a>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-3 px-4 font-medium">Risk &amp; Issues</td>
+<td class="py-3 px-4 font-mono-data text-mono-data">100%</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-on-tertiary-container/10 text-on-tertiary-container font-medium text-[12px]">
+<span class="material-symbols-outlined text-[14px]" data-icon="check">check</span> Complete
+                                </span>
+</td>
+<td class="py-3 px-4 text-outline">0</td>
+<td class="py-3 px-4 text-on-surface-variant">Aug 11, 11:00 AM</td>
+<td class="py-3 px-4">
+<select class="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-body-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none">
+<option>Not Reviewed</option>
+<option selected="">Reviewed</option>
+<option>Gap Identified</option>
+</select>
+</td>
+<td class="py-3 px-4 text-right">
+<a class="text-secondary hover:text-primary font-medium hover:underline" href="#">View</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Final Review Footer Section -->
+<section class="mt-8 pt-stack-lg border-t border-outline-variant grid grid-cols-1 lg:grid-cols-3 gap-stack-lg items-end pb-24">
+<!-- Remarks Input -->
+<div class="col-span-1 lg:col-span-2 flex flex-col gap-2">
+<label class="font-body-sm font-bold text-on-surface" for="review_remarks">DE Review Remarks <span class="text-error">*</span></label>
+<textarea class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 font-body-sm text-body-sm text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary outline-none resize-y" id="review_remarks" placeholder="Enter detailed findings, concerns, or justification for approval/return..." rows="3"></textarea>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Visible to Project Manager upon return or approval.</span>
+</div>
+<!-- Readiness & Actions -->
+<div class="col-span-1 flex flex-col gap-stack-md bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md h-full justify-between">
+<div>
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-2">Readiness Summary</h3>
+<ul class="flex flex-col gap-2 font-body-sm text-body-sm text-on-surface">
+<li class="flex justify-between items-center">
+<span>Mandatory Modules</span>
+<span class="font-mono-data text-mono-data font-medium">8/8</span>
+</li>
+<li class="flex justify-between items-center">
+<span>Critical Gaps Identified</span>
+<span class="font-mono-data text-mono-data font-medium text-error">1</span>
+</li>
+</ul>
+</div>
+<div class="flex flex-col gap-2 pt-4 border-t border-outline-variant mt-auto">
+<button class="w-full py-2.5 px-4 bg-primary text-on-primary rounded font-title-md text-title-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="thumb_up">thumb_up</span> Approve
+                    </button>
+<button class="w-full py-2.5 px-4 bg-surface-container-highest text-on-surface rounded font-title-md text-title-md hover:bg-surface-container transition-colors border border-outline-variant flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="keyboard_return">keyboard_return</span> Return to PM
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Findings Control Pill (Floating) -->
+<button class="fixed bottom-8 right-8 z-50 bg-secondary text-on-secondary rounded-full py-3 px-5 shadow-lg shadow-secondary/20 font-label-caps text-label-caps flex items-center gap-2 hover:-translate-y-0.5 transition-transform hover:shadow-xl border border-secondary">
+<span class="material-symbols-outlined text-[18px]" data-icon="assignment_late">assignment_late</span>
+        FINDINGS [3] +
+    </button>
+</body></html>

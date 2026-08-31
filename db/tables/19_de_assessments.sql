@@ -8,6 +8,8 @@ CREATE TABLE de_assessments (
     assessment_date DATE,
     de_assessed_project_health TEXT NOT NULL, -- Red, Potential Red, Amber, Green
     pci_score NUMERIC(6, 2),
+    remarks TEXT, -- DE's justification for the rating (DE Assessment Workspace)
+    status TEXT NOT NULL DEFAULT 'Submitted', -- Draft, Submitted ("Not Started" = no row)
     next_assessment_due_date DATE,
     assessed_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL,
@@ -39,10 +41,14 @@ CREATE TABLE de_assessment_findings (
     id UUID PRIMARY KEY,
     assessment_id UUID NOT NULL REFERENCES de_assessments(id) ON DELETE CASCADE,
     sequence_no INTEGER NOT NULL,
-    classification TEXT NOT NULL, -- Observation, Recommendation
+    classification TEXT NOT NULL, -- Observation/Recommendation (legacy) or Governance/Performance/Security/Financial
+    description TEXT, -- the finding statement (DE Assessment Workspace)
+    severity TEXT, -- Low, Medium, High, Critical
+    assigned_to UUID REFERENCES users(id),
     action_taken TEXT,
     finding_date DATE,
-    status TEXT NOT NULL, -- Open, Closed, On Hold, Deferred
+    due_date DATE,
+    status TEXT NOT NULL, -- Open, In Progress, Awaiting Closure, Closed, Cancelled (+ legacy On Hold/Deferred)
     remarks TEXT,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,

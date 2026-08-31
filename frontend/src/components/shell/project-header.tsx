@@ -7,6 +7,7 @@ import { ReportingBreadcrumb } from "@/components/shell/reporting-breadcrumb";
 import { ReportingPeriodPill } from "@/components/shell/reporting-period-badge";
 import { PageBanner } from "@/components/shell/page-banner";
 import { StatusBadge } from "@/components/forms/status-badge";
+import { ActionTrackerTrigger } from "@/components/action-tracker/action-tracker-trigger";
 import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
@@ -19,6 +20,9 @@ type ProjectHeaderProps = {
   periodId?: string | null;
   // Project Status only: ignore `subheading`, use "{period.period_type} Report" instead.
   dynamicSubheading?: boolean;
+  // Project Dashboard only — the Action Tracker trigger lives on Project
+  // Dashboard and Project Review, not every other Project Reporting sub-page.
+  showActionTracker?: boolean;
 };
 
 // Every Project Reporting screen shows the same "<Screen Name> Period:
@@ -28,11 +32,13 @@ type ProjectHeaderProps = {
 // pattern PeriodAwareHeading/PeriodAwareBody use elsewhere in this app.
 function HeadingRow({
   projectId,
+  projectName,
   base,
   subheading,
   periodId: periodIdProp,
   dynamicSubheading,
-}: ProjectHeaderProps & { projectId: string | null; base: string }) {
+  showActionTracker,
+}: ProjectHeaderProps & { projectId: string | null; projectName: string; base: string }) {
   const searchParams = useSearchParams();
   const periodId = periodIdProp !== undefined ? periodIdProp : searchParams.get("period");
 
@@ -49,6 +55,7 @@ function HeadingRow({
     <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
       <h1 className="text-4xl font-bold tracking-tight text-slate-900">{heading}</h1>
       <div className="flex flex-wrap items-center gap-4">
+        {showActionTracker && projectId ? <ActionTrackerTrigger level="PROJECT" id={projectId} name={projectName} /> : null}
         <span className="flex items-center gap-1.5">
           <span className="text-sm font-semibold text-slate-500">Period:</span>
           {period ? <ReportingPeriodPill label={period.label} /> : <span className="text-slate-300">—</span>}
@@ -65,7 +72,7 @@ function HeadingRow({
 // Matches the "{CODE} - Screen Name" heading convention used elsewhere (see
 // new-project-header.tsx / reporting-hub.tsx) — every Project Reporting
 // screen is its own route, so `subheading` is passed explicitly by the page.
-export function ProjectHeader({ subheading, periodId, dynamicSubheading }: ProjectHeaderProps = {}) {
+export function ProjectHeader({ subheading, periodId, dynamicSubheading, showActionTracker }: ProjectHeaderProps = {}) {
   const { projectId } = useParams<{ projectId?: string }>();
   const { data: project } = useProject(projectId ?? null);
 
@@ -81,10 +88,12 @@ export function ProjectHeader({ subheading, periodId, dynamicSubheading }: Proje
         <Suspense fallback={null}>
           <HeadingRow
             projectId={projectId ?? null}
+            projectName={project?.project_name?.trim() || base}
             base={base}
             subheading={subheading}
             periodId={periodId}
             dynamicSubheading={dynamicSubheading}
+            showActionTracker={showActionTracker}
           />
         </Suspense>
         {project?.project_name?.trim() ? (

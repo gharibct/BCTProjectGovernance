@@ -4,6 +4,7 @@ import * as React from "react";
 import { Siren } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { EmptyState } from "@/components/forms/empty-state";
 import { usePageBanner } from "@/stores/page-banner";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
@@ -86,9 +87,7 @@ export function AlertRegisterTab({
 
   if (!assessment) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        Submit the assessment above first, then raise alerts against it here.
-      </p>
+      <EmptyState>Submit the assessment above first, then raise alerts against it here.</EmptyState>
     );
   }
 

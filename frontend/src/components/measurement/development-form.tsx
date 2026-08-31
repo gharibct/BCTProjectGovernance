@@ -28,7 +28,6 @@ import {
 } from "@/lib/api/measurement";
 import {
   MetricTile,
-  fmt,
   inputClass,
   num,
   str,
@@ -126,55 +125,75 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
         ai={ai}
       />
       <SectionCard icon={ChartColumn} title="Metrics">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl bg-slate-50 p-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Productivity"
-            target={target.targetProductivity ?? ""}
-            current={fmt(num(latest?.productivity))}
+            formula="Actual Size ÷ Actual Effort (As on Date)"
+            target={num(target.targetProductivity)}
+            current={num(latest?.productivity)}
             unit="Size Units / Person-Hour"
+            direction="higher-is-better"
           />
           <MetricTile
             label="Effort Variation"
-            target={target.targetEffortVariation ?? ""}
-            current={fmt(num(latest?.effort_variation_pct), 1)}
+            formula="(Actual Effort − Planned Effort) ÷ Planned Effort × 100"
+            target={num(target.targetEffortVariation)}
+            current={num(latest?.effort_variation_pct)}
             unit="%"
+            direction="lower-is-better"
+            digits={1}
           />
           <MetricTile
             label="Schedule Performance Index"
-            target={target.targetSpi ?? ""}
-            current={fmt(num(latest?.schedule_performance_index))}
+            formula="Actual % Completion ÷ Planned % Completion"
+            target={num(target.targetSpi)}
+            current={num(latest?.schedule_performance_index)}
             unit="Index (Actual/Planned % Complete)"
+            direction="higher-is-better"
           />
           <MetricTile
             label="Cost Performance Index"
-            target={target.targetCpi ?? ""}
-            current={fmt(num(latest?.cost_performance_index))}
+            formula="Not computed — no cost baseline captured on this form"
+            target={num(target.targetCpi)}
+            current={num(latest?.cost_performance_index)}
             unit="Index"
           />
           <MetricTile
             label="Defect Leakage (Int vs Ext)"
-            target={target.targetDefectLeakage ?? ""}
-            current={fmt(num(latest?.defect_leakage_pct), 1)}
+            formula="External Defects ÷ (Internal Defects + External Defects) × 100"
+            target={num(target.targetDefectLeakage)}
+            current={num(latest?.defect_leakage_pct)}
             unit="%"
+            direction="lower-is-better"
+            digits={1}
           />
           <MetricTile
             label="Test Execution Coverage"
-            target={target.targetExecCoverage ?? ""}
-            current={fmt(num(latest?.test_execution_coverage_pct), 1)}
+            formula="# Executed Test Cases ÷ Total Test Cases Designed × 100"
+            target={num(target.targetExecCoverage)}
+            current={num(latest?.test_execution_coverage_pct)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Test Pass Rate"
-            target={target.targetPassRate ?? ""}
-            current={fmt(num(latest?.test_pass_rate_pct), 1)}
+            formula="# Passed Test Cases ÷ # Executed Test Cases × 100"
+            target={num(target.targetPassRate)}
+            current={num(latest?.test_pass_rate_pct)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Code Coverage"
-            target={target.targetCodeCoverage ?? ""}
-            current={fmt(num(latest?.code_coverage_pct), 1)}
+            formula="Not computed — no coverage-tool feed captured on this form"
+            target={num(target.targetCodeCoverage)}
+            current={num(latest?.code_coverage_pct)}
             unit="%"
           />
+        </div>
         </div>
       </SectionCard>
 

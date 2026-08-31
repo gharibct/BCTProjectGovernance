@@ -6,9 +6,17 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { ChevronRight } from "lucide-react";
 
 import { NativeSelect } from "@/components/ui/native-select";
+import { ActionTrackerTrigger } from "@/components/action-tracker/action-tracker-trigger";
+import type { ActionLevel } from "@/lib/api/actions";
 import { useProjects } from "@/lib/api/projects";
 import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-data";
 import { useReviewStatusReports, type ReviewScope } from "@/lib/api/status-review";
+
+const SCOPE_ACTION_LEVEL: Record<ReviewScope, ActionLevel> = {
+  project: "PROJECT",
+  account: "ACCOUNT",
+  geo: "GEO",
+};
 import { GeoAccountMatrixSection } from "./geo-account-matrix-section";
 import { OverviewSection } from "./overview-section";
 import { RagStatusSection } from "./rag-status-section";
@@ -74,6 +82,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
           <h1 className="min-w-0 flex-1 truncate text-4xl font-bold tracking-tight text-slate-900">
             {period ? `${name} - ${period.period_type} Report` : name}
           </h1>
+          <ActionTrackerTrigger level={SCOPE_ACTION_LEVEL[scope]} id={scopeId} name={name} />
           {reports.length > 0 ? (
             <div className="w-64 shrink-0">
               <NativeSelect

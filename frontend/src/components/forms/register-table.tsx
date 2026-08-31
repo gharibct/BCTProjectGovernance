@@ -1,6 +1,10 @@
+"use client";
+
+import * as React from "react";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { ConfirmationDialog } from "./confirmation-dialog";
 import { StatusBadge } from "./status-badge";
 
 export type RegisterColumn<T> = {
@@ -32,6 +36,7 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   onDelete?: (item: T) => void;
 }) {
   const showActions = !!(onEdit || onDelete);
+  const [pendingDelete, setPendingDelete] = React.useState<T | null>(null);
 
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200">
@@ -95,7 +100,7 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
                       {onDelete ? (
                         <button
                           type="button"
-                          onClick={() => onDelete(item)}
+                          onClick={() => setPendingDelete(item)}
                           aria-label="Delete row"
                           className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"
                         >
@@ -110,6 +115,18 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
           )}
         </tbody>
       </table>
+      <ConfirmationDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title="Delete this row?"
+        message="This action cannot be undone."
+        onConfirm={() => {
+          if (pendingDelete) onDelete?.(pendingDelete);
+          setPendingDelete(null);
+        }}
+      />
     </div>
   );
 }

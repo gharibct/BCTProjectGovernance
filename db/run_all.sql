@@ -46,3 +46,7 @@
 \ir tables/41_health_items.sql
 \ir tables/42_project_health_item_rollup.sql
 \ir tables/43_executive_updates.sql
+\ir tables/44_actions.sql
+\ir tables/45_measurement_consulting.sql
+\ir tables/46_metric_target_consulting.sql
+\ir tables/47_de_project_module_reviews.sql

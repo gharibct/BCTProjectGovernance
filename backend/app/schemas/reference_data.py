@@ -48,6 +48,29 @@ class GeoRead(GeoBase):
     id: UUID
 
 
+class RegionBase(BaseModel):
+    geo_id: UUID
+    code: str
+    name: str
+    is_active: bool = True
+
+
+class RegionCreate(RegionBase):
+    pass
+
+
+class RegionUpdate(BaseModel):
+    geo_id: UUID | None = None
+    code: str | None = None
+    name: str | None = None
+    is_active: bool | None = None
+
+
+class RegionRead(RegionBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+
+
 class ProjectTypeBase(BaseModel):
     code: str
     name: str
@@ -67,6 +90,27 @@ class ProjectTypeUpdate(BaseModel):
 
 
 class ProjectTypeRead(ProjectTypeBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+
+
+class ProductBase(BaseModel):
+    code: str
+    name: str
+    is_active: bool = True
+
+
+class ProductCreate(ProductBase):
+    pass
+
+
+class ProductUpdate(BaseModel):
+    code: str | None = None
+    name: str | None = None
+    is_active: bool | None = None
+
+
+class ProductRead(ProductBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
 

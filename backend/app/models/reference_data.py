@@ -24,12 +24,29 @@ class Geo(Base, UUIDPrimaryKey, TimestampColumns):
     is_active: Mapped[bool]
 
 
+class Region(Base, UUIDPrimaryKey, TimestampColumns):
+    __tablename__ = "regions"
+
+    geo_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("geos.id"))
+    code: Mapped[str]
+    name: Mapped[str]
+    is_active: Mapped[bool]
+
+
 class ProjectType(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "project_types"
 
     code: Mapped[str] = mapped_column(unique=True)
     name: Mapped[str]
     description: Mapped[str | None]
+    is_active: Mapped[bool]
+
+
+class Product(Base, UUIDPrimaryKey, TimestampColumns):
+    __tablename__ = "products"
+
+    code: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str]
     is_active: Mapped[bool]
 
 

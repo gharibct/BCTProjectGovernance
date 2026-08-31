@@ -24,6 +24,9 @@ router = APIRouter()
 
 _admin_only = [Depends(require_role(RoleCode.ADMIN))]
 
+# Only user create/update/delete is admin-gated; the user list stays readable by
+# every authenticated caller — assessor/assignee dropdowns (DE Allocation, etc.)
+# depend on it and are used by non-admin roles.
 router.include_router(
     build_crud_router(
         prefix="/users",
@@ -32,12 +35,14 @@ router.include_router(
         read_schema=UserRead,
         create_schema=UserCreate,
         update_schema=UserUpdate,
+        write_dependencies=_admin_only,
     ),
-    dependencies=_admin_only,
 )
 
 
-@router.get("/roles", response_model=list[RoleRead], tags=["Users"], dependencies=_admin_only)
+# Read-only role list — same rationale as the user list above (role-filtered
+# dropdowns need it), so it is not admin-gated.
+@router.get("/roles", response_model=list[RoleRead], tags=["Users"])
 async def list_roles(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Role))
     return result.scalars().all()
@@ -53,6 +58,43 @@ async def get_user_accounts(user_id: UUID, db: AsyncSession = Depends(get_db)):
 async def get_user_geos(user_id: UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == user_id))
     return list(result.scalars().all())
+
+
+# Reverse of the above (geo -> user): drives Project Profile's read-only
+# "Geo Head" field, which auto-derives from whichever user is assigned as
+# Geo Head for the project's GEO via the same user_geos mapping. Open read,
+# no admin gate, matching /geos and /users list endpoints.
+@router.get("/geos/{geo_id}/geo-head", response_model=UserRead | None, tags=["Users"])
+async def get_geo_head(geo_id: UUID, db: AsyncSession = Depends(get_db)):
+    role = (await db.execute(select(Role).where(Role.code == RoleCode.GEO_HEAD))).scalar_one_or_none()
+    if role is None:
+        return None
+    result = await db.execute(
+        select(User)
+        .join(UserGeo, UserGeo.user_id == User.id)
+        .where(UserGeo.geo_id == geo_id, User.role_id == role.id)
+        .order_by(User.created_at)
+        .limit(1)
+    )
+    return result.scalars().first()
+
+
+# Reverse of user_accounts (account -> user): the Account Head (an
+# ACCOUNT_MANAGER assigned to this account). Drives the default owner of an
+# Account-level Action; open read, matching get_geo_head above.
+@router.get("/accounts/{account_id}/account-head", response_model=UserRead | None, tags=["Users"])
+async def get_account_head(account_id: UUID, db: AsyncSession = Depends(get_db)):
+    role = (await db.execute(select(Role).where(Role.code == RoleCode.ACCOUNT_MANAGER))).scalar_one_or_none()
+    if role is None:
+        return None
+    result = await db.execute(
+        select(User)
+        .join(UserAccount, UserAccount.user_id == User.id)
+        .where(UserAccount.account_id == account_id, User.role_id == role.id)
+        .order_by(User.created_at)
+        .limit(1)
+    )
+    return result.scalars().first()
 
 
 @router.put("/users/{user_id}/accounts", response_model=list[UUID], tags=["Users"], dependencies=_admin_only)

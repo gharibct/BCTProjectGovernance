@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_role
+from app.api.deps import require_project_access
 from app.core.db import get_db
 from app.crud import ai_suggestions as crud
 from app.crud.projects import project_crud
@@ -19,7 +19,9 @@ from app.schemas.enums import RoleCode
 # app does no extraction itself.
 router = APIRouter(prefix="/projects/{project_id}/ai-suggestions", tags=["AI Suggestions"])
 
-_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+# PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
+# scoped to projects in their own accounts/geo (require_project_access).
+_pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
 async def _get_project_or_404(project_id: UUID, db: AsyncSession):
@@ -63,14 +65,6 @@ async def _project_profile_test_fields(db: AsyncSession) -> list[AiFieldSuggesti
             evidence="The project shall be called Digital Field Optimization.",
         ),
         AiFieldSuggestionIn(
-            field_key="engagement_type",
-            value="Implementation",
-            confidence=0.97,
-            source_document="Project_Charter.pdf",
-            source_location="Page 3",
-            evidence="This is an implementation engagement covering full lifecycle delivery.",
-        ),
-        AiFieldSuggestionIn(
             field_key="contract_type",
             value="T&M",
             confidence=0.55,
@@ -101,14 +95,6 @@ async def _project_profile_test_fields(db: AsyncSession) -> list[AiFieldSuggesti
             source_document="Commercial_Terms.xlsx",
             source_location="Sheet1!B5",
             evidence="Currency: USD",
-        ),
-        AiFieldSuggestionIn(
-            field_key="billing_type",
-            value="T&M",
-            confidence=0.5,
-            source_document="Commercial_Terms.xlsx",
-            source_location="Sheet1!B6",
-            evidence="Billing Type: Time & Materials",
         ),
     ]
 

@@ -22,6 +22,7 @@ _PREFIXES = {
     "ASSUMPTION": "ASM",
     "OPPORTUNITY": "OPP",
     "DE_ALERT": "ALT",
+    "ACTION": "ACT",
 }
 
 

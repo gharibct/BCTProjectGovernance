@@ -2,9 +2,20 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 
-from app.schemas.enums import Category, FindingClassification, FindingStatus, HealthRating
+from app.schemas.enums import (
+    Category,
+    DEAssessmentStatus,
+    FindingClassification,
+    FindingSeverity,
+    FindingStatus,
+    HealthRating,
+)
+
+# A still-open finding with a due date in the past is "overdue" — derived, not
+# stored, exactly like ActionRead.overdue.
+_FINDING_CLOSED_STATUSES = {FindingStatus.CLOSED, FindingStatus.CANCELLED}
 
 
 class DEAssessmentAlertIn(BaseModel):
@@ -29,18 +40,27 @@ class DEAssessmentAlertRead(BaseModel):
 
 
 class DEAssessmentFindingIn(BaseModel):
-    sequence_no: int
+    # sequence_no is assigned server-side when omitted (max existing + 1).
+    sequence_no: int | None = None
     classification: FindingClassification
+    description: str | None = None
+    severity: FindingSeverity | None = None
+    assigned_to: UUID | None = None
     action_taken: str | None = None
     finding_date: date | None = None
+    due_date: date | None = None
     status: FindingStatus = FindingStatus.OPEN
     remarks: str | None = None
 
 
 class DEAssessmentFindingUpdate(BaseModel):
     classification: FindingClassification | None = None
+    description: str | None = None
+    severity: FindingSeverity | None = None
+    assigned_to: UUID | None = None
     action_taken: str | None = None
     finding_date: date | None = None
+    due_date: date | None = None
     status: FindingStatus | None = None
     remarks: str | None = None
 
@@ -51,23 +71,53 @@ class DEAssessmentFindingRead(BaseModel):
     assessment_id: UUID
     sequence_no: int
     classification: FindingClassification
+    description: str | None = None
+    severity: FindingSeverity | None = None
+    assigned_to: UUID | None = None
     action_taken: str | None = None
     finding_date: date | None = None
+    due_date: date | None = None
     status: FindingStatus
     remarks: str | None = None
     created_at: datetime
     updated_at: datetime
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def overdue(self) -> bool:
+        return (
+            self.due_date is not None
+            and self.due_date < date.today()
+            and self.status not in _FINDING_CLOSED_STATUSES
+        )
+
 
 class DEAssessmentCreate(BaseModel):
     """Header only — Alerts and Findings are added afterward, one at a time,
-    via their own registers (POST .../alerts, POST .../findings)."""
+    via their own registers (POST .../alerts, POST .../findings).
+
+    status defaults to Submitted so the legacy project-reporting form (which
+    only ever POSTs a finished assessment) is unaffected; the DE Assessment
+    Workspace passes status="Draft" for Save Draft.
+    """
 
     assessment_date: date | None = None
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None
+    remarks: str | None = None
+    status: DEAssessmentStatus = DEAssessmentStatus.SUBMITTED
     next_assessment_due_date: date | None = None
     assessed_by: UUID | None = None
+
+
+class DEAssessmentUpdate(BaseModel):
+    """Editing a Draft. Rejected once the assessment is Submitted. Transitioning
+    status to Submitted finalizes it (writes back the Project charter health)."""
+
+    de_assessed_project_health: HealthRating | None = None
+    pci_score: Decimal | None = None
+    remarks: str | None = None
+    status: DEAssessmentStatus | None = None
 
 
 class DEAssessmentRead(BaseModel):
@@ -77,6 +127,8 @@ class DEAssessmentRead(BaseModel):
     assessment_date: date | None
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None
+    remarks: str | None = None
+    status: DEAssessmentStatus = DEAssessmentStatus.SUBMITTED
     next_assessment_due_date: date | None = None
     assessed_by: UUID | None = None
     created_at: datetime

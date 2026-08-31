@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonSpinner } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { usePageBanner } from "@/stores/page-banner";
-import { useSession } from "@/stores/session";
+import { useEffectiveRole, useSession } from "@/stores/session";
 import {
   REVIEWER_ROLE_BY_SCOPE,
   useReviewStatusReportMutation,
@@ -38,13 +38,16 @@ export function ReviewActions({
   report: ReviewStatusReport | undefined;
 }) {
   const user = useSession((s) => s.user);
+  const effectiveRole = useEffectiveRole();
   const [comment, setComment] = React.useState("");
   const reviewMutation = useReviewStatusReportMutation(scope, scopeId);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
+  // The reviewer role is matched against the effective (Work Context) role, so
+  // a Geo Head acting as Account Head can approve project status reports.
   const canReview =
-    !!user && (user.role.code === REVIEWER_ROLE_BY_SCOPE[scope] || user.role.code === "ADMIN");
+    !!user && (effectiveRole === REVIEWER_ROLE_BY_SCOPE[scope] || user.role.code === "ADMIN");
 
   if (!report || !canReview) return null;
 

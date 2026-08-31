@@ -15,12 +15,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import PaginationParams, pagination_params, require_role
+from app.api.deps import PaginationParams, pagination_params, require_project_access
 from app.core.db import get_db
 from app.crud.base import CRUDBase
 from app.crud.measurement import (
     measurement_cloud_maintenance_crud,
     measurement_cloud_migration_crud,
+    measurement_consulting_crud,
     measurement_development_crud,
     measurement_staffing_crud,
     measurement_support_crud,
@@ -29,6 +30,7 @@ from app.crud.measurement import (
 from app.models.measurement import (
     MeasurementCloudMaintenance,
     MeasurementCloudMigration,
+    MeasurementConsulting,
     MeasurementDevelopment,
     MeasurementDevelopmentDefect,
     MeasurementStaffing,
@@ -44,6 +46,8 @@ from app.schemas.measurement import (
     MeasurementCloudMaintenanceRead,
     MeasurementCloudMigrationCreate,
     MeasurementCloudMigrationRead,
+    MeasurementConsultingCreate,
+    MeasurementConsultingRead,
     MeasurementDevelopmentCreate,
     MeasurementDevelopmentDefectIn,
     MeasurementDevelopmentDefectRead,
@@ -64,6 +68,7 @@ from app.schemas.measurement import (
 from app.services.measurement_metrics import (
     compute_cloud_maintenance_metrics,
     compute_cloud_migration_metrics,
+    compute_consulting_metrics,
     compute_defect_leakage_pct,
     compute_development_metrics,
     compute_staffing_metrics,
@@ -74,7 +79,9 @@ from app.services.measurement_metrics import (
 
 router = APIRouter()
 
-_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+# PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
+# scoped to projects in their own accounts/geo (require_project_access).
+_pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
 # Most Measurement tabs key their snapshots off a reporting_periods row rather
@@ -199,6 +206,21 @@ router.include_router(
             update_schema=MeasurementTestingCreate,
             read_schema=MeasurementTestingRead,
             compute_metrics=compute_testing_metrics,
+            order_by=_by_period_start,
+        )
+    )
+)
+router.include_router(
+    build_measurement_router(
+        MeasurementConfig(
+            prefix="consulting",
+            tag="Measurement - Consulting",
+            model=MeasurementConsulting,
+            crud=measurement_consulting_crud,
+            create_schema=MeasurementConsultingCreate,
+            update_schema=MeasurementConsultingCreate,
+            read_schema=MeasurementConsultingRead,
+            compute_metrics=compute_consulting_metrics,
             order_by=_by_period_start,
         )
     )

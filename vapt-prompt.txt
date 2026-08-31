@@ -1,0 +1,24 @@
+Run a VAPT-style security assessment on this repo (ProjectGovernance — BCT PMO app) and produce a written report only. Do NOT implement any fixes to the app itself — recommendations only.
+
+CONTEXT: The last commit (a6c607e) fixed a P0 finding — no server-side role/scope authorization existed in the backend. It added require_role/require_*_scope guards (in backend/app/api/deps.py) to most endpoints plus backend/tests/test_authorization.py. Before building further on top of that fix, I need this assessment to (a) confirm the fix is complete everywhere, and (b) surface other issues across the stack.
+
+DELIVERABLE REQUIREMENTS: For every finding, write a section with: severity (Critical/High/Medium/Low), how it was found (file:line), exact reproduction steps (curl command or browser click-path + expected vs actual result) so I can replay it myself, impact, and a concrete recommended fix. Write the final report to VAPT_REPORT.md at the repo root (there's already a frontend-review.md there as a style reference).
+
+TESTING STYLE: hybrid — read the code to find each issue, then verify it dynamically against the app running locally (I can run it). Only include a dynamic finding in the report once you've actually reproduced it against the running instance, not just theorized from source.
+
+KNOWN LEADS TO VERIFY (from prior scoping, re-confirm each — code may have changed since):
+1. backend/app/api/v1/endpoints/documents.py — list_documents (~line 82) and download_document (~line 205) appeared to have NO require_role/scope dependency, unlike upload/delete (PROJECT_MANAGER, ADMIN only). Check if any authenticated user can list/download any project's documents by UUID.
+2. upload_document (~line 93) sanitizes filename/path but appeared to enforce no size limit, no MIME/magic-byte check, no extension allow-list.
+3. frontend/src/components/shell/auth-guard.tsx only checks authentication, not role — role gating is UI-only via menu-config.ts hiding sidebar links. Pages like /admin/users may render for any authenticated user; the backend endpoint is the only real gate — needs re-verification per route.
+4. frontend Executive Update rich text (executive-content-view.tsx ~line 43-49) renders stored Tiptap HTML via dangerouslySetInnerHTML — check whether it's sanitized (client and/or server) or is stored-XSS.
+5. backend/app/main.py CORS config was permissive (allow_methods=["*"], allow_headers=["*"], allow_credentials=True); no CSP/HSTS/X-Frame-Options middleware; no rate limiting anywhere including login.
+6. backend/app/core/config.py had hardcoded insecure fallback defaults (api_key="change-me-local-dev-key", session_secret="change-me-session-secret") used if .env is missing; AUTH_TYPE=no_password (identifier-only login, no password check) was the default.
+7. frontend NEXT_PUBLIC_API_KEY ships in the public JS bundle — confirm it's visible via browser devtools/network tab.
+8. frontend/src/lib/excel-io.ts sourced the xlsx package from a SheetJS CDN tarball rather than npm registry — supply-chain provenance note.
+9. Dependency CVEs were not checked — run pip-audit (or safety) against backend/requirements.txt and npm audit against frontend/package-lock.json.
+
+ALSO DO A FRESH STATIC PASS beyond the above leads: grep every file under backend/app/api/v1/endpoints/ for route handlers missing a require_role/require_*_scope dependency (data_integrity.py's fix diff looked suspiciously small — check it specifically), and don't limit yourself to the list above — flag anything else notable (SQLi, secrets, insecure deserialization, IDOR, etc).
+
+ENVIRONMENT SETUP FOR DYNAMIC TESTING: use backend/scripts/bootstrap_sqlite.py and backend/scripts/seed_sqlite_dev.py to stand up a local SQLite dev DB seeded with users across multiple roles (ADMIN, PROJECT_MANAGER, others) and multiple accounts/geos so scope-boundary tests are possible. Run backend via uvicorn locally and frontend via npm run dev proxying to it. Tear down the dev servers when done; leave the SQLite dev DB in place (it's a disposable testing artifact, not user data).
+
+Ask me clarifying questions if anything about scope or environment is ambiguous before you start.

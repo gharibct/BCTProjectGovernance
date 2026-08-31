@@ -60,6 +60,28 @@ export function useUserGeos(userId: string | null) {
   });
 }
 
+// Reverse lookup for Project Profile's read-only "Geo Head" field — the user
+// currently mapped as Geo Head for the given geo (via the same user_geos
+// scope Admin's User Directory manages), or null if none is mapped yet.
+export function useGeoHead(geoId: string | null) {
+  return useQuery({
+    queryKey: ["geo-head", geoId],
+    queryFn: () => api.get<User | null>(`/geos/${geoId}/geo-head`),
+    enabled: !!geoId,
+  });
+}
+
+// Reverse lookup of user_accounts (account -> user): the Account Head
+// (ACCOUNT_MANAGER assigned to the account), or null if none is mapped yet.
+// Used to default an Account-level Action's owner.
+export function useAccountHead(accountId: string | null) {
+  return useQuery({
+    queryKey: ["account-head", accountId],
+    queryFn: () => api.get<User | null>(`/accounts/${accountId}/account-head`),
+    enabled: !!accountId,
+  });
+}
+
 export function useSetUserAccounts() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -67,6 +89,9 @@ export function useSetUserAccounts() {
       api.put<string[]>(`/users/${userId}/accounts`, { account_ids: accountIds }),
     onSuccess: (_data, { userId }) => {
       queryClient.invalidateQueries({ queryKey: ["user-accounts", userId] });
+      // Same rationale as useSetUserGeos below — this can reassign the Account
+      // Head for any account, so refetch every mounted "Account Head" display.
+      queryClient.invalidateQueries({ queryKey: ["account-head"] });
     },
   });
 }
@@ -78,6 +103,10 @@ export function useSetUserGeos() {
       api.put<string[]>(`/users/${userId}/geos`, { geo_ids: geoIds }),
     onSuccess: (_data, { userId }) => {
       queryClient.invalidateQueries({ queryKey: ["user-geos", userId] });
+      // This mutation can add/remove the Geo Head for any geo (not just this
+      // user's own list), so refetch every mounted "Geo Head" display rather
+      // than trying to figure out which specific geo_id(s) changed.
+      queryClient.invalidateQueries({ queryKey: ["geo-head"] });
     },
   });
 }

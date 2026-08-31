@@ -13,7 +13,7 @@ import {
   type MeasurementTestingPayload,
   type MeasurementTestingRead,
 } from "@/lib/api/measurement";
-import { MetricTile, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
+import { MetricTile, inputClass, num, str, useMeasurementForm } from "./shared";
 
 const MEASURES = [
   { key: "total_test_cases_designed", label: "Total Test Cases Designed", hint: "Count" },
@@ -70,37 +70,54 @@ export function TestingTab({ projectId }: { projectId: string }) {
         ai={ai}
       />
       <SectionCard icon={ChartColumn} title="Metrics">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="rounded-xl bg-slate-50 p-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Test Execution Coverage"
-            target={str(target?.target_test_execution_coverage_pct)}
-            current={fmt(num(latest?.test_execution_coverage_pct), 1)}
+            formula="# Executed Test Cases ÷ Total Test Cases Designed × 100"
+            target={num(target?.target_test_execution_coverage_pct)}
+            current={num(latest?.test_execution_coverage_pct)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Test Pass Rate"
-            target={str(target?.target_test_pass_rate_pct)}
-            current={fmt(num(latest?.test_pass_rate_pct), 1)}
+            formula="# Passed Test Cases ÷ # Executed Test Cases × 100"
+            target={num(target?.target_test_pass_rate_pct)}
+            current={num(latest?.test_pass_rate_pct)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Automation Coverage"
-            target={str(target?.target_automation_coverage_pct)}
-            current={fmt(num(latest?.automation_coverage_pct), 1)}
+            formula="# Automated Test Cases ÷ Total Test Cases Designed × 100"
+            target={num(target?.target_automation_coverage_pct)}
+            current={num(latest?.automation_coverage_pct)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Test Design Productivity"
-            target={str(target?.target_test_design_productivity)}
-            current={fmt(num(latest?.test_design_productivity), 1)}
+            formula="Total Test Cases Designed ÷ Effort for Test Case Design"
+            target={num(target?.target_test_design_productivity)}
+            current={num(latest?.test_design_productivity)}
             unit="Test Cases / Person-Day"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Test Execution Productivity"
-            target={str(target?.target_test_execution_productivity)}
-            current={fmt(num(latest?.test_execution_productivity), 1)}
+            formula="# Executed Test Cases ÷ Effort for Test Execution"
+            target={num(target?.target_test_execution_productivity)}
+            current={num(latest?.test_execution_productivity)}
             unit="Test Cases / Person-Day"
+            direction="higher-is-better"
+            digits={1}
           />
+        </div>
         </div>
       </SectionCard>
 

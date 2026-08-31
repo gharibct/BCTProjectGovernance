@@ -2,7 +2,15 @@ from fastapi import APIRouter, Depends
 
 from app.api.deps import require_role
 from app.api.v1.factory import build_crud_router
-from app.crud.reference_data import account_crud, geo_crud, organization_crud, project_type_crud, reporting_period_crud
+from app.crud.reference_data import (
+    account_crud,
+    geo_crud,
+    organization_crud,
+    product_crud,
+    project_type_crud,
+    region_crud,
+    reporting_period_crud,
+)
 from app.schemas.enums import RoleCode
 from app.schemas.reference_data import (
     AccountCreate,
@@ -14,9 +22,15 @@ from app.schemas.reference_data import (
     OrganizationCreate,
     OrganizationRead,
     OrganizationUpdate,
+    ProductCreate,
+    ProductRead,
+    ProductUpdate,
     ProjectTypeCreate,
     ProjectTypeRead,
     ProjectTypeUpdate,
+    RegionCreate,
+    RegionRead,
+    RegionUpdate,
     ReportingPeriodCreate,
     ReportingPeriodRead,
     ReportingPeriodUpdate,
@@ -53,12 +67,34 @@ router.include_router(
 )
 router.include_router(
     build_crud_router(
+        prefix="/regions",
+        tags=["Reference Data"],
+        crud=region_crud,
+        read_schema=RegionRead,
+        create_schema=RegionCreate,
+        update_schema=RegionUpdate,
+        write_dependencies=_admin_write,
+    )
+)
+router.include_router(
+    build_crud_router(
         prefix="/project-types",
         tags=["Reference Data"],
         crud=project_type_crud,
         read_schema=ProjectTypeRead,
         create_schema=ProjectTypeCreate,
         update_schema=ProjectTypeUpdate,
+        write_dependencies=_admin_write,
+    )
+)
+router.include_router(
+    build_crud_router(
+        prefix="/products",
+        tags=["Reference Data"],
+        crud=product_crud,
+        read_schema=ProductRead,
+        create_schema=ProductCreate,
+        update_schema=ProductUpdate,
         write_dependencies=_admin_write,
     )
 )

@@ -1,0 +1,381 @@
+<!DOCTYPE html><html lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DE Assessment Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-container": "#00301e",
+                      "outline": "#75777d",
+                      "on-primary": "#ffffff",
+                      "outline-variant": "#c5c6cd",
+                      "tertiary-fixed-dim": "#4edea3",
+                      "primary-container": "#1e293b",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-fixed-variant": "#005236",
+                      "on-tertiary-container": "#00a472",
+                      "on-secondary-fixed": "#001a42",
+                      "surface-container-low": "#f2f4f6",
+                      "tertiary-fixed": "#6ffbbe",
+                      "on-secondary-container": "#fefcff",
+                      "surface-tint": "#545f73",
+                      "secondary-container": "#2170e4",
+                      "error": "#ba1a1a",
+                      "primary": "#091426",
+                      "surface-dim": "#d8dadc",
+                      "on-tertiary": "#ffffff",
+                      "secondary": "#0058be",
+                      "inverse-surface": "#2d3133",
+                      "tertiary": "#00190e",
+                      "surface": "#f7f9fb",
+                      "secondary-fixed": "#d8e2ff",
+                      "surface-container-high": "#e6e8ea",
+                      "surface-bright": "#f7f9fb",
+                      "secondary-fixed-dim": "#adc6ff",
+                      "on-secondary": "#ffffff",
+                      "on-error": "#ffffff",
+                      "on-error-container": "#93000a",
+                      "primary-fixed": "#d8e3fb",
+                      "inverse-primary": "#bcc7de",
+                      "on-surface": "#191c1e",
+                      "primary-fixed-dim": "#bcc7de",
+                      "surface-container": "#eceef0",
+                      "on-secondary-fixed-variant": "#004395",
+                      "surface-container-highest": "#e0e3e5",
+                      "on-background": "#191c1e",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-container": "#8590a6",
+                      "on-primary-fixed-variant": "#3c475a",
+                      "background": "#f7f9fb",
+                      "on-primary-fixed": "#111c2d",
+                      "on-tertiary-fixed": "#002113",
+                      "on-surface-variant": "#45474c",
+                      "surface-variant": "#e0e3e5",
+                      "inverse-on-surface": "#eff1f3"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "stack-sm": "8px",
+                      "gutter": "16px",
+                      "stack-lg": "24px",
+                      "unit": "4px",
+                      "container-padding": "24px",
+                      "stack-md": "16px"
+              },
+              "fontFamily": {
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "mono-data": [
+                              "JetBrains Mono"
+                      ],
+                      "title-md": [
+                              "Inter"
+                      ],
+                      "headline": [
+                              "Inter"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "display": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "mono-data": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "title-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-sm": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface text-on-surface font-body-md font-body-md h-screen flex overflow-hidden">
+<!-- SideNavBar -->
+
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-surface-container-lowest dark:bg-primary border-b border-outline-variant dark:border-outline">
+<div class="flex items-center gap-stack-lg">
+<div class="font-headline text-headline text-primary dark:text-on-primary-fixed tracking-tight">GovIntel DE</div>
+<nav class="hidden md:flex items-center gap-stack-md h-full">
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-secondary dark:hover:text-secondary-fixed transition-colors font-title-md text-title-md cursor-pointer active:opacity-80 h-full flex items-center" href="#">Dashboard</a>
+<a class="text-secondary dark:text-secondary-fixed border-b-2 border-secondary pb-1 font-title-md text-title-md cursor-pointer active:opacity-80 h-full flex items-center mt-[2px]" href="#">Findings</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-secondary dark:hover:text-secondary-fixed transition-colors font-title-md text-title-md cursor-pointer active:opacity-80 h-full flex items-center" href="#">Controls</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-secondary dark:hover:text-secondary-fixed transition-colors font-title-md text-title-md cursor-pointer active:opacity-80 h-full flex items-center" href="#">Compliance</a>
+</nav>
+</div>
+<div class="flex items-center gap-stack-md">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="pl-8 pr-3 py-1.5 bg-surface-container-low border-none rounded-lg text-body-sm font-body-sm focus:ring-1 focus:ring-secondary w-64 text-on-surface placeholder:text-on-surface-variant" placeholder="Search..." type="text">
+</div>
+<button class="text-on-surface-variant hover:text-secondary transition-colors cursor-pointer active:opacity-80 flex items-center justify-center w-8 h-8 rounded-full hover:bg-surface-container-high">
+<span class="material-symbols-outlined" style="font-variation-settings: &quot;FILL&quot; 0;">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-secondary transition-colors cursor-pointer active:opacity-80 flex items-center justify-center w-8 h-8 rounded-full hover:bg-surface-container-high">
+<span class="material-symbols-outlined" style="font-variation-settings: &quot;FILL&quot; 0;">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-title-md font-bold text-sm ml-2 cursor-pointer border border-outline-variant overflow-hidden">
+<img alt="User profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBS5QApM0a-TCCDfpZaPtM0z42gbWb9Vy1Oqurq_BtckFPqpkQnERdEYBNkLCWurxs6qZY9y2FKtVe2roqWmtm2owYjz_7aZGC9n6s7dg_80fjSx1BTcTb_AEzdLlsWqFmc7dBWMe9sub-yQvGo1H8qEZRQGo6kKkcfGHEGeUzwB6JSlc9bFPOUOtA-MjEjQkeWA1_4RCQw4nD5hr5p5VvRHfD1NuC9Hcxjcq0uvasjkbfB7w4BXegFwA">
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="mt-16 flex-1 overflow-y-auto bg-background w-full">
+<div class="p-container-padding max-w-[1600px] mx-auto w-full">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-stack-md mb-stack-lg border-b border-outline-variant pb-stack-md">
+<div>
+<h1 class="font-display text-display text-on-surface">DE Assessment</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Monthly Delivery Excellence assessment of projects and accounts</p>
+</div>
+<div class="flex items-center gap-stack-sm bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 cursor-pointer hover:border-secondary transition-colors group">
+<span class="font-label-caps text-label-caps text-on-surface-variant group-hover:text-secondary">ASSESSMENT PERIOD</span>
+<span class="font-title-md text-title-md text-on-surface">Aug 2026</span>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">arrow_drop_down</span>
+</div>
+</div>
+<!-- Level Selector Tabs -->
+
+<!-- KPI Summary Cards - Bento Style -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-stack-md mb-stack-lg">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md relative overflow-hidden flex flex-col justify-between h-28 border-t-2 border-t-outline-variant shadow-sm hover:shadow-md transition-shadow">
+<span class="font-label-caps text-label-caps text-on-surface-variant">TOTAL DUE</span>
+<div class="font-display text-display text-on-surface mt-2">57</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md relative overflow-hidden flex flex-col justify-between h-28 border-t-2 border-t-tertiary-fixed-dim shadow-sm hover:shadow-md transition-shadow">
+<span class="font-label-caps text-label-caps text-on-surface-variant">COMPLETED</span>
+<div class="font-display text-display text-on-surface mt-2">45</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md relative overflow-hidden flex flex-col justify-between h-28 border-t-2 border-t-secondary-fixed-dim shadow-sm hover:shadow-md transition-shadow">
+<span class="font-label-caps text-label-caps text-on-surface-variant">PENDING</span>
+<div class="font-display text-display text-on-surface mt-2">12</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md relative overflow-hidden flex flex-col justify-between h-28 border-t-2 border-t-error shadow-sm hover:shadow-md transition-shadow">
+<span class="font-label-caps text-label-caps text-on-surface-variant">RED / AMBER ASSESSED</span>
+<div class="font-display text-display text-error mt-2">14</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md relative overflow-hidden flex flex-col justify-between h-28 border-t-2 border-t-primary-container shadow-sm hover:shadow-md transition-shadow">
+<span class="font-label-caps text-label-caps text-on-surface-variant">AVERAGE PCI</span>
+<div class="font-display text-display text-on-surface mt-2">84%</div>
+</div>
+</div>
+<!-- Work Queue Section -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-380px)] min-h-[400px]">
+<!-- Queue Header & Filters -->
+<div class="p-stack-md border-b border-outline-variant flex flex-col lg:flex-row justify-between gap-stack-md bg-surface-bright">
+<h2 class="font-headline text-headline text-on-surface self-center lg:self-auto">Project Assessment Work Queue</h2>
+<div class="flex flex-wrap items-center gap-stack-sm">
+<!-- Search -->
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="pl-9 pr-3 py-1.5 border border-outline-variant rounded-lg bg-surface-container-lowest text-body-sm font-body-sm w-48 focus:border-secondary focus:ring-1 focus:ring-secondary focus:outline-none transition-colors" placeholder="Search Project..." type="text">
+</div>
+<!-- Filters -->
+<select class="py-1.5 pl-3 pr-8 border border-outline-variant rounded-lg bg-surface-container-lowest text-body-sm font-body-sm text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary focus:outline-none transition-colors appearance-none">
+<option>Account [All]</option>
+<option>Acme Corp</option>
+<option>Globex</option>
+</select>
+<select class="py-1.5 pl-3 pr-8 border border-outline-variant rounded-lg bg-surface-container-lowest text-body-sm font-body-sm text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary focus:outline-none transition-colors appearance-none">
+<option>PM Health [All]</option>
+<option>Green</option>
+<option>Amber</option>
+<option>Red</option>
+</select>
+<select class="py-1.5 pl-3 pr-8 border border-outline-variant rounded-lg bg-surface-container-lowest text-body-sm font-body-sm text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary focus:outline-none transition-colors appearance-none">
+<option>DE Health [All]</option>
+<option>Green</option>
+<option>Amber</option>
+<option>Red</option>
+</select>
+<select class="py-1.5 pl-3 pr-8 border border-outline-variant rounded-lg bg-surface-container-lowest text-body-sm font-body-sm text-on-surface focus:border-secondary focus:ring-1 focus:ring-secondary focus:outline-none transition-colors appearance-none">
+<option>Status [All]</option>
+<option>Not Started</option>
+<option>Draft</option>
+<option>Submitted</option>
+</select>
+</div>
+</div>
+<!-- Data Grid -->
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left border-collapse min-w-[1000px]">
+<thead class="bg-surface-container-low sticky top-0 z-10 border-b border-outline-variant shadow-sm">
+<tr>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">Project</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">Account</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">Project Manager</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap text-center">PM Health</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap text-center">Prev DE Health</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap text-right">Prev PCI</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap text-center">Open Findings</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap">Status</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase whitespace-nowrap text-right pr-stack-md">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant font-body-sm text-body-sm bg-surface-container-lowest">
+<!-- Row 1: Draft / Actionable -->
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-3 font-title-md text-title-md text-on-surface truncate max-w-[200px]" title="Cloud Migration Alpha">Cloud Migration Alpha</td>
+<td class="p-3 text-on-surface-variant truncate max-w-[150px]">Acme Corp</td>
+<td class="p-3 text-on-surface-variant">Sarah Jenkins</td>
+<td class="p-3 text-center">
+<div class="w-3 h-3 rounded-full bg-error mx-auto" title="Red"></div>
+</td>
+<td class="p-3 text-center">
+<div class="w-3 h-3 rounded-full bg-[#f59e0b] mx-auto" title="Amber"></div>
+</td>
+<td class="p-3 text-right font-mono-data text-mono-data text-on-surface">78%</td>
+<td class="p-3 text-center">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-mono-data text-mono-data font-bold">4</span>
+</td>
+<td class="p-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-container-highest text-on-surface-variant">Draft</span>
+</td>
+<td class="p-3 text-right pr-stack-md">
+<button class="text-secondary hover:text-secondary-container font-title-md text-sm font-semibold transition-colors">Continue</button>
+</td>
+</tr>
+<!-- Row 2: Not Started -->
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-3 font-title-md text-title-md text-on-surface truncate max-w-[200px]" title="Legacy App Modernization">Legacy App Modernization</td>
+<td class="p-3 text-on-surface-variant truncate max-w-[150px]">Globex Inc</td>
+<td class="p-3 text-on-surface-variant">Michael Chang</td>
+<td class="p-3 text-center">
+<div class="w-3 h-3 rounded-full bg-tertiary-fixed-dim mx-auto" title="Green"></div>
+</td>
+<td class="p-3 text-center">
+<div class="w-3 h-3 rounded-full bg-tertiary-fixed-dim mx-auto" title="Green"></div>
+</td>
+<td class="p-3 text-right font-mono-data text-mono-data text-on-surface">92%</td>
+<td class="p-3 text-center">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-mono-data text-mono-data">0</span>
+</td>
+<td class="p-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-outline-variant text-on-surface-variant">Not Started</span>
+</td>
+<td class="p-3 text-right pr-stack-md">
+<button class="bg-secondary text-on-secondary px-3 py-1 rounded hover:bg-secondary-container transition-colors text-sm font-medium">Assess</button>
+</td>
+</tr>
+<!-- Row 3: Submitted -->
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-3 font-title-md text-title-md text-on-surface truncate max-w-[200px]" title="Data Warehouse Q3">Data Warehouse Q3</td>
+<td class="p-3 text-on-surface-variant truncate max-w-[150px]">Stark Industries</td>
+<td class="p-3 text-on-surface-variant">Elena Rostova</td>
+<td class="p-3 text-center">
+<div class="w-3 h-3 rounded-full bg-[#f59e0b] mx-auto" title="Amber"></div>
+</td>
+<td class="p-3 text-center">
+<div class="w-3 h-3 rounded-full bg-error mx-auto" title="Red"></div>
+</td>
+<td class="p-3 text-right font-mono-data text-mono-data text-on-surface">65%</td>
+<td class="p-3 text-center">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-mono-data text-mono-data font-bold">12</span>
+</td>
+<td class="p-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#dcfce7] text-[#166534]">Submitted</span>
+</td>
+<td class="p-3 text-right pr-stack-md">
+<button class="text-on-surface-variant hover:text-on-surface font-title-md text-sm font-medium transition-colors flex items-center justify-end w-full gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span> View
+                                    </button>
+</td>
+</tr>
+<!-- Row 4: Not Started -->
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-3 font-title-md text-title-md text-on-surface truncate max-w-[200px]" title="Security Audit 2026">Security Audit 2026</td>
+<td class="p-3 text-on-surface-variant truncate max-w-[150px]">Wayne Ent.</td>
+<td class="p-3 text-on-surface-variant">Bruce Wayne</td>
+<td class="p-3 text-center">
+<div class="w-3 h-3 rounded-full bg-tertiary-fixed-dim mx-auto" title="Green"></div>
+</td>
+<td class="p-3 text-center">
+<div class="w-3 h-3 rounded-full bg-tertiary-fixed-dim mx-auto" title="Green"></div>
+</td>
+<td class="p-3 text-right font-mono-data text-mono-data text-on-surface">98%</td>
+<td class="p-3 text-center">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-mono-data text-mono-data">0</span>
+</td>
+<td class="p-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-outline-variant text-on-surface-variant">Not Started</span>
+</td>
+<td class="p-3 text-right pr-stack-md">
+<button class="bg-secondary text-on-secondary px-3 py-1 rounded hover:bg-secondary-container transition-colors text-sm font-medium">Assess</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+
+
+</body></html>

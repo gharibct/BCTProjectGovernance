@@ -31,6 +31,13 @@ export type AiRowSuggestion = {
   created_at: string;
 };
 
+// Session-scoped by design, same as lib/api/ai-suggestions.ts's
+// useAiSuggestions: `enabled: false` means this never auto-fetches on mount,
+// no matter what's still `pending` server-side from an old, abandoned
+// session that clicked "Apply AI Changes" and never acted on every row. The
+// only writers of this query's cache are the mutations below (seed/ignore/
+// apply) — a fresh mount always starts clean until the user explicitly
+// clicks "Apply AI Changes" again this visit.
 export function useAiRowSuggestions(projectId: string | null, screen: string, periodId: string | null) {
   return useQuery({
     queryKey: ["ai-row-suggestions", projectId, screen, periodId],
@@ -38,7 +45,7 @@ export function useAiRowSuggestions(projectId: string | null, screen: string, pe
       api.get<AiRowSuggestion[]>(
         `/projects/${projectId}/ai-row-suggestions?screen=${encodeURIComponent(screen)}&period_id=${encodeURIComponent(periodId!)}`
       ),
-    enabled: !!projectId && !!periodId,
+    enabled: false,
   });
 }
 
@@ -47,8 +54,10 @@ export function useIgnoreAiRowSuggestion(projectId: string | null, screen: strin
   return useMutation({
     mutationFn: (suggestionId: string) =>
       api.post<AiRowSuggestion>(`/projects/${projectId}/ai-row-suggestions/${suggestionId}/ignore`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ai-row-suggestions", projectId, screen, periodId] });
+    onSuccess: (_data, suggestionId) => {
+      queryClient.setQueryData<AiRowSuggestion[]>(["ai-row-suggestions", projectId, screen, periodId], (old) =>
+        (old ?? []).filter((s) => s.id !== suggestionId)
+      );
     },
   });
 }
@@ -62,8 +71,10 @@ export function useApplyAiRowSuggestion(projectId: string | null, screen: string
   return useMutation({
     mutationFn: (suggestionId: string) =>
       api.post<AiRowSuggestion>(`/projects/${projectId}/ai-row-suggestions/${suggestionId}/apply`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ai-row-suggestions", projectId, screen, periodId] });
+    onSuccess: (_data, suggestionId) => {
+      queryClient.setQueryData<AiRowSuggestion[]>(["ai-row-suggestions", projectId, screen, periodId], (old) =>
+        (old ?? []).filter((s) => s.id !== suggestionId)
+      );
     },
   });
 }

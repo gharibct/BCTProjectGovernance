@@ -109,14 +109,6 @@ const LOCAL_TEST_FIELDS: Record<string, Omit<AiSuggestion, "id" | "project_id" |
       evidence: "The project shall be called Digital Field Optimization.",
     },
     {
-      field_key: "engagement_type",
-      value: "Implementation",
-      confidence: 0.97,
-      source_document: "Project_Charter.pdf",
-      source_location: "Page 3",
-      evidence: "This is an implementation engagement covering full lifecycle delivery.",
-    },
-    {
       field_key: "contract_type",
       value: "T&M",
       confidence: 0.55,
@@ -147,14 +139,6 @@ const LOCAL_TEST_FIELDS: Record<string, Omit<AiSuggestion, "id" | "project_id" |
       source_document: "Commercial_Terms.xlsx",
       source_location: "Sheet1!B5",
       evidence: "Currency: USD",
-    },
-    {
-      field_key: "billing_type",
-      value: "T&M",
-      confidence: 0.5,
-      source_document: "Commercial_Terms.xlsx",
-      source_location: "Sheet1!B6",
-      evidence: "Billing Type: Time & Materials",
     },
   ],
   scope_schedule: [

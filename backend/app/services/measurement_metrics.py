@@ -136,6 +136,18 @@ def compute_testing_metrics(data: dict) -> dict:
     }
 
 
+def compute_consulting_metrics(data: dict) -> dict:
+    return {
+        "effort_variation_pct": _pct_variation(
+            data.get("planned_effort_as_on_date"), data.get("actual_effort_as_on_date")
+        ),
+        # Proxy SPI, same approach as Development — a true SPI needs
+        # earned-value data in currency/hours that isn't modeled here.
+        "schedule_performance_index": _safe_div(data.get("actual_pct_completion"), data.get("planned_pct_completion")),
+        "cost_performance_index": _safe_div(data.get("planned_cost"), data.get("actual_cost")),
+    }
+
+
 def compute_cloud_maintenance_metrics(data: dict) -> dict:
     total_scheduled = data.get("total_scheduled_time_hours")
     downtime = data.get("application_downtime_hours")

@@ -15,7 +15,7 @@ import {
   useCreateCloudMigrationMeasurement,
   useLatestCloudMigrationMeasurement,
 } from "@/lib/api/measurement";
-import { MetricTile, fmt, inputClass, num, str, useMeasures } from "./shared";
+import { MetricTile, inputClass, num, str, useMeasures } from "./shared";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -114,25 +114,36 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
           </Field>
         }
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-xl bg-slate-50 p-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Applications Migrated (Planned vs Actual)"
-            target={str(target?.target_applications_migrated_pct)}
-            current={fmt(num(latest?.applications_migrated_pct), 1)}
+            formula="Applications Migrated ÷ Planned Application Migration × 100"
+            target={num(target?.target_applications_migrated_pct)}
+            current={num(latest?.applications_migrated_pct)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Migration Success Rate"
-            target={str(target?.target_migration_success_rate_pct)}
-            current={fmt(num(latest?.migration_success_rate_pct), 1)}
+            formula="Successful Migrations ÷ Total Migration Attempts × 100"
+            target={num(target?.target_migration_success_rate_pct)}
+            current={num(latest?.migration_success_rate_pct)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Migration Downtime"
-            target={str(target?.target_migration_downtime_minutes)}
-            current={fmt(num(latest?.migration_downtime_minutes), 1)}
+            formula="Migration End Time − Migration Start Time (minutes)"
+            target={num(target?.target_migration_downtime_minutes)}
+            current={num(latest?.migration_downtime_minutes)}
             unit="Minutes"
+            direction="lower-is-better"
+            digits={1}
           />
+        </div>
         </div>
       </SectionCard>
 

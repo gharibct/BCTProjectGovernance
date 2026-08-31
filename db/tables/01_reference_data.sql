@@ -19,6 +19,22 @@ CREATE TABLE geos (
     updated_at TIMESTAMPTZ NOT NULL
 );
 
+-- Region reference data — each Geo has one or more Regions (e.g. MEA has
+-- UAE, Qatar, UK, Oman, Saudi); drives the Region dropdown on Project
+-- Profile, which cascades off the selected Geo.
+CREATE TABLE regions (
+    id UUID PRIMARY KEY,
+    geo_id UUID NOT NULL REFERENCES geos(id),
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    UNIQUE (geo_id, code)
+);
+
+CREATE INDEX idx_regions_geo_id ON regions(geo_id);
+
 -- Project Type reference data (Development / Support(Application/Infrastructure) /
 -- Professional Staffing / Testing / Cloud Maintenance / Cloud Migration), each with
 -- a definition; drives the Project Type dropdown app-wide (UX §4.15).
@@ -27,6 +43,18 @@ CREATE TABLE project_types (
     code TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     description TEXT,
+    is_active BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+-- Product reference data — admin-maintained list backing the Project
+-- Profile "Product" dropdown, shown only when a project's Product
+-- Flag is Yes.
+CREATE TABLE products (
+    id UUID PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     is_active BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

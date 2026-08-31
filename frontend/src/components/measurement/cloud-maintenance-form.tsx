@@ -13,7 +13,7 @@ import {
   type MeasurementCloudMaintenancePayload,
   type MeasurementCloudMaintenanceRead,
 } from "@/lib/api/measurement";
-import { MetricTile, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
+import { MetricTile, inputClass, num, str, useMeasurementForm } from "./shared";
 
 function toValues(data: MeasurementCloudMaintenanceRead): Record<string, string> {
   return {
@@ -55,19 +55,25 @@ export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
         ai={ai}
       />
       <SectionCard icon={ChartColumn} title="Metrics">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="rounded-xl bg-slate-50 p-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Service Availability"
-            target={str(target?.target_service_availability_pct)}
-            current={fmt(num(latest?.service_availability_pct), 2)}
+            formula="Total Uptime ÷ Total Scheduled Time × 100"
+            target={num(target?.target_service_availability_pct)}
+            current={num(latest?.service_availability_pct)}
             unit="%"
+            direction="higher-is-better"
           />
           <MetricTile
             label="Application Availability"
-            target={str(target?.target_application_availability_pct)}
-            current={fmt(num(latest?.application_availability_pct), 2)}
+            formula="(Total Scheduled Time − Application Downtime) ÷ Total Scheduled Time × 100"
+            target={num(target?.target_application_availability_pct)}
+            current={num(latest?.application_availability_pct)}
             unit="%"
+            direction="higher-is-better"
           />
+        </div>
         </div>
       </SectionCard>
 

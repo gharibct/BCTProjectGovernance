@@ -36,7 +36,7 @@ function buildGroups(base: string): NavGroup[] {
       ],
     },
     {
-      heading: "Project Reporting",
+      heading: "Report Project",
       icon: ClipboardList,
       items: [
         { label: "Project Status", href: `${base}/project-status`, done: true },
@@ -79,24 +79,44 @@ function buildGroups(base: string): NavGroup[] {
   ];
 }
 
-// Weekly reports only cover Project Status and RAG Status — the remaining
-// Project Reporting tabs and the whole Delivery Excellence group only apply
-// to Monthly reporting, so they're hidden while a Weekly period is selected.
+// Each period type reports on only a slice of buildGroups(). Weekly covers
+// Project Status and RAG Status; Monthly covers the three baseline registers
+// (Measurement, Contractual Compliance, RAIDO). Neither touches the Project
+// Charter or Delivery Excellence groups, so both are dropped; the standalone
+// Project Dashboard link and the AI Hub group stay in both.
 function weeklyGroups(groups: NavGroup[]): NavGroup[] {
   return groups
-    .filter((group) => group.heading !== "Delivery Excellence")
-    .map((group) => {
-      if (group.heading === "Project Reporting") {
-        return {
-          ...group,
-          items: group.items.filter((item) => item.label === "Project Status" || item.label === "RAG Status"),
-        };
-      }
-      if (group.heading === "Project Charter") {
-        return { ...group, items: group.items.filter((item) => item.label !== "Scope and Schedule") };
-      }
-      return group;
-    });
+    .filter(
+      (group) => group.heading !== "Delivery Excellence" && group.heading !== "Project Charter",
+    )
+    .map((group) =>
+      group.heading === "Report Project"
+        ? {
+            ...group,
+            items: group.items.filter(
+              (item) => item.label === "Project Status" || item.label === "RAG Status",
+            ),
+          }
+        : group,
+    );
+}
+
+const MONTHLY_REPORTING_ITEMS = new Set([
+  "Measurement",
+  "Contractual Compliance",
+  "Project RAIDO Register",
+]);
+
+function monthlyGroups(groups: NavGroup[]): NavGroup[] {
+  return groups
+    .filter(
+      (group) => group.heading !== "Delivery Excellence" && group.heading !== "Project Charter",
+    )
+    .map((group) =>
+      group.heading === "Report Project"
+        ? { ...group, items: group.items.filter((item) => MONTHLY_REPORTING_ITEMS.has(item.label)) }
+        : group,
+    );
 }
 
 // Forwards the current ?period= (if any) onto every link — so a reporting
@@ -112,7 +132,7 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
 
   const { data: periods = [] } = useReportingPeriods();
   const isWeekly = periods.find((p) => p.id === period)?.period_type === "Weekly";
-  const visibleGroups = isWeekly ? weeklyGroups(groups) : groups;
+  const visibleGroups = isWeekly ? weeklyGroups(groups) : monthlyGroups(groups);
 
   // Standalone entry (not part of a heading+items group like the ones
   // below) — the Project Manager's read-first counterpart to the Account

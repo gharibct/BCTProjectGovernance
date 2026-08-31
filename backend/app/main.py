@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, touch_project_on_write
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -37,8 +37,14 @@ async def health() -> dict[str, str]:
 # /auth/* must stay reachable without an existing session (login/callback/config).
 app.include_router(auth_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
 # Everything else now requires both the shared API key and a valid session.
+# touch_project_on_write records project activity after any successful write to a
+# project-scoped route (no-op for reads / non-project paths / in unit tests).
 app.include_router(
     api_router,
     prefix="/api/v1",
-    dependencies=[Depends(verify_api_key), Depends(get_current_user)],
+    dependencies=[
+        Depends(verify_api_key),
+        Depends(get_current_user),
+        Depends(touch_project_on_write),
+    ],
 )

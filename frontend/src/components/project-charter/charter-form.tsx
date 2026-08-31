@@ -12,6 +12,7 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { EmptyState } from "@/components/forms/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -33,7 +34,9 @@ import {
   useAccounts,
   useGeos,
   useOrganizations,
+  useProducts,
   useProjectTypes,
+  useRegions,
   useUsers,
 } from "@/lib/api/reference-data";
 import {
@@ -49,17 +52,25 @@ import {
   type ProjectResource,
   type ProjectResourcePayload,
 } from "@/lib/api/projects";
+import { useGeoHead } from "@/lib/api/users";
 import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaration";
 
 const inputClass = "h-11";
 const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700";
+const YES_NO_OPTIONS = [
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
+] as const;
 
 function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
   const { data: organizations } = useOrganizations();
   const { data: geos } = useGeos();
+  const { data: regions } = useRegions();
   const { data: projectTypes } = useProjectTypes();
+  const { data: products } = useProducts();
   const { data: accounts } = useAccounts();
   const { data: users } = useUsers();
+  const { data: geoHead } = useGeoHead(project?.geo_id ?? null);
   const { data: oracleIds } = useProjectOracleIds(project?.id ?? null);
 
   return (
@@ -87,18 +98,6 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
                 </option>
               ))}
             </NativeSelect>
-          </Field>
-          <Field label="Engagement Type">
-            <Segmented
-              options={[
-                { value: "Implementation", label: "Implementation" },
-                { value: "Support", label: "Support" },
-              ]}
-              value={project?.engagement_type ?? "Implementation"}
-              onChange={() => {}}
-              activeClassName={segmentedActiveClass}
-              disabled
-            />
           </Field>
           <Field label="Project Owned" htmlFor="project-owned">
             <NativeSelect id="project-owned" value={project?.project_owned ?? ""} disabled>
@@ -128,6 +127,18 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               disabled
             />
           </Field>
+          <Field label="Region" htmlFor="region">
+            <NativeSelect id="region" value={project?.region_id ?? ""} disabled>
+              <option value="" disabled>
+                Select…
+              </option>
+              {(regions ?? []).map((region) => (
+                <option key={region.id} value={region.id}>
+                  {region.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
           <Field label="Account Name" htmlFor="account-name">
             <NativeSelect id="account-name" value={project?.account_id ?? ""} disabled>
               <option value="" disabled>
@@ -140,6 +151,38 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
+          <Field label="Critical Flag">
+            <Segmented
+              options={YES_NO_OPTIONS}
+              value={project?.critical_flag ?? ""}
+              onChange={() => {}}
+              activeClassName={segmentedActiveClass}
+              disabled
+            />
+          </Field>
+          <Field label="Product Flag">
+            <Segmented
+              options={YES_NO_OPTIONS}
+              value={project?.product_flag ?? ""}
+              onChange={() => {}}
+              activeClassName={segmentedActiveClass}
+              disabled
+            />
+          </Field>
+          {project?.product_flag === "Yes" ? (
+            <Field label="Product" htmlFor="product">
+              <NativeSelect id="product" value={project?.product_id ?? ""} disabled>
+                <option value="" disabled>
+                  Select…
+                </option>
+                {(products ?? []).map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          ) : null}
         </div>
       </SectionCard>
 
@@ -181,6 +224,11 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
+          <Field label="Geo Head" badge={<AutoBadge />}>
+            <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+              {geoHead?.full_name ?? "Not Assigned"}
+            </div>
+          </Field>
         </div>
       </SectionCard>
 
@@ -219,18 +267,6 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               className={inputClass}
               disabled
             />
-          </Field>
-          <Field label="Billing Type" htmlFor="billing-type">
-            <NativeSelect id="billing-type" value={project?.billing_type ?? ""} disabled>
-              <option value="" disabled>
-                Select…
-              </option>
-              {["FPP", "FB", "T&M", "Product", "Unit Based Billing", "Others"].map(
-                (type) => (
-                  <option key={type}>{type}</option>
-                )
-              )}
-            </NativeSelect>
           </Field>
         </div>
       </SectionCard>
@@ -428,9 +464,7 @@ function ResourceAllocationTab() {
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        Create the project on the Project Profile tab first.
-      </p>
+      <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
     );
   }
 
@@ -562,9 +596,7 @@ export function ScopeScheduleForm() {
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        No project selected.
-      </p>
+      <EmptyState>No project selected.</EmptyState>
     );
   }
 

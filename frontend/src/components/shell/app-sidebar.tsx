@@ -9,8 +9,10 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardCheck,
+  Eye,
   FolderOpen,
   Globe,
+  HeartPulse,
   LayoutGrid,
   Plug,
   Plus,
@@ -96,46 +98,144 @@ function SimpleLink({
 
 // A project counts as "Approved" once it's past Pending Approval — Draft and
 // Pending Approval are still being set up (Maintain Project); Approved
-// onward (Approved/Hold/Closed/Open Only for Billing) is what charter-form's
-// Approve button produces and is what Project Reporting reports on.
+// onward (Approved/Hold/Closed/Open Only for Billing) is what the DE Project
+// Approval screen produces and is what Project Reporting reports on.
 function isApproved(status: Project["project_status"]): boolean {
   return status !== "Draft" && status !== "Pending Approval";
+}
+
+// Shared renderer for every project list in the sidebar: shows the project
+// NAME (single line, ellipsised), sorted by most-recently-modified, capped at
+// the 5 newest with a "… more …" toggle for the rest. The currently-open
+// project stays visible even when it falls outside the top 5. This sits on top
+// of each group's own Draft/Approved filtering.
+const RECENT_LIMIT = 5;
+
+function ProjectNavList({
+  projects,
+  activeId,
+  hrefFor,
+  emptyLabel,
+}: {
+  projects: Project[];
+  activeId: string | undefined;
+  hrefFor: (project: Project) => string;
+  emptyLabel: string;
+}) {
+  const [showAll, setShowAll] = React.useState(false);
+  const sorted = React.useMemo(
+    () => [...projects].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+    [projects]
+  );
+
+  if (sorted.length === 0) {
+    return <p className="px-3 py-2 text-[13px] text-slate-400">{emptyLabel}</p>;
+  }
+
+  const head = sorted.slice(0, RECENT_LIMIT);
+  const activeProject = activeId ? sorted.find((p) => p.id === activeId) : undefined;
+  const visible = showAll
+    ? sorted
+    : activeProject && !head.includes(activeProject)
+      ? [...head, activeProject]
+      : head;
+  const hiddenCount = sorted.length - visible.length;
+
+  return (
+    <>
+      {visible.map((project) => {
+        const active = project.id === activeId;
+        return (
+          <Link
+            key={project.id}
+            href={hrefFor(project)}
+            title={project.project_name}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "block w-full truncate rounded-md px-3 py-2 text-left text-[13px] transition-colors",
+              active
+                ? "bg-white/15 font-semibold text-white"
+                : "text-slate-300 hover:bg-white/5 hover:text-white"
+            )}
+          >
+            {project.project_name}
+          </Link>
+        );
+      })}
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="px-3 py-2 text-left text-[13px] font-semibold text-slate-400 transition-colors hover:text-white"
+        >
+          … {hiddenCount} more …
+        </button>
+      ) : null}
+      {showAll && sorted.length > RECENT_LIMIT ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="px-3 py-2 text-left text-[13px] font-semibold text-slate-400 transition-colors hover:text-white"
+        >
+          Show less
+        </button>
+      ) : null}
+    </>
+  );
 }
 
 export function AppSidebar() {
   const pathname = usePathname();
   const user = useSession((s) => s.user);
+  const workContext = useSession((s) => s.workContext);
 
   const { data: projects = [] } = useProjects();
-  const maintainProjects = projects.filter((p) => !isApproved(p.project_status));
-  const reportingProjects = projects.filter((p) => isApproved(p.project_status));
-
-  // Admin sees every account/geo; Account Manager/Geo Head see only the
-  // ones they're mapped to (session.user.account_ids/geo_ids — see
-  // stores/session.ts, populated at login from user_accounts/user_geos).
   const { data: accounts = [] } = useAccounts();
   const { data: geos = [] } = useGeos();
-  const isAdmin = user?.role.code === "ADMIN";
-  const reportingAccounts = isAdmin ? accounts : accounts.filter((a) => user?.account_ids.includes(a.id));
-  const reportingGeos = isAdmin ? geos : geos.filter((g) => user?.geo_ids.includes(g.id));
 
-  // Review lists are scoped one level up the org hierarchy from Reporting:
-  // Account Heads review their accounts' projects, Geo Heads review their
-  // geos' accounts, CXO reviews every geo (no scope restriction, same
-  // precedent as services/dashboard.py's DashboardFilters).
-  const reviewProjects =
-    isAdmin || user?.role.code === "PROJECT_MANAGER"
-      ? reportingProjects
-      : projects.filter(
-          (p) => isApproved(p.project_status) && !!p.account_id && user?.account_ids.includes(p.account_id)
-        );
-  const reviewAccounts = isAdmin
-    ? accounts
-    : user?.role.code === "ACCOUNT_MANAGER"
-      ? accounts.filter((a) => user?.account_ids.includes(a.id))
-      : accounts.filter((a) => !!a.geo_id && user?.geo_ids.includes(a.geo_id));
-  const reviewGeos =
-    isAdmin || user?.role.code === "CXO" ? geos : geos.filter((g) => user?.geo_ids.includes(g.id));
+  // The role whose menu applies right now: the chosen Work Context, else the
+  // real role. `realRole` still governs which accounts/projects the user may
+  // touch — a Geo Head "acting as PM" is still bounded by their own geo(s).
+  const realRole = user?.role.code;
+  const effectiveRole = workContext ?? realRole;
+  const isAdmin = realRole === "ADMIN";
+
+  // The user's real patch — the accounts / geo(s) / projects they own,
+  // independent of the chosen context (Geo Head: everything in their geo;
+  // Account Head: their accounts; PM/Admin: everything).
+  const patchGeoIds = React.useMemo(
+    () => new Set(realRole === "GEO_HEAD" ? (user?.geo_ids ?? []) : []),
+    [realRole, user]
+  );
+  const patchAccountIds = React.useMemo<Set<string> | null>(() => {
+    if (isAdmin) return null; // null = every account
+    if (realRole === "GEO_HEAD")
+      return new Set(accounts.filter((a) => a.geo_id && patchGeoIds.has(a.geo_id)).map((a) => a.id));
+    return new Set(user?.account_ids ?? []);
+  }, [isAdmin, realRole, user, accounts, patchGeoIds]);
+  const patchProjects = React.useMemo(() => {
+    if (isAdmin || realRole === "PROJECT_MANAGER") return projects;
+    return projects.filter(
+      (p) =>
+        (!!p.account_id && !!patchAccountIds && patchAccountIds.has(p.account_id)) ||
+        (!!p.geo_id && patchGeoIds.has(p.geo_id))
+    );
+  }, [projects, isAdmin, realRole, patchAccountIds, patchGeoIds]);
+
+  const maintainProjects = patchProjects.filter((p) => !isApproved(p.project_status));
+  const reportingProjects = patchProjects.filter((p) => isApproved(p.project_status));
+
+  const inPatchAccounts = (id: string | null | undefined) =>
+    !id ? false : patchAccountIds === null || patchAccountIds.has(id);
+  const reportingAccounts = isAdmin ? accounts : accounts.filter((a) => inPatchAccounts(a.id));
+  const reportingGeos =
+    isAdmin || realRole === "CXO" ? geos : geos.filter((g) => patchGeoIds.has(g.id));
+
+  // The "review" (one level up) lists — now that every list is already
+  // patch-scoped, review and reporting scopes coincide.
+  const reviewProjects = reportingProjects;
+  const reviewAccounts = reportingAccounts;
+  const reviewGeos = reportingGeos;
 
   const isDashboard = pathname === "/dashboard";
   const isNewProject = pathname.startsWith("/new-project");
@@ -150,6 +250,11 @@ export function AppSidebar() {
   // active — no separate client-side intent flag to keep in sync.
   const routeProjectId = isNewProject ? pathname.split("/")[2] : undefined;
   const isMaintaining = isNewProject && routeProjectId !== NEW_PROJECT_SEGMENT;
+  // "Maintain Project" and "Amend Project" both link into
+  // /new-project/{id}/project-charter, so isMaintaining alone can't tell
+  // which of the two panels the open project actually belongs to.
+  const activeMaintainProject = isMaintaining ? projects.find((p) => p.id === routeProjectId) : undefined;
+  const isViewAmend = isMaintaining && !!activeMaintainProject && isApproved(activeMaintainProject.project_status);
   // /project-reporting/{projectId}(/...) — every project-reporting route is
   // nested under a :projectId segment, including the hub page itself.
   const reportingProjectId = isProjectReporting ? pathname.split("/")[2] : undefined;
@@ -159,9 +264,10 @@ export function AppSidebar() {
   const reviewAccountId = isAccountReview ? pathname.split("/")[2] : undefined;
   const reviewGeoId = isGeoReview ? pathname.split("/")[2] : undefined;
 
-  // AppSidebar only renders once AuthGuard has confirmed a signed-in user, so
-  // this is here purely as a defensive fallback (e.g. mid-sign-out render).
-  const menu: MenuEntryId[] = user ? (ROLE_MENUS[user.role.code] ?? []) : [];
+  // The menu follows the effective (Work Context) role. AppSidebar only renders
+  // once AuthGuard has confirmed a signed-in user, so the `?? []` is a
+  // defensive fallback (e.g. mid-sign-out render).
+  const menu: MenuEntryId[] = effectiveRole ? (ROLE_MENUS[effectiveRole] ?? []) : [];
   const has = (id: MenuEntryId) => menu.includes(id);
 
   // Geo Head wants "Account Dashboard" below "Geo Reporting" instead of
@@ -190,42 +296,76 @@ export function AppSidebar() {
       ) : null}
     </CollapsibleGroup>
   );
-  const isGeoHead = user?.role.code === "GEO_HEAD";
+  const isGeoHead = effectiveRole === "GEO_HEAD";
 
   // Account Manager wants "Project Dashboard" last instead of grouped with
   // the other one-click Dashboard shortcuts up top (where Project Manager
   // and Admin keep it).
   const projectDashboardGroup = (
     <CollapsibleGroup icon={ClipboardCheck} label="Project Dashboard" active={isProjectReview} defaultOpen={isProjectReview}>
-      {reviewProjects.map((project) => {
-        const active = project.id === reviewProjectId;
-        const href = `/project-review/${project.id}`;
-        return (
-          <Link
-            key={project.id}
-            href={href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "block w-full rounded-md px-3 py-2 text-left font-mono text-[13px] transition-colors",
-              active ? "bg-white/15 font-semibold text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
-            )}
-          >
-            {project.project_code}
-          </Link>
-        );
-      })}
-      {reviewProjects.length === 0 ? (
-        <p className="px-3 py-2 text-[13px] text-slate-400">No projects to review yet.</p>
-      ) : null}
+      <ProjectNavList
+        projects={reviewProjects}
+        activeId={reviewProjectId}
+        hrefFor={(project) => `/project-review/${project.id}`}
+        emptyLabel="No projects to review yet."
+      />
     </CollapsibleGroup>
   );
-  const isAccountManager = user?.role.code === "ACCOUNT_MANAGER";
+  const isAccountManager = effectiveRole === "ACCOUNT_MANAGER";
 
   return (
     <aside className="w-64 shrink-0 bg-[#1a4a7a] py-6">
       <nav className="flex flex-col gap-2 px-3">
         {has("dashboard") ? (
           <SimpleLink href="/dashboard" icon={LayoutGrid} label="My Summary" active={isDashboard} />
+        ) : null}
+        {has("project-manager-dashboard") ? (
+          <SimpleLink
+            href="/dashboard/project-manager"
+            icon={LayoutGrid}
+            label="My Summary"
+            active={pathname === "/dashboard/project-manager"}
+          />
+        ) : null}
+        {has("delivery-excellence-dashboard") ? (
+          <SimpleLink
+            href="/dashboard/delivery-excellence"
+            icon={LayoutGrid}
+            label="My Summary"
+            active={pathname === "/dashboard/delivery-excellence"}
+          />
+        ) : null}
+        {has("de-allocation") ? (
+          <SimpleLink
+            href="/de-allocation"
+            icon={Users}
+            label="DE Allocation"
+            active={pathname.startsWith("/de-allocation")}
+          />
+        ) : null}
+        {has("de-approval") ? (
+          <SimpleLink
+            href="/de-approval"
+            icon={ShieldCheck}
+            label="DE Approval"
+            active={pathname.startsWith("/de-approval")}
+          />
+        ) : null}
+        {has("de-assessment") ? (
+          <SimpleLink
+            href="/de-assessment"
+            icon={ClipboardCheck}
+            label="DE Assessment"
+            active={pathname.startsWith("/de-assessment")}
+          />
+        ) : null}
+        {has("pmo-dashboard") ? (
+          <SimpleLink
+            href="/dashboard/pmo"
+            icon={LayoutGrid}
+            label="My Summary"
+            active={pathname === "/dashboard/pmo"}
+          />
         ) : null}
         {has("admin-dashboard") ? (
           <SimpleLink
@@ -241,6 +381,14 @@ export function AppSidebar() {
             icon={LayoutGrid}
             label="My Summary"
             active={pathname === "/dashboard/cxo"}
+          />
+        ) : null}
+        {has("project-health") ? (
+          <SimpleLink
+            href="/project-health"
+            icon={HeartPulse}
+            label="Project Health"
+            active={pathname.startsWith("/project-health")}
           />
         ) : null}
         {has("account-manager-dashboard") ? (
@@ -262,7 +410,7 @@ export function AppSidebar() {
 
         {has("new-project") ? (
           <SimpleLink
-            href="/new-project/new/project-charter"
+            href="/new-project/new/create"
             icon={Plus}
             label="New Project"
             active={isNewProject && !isMaintaining}
@@ -367,63 +515,47 @@ export function AppSidebar() {
           <CollapsibleGroup
             icon={Wrench}
             label="Maintain Project"
-            active={isMaintaining}
-            defaultOpen={isMaintaining}
+            active={isMaintaining && !isViewAmend}
+            defaultOpen={isMaintaining && !isViewAmend}
           >
-            {maintainProjects.map((project) => {
-              const active = isMaintaining && project.id === routeProjectId;
-              const href = `/new-project/${project.id}/project-charter`;
-              return (
-                <Link
-                  key={project.id}
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "block w-full rounded-md px-3 py-2 text-left font-mono text-[13px] transition-colors",
-                    active
-                      ? "bg-white/15 font-semibold text-white"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {project.project_code}
-                </Link>
-              );
-            })}
-            {maintainProjects.length === 0 ? (
-              <p className="px-3 py-2 text-[13px] text-slate-400">No projects yet.</p>
-            ) : null}
+            <ProjectNavList
+              projects={maintainProjects}
+              activeId={isMaintaining ? routeProjectId : undefined}
+              hrefFor={(project) => `/new-project/${project.id}/project-charter`}
+              emptyLabel="No projects yet."
+            />
           </CollapsibleGroup>
         ) : null}
 
         {has("project-reporting") ? (
           <CollapsibleGroup
             icon={FolderOpen}
-            label="Project Reporting"
+            label="Report Project"
             active={isProjectReporting}
             defaultOpen={isProjectReporting}
           >
-            {reportingProjects.map((project) => {
-              const active = project.id === reportingProjectId;
-              const href = `/project-reporting/${project.id}`;
-              return (
-                <Link
-                  key={project.id}
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "block w-full rounded-md px-3 py-2 text-left font-mono text-[13px] transition-colors",
-                    active
-                      ? "bg-white/15 font-semibold text-white"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {project.project_code}
-                </Link>
-              );
-            })}
-            {reportingProjects.length === 0 ? (
-              <p className="px-3 py-2 text-[13px] text-slate-400">No approved projects yet.</p>
-            ) : null}
+            <ProjectNavList
+              projects={reportingProjects}
+              activeId={reportingProjectId}
+              hrefFor={(project) => `/project-reporting/${project.id}`}
+              emptyLabel="No approved projects yet."
+            />
+          </CollapsibleGroup>
+        ) : null}
+
+        {has("view-amend-projects") ? (
+          <CollapsibleGroup
+            icon={Eye}
+            label="Amend Project"
+            active={isViewAmend}
+            defaultOpen={isViewAmend}
+          >
+            <ProjectNavList
+              projects={reportingProjects}
+              activeId={isMaintaining ? routeProjectId : undefined}
+              hrefFor={(project) => `/new-project/${project.id}/project-charter`}
+              emptyLabel="No approved projects yet."
+            />
           </CollapsibleGroup>
         ) : null}
 

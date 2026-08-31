@@ -23,13 +23,33 @@ INSERT INTO geos (id, code, name, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'MEA', 'Middle East & Africa', true, now(), now()),
     (gen_random_uuid(), 'US', 'United States', true, now(), now());
 
+INSERT INTO regions (id, geo_id, code, name, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'BRUNEI', 'Brunei', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'SINGAPORE', 'Singapore', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'INDIA', 'India', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'US'), 'US', 'United States', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'UAE', 'United Arab Emirates', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'QATAR', 'Qatar', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'UK', 'United Kingdom', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'OMAN', 'Oman', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'SAUDI', 'Saudi Arabia', true, now(), now());
+
 INSERT INTO project_types (id, code, name, description, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'DEVELOPMENT', 'Development', NULL, true, now(), now()),
     (gen_random_uuid(), 'PROFESSIONAL_STAFFING', 'Professional Staffing', NULL, true, now(), now()),
     (gen_random_uuid(), 'SUPPORT', 'Support', NULL, true, now(), now()),
     (gen_random_uuid(), 'TESTING', 'Testing', NULL, true, now(), now()),
     (gen_random_uuid(), 'CLOUD_MAINTENANCE', 'Cloud Maintenance', NULL, true, now(), now()),
-    (gen_random_uuid(), 'CLOUD_MIGRATION', 'Cloud Migration', NULL, true, now(), now());
+    (gen_random_uuid(), 'CLOUD_MIGRATION', 'Cloud Migration', NULL, true, now(), now()),
+    (gen_random_uuid(), 'CONSULTING', 'Consulting', NULL, true, now(), now());
+
+-- Dev-only sample values — no real product catalog was supplied, so these
+-- just exercise the Project Profile "Product" dropdown locally. Admin
+-- adds the real list via POST /api/v1/products.
+INSERT INTO products (id, code, name, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), 'CRM', 'CRM Platform', true, now(), now()),
+    (gen_random_uuid(), 'ERP', 'ERP Suite', true, now(), now()),
+    (gen_random_uuid(), 'ANALYTICS', 'Analytics Suite', true, now(), now());
 
 INSERT INTO accounts (id, name, geo_id, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'Gulf National Bank', (SELECT id FROM geos WHERE code = 'MEA'), true, now(), now()),

@@ -1,0 +1,347 @@
+<!DOCTYPE html><html class="h-full" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DE Project Allocation</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#f7f9fb",
+                        "outline": "#75777d",
+                        "primary-fixed": "#d8e3fb",
+                        "on-primary": "#ffffff",
+                        "primary-fixed-dim": "#bcc7de",
+                        "on-primary-fixed-variant": "#3c475a",
+                        "on-surface": "#191c1e",
+                        "on-primary-fixed": "#111c2d",
+                        "on-background": "#191c1e",
+                        "secondary-fixed": "#d8e2ff",
+                        "inverse-surface": "#2d3133",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#e0e3e5",
+                        "surface-container": "#eceef0",
+                        "on-secondary-container": "#fefcff",
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#bcc7de",
+                        "surface-container-low": "#f2f4f6",
+                        "on-secondary-fixed": "#001a42",
+                        "surface-tint": "#545f73",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "on-primary-container": "#8590a6",
+                        "tertiary-container": "#00301e",
+                        "on-error-container": "#93000a",
+                        "outline-variant": "#c5c6cd",
+                        "surface-dim": "#d8dadc",
+                        "error-container": "#ffdad6",
+                        "secondary-container": "#2170e4",
+                        "surface-variant": "#e0e3e5",
+                        "surface": "#f7f9fb",
+                        "surface-container-lowest": "#ffffff",
+                        "primary": "#091426",
+                        "on-secondary-fixed-variant": "#004395",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "on-tertiary-container": "#00a472",
+                        "surface-container-high": "#e6e8ea",
+                        "on-error": "#ffffff",
+                        "secondary": "#0058be",
+                        "on-surface-variant": "#45474c",
+                        "tertiary-fixed": "#6ffbbe",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "on-tertiary": "#ffffff",
+                        "tertiary": "#00190e",
+                        "on-tertiary-fixed": "#002113",
+                        "primary-container": "#1e293b",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-bright": "#f7f9fb"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "stack-md": "16px",
+                        "container-padding": "24px",
+                        "gutter": "16px",
+                        "stack-lg": "24px",
+                        "unit": "4px",
+                        "stack-sm": "8px"
+                    },
+                    "fontFamily": {
+                        "title-md": ["Inter"],
+                        "display": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "mono-data": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline": ["Inter"]
+                    },
+                    "fontSize": {
+                        "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
+                        "display": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "mono-data": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "headline": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface h-full font-body-md overflow-hidden flex flex-col">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-gutter h-16 bg-surface-container-lowest border-b border-outline-variant">
+<div class="flex items-center gap-6 h-full">
+<span class="font-headline text-headline text-primary">GovIntel DE</span>
+<nav class="hidden md:flex items-center gap-6 h-full ml-4">
+<a class="font-title-md text-title-md text-secondary border-b-2 border-secondary h-full flex items-center pb-1" href="#">Dashboard</a>
+<a class="font-title-md text-title-md text-on-surface-variant hover:text-secondary transition-colors h-full flex items-center" href="#">Findings</a>
+<a class="font-title-md text-title-md text-on-surface-variant hover:text-secondary transition-colors h-full flex items-center" href="#">Controls</a>
+<a class="font-title-md text-title-md text-on-surface-variant hover:text-secondary transition-colors h-full flex items-center" href="#">Compliance</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-secondary transition-colors cursor-pointer active:opacity-80 p-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-secondary transition-colors cursor-pointer active:opacity-80 p-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-variant">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A small, professional headshot of an enterprise user, facing forward with a neutral expression. The lighting is soft and corporate, set against a clean, light gray background to fit seamlessly into a modern web interface top bar. The style is highly realistic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgmDtO5hSg_61v2XwPyB-VcL9xQYkAQZr5ztqwIx6qDkfDlVdffyWsK8MOLFbUxsqOWbHzXlXnBcIcq03j0cBQODh8ohbbCbj3_BQ0uADOCxSyXIjkVb9eECvQqj5CV25lSO1U9dq3upuMZ-axcjLvwUJPYCvw_LAdnrMONJG0XVLV9fT5aQIhj8BqfyWXocKZnwRgdi-sf7F5l1ohKKUZF_A5jFUDlEUbuHj-0mrCpRUTDsb63V-yKg">
+</div>
+</div>
+</header>
+<div class="flex h-full pt-16">
+<!-- SideNavBar -->
+
+<!-- Main Canvas -->
+<main class="flex-1 ml-0 p-container-padding overflow-y-auto flex flex-col gap-stack-lg relative">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="font-display text-display text-primary">DE Project Allocation</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Assign projects to Delivery Excellence assessors</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Assessment Period</span>
+<select class="bg-surface-container-lowest border border-outline-variant rounded px-3 py-1.5 font-body-sm text-body-sm text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none">
+<option>Aug 2026</option>
+<option>Jul 2026</option>
+</select>
+</div>
+</div>
+<!-- KPIs (Bento-style) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-stack-md">
+<div class="bg-surface-container-lowest border-t-2 border-outline-variant border-x border-b rounded-b p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Total Projects</span>
+<span class="font-display text-display text-primary mt-2">57</span>
+</div>
+<div class="bg-surface-container-lowest border-t-2 border-secondary border-x border-b border-outline-variant rounded-b p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Allocated</span>
+<span class="font-display text-display text-primary mt-2">45</span>
+</div>
+<div class="bg-surface-container-lowest border-t-2 border-error border-x border-b border-outline-variant rounded-b p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Unallocated</span>
+<span class="font-display text-display text-primary mt-2">12</span>
+</div>
+</div>
+<!-- Filter Bar -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-3 flex flex-wrap gap-3 items-center">
+<div class="relative flex-1 min-w-[200px]">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+<input class="w-full pl-9 pr-3 py-1.5 bg-background border border-outline-variant rounded font-body-sm text-body-sm focus:border-secondary focus:ring-1 focus:ring-secondary outline-none" placeholder="Search projects..." type="text">
+</div>
+<select class="bg-background border border-outline-variant rounded px-3 py-1.5 font-body-sm text-body-sm text-on-surface-variant focus:border-secondary outline-none">
+<option value="">Geo</option>
+<option value="na">North America</option>
+<option value="emea">EMEA</option>
+</select>
+<select class="bg-background border border-outline-variant rounded px-3 py-1.5 font-body-sm text-body-sm text-on-surface-variant focus:border-secondary outline-none">
+<option value="">Account</option>
+<option value="a1">Acme Corp</option>
+<option value="a2">Globex</option>
+</select>
+<select class="bg-background border border-outline-variant rounded px-3 py-1.5 font-body-sm text-body-sm text-on-surface-variant focus:border-secondary outline-none">
+<option value="">Project Type</option>
+<option value="t1">Implementation</option>
+<option value="t2">Audit</option>
+</select>
+<select class="bg-background border border-outline-variant rounded px-3 py-1.5 font-body-sm text-body-sm text-on-surface-variant focus:border-secondary outline-none">
+<option value="">Status</option>
+<option value="s1">Allocated</option>
+<option value="s2">Unallocated</option>
+</select>
+</div>
+<!-- Data Grid -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded overflow-hidden flex-1 flex flex-col min-h-[400px]">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface border-b border-outline-variant sticky top-0 z-10">
+<tr>
+<th class="p-3 w-10 text-center"><input class="rounded border-outline-variant text-secondary focus:ring-secondary" id="selectAll" type="checkbox"></th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Project</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Account</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Geo</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Type</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Project Manager</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider min-w-[200px]">DE Assessor</th>
+<th class="p-3 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">Status</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm divide-y divide-outline-variant/50">
+<!-- Row 1: Unallocated -->
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-3 text-center"><input class="row-checkbox rounded border-outline-variant text-secondary focus:ring-secondary" type="checkbox"></td>
+<td class="p-3 font-title-md text-title-md text-primary truncate max-w-[150px]" title="PRJ-9921 Nexus Upgrade">PRJ-9921 Nexus Upgrade</td>
+<td class="p-3 text-on-surface-variant truncate">Acme Corp</td>
+<td class="p-3 text-on-surface-variant">NA</td>
+<td class="p-3 text-on-surface-variant">Implementation</td>
+<td class="p-3 text-on-surface-variant">Sarah Jenkins</td>
+<td class="p-3">
+<div class="relative w-full">
+<select class="w-full bg-background border border-outline-variant rounded px-2 py-1 text-on-surface-variant focus:border-secondary focus:ring-1 focus:ring-secondary outline-none appearance-none">
+<option disabled="" selected="" value="">Select Assessor</option>
+<option value="1">John Doe</option>
+<option value="2">Jane Smith</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</td>
+<td class="p-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded font-label-caps text-label-caps bg-error/10 text-error">Unallocated</span>
+</td>
+</tr>
+<!-- Row 2: Allocated -->
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-3 text-center"><input class="row-checkbox rounded border-outline-variant text-secondary focus:ring-secondary" type="checkbox"></td>
+<td class="p-3 font-title-md text-title-md text-primary truncate max-w-[150px]" title="PRJ-8834 Alpha Migration">PRJ-8834 Alpha Migration</td>
+<td class="p-3 text-on-surface-variant truncate">Globex</td>
+<td class="p-3 text-on-surface-variant">EMEA</td>
+<td class="p-3 text-on-surface-variant">Audit</td>
+<td class="p-3 text-on-surface-variant">Michael Chang</td>
+<td class="p-3">
+<div class="relative w-full">
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1 text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none appearance-none">
+<option selected="" value="1">John Doe</option>
+<option value="2">Jane Smith</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</td>
+<td class="p-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded font-label-caps text-label-caps bg-tertiary-container/10 text-on-tertiary-container">Allocated</span>
+</td>
+</tr>
+<!-- Row 3: Unallocated -->
+<tr class="hover:bg-surface transition-colors group">
+<td class="p-3 text-center"><input class="row-checkbox rounded border-outline-variant text-secondary focus:ring-secondary" type="checkbox"></td>
+<td class="p-3 font-title-md text-title-md text-primary truncate max-w-[150px]">PRJ-1022 Beta Launch</td>
+<td class="p-3 text-on-surface-variant truncate">Initech</td>
+<td class="p-3 text-on-surface-variant">APAC</td>
+<td class="p-3 text-on-surface-variant">Implementation</td>
+<td class="p-3 text-on-surface-variant">David Brent</td>
+<td class="p-3">
+<div class="relative w-full">
+<select class="w-full bg-background border border-outline-variant rounded px-2 py-1 text-on-surface-variant focus:border-secondary focus:ring-1 focus:ring-secondary outline-none appearance-none">
+<option disabled="" selected="" value="">Select Assessor</option>
+<option value="1">John Doe</option>
+<option value="2">Jane Smith</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</td>
+<td class="p-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded font-label-caps text-label-caps bg-error/10 text-error">Unallocated</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Page Actions -->
+<div class="flex justify-end gap-3 mt-auto pt-4 border-t border-outline-variant/30">
+<button class="px-4 py-2 border border-outline-variant rounded text-on-surface-variant font-title-md text-title-md hover:bg-surface-container-high transition-colors">Cancel</button>
+<button class="px-4 py-2 bg-primary text-on-primary rounded font-title-md text-title-md hover:bg-opacity-90 transition-opacity">Save Allocations</button>
+</div>
+<!-- Bulk Action Bar (Hidden by default, shown via JS for demo) -->
+<div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-surface-container-lowest border border-outline-variant shadow-[0_4px_20px_rgba(0,0,0,0.1)] rounded-full px-6 py-3 flex items-center gap-6 hidden transition-all duration-300 transform translate-y-10 opacity-0" id="bulkActionBar">
+<span class="font-title-md text-title-md text-primary"><span id="selectedCount" class="">0</span> Projects Selected</span>
+<div class="h-6 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-3">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Assign To</span>
+<select class="bg-background border border-outline-variant rounded px-3 py-1 font-body-sm text-body-sm text-primary focus:border-secondary focus:ring-1 focus:ring-secondary outline-none">
+<option disabled="" selected="" value="">Select Assessor</option>
+<option value="1">John Doe</option>
+<option value="2">Jane Smith</option>
+</select>
+<button class="px-4 py-1 bg-secondary text-on-secondary rounded font-title-md text-title-md hover:bg-opacity-90 transition-opacity">Apply</button>
+</div>
+<button class="ml-2 text-on-surface-variant hover:text-primary transition-colors p-1" id="closeBulkBar">
+<span class="material-symbols-outlined text-lg block">close</span>
+</button>
+</div>
+</main>
+</div>
+<!-- Minimal JS for Bulk Action Demo -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            const selectAll = document.getElementById('selectAll');
+            const bulkBar = document.getElementById('bulkActionBar');
+            const countDisplay = document.getElementById('selectedCount');
+            const closeBulkBar = document.getElementById('closeBulkBar');
+
+            function updateBulkBar() {
+                const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                
+                if (selectedCount > 0) {
+                    countDisplay.textContent = selectedCount;
+                    bulkBar.classList.remove('hidden');
+                    // Small delay to allow display:block to apply before animating
+                    setTimeout(() => {
+                        bulkBar.classList.remove('translate-y-10', 'opacity-0');
+                    }, 10);
+                } else {
+                    bulkBar.classList.add('translate-y-10', 'opacity-0');
+                    setTimeout(() => {
+                        bulkBar.classList.add('hidden');
+                    }, 300);
+                }
+            }
+
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', updateBulkBar);
+            });
+
+            selectAll.addEventListener('change', (e) => {
+                checkboxes.forEach(cb => {
+                    cb.checked = e.target.checked;
+                });
+                updateBulkBar();
+            });
+            
+            closeBulkBar.addEventListener('click', () => {
+                checkboxes.forEach(cb => cb.checked = false);
+                selectAll.checked = false;
+                updateBulkBar();
+            })
+        });
+    </script>
+
+
+</body></html>

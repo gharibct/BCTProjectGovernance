@@ -1,14 +1,15 @@
 "use client";
 
-import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Link2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { EmptyState } from "@/components/forms/empty-state";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
+  useEditableEntry,
   useEntryValues,
   type FieldDef,
 } from "@/components/forms/entry-form";
@@ -119,19 +120,9 @@ export function DependencyLog() {
   const fields = useDependencyFields();
   const { data: users } = useUsers();
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
-  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const { editingId, startEdit, cancelEdit } = useEditableEntry<DependencyLogItem>(load, reset, toValues);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
-
-  const startEdit = (item: DependencyLogItem) => {
-    setEditingId(item.id);
-    load(toValues(item));
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    reset();
-  };
 
   const handleDelete = (item: DependencyLogItem) => {
     deleteDependency.mutate(item.id, {
@@ -171,9 +162,7 @@ export function DependencyLog() {
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        Create the project on the Project Profile tab first.
-      </p>
+      <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
     );
   }
 

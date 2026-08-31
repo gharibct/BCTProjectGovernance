@@ -5,6 +5,7 @@ import { TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { EmptyState } from "@/components/forms/empty-state";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   EntryFields,
@@ -104,9 +105,7 @@ export function IssueLog() {
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        Create the project on the Project Profile tab first.
-      </p>
+      <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
     );
   }
 

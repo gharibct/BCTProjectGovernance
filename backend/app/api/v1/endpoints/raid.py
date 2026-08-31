@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import PaginationParams, pagination_params, require_role
+from app.api.deps import PaginationParams, pagination_params, require_project_access
 from app.core.db import get_db
 from app.crud.base import CRUDBase
 from app.crud.raid import (
@@ -65,7 +65,9 @@ class RaidConfig:
     has_review_dates: bool = True
 
 
-_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+# PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
+# scoped to projects in their own accounts/geo (require_project_access).
+_pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
 def build_raid_router(cfg: RaidConfig) -> APIRouter:

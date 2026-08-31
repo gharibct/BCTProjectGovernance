@@ -3,10 +3,10 @@
 Derived from `FRONTEND_CODE_REVIEW.md`. Each section below is a standalone, self-contained prompt — run them one at a time (in the order given; later items assume earlier ones in the same section group are done). All files are checked into git, so any file superseded by a merge/refactor can be deleted outright rather than deprecated in place.
 
 Order follows the review's own recommended sequence (§19.4), with the remaining P2/P3 backlog items appended at the end.
-1. IT-01 — Backend role/scope authorization (P0, do first — everything else is secondary)
-2. IT-05 — Delete confirmation dialog
-3. IT-12 — Lint cleanups (trivial)
-4. IT-06 — EmptyState extraction
+1. IT-01 — Backend role/scope authorization (P0, do first — everything else is secondary) - Completed
+2. IT-05 — Delete confirmation dialog - Completed
+3. IT-12 — Lint cleanups (trivial) - Completed.
+4. IT-06 — EmptyState extraction - Completed
 5. IT-08 — useEditableEntry() hook
 6. IT-03a — Merge RAID log trees (proves the merge pattern)
 7. IT-03b — Merge measurement/compliance/DE-assessment/charter/AI-hub trees (includes the AI-suggestions drift fix)

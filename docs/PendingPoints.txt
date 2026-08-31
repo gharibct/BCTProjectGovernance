@@ -1,0 +1,79 @@
+1) Oracle Project ID is mandatory. Right handside menu will be enabled only when Oracle ID is added. Bring it under new project and make it mandatory.
+2) AI Processing to be enabled. If AI data is available for the screen, then AI button will be enabled
+3) Project Type - Consulting to be added,  
+4) Introduce Region field
+5) Pull employee code from Oracle. Project Manager combo is not loaded. 
+6) Remove Billing Type.
+7) Add Critical Flag (Yes,N0o), Add Product Flag (Yes/No). If Product is Yes, Product Combo should be added.
+8) Add Geo Head field in Delivery Team section. it should be defaulted.
+9) In Send for Approval, All the fields in Project Profile are mandatory. That should be validated
+10) Add Consulting type and measurement
+Effort Variation, Schedule Performance Index, Cost Performance Index
+11) Baseline and Formula to be added in measurement section (QA to provide)
+12) Remove Engagement Type.
+13) After Approval All the fields can be changes except Project Type
+14) Milestone should be renamed as Payment Milestone
+15) RAIDO is non mandatory for Approval. Move RAIDO to a separate section (Project Register)
+16) DE role to be developed. Approval should come to DE
+17) DE to be removed from PM project charter. 
+18) PM -> Sent To Approval DE -> Approve / Reject
+19) Create Project, Report Project, View / Amend Project
+20) Remove Project Charter from Project Reporting (Weekly Reporting)
+21) In Project Creation, Add Resource Allocated (Data will be pulled from Oracle) under project Charter
+22) In Monthly Review, have Measurements, Contractual compliance, RAIDO. Remove others
+23) Action Tracker to be developed + Dashboard
+24) DE assessment to be developed + Dashboard
+25) Process to track whether weekly report and monthly reports are submitted. Provision to view defaulter at all levels
+26) My Summary pages to be improved.
+27) Measurement calculation to be implemented
+28) For Commitment and Milestone, Actual field to be captured.
+29) Develop Project Health dashboard. It should contain all reports and registers. (PROJECT LIST, RAG, RAIDO, METRICS, COMMITMENTS, PAYMENT MILESTONES, FINDINGS, ACTIONS, Data Integratyl etc). Filters : Geo, Account, Project. 
+30) Add Applicable Phase should be added in Project Charter. Provision to select multiple phases with checkbox
+31) In Project Amend section, project charter page, add Project Status combo (Ongoing, Hold, Closed, Open Only for Billing)
+32) Oracle Projects, OneLogin
+
+
+
+
+
+
+
+
+4) Swap Leadership Support and Key Risks / Issues
+5) RAG Status - Change it to Tab. Provision to pull from projects 
+6) In Account Manager Dashboard -- http://localhost:3000/dashboard/account-manager,
+	Project Governance Matrix - Rename Entity to Projects
+	- Add Account Column before projects
+7) Account Manager Dashboard, PM Dashboard and Geo Head Dashboard should be rename as My Summary for all roles
+8) In Account-Reporting, Above Account Reporting, Add Account Dashboard (Readonly). Same as PPT.
+9) Weeks should be populated with Monday date.
+10)Implement geo reporting
+
+cxo login:
+1) change geo review to geo dashboard
+2) geo login: Add New Menu - Geo Dashboard
+3) acc login: Add New Menu - Acc Dashboard
+4) Change the color to Blue.
+5) In Geo Dashboard, rename overview to Account Rollup
+6) Standard - Dashboard, Reporting
+
+
+1) Project Creation + Oracle Projects - Project Creation.
+2) 
+
+Remove Baseline Assessment from Create Project and Maintain Project menu. This is applicable only for Project Reporting.
+Also, Move AI Hub to top
+
+************
+1) DE Assessment - Alert should be removed. Finding should have Alert
+2) Action Tracker
+3) OneLogin
+
+
+
+
+  Role       │ Login identifier │
+CXO              ayesha.khan      
+Geo Head         arjun.rao        
+Account Manager  neha.kapoor      
+Admin            admin.user

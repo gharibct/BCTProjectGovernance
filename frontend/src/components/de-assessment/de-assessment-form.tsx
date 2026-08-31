@@ -7,10 +7,10 @@ import { Lock, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/forms/form-primitives";
+import { EmptyState } from "@/components/forms/empty-state";
 import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AiFieldBadge } from "@/components/ai/ai-field-badge";
 import { useAiFieldBinding } from "@/components/ai/use-ai-field-binding";
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import {
@@ -53,7 +53,7 @@ function DeAssessmentFormInner() {
   const { data: latest } = useLatestDEAssessment(projectId);
   const createAssessment = useCreateDEAssessment(projectId);
 
-  const [assessmentDate, setAssessmentDate] = React.useState(today);
+  const [assessmentDate] = React.useState(today);
   const [health, setHealth] = React.useState<Health>("green");
   const [pciScore, setPciScore] = React.useState("");
   const [pciScoreError, setPciScoreError] = React.useState<string | null>(null);
@@ -133,9 +133,7 @@ function DeAssessmentFormInner() {
 
   if (!projectId) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-        No project selected.
-      </p>
+      <EmptyState>No project selected.</EmptyState>
     );
   }
 

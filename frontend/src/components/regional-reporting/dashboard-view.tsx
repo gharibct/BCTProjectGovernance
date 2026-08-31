@@ -41,6 +41,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
         paramName={scope === "account" ? "accountId" : "geoId"}
         subheading={scope === "account" ? "Account Dashboard" : "Geo Dashboard"}
         periodId={periodId}
+        showActionTracker
       />
 
       {!periodId ? (

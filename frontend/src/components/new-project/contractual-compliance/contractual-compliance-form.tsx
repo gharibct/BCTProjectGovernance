@@ -12,7 +12,7 @@ import { MilestonesTab } from "./milestones-tab";
 // grid on top, "New <Item>" entry form second.
 const TABS = [
   { label: "Commitments", content: CommitmentsTab },
-  { label: "Milestones", content: MilestonesTab },
+  { label: "Payment Milestones", content: MilestonesTab },
 ] as const;
 
 export function ContractualComplianceForm() {
@@ -51,7 +51,7 @@ export function ContractualComplianceForm() {
         <p className="flex max-w-2xl items-start gap-2 text-sm text-slate-500">
           <Lock className="mt-0.5 size-4 shrink-0" />
           Each entry saves immediately when added — Commitments and
-          Milestones are logged independently, row by row.
+          Payment Milestones are logged independently, row by row.
         </p>
       </div>
     </div>

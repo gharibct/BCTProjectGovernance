@@ -15,6 +15,27 @@ export function currentPeriod(periods: ReportingPeriod[], type: PeriodType): Rep
   );
 }
 
+// Periods of one type that fall inside the reporting look-back window:
+// nothing in the future (start_date after today), and nothing older than
+// `monthsBack` months before today. Project Reporting offers 3 months of
+// Weekly periods and 6 months of Monthly ones. Returned most-recent first
+// so the current period sits at the top of the picker.
+export function recentPeriods(
+  periods: ReportingPeriod[],
+  type: PeriodType,
+  monthsBack: number,
+): ReportingPeriod[] {
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const cutoff = new Date(today);
+  cutoff.setMonth(cutoff.getMonth() - monthsBack);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return periods
+    .filter((p) => p.period_type === type)
+    .filter((p) => p.start_date <= todayStr && p.start_date >= cutoffStr)
+    .sort((a, b) => b.start_date.localeCompare(a.start_date));
+}
+
 // The sentinel reporting_periods row (code = "BASELINE", seeded in
 // db/seed_dev.sql) that project-creation-time records reference instead of
 // a real Weekly/Monthly period — see 04_health_declarations.sql and

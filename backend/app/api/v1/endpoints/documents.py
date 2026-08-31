@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_role
+from app.api.deps import require_project_access
 from app.core.config import settings
 from app.core.db import get_db
 from app.crud.documents import project_document_crud
@@ -33,7 +33,9 @@ from app.schemas.enums import DocumentAiStatus, DocumentContext, RoleCode
 #   boundary applies here: no real AI/LLM pipeline exists in this repo yet.
 router = APIRouter(prefix="/projects/{project_id}/documents", tags=["Documents"])
 
-_pm_write = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ADMIN))]
+# PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
+# scoped to projects in their own accounts/geo (require_project_access).
+_pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 _UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9_-]+")
 

@@ -2,6 +2,7 @@ from app.crud.base import CRUDBase
 from app.models.measurement import (
     MeasurementCloudMaintenance,
     MeasurementCloudMigration,
+    MeasurementConsulting,
     MeasurementDevelopment,
     MeasurementStaffing,
     MeasurementSupport,
@@ -10,6 +11,7 @@ from app.models.measurement import (
 from app.schemas.measurement import (
     MeasurementCloudMaintenanceCreate,
     MeasurementCloudMigrationCreate,
+    MeasurementConsultingCreate,
     MeasurementDevelopmentUpdate,
     MeasurementStaffingUpdate,
     MeasurementSupportCreate,
@@ -30,6 +32,9 @@ measurement_support_crud = CRUDBase[MeasurementSupport, MeasurementSupportCreate
 )
 measurement_testing_crud = CRUDBase[MeasurementTesting, MeasurementTestingCreate, MeasurementTestingCreate](
     MeasurementTesting
+)
+measurement_consulting_crud = CRUDBase[MeasurementConsulting, MeasurementConsultingCreate, MeasurementConsultingCreate](
+    MeasurementConsulting
 )
 measurement_cloud_maintenance_crud = CRUDBase[
     MeasurementCloudMaintenance, MeasurementCloudMaintenanceCreate, MeasurementCloudMaintenanceCreate

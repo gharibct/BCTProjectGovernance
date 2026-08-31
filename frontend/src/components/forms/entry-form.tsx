@@ -41,6 +41,29 @@ export function useEntryValues() {
   return { values, set, reset, load };
 }
 
+// Edit-in-place state shared by every RAIDO register: tracks which row (by
+// id) is being edited, populating the entry form from it via `load` and
+// clearing back to a blank form via `reset` on cancel.
+export function useEditableEntry<T extends { id: string }>(
+  load: (values: Record<string, string>) => void,
+  reset: () => void,
+  toValues: (item: T) => Record<string, string>
+) {
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+
+  const startEdit = (item: T) => {
+    setEditingId(item.id);
+    load(toValues(item));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    reset();
+  };
+
+  return { editingId, startEdit, cancelEdit };
+}
+
 function renderControl(
   def: FieldDef,
   value: string,

@@ -17,7 +17,7 @@ import type { HealthRating } from "@/lib/api/projects";
 // per cell, no per-cell text — a `title` tooltip covers accessibility
 // instead, same lightweight pattern as status-review/rag-status-section.tsx's
 // dot indicator.
-function RagCell({ rating }: { rating: HealthRating | null }) {
+export function RagCell({ rating }: { rating: HealthRating | null }) {
   if (!rating) {
     return <div className="h-8 w-full rounded-md bg-slate-200" title="Not assessed" />;
   }

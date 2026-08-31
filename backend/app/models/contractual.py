@@ -29,7 +29,7 @@ class ContractualCommitmentActual(Base, UUIDPrimaryKey):
     )
     period_date: Mapped[date]
     actual_value: Mapped[str | None]
-    met_status: Mapped[str | None]  # Met, Not Met
+    met_status: Mapped[str | None]  # Met, Not Met, Breached
     recorded_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

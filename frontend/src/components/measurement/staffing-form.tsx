@@ -14,7 +14,7 @@ import {
   type MeasurementStaffingRead,
   type StaffingPriorityCode,
 } from "@/lib/api/measurement";
-import { MetricTile, fmt, inputClass, num, str, useMeasurementForm } from "./shared";
+import { MetricTile, inputClass, num, str, useMeasurementForm } from "./shared";
 
 const PRIORITIES: { key: StaffingPriorityCode; label: string }[] = [
   { key: "Critical", label: "Critical" },
@@ -82,37 +82,53 @@ export function StaffingTab({ projectId }: { projectId: string }) {
         ai={ai}
       />
       <SectionCard icon={ChartColumn} title="Metrics">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl bg-slate-50 p-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {PRIORITIES.map((p) => (
             <MetricTile
               key={`avg-resp-${p.key}`}
-              label={`Avg Response Time — ${p.label}`}
-              target={str(targetFor(p.key)?.target_avg_response_time_hours)}
-              current={fmt(num(latestFor(p.key)?.avg_response_time_hours), 1)}
+              label="Avg Response Time"
+              badge={p.label}
+              formula="Average Response Time (hrs) over the last 4 periods for this priority"
+              target={num(targetFor(p.key)?.target_avg_response_time_hours)}
+              current={num(latestFor(p.key)?.avg_response_time_hours)}
               unit="Hours (trailing avg)"
+              direction="lower-is-better"
+              digits={1}
             />
           ))}
           <MetricTile
             label="Profiles Qualifying for Submission"
-            target={str(target?.target_pct_profiles_qualifying)}
-            current={fmt(num(latest?.pct_profiles_qualifying), 1)}
+            formula="# Profiles Submitted ÷ # of Requests × 100"
+            target={num(target?.target_pct_profiles_qualifying)}
+            current={num(latest?.pct_profiles_qualifying)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           <MetricTile
             label="Candidates Resulting in Joining"
-            target={str(target?.target_pct_candidates_joining)}
-            current={fmt(num(latest?.pct_candidates_joining), 1)}
+            formula="# Associates Joined ÷ # Interview Selects × 100"
+            target={num(target?.target_pct_candidates_joining)}
+            current={num(latest?.pct_candidates_joining)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
           {PRIORITIES.map((p) => (
             <MetricTile
               key={`lead-time-${p.key}`}
-              label={`Lead Time — ${p.label}`}
-              target={str(targetFor(p.key)?.target_avg_lead_time_days)}
-              current={fmt(num(latestFor(p.key)?.avg_lead_time_days), 1)}
+              label="Lead Time"
+              badge={p.label}
+              formula="Average Lead Time to Onboarding (days) over the last 4 periods for this priority"
+              target={num(targetFor(p.key)?.target_avg_lead_time_days)}
+              current={num(latestFor(p.key)?.avg_lead_time_days)}
               unit="Days (trailing avg)"
+              direction="lower-is-better"
+              digits={1}
             />
           ))}
+        </div>
         </div>
       </SectionCard>
 

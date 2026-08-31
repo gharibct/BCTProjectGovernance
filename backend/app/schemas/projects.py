@@ -12,6 +12,7 @@ from app.schemas.enums import (
     HealthRating,
     ProjectOwned,
     ProjectStatus,
+    YesNo,
 )
 
 
@@ -32,6 +33,7 @@ class ProjectBase(BaseModel):
     organization_id: UUID | None = None
     project_owned: ProjectOwned | None = None
     geo_id: UUID | None = None
+    region_id: UUID | None = None
     account_id: UUID | None = None
     project_manager_id: UUID | None = None
     delivery_manager_id: UUID | None = None
@@ -42,6 +44,9 @@ class ProjectBase(BaseModel):
     project_currency: str | None = None
     billing_type: BillingType | None = None
     engagement_type: EngagementType | None = None
+    critical_flag: YesNo | None = None
+    product_flag: YesNo | None = None
+    product_id: UUID | None = None  # only meaningful when product_flag == Yes
 
     planned_start_date: date | None = None
     actual_start_date: date | None = None
@@ -65,6 +70,7 @@ class ProjectUpdate(BaseModel):
     organization_id: UUID | None = None
     project_owned: ProjectOwned | None = None
     geo_id: UUID | None = None
+    region_id: UUID | None = None
     account_id: UUID | None = None
     project_manager_id: UUID | None = None
     delivery_manager_id: UUID | None = None
@@ -75,6 +81,9 @@ class ProjectUpdate(BaseModel):
     project_currency: str | None = None
     billing_type: BillingType | None = None
     engagement_type: EngagementType | None = None
+    critical_flag: YesNo | None = None
+    product_flag: YesNo | None = None
+    product_id: UUID | None = None
     planned_start_date: date | None = None
     actual_start_date: date | None = None
     planned_end_date: date | None = None
@@ -104,28 +113,35 @@ class ProjectRead(ProjectBase):
     # in (not just the Mandatory-badged ones) for that flag to flip true.
     # Saving with blanks is still allowed — this only affects the "done"
     # indicator, never the save itself.
+    # delivery_excellence_id is deliberately NOT checked here: the DE is
+    # assigned later, on the DE Project Allocation screen (design-reference/
+    # de-approval), not by the PM on this charter form.
     @computed_field  # type: ignore[prop-decorator]
     @property
     def profile_completion_flag(self) -> bool:
-        return all(
+        base_fields_filled = all(
             _is_filled(value)
             for value in (
                 self.project_name,
                 self.contract_type,
                 self.project_type_id,
-                self.engagement_type,
                 self.project_owned,
                 self.organization_id,
                 self.geo_id,
+                self.region_id,
                 self.account_id,
                 self.project_manager_id,
                 self.delivery_manager_id,
-                self.delivery_excellence_id,
                 self.project_revenue,
                 self.project_currency,
-                self.billing_type,
+                self.critical_flag,
+                self.product_flag,
             )
         )
+        # Product is only collected (and so only required) once Product Flag
+        # is Yes — see the Project Profile form's "Product" field.
+        product_ok = self.product_flag != YesNo.YES or _is_filled(self.product_id)
+        return base_fields_filled and product_ok
 
     @computed_field  # type: ignore[prop-decorator]
     @property
