@@ -16,11 +16,11 @@ export type SdlcStage =
   | "SIT";
 export type StaffingPriorityCode = "Critical" | "High" | "Medium" | "Low";
 
-// Each Measurement tab is its own append-only history — same pattern as
-// Health Declarations / DE Assessments: "latest" 404s until the first entry
-// for this project exists (swallowed to null, a normal state), and Save
-// always POSTs a new row for the selected Reporting Period rather than
-// editing a prior one in place.
+// Each Measurement tab keeps one snapshot per Reporting Period: "latest"
+// 404s until the first entry for this project exists (swallowed to null, a
+// normal state). Save always POSTs; the backend upserts on
+// (project_id, period_id), so re-saving the selected period updates that
+// row in place rather than creating a duplicate.
 
 // --- Development (bespoke: per-SDLC-stage defect rows) ---
 
@@ -44,6 +44,8 @@ export type MeasurementDevelopmentPayload = {
   total_test_cases_designed?: string;
   executed_test_cases?: string;
   passed_test_cases?: string;
+  covered_code_elements?: string;
+  total_applicable_code_elements?: string;
   last_updated_date?: string;
   defects_by_stage: MeasurementDevelopmentDefect[];
 };
@@ -64,6 +66,8 @@ export type MeasurementDevelopmentRead = {
   total_test_cases_designed: number | null;
   executed_test_cases: number | null;
   passed_test_cases: number | null;
+  covered_code_elements: number | null;
+  total_applicable_code_elements: number | null;
   productivity: string | null;
   effort_variation_pct: string | null;
   schedule_performance_index: string | null;
@@ -110,12 +114,17 @@ export type MeasurementSupportPayload = {
   period_id: string;
   incidents_p1_count?: string;
   incidents_p1_person_days?: string;
+  incidents_p1_resolved_within_sla_count?: string;
   incidents_p2_count?: string;
   incidents_p2_person_days?: string;
+  incidents_p2_resolved_within_sla_count?: string;
   incidents_p3_count?: string;
   incidents_p3_person_days?: string;
+  incidents_p3_resolved_within_sla_count?: string;
   service_requests_count?: string;
+  service_requests_total_person_days?: string;
   user_clarifications_count?: string;
+  user_clarifications_total_person_days?: string;
   tickets_reopened_count?: string;
   aging_tickets_count?: string;
   first_time_resolutions_count?: string;
@@ -128,19 +137,26 @@ export type MeasurementSupportRead = {
   period_id: string;
   incidents_p1_count: number | null;
   incidents_p1_person_days: string | null;
+  incidents_p1_resolved_within_sla_count: number | null;
   incidents_p2_count: number | null;
   incidents_p2_person_days: string | null;
+  incidents_p2_resolved_within_sla_count: number | null;
   incidents_p3_count: number | null;
   incidents_p3_person_days: string | null;
+  incidents_p3_resolved_within_sla_count: number | null;
   service_requests_count: number | null;
+  service_requests_total_person_days: string | null;
   user_clarifications_count: number | null;
+  user_clarifications_total_person_days: string | null;
   tickets_reopened_count: number | null;
   aging_tickets_count: number | null;
   first_time_resolutions_count: number | null;
   incident_sla_compliance_p1_pct: string | null;
   incident_sla_compliance_p2_pct: string | null;
   incident_sla_compliance_p3_pct: string | null;
-  incident_mttr_hours: string | null;
+  incident_mttr_p1_hours: string | null;
+  incident_mttr_p2_hours: string | null;
+  incident_mttr_p3_hours: string | null;
   service_request_mttr_hours: string | null;
   user_clarification_mttr_hours: string | null;
   last_updated_date: string | null;
@@ -178,6 +194,11 @@ export function useCreateSupportMeasurement(projectId: string | null) {
 
 export type MeasurementStaffingPriorityMetric = {
   priority: StaffingPriorityCode;
+  response_time_hours_total?: string;
+  requests_responded_count?: string;
+  lead_time_days_total?: string;
+  associates_onboarded_count?: string;
+  // Deprecated single-value inputs — kept so historical reads still type-check.
   response_time_hours?: string;
   lead_time_days?: string;
 };
@@ -249,6 +270,7 @@ export type MeasurementTestingPayload = {
   executed_test_cases?: string;
   passed_test_cases?: string;
   automated_test_cases?: string;
+  automation_eligible_test_cases?: string;
   effort_test_case_design?: string;
   effort_test_execution?: string;
   last_updated_date?: string;
@@ -262,6 +284,7 @@ export type MeasurementTestingRead = {
   executed_test_cases: number | null;
   passed_test_cases: number | null;
   automated_test_cases: number | null;
+  automation_eligible_test_cases: number | null;
   effort_test_case_design: string | null;
   effort_test_execution: string | null;
   test_execution_coverage_pct: string | null;
@@ -434,7 +457,7 @@ export type MeasurementCloudMigrationRead = {
   migration_end_time: string | null;
   applications_migrated_pct: string | null;
   migration_success_rate_pct: string | null;
-  migration_downtime_minutes: string | null;
+  migration_downtime_hours: string | null;
   last_updated_date: string | null;
   created_at: string;
   updated_at: string;

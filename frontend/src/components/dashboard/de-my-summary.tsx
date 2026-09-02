@@ -6,16 +6,14 @@ import { AlertTriangle, ClipboardList } from "lucide-react";
 
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
-import { useReportingPeriods } from "@/lib/api/reference-data";
-import { NativeSelect } from "@/components/ui/native-select";
 import { useDeDashboardSummary } from "@/lib/api/de-dashboard";
 import { DeAssessmentWorkQueue } from "./de-assessment-work-queue";
 
 // Delivery Excellence "My Summary" (design-reference/de-mysummary.jpg) — the
 // DELIVERY_EXCELLENCE role's counterpart to account-head-my-summary.tsx,
-// scoped to projects where the signed-in user is Project.delivery_excellence_id
-// and re-scoped by an Assessment Period selector, since DEAssessment has no
-// period FK of its own (see backend's de_default_period).
+// scoped to projects where the signed-in user is Project.delivery_excellence_id.
+// A DE assessment is independent of reporting periods — everything here is for
+// the current calendar month (see backend's current_month_window).
 
 function StatCard({
   label,
@@ -52,38 +50,13 @@ function StatCard({
 }
 
 export function DeMySummary() {
-  const { data: periods = [] } = useReportingPeriods();
-  const monthlyPeriods = periods
-    .filter((p) => p.period_type === "Monthly")
-    .sort((a, b) => b.start_date.localeCompare(a.start_date));
-
-  const [periodOverride, setPeriodOverride] = React.useState<string | null>(null);
-  const { data, isLoading, isError, error, refetch } = useDeDashboardSummary(periodOverride);
-  const selectedPeriodId = periodOverride ?? data?.period_id ?? "";
+  const { data, isLoading, isError, error, refetch } = useDeDashboardSummary();
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">My Summary</h1>
-          <p className="text-sm text-slate-400">Delivery Excellence</p>
-        </div>
-        {monthlyPeriods.length > 0 ? (
-          <div className="w-56">
-            <NativeSelect
-              aria-label="Assessment Period"
-              className="h-10 bg-white text-sm"
-              value={selectedPeriodId}
-              onChange={(e) => setPeriodOverride(e.target.value)}
-            >
-              {monthlyPeriods.map((period) => (
-                <option key={period.id} value={period.id}>
-                  {period.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-        ) : null}
+      <header>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">My Summary</h1>
+        <p className="text-sm text-slate-400">Delivery Excellence</p>
       </header>
 
       {isError ? (
@@ -168,13 +141,13 @@ export function DeMySummary() {
                     </span>
                   </li>
                   <li className="flex items-center justify-between py-2">
-                    <span className="text-slate-600">New This Period</span>
+                    <span className="text-slate-600">New This Month</span>
                     <span className="rounded-md bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">
                       {data.findings.new_this_period_count}
                     </span>
                   </li>
                   <li className="flex items-center justify-between py-2">
-                    <span className="text-slate-600">Closed This Period</span>
+                    <span className="text-slate-600">Closed This Month</span>
                     <span className="rounded-md bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">
                       {data.findings.closed_this_period_count}
                     </span>

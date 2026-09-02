@@ -85,11 +85,11 @@ async def test_queue_allows_de_and_admin(client, override_auth):
         response = await client.get("/api/v1/de-approval/queue", headers=headers)
         assert response.status_code == 200
         body = response.json()
-        assert body["kpis"] == {"awaiting_review": 0, "in_review": 0, "returned": 0, "approved": 0}
+        assert body["kpis"] == {"awaiting_review": 0, "in_review": 0, "returned": 0}
         assert body["rows"] == []
 
 
-async def test_queue_row_carries_geo_and_project_type():
+async def test_queue_row_carries_geo_region_and_project_type():
     from app.schemas.de_approval import DeApprovalQueueRow
 
     row = DeApprovalQueueRow(
@@ -98,6 +98,7 @@ async def test_queue_row_carries_geo_and_project_type():
         project_name="Alpha Migration",
         account_name="Globex",
         geo_name="APAC",
+        region_name="India",
         project_type_name="Development",
         project_manager_name="S. Connor",
         completion_pct=80,
@@ -109,6 +110,7 @@ async def test_queue_row_carries_geo_and_project_type():
     )
     dumped = row.model_dump()
     assert dumped["geo_name"] == "APAC"
+    assert dumped["region_name"] == "India"
     assert dumped["project_type_name"] == "Development"
 
 
@@ -175,6 +177,46 @@ async def test_return_resets_project_to_draft(client, override_auth):
     assert response.status_code == 200
     assert project.project_status == "Draft"
     assert project.de_review_status == "Returned"
+
+
+async def test_return_of_amendment_goes_to_under_amendment(client, override_auth, monkeypatch):
+    amendment = SimpleNamespace(status="Submitted", submitted_at=None, completed_at=None)
+
+    async def _active(db, project_id):
+        return amendment
+
+    monkeypatch.setattr("app.api.v1.endpoints.de_approval.active_amendment", _active)
+    project = _fake_project()
+    headers = override_auth(RoleCode.ADMIN, get_map={(Project, _PROJECT_ID): project})
+    response = await client.patch(
+        f"/api/v1/de-approval/{_PROJECT_ID}/decision",
+        json={"decision": "Return", "remarks": "Rework the scope.", "reviewed_by": str(_REVIEWER_ID)},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert project.project_status == "Under Amendment"
+    assert project.de_review_status == "Returned"
+    assert amendment.status == "In Progress"
+
+
+async def test_approve_of_amendment_completes_it(client, override_auth, monkeypatch):
+    amendment = SimpleNamespace(status="Submitted", submitted_at=None, completed_at=None)
+
+    async def _active(db, project_id):
+        return amendment
+
+    monkeypatch.setattr("app.api.v1.endpoints.de_approval.active_amendment", _active)
+    project = _fake_project()
+    headers = override_auth(RoleCode.ADMIN, get_map={(Project, _PROJECT_ID): project})
+    response = await client.patch(
+        f"/api/v1/de-approval/{_PROJECT_ID}/decision",
+        json={"decision": "Approve", "remarks": "Looks good.", "reviewed_by": str(_REVIEWER_ID)},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert project.project_status == "Approved"
+    assert amendment.status == "Completed"
+    assert amendment.completed_at is not None
 
 
 # --- per-module review ------------------------------------------------------

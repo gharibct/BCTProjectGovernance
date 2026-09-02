@@ -4,7 +4,6 @@ import * as React from "react";
 import { Table } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
-import { EmptyState } from "@/components/forms/empty-state";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
@@ -12,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   useCreateDEAssessmentFinding,
-  type DEAssessment,
+  useDEAssessmentFindings,
   type DEAssessmentFindingPayload,
   type FindingClassification,
   type FindingStatus,
@@ -29,21 +28,17 @@ const FINDING_FIELDS: FieldDef[] = [
   { key: "remarks", label: "Remarks", kind: "text", placeholder: "Remarks" },
 ];
 
-export function FindingsRegisterTab({
-  projectId,
-  assessment,
-}: {
-  projectId: string | null;
-  assessment: DEAssessment | null | undefined;
-}) {
+export function FindingsRegisterTab({ projectId }: { projectId: string | null }) {
   const { values, set, reset } = useEntryValues();
-  const createFinding = useCreateDEAssessmentFinding(projectId, assessment?.id ?? null);
+  const { data: items = [] } = useDEAssessmentFindings(projectId);
+  const createFinding = useCreateDEAssessmentFinding(projectId);
   const [classificationError, setClassificationError] = React.useState<string | null>(null);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
+  // sequence_no is assigned server-side (per project), so it's omitted here —
+  // which also means bulk import needs no client-side counter.
   const buildFindingPayload = (v: Record<string, string>): DEAssessmentFindingPayload => ({
-    sequence_no: (assessment?.findings.length ?? 0) + 1,
     classification: v.classification as FindingClassification,
     action_taken: v.action_taken || undefined,
     finding_date: v.finding_date || undefined,
@@ -51,27 +46,7 @@ export function FindingsRegisterTab({
     remarks: v.remarks || undefined,
   });
 
-  // Bulk import creates several rows in one sequential loop without a
-  // re-render in between, so buildFindingPayload's `assessment.findings.length`
-  // snapshot would give every row the same sequence_no — this variant
-  // advances its own counter (in a ref, since it must survive being called
-  // repeatedly after this render has already committed) across the batch.
-  // The ref is only read/written inside the callback itself (never during
-  // render), rebasing to the current findings count whenever that's grown
-  // past the ref (i.e. after any successful create).
-  const importSeqRef = React.useRef<number | null>(null);
-  const buildFindingPayloadForImport = (v: Record<string, string>): DEAssessmentFindingPayload => {
-    const base = (assessment?.findings.length ?? 0) + 1;
-    if (importSeqRef.current === null || importSeqRef.current < base) {
-      importSeqRef.current = base;
-    }
-    const payload = { ...buildFindingPayload(v), sequence_no: importSeqRef.current };
-    importSeqRef.current += 1;
-    return payload;
-  };
-
   const addFinding = () => {
-    if (!assessment) return;
     if (!values.classification) {
       const message = "Classification is required.";
       setClassificationError(message);
@@ -89,21 +64,13 @@ export function FindingsRegisterTab({
     });
   };
 
-  if (!assessment) {
-    return (
-      <EmptyState>Submit the assessment above first, then log findings against it here.</EmptyState>
-    );
-  }
-
-  const items = assessment.findings;
-
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={Table} title="Findings Register" aside={<AutoBadge label={`${items.length} logged`} />}>
         <RegisterImportToolbar
           defs={FINDING_FIELDS}
           itemLabelPlural="Findings"
-          buildPayload={buildFindingPayloadForImport}
+          buildPayload={buildFindingPayload}
           createMutation={createFinding}
         />
         <RegisterTable

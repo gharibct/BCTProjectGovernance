@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
 from app.models.mixins import TimestampColumns, UUIDPrimaryKey
+from app.models.types import CommaSeparatedList
 
 
 class Project(Base, UUIDPrimaryKey, TimestampColumns):
@@ -46,8 +47,11 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     planned_duration_days: Mapped[int | None] = mapped_column(server_default=FetchedValue())
     actual_duration_days: Mapped[int | None] = mapped_column(server_default=FetchedValue())
 
-    applicable_phase: Mapped[str | None]
-    project_status: Mapped[str]  # Draft, Pending Approval, Approved, Hold, Closed, Open Only for Billing
+    # Multi-select on the Project Charter — zero or more SDLC phases the
+    # project is currently in. Comma-joined in the TEXT column; list[str] in
+    # Python (NULL reads back as []). Nullable to match the existing column.
+    applicable_phase: Mapped[list[str] | None] = mapped_column(CommaSeparatedList)
+    project_status: Mapped[str]  # Draft, Pending Approval, Approved, Under Amendment, Ongoing, Hold, Closed, Open Only for Billing
     # Health values: Red, Potential Red, Amber, Green. Kept in sync by services.health_rollup.
     delivery_declared_overall_health: Mapped[str | None]
     de_assessed_project_health: Mapped[str | None]

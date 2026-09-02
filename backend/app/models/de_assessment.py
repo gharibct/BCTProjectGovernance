@@ -38,9 +38,11 @@ class DEAssessmentAlert(Base, UUIDPrimaryKey):
 class DEAssessmentFinding(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "de_assessment_findings"
 
-    assessment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("de_assessments.id", ondelete="CASCADE"))
+    # Findings are a project-level register, independent of any single DE
+    # assessment (they outlive it and can be raised without one).
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     sequence_no: Mapped[int]
-    classification: Mapped[str]  # Observation/Recommendation (legacy) or Governance/Performance/Security/Financial
+    classification: Mapped[str]  # Observation/Recommendation (legacy) or the Project RAG 6-category taxonomy
     description: Mapped[str | None]  # the finding statement
     severity: Mapped[str | None]  # Low, Medium, High, Critical
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))

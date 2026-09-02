@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric
+from sqlalchemy import ForeignKey, Numeric, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -12,6 +12,10 @@ class MetricTargetDevelopment(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "metric_target_development"
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), unique=True)
+
+    target_size_unit: Mapped[str | None] = mapped_column(Text)
+    target_overall_planned_size: Mapped[Decimal | None] = mapped_column(Numeric)
+    target_overall_estimated_effort: Mapped[Decimal | None] = mapped_column(Numeric)
 
     target_productivity: Mapped[Decimal | None] = mapped_column(Numeric)
     target_effort_variation_pct: Mapped[Decimal | None] = mapped_column(Numeric)
@@ -96,4 +100,4 @@ class MetricTargetCloudMigration(Base, UUIDPrimaryKey, TimestampColumns):
 
     target_applications_migrated_pct: Mapped[Decimal | None] = mapped_column(Numeric)
     target_migration_success_rate_pct: Mapped[Decimal | None] = mapped_column(Numeric)
-    target_migration_downtime_minutes: Mapped[Decimal | None] = mapped_column(Numeric)
+    target_migration_downtime_hours: Mapped[Decimal | None] = mapped_column(Numeric)

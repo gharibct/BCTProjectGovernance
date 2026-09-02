@@ -35,6 +35,8 @@ class MeasurementDevelopmentCreate(BaseModel):
     total_test_cases_designed: int | None = None
     executed_test_cases: int | None = None
     passed_test_cases: int | None = None
+    covered_code_elements: int | None = None
+    total_applicable_code_elements: int | None = None
     last_updated_date: date | None = None
     defects_by_stage: list[MeasurementDevelopmentDefectIn] = []
 
@@ -56,6 +58,8 @@ class MeasurementDevelopmentRead(BaseModel):
     total_test_cases_designed: int | None = None
     executed_test_cases: int | None = None
     passed_test_cases: int | None = None
+    covered_code_elements: int | None = None
+    total_applicable_code_elements: int | None = None
     productivity: Decimal | None = None
     effort_variation_pct: Decimal | None = None
     schedule_performance_index: Decimal | None = None
@@ -88,6 +92,8 @@ class MeasurementDevelopmentUpdate(BaseModel):
     total_test_cases_designed: int | None = None
     executed_test_cases: int | None = None
     passed_test_cases: int | None = None
+    covered_code_elements: int | None = None
+    total_applicable_code_elements: int | None = None
     last_updated_date: date | None = None
 
 
@@ -98,12 +104,17 @@ class MeasurementSupportCreate(BaseModel):
     period_id: UUID
     incidents_p1_count: int | None = None
     incidents_p1_person_days: Decimal | None = None
+    incidents_p1_resolved_within_sla_count: int | None = None
     incidents_p2_count: int | None = None
     incidents_p2_person_days: Decimal | None = None
+    incidents_p2_resolved_within_sla_count: int | None = None
     incidents_p3_count: int | None = None
     incidents_p3_person_days: Decimal | None = None
+    incidents_p3_resolved_within_sla_count: int | None = None
     service_requests_count: int | None = None
+    service_requests_total_person_days: Decimal | None = None
     user_clarifications_count: int | None = None
+    user_clarifications_total_person_days: Decimal | None = None
     tickets_reopened_count: int | None = None
     aging_tickets_count: int | None = None
     first_time_resolutions_count: int | None = None
@@ -117,19 +128,26 @@ class MeasurementSupportRead(BaseModel):
     period_id: UUID
     incidents_p1_count: int | None = None
     incidents_p1_person_days: Decimal | None = None
+    incidents_p1_resolved_within_sla_count: int | None = None
     incidents_p2_count: int | None = None
     incidents_p2_person_days: Decimal | None = None
+    incidents_p2_resolved_within_sla_count: int | None = None
     incidents_p3_count: int | None = None
     incidents_p3_person_days: Decimal | None = None
+    incidents_p3_resolved_within_sla_count: int | None = None
     service_requests_count: int | None = None
+    service_requests_total_person_days: Decimal | None = None
     user_clarifications_count: int | None = None
+    user_clarifications_total_person_days: Decimal | None = None
     tickets_reopened_count: int | None = None
     aging_tickets_count: int | None = None
     first_time_resolutions_count: int | None = None
     incident_sla_compliance_p1_pct: Decimal | None = None
     incident_sla_compliance_p2_pct: Decimal | None = None
     incident_sla_compliance_p3_pct: Decimal | None = None
-    incident_mttr_hours: Decimal | None = None
+    incident_mttr_p1_hours: Decimal | None = None
+    incident_mttr_p2_hours: Decimal | None = None
+    incident_mttr_p3_hours: Decimal | None = None
     service_request_mttr_hours: Decimal | None = None
     user_clarification_mttr_hours: Decimal | None = None
     last_updated_date: date | None = None
@@ -142,6 +160,12 @@ class MeasurementSupportRead(BaseModel):
 
 class MeasurementStaffingPriorityMetricIn(BaseModel):
     priority: StaffingPriority
+    response_time_hours_total: Decimal | None = None
+    requests_responded_count: int | None = None
+    lead_time_days_total: Decimal | None = None
+    associates_onboarded_count: int | None = None
+    # Deprecated single-value inputs — still accepted so an older client isn't
+    # rejected outright, but no longer used to compute the average.
     response_time_hours: Decimal | None = None
     lead_time_days: Decimal | None = None
 
@@ -206,6 +230,7 @@ class MeasurementTestingCreate(BaseModel):
     executed_test_cases: int | None = None
     passed_test_cases: int | None = None
     automated_test_cases: int | None = None
+    automation_eligible_test_cases: int | None = None
     effort_test_case_design: Decimal | None = None
     effort_test_execution: Decimal | None = None
     last_updated_date: date | None = None
@@ -220,6 +245,7 @@ class MeasurementTestingRead(BaseModel):
     executed_test_cases: int | None = None
     passed_test_cases: int | None = None
     automated_test_cases: int | None = None
+    automation_eligible_test_cases: int | None = None
     effort_test_case_design: Decimal | None = None
     effort_test_execution: Decimal | None = None
     test_execution_coverage_pct: Decimal | None = None
@@ -318,7 +344,7 @@ class MeasurementCloudMigrationRead(BaseModel):
     migration_end_time: datetime | None = None
     applications_migrated_pct: Decimal | None = None
     migration_success_rate_pct: Decimal | None = None
-    migration_downtime_minutes: Decimal | None = None
+    migration_downtime_hours: Decimal | None = None
     last_updated_date: date | None = None
     created_at: datetime
     updated_at: datetime

@@ -5,6 +5,7 @@ import type { RoleCode } from "@/lib/api/auth";
 // §5 — role-aware navigation — and the plan behind this file).
 export type MenuEntryId =
   | "dashboard"
+  | "pm-findings"
   | "new-project"
   | "maintain-project"
   | "view-amend-projects"
@@ -18,6 +19,7 @@ export type MenuEntryId =
   | "project-manager-dashboard"
   | "delivery-excellence-dashboard"
   | "de-assessment"
+  | "de-findings"
   | "de-allocation"
   | "de-approval"
   | "pmo-dashboard"
@@ -36,6 +38,8 @@ const PROJECT_MANAGER_MENU: MenuEntryId[] = [
   "maintain-project",
   "project-reporting",
   "view-amend-projects",
+  // Rendered last in the sidebar (after "Project Dashboard") — see app-sidebar.tsx.
+  "pm-findings",
 ];
 
 const DASHBOARD_ONLY_MENU: MenuEntryId[] = ["dashboard"];
@@ -43,7 +47,7 @@ const DASHBOARD_ONLY_MENU: MenuEntryId[] = ["dashboard"];
 export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
   PROJECT_MANAGER: PROJECT_MANAGER_MENU,
   TEAM_MEMBER: DASHBOARD_ONLY_MENU,
-  DELIVERY_EXCELLENCE: ["delivery-excellence-dashboard", "de-allocation", "de-approval", "de-assessment"],
+  DELIVERY_EXCELLENCE: ["delivery-excellence-dashboard", "de-allocation", "de-approval", "de-assessment", "de-findings"],
   // No PMO login exists yet — this is wired the same way as every other
   // role's My Summary, ready for when a PMO user can sign in (see
   // pmo-my-summary.tsx).
@@ -58,10 +62,12 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
     "account-manager-dashboard",
     "geo-head-dashboard",
     "project-manager-dashboard",
+    "pm-findings",
     "delivery-excellence-dashboard",
     "de-allocation",
     "de-approval",
     "de-assessment",
+    "de-findings",
     "pmo-dashboard",
     "account-reporting",
     "geo-reporting",

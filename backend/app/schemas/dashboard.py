@@ -153,6 +153,7 @@ class MyDashboardSummary(BaseModel):
     projects_requiring_attention: int
     health_green: int
     health_amber: int
+    health_potential_red: int
     health_red: int
     reports_due: ReportsDueSummary
     open_actions_count: int
@@ -160,6 +161,7 @@ class MyDashboardSummary(BaseModel):
     open_actions_high: int
     open_actions_medium: int
     open_actions_low: int
+    open_findings_count: int
     attention_items: list[AttentionItem]
     raido: RaidoSummary
     project_health: list[MyProjectHealthRow]
@@ -193,6 +195,7 @@ class AccountPortfolioHealthRow(BaseModel):
     active_projects_count: int
     health_green: int
     health_amber: int
+    health_potential_red: int
     health_red: int
     status_label: str  # "On Track" | "At Risk" | "Critical" | "Not Rated"
 
@@ -222,6 +225,7 @@ class AccountHeadDashboardSummary(BaseModel):
     active_projects_count: int
     health_green: int
     health_amber: int
+    health_potential_red: int
     health_red: int
     awaiting_review_count: int
     high_critical_risks_count: int
@@ -284,9 +288,9 @@ class GeoHeadDashboardSummary(BaseModel):
 # Delivery Excellence "My Summary" (design-reference/de-mysummary.jpg) — the
 # DELIVERY_EXCELLENCE role's counterpart to the three summaries above, scoped
 # to projects where the signed-in user is the assigned delivery_excellence_id
-# (see Project model), not an owned account/geo. Work is period-scoped
-# against the existing Monthly ReportingPeriod table, since DEAssessment
-# itself has no period FK — see services/dashboard.py's de_default_period.
+# (see Project model), not an owned account/geo. A DE assessment is independent
+# of reporting periods: work is measured against the current calendar month —
+# see services/dashboard.py's current_month_window.
 
 
 class DEAssessmentWorkQueueRow(BaseModel):
@@ -296,12 +300,16 @@ class DEAssessmentWorkQueueRow(BaseModel):
     project_manager_name: str | None
     account_name: str | None
     geo_name: str | None = None
+    region_name: str | None = None
     pm_health: HealthRating | None
-    de_health: HealthRating | None
+    de_health: HealthRating | None  # from the most recent assessment this month
     pci_score: Decimal | None
-    status: str  # "Not Started" | "Draft" | "Submitted"
+    status: str  # "Assessed" | "Draft" | "Due" (this calendar month)
+    assessments_this_month: int = 0
+    last_assessment_date: date | None = None  # most recent assessment, any month
+    assessed_by_name: str | None = None  # who filed the most recent assessment this month
     open_findings_count: int = 0
-    prev_de_health: HealthRating | None = None  # latest Submitted assessment before this period
+    prev_de_health: HealthRating | None = None  # latest Submitted assessment before this month
     prev_pci_score: Decimal | None = None
     href: str
 
@@ -325,11 +333,11 @@ class DEFindingsSummary(BaseModel):
 
 
 class DEDashboardSummary(BaseModel):
-    period_id: UUID | None
-    period_label: str | None
+    period_id: UUID | None  # always None now — a DE assessment has no reporting period
+    period_label: str | None  # the current calendar month, e.g. "August 2026"
     assessments_due_count: int
-    pending_count: int = 0  # Not Started + Draft (design queue "PENDING" KPI)
-    average_pci: float | None = None  # mean PCI across assessments filed this period
+    pending_count: int = 0  # Due + Draft this month (design queue "PENDING" KPI)
+    average_pci: float | None = None  # mean PCI across assessments filed this month
     completion: DEAssessmentCompletionSummary
     red_amber_assessed_count: int
     findings: DEFindingsSummary
@@ -405,17 +413,19 @@ class ProjectPortfolioSummary(BaseModel):
 class ProjectHealthCardSummary(BaseModel):
     green_count: int
     amber_count: int
+    potential_red_count: int
     red_count: int
     reporting_overdue_count: int
 
 
-# Account-level RAG rollup — the same green/amber/red/reporting-overdue shape
-# as ProjectHealthCardSummary, but off the latest AccountHealthDeclaration per
-# in-scope account (rather than per project) and AccountStatusReport for the
-# overdue count.
+# Account-level RAG rollup — the same green/amber/potential-red/red/reporting-
+# overdue shape as ProjectHealthCardSummary, but off the latest
+# AccountHealthDeclaration per in-scope account (rather than per project) and
+# AccountStatusReport for the overdue count.
 class AccountRagCardSummary(BaseModel):
     green_count: int
     amber_count: int
+    potential_red_count: int
     red_count: int
     reporting_overdue_count: int
 
@@ -511,6 +521,7 @@ class ProjectListRow(BaseModel):
     project_name: str
     project_type_name: str | None = None
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     project_manager_name: str | None = None
     start_date: date | None = None
@@ -524,6 +535,7 @@ class RagRow(BaseModel):
     project_code: str
     project_name: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     overall_rating: HealthRating | None = None
     core_delivery_rating: HealthRating | None = None
@@ -557,6 +569,7 @@ class RiskRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     risk_id: UUID
     risk_title: str
@@ -574,6 +587,7 @@ class IssueRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     issue_id: UUID
     issue_title: str
@@ -589,6 +603,7 @@ class DependencyRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     dependency_id: UUID
     dependency_title: str
@@ -603,6 +618,7 @@ class AssumptionRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     assumption_id: UUID
     title: str
@@ -615,6 +631,7 @@ class OpportunityRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     opportunity_id: UUID
     opportunity_title: str
@@ -629,6 +646,7 @@ class MetricRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     metric_name: str
     target: str | None = None
@@ -642,6 +660,7 @@ class CommitmentRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     commitment_id: UUID
     commitment_name: str
@@ -656,6 +675,7 @@ class PaymentMilestoneRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     milestone_id: UUID
     milestone_name: str
@@ -670,6 +690,7 @@ class AssessmentRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     assessment_id: UUID
     pm_health: HealthRating | None = None
@@ -684,6 +705,7 @@ class FindingRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     finding_id: UUID
     finding_title: str
@@ -710,6 +732,7 @@ class DataIntegrityRow(BaseModel):
     project_id: UUID
     project_label: str
     geo_name: str | None = None
+    region_name: str | None = None
     account_name: str | None = None
     item_id: UUID
     check_name: str

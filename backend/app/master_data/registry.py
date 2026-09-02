@@ -25,6 +25,10 @@ EXCLUDED_TABLES: frozenset[str] = frozenset(
         # category as user_activity_log above.
         "actions",
         "action_history",
+        # Amend Approved Project: a control row + a pure append-only pre-amend
+        # value snapshot, written only by the amendment service — not master data.
+        "project_amendments",
+        "project_amendment_snapshots",
     }
 )
 
@@ -61,7 +65,9 @@ EXTRA_EXCLUDED_COLUMNS: dict[str, frozenset[str]] = {
             "incident_sla_compliance_p1_pct",
             "incident_sla_compliance_p2_pct",
             "incident_sla_compliance_p3_pct",
-            "incident_mttr_hours",
+            "incident_mttr_p1_hours",
+            "incident_mttr_p2_hours",
+            "incident_mttr_p3_hours",
             "service_request_mttr_hours",
             "user_clarification_mttr_hours",
         }
@@ -79,7 +85,7 @@ EXTRA_EXCLUDED_COLUMNS: dict[str, frozenset[str]] = {
     ),
     "measurement_cloud_maintenance": frozenset({"service_availability_pct", "application_availability_pct"}),
     "measurement_cloud_migration": frozenset(
-        {"applications_migrated_pct", "migration_success_rate_pct", "migration_downtime_minutes"}
+        {"applications_migrated_pct", "migration_success_rate_pct", "migration_downtime_hours"}
     ),
     "integration_connections": frozenset({"config"}),
 }

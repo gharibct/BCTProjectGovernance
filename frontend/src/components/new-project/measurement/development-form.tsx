@@ -13,6 +13,11 @@ import { MetricTile, inputClass, num, str, type MeasuresProps } from "./shared";
 
 export function toDevelopmentPayload(m: Record<string, string>): MetricTargetDevelopmentPayload {
   return {
+    // The select always displays "FP" as its effective default, so persist
+    // that when the user never touched it rather than a misleading null.
+    target_size_unit: m.sizeUnit?.trim() || "FP",
+    target_overall_planned_size: num(m.plannedSize),
+    target_overall_estimated_effort: num(m.estimatedEffort),
     target_productivity: num(m.targetProductivity),
     target_effort_variation_pct: num(m.targetEffortVariation),
     target_schedule_performance_index: num(m.targetSpi),
@@ -27,6 +32,9 @@ export function toDevelopmentPayload(m: Record<string, string>): MetricTargetDev
 export function fromDevelopmentTarget(data: MetricTargetDevelopment | null): Record<string, string> {
   if (!data) return {};
   return {
+    sizeUnit: data.target_size_unit ?? "",
+    plannedSize: str(data.target_overall_planned_size),
+    estimatedEffort: str(data.target_overall_estimated_effort),
     targetProductivity: str(data.target_productivity),
     targetEffortVariation: str(data.target_effort_variation_pct),
     targetSpi: str(data.target_schedule_performance_index),
@@ -96,14 +104,18 @@ export function DevelopmentTab({ m, set }: MeasuresProps) {
 
       <SectionCard icon={Gauge} title="Size & Effort">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
-          <Field label="Size Unit" htmlFor="size-unit">
-            <NativeSelect id="size-unit" defaultValue="FP">
+          <Field label="Size Unit" htmlFor="size-unit" required>
+            <NativeSelect
+              id="size-unit"
+              value={m.sizeUnit || "FP"}
+              onChange={set("sizeUnit")}
+            >
               {["CP", "FP", "LOC", "Other"].map((u) => (
                 <option key={u}>{u}</option>
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Overall Planned Size" htmlFor="planned-size">
+          <Field label="Overall Planned Size" htmlFor="planned-size" required>
             <Input
               id="planned-size"
               type="number"
@@ -116,6 +128,7 @@ export function DevelopmentTab({ m, set }: MeasuresProps) {
           <Field
             label="Overall Estimated Effort"
             htmlFor="estimated-effort"
+            required
             hint="Person-Hours"
           >
             <Input

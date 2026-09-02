@@ -46,18 +46,16 @@ function transitionsFor(status: FindingStatus): Transition[] {
 
 export function FindingsDetailView({
   projectId,
-  assessmentId,
   finding,
   onBack,
 }: {
   projectId: string;
-  assessmentId: string | null;
   finding: DEAssessmentFinding;
   onBack: () => void;
 }) {
   const { data: users = [] } = useUsers();
   const canWrite = canWriteDeAssessment(useEffectiveRole());
-  const updateFinding = useUpdateDEAssessmentFinding(projectId, assessmentId);
+  const updateFinding = useUpdateDEAssessmentFinding(projectId);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 

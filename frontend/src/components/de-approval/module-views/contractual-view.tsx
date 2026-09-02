@@ -25,7 +25,7 @@ export function ContractualView() {
             {
               key: "penalty_applicable",
               label: "Penalty",
-              render: (item) => (item.penalty_applicable ? "Y" : "N"),
+              render: (item) => (item.penalty_applicable ? "Yes" : "No"),
             },
             { key: "penalty_value", label: "Penalty Value", align: "right" },
           ]}

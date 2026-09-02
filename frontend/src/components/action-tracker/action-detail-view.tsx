@@ -5,11 +5,11 @@ import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field, Segmented } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
-import { useUsers, type User } from "@/lib/api/reference-data";
+import { ResourcePicker } from "@/components/forms/resource-picker";
+import { useUsersByIds, type User } from "@/lib/api/reference-data";
 import { canCreateAction, canTransitionAction } from "@/lib/api/action-permissions";
 import {
   ACTION_PRIORITY_LABEL,
@@ -86,7 +86,6 @@ export function ActionDetailView({
 }) {
   const { data: actions = [] } = useActions(level, id);
   const action = actions.find((a) => a.id === actionId);
-  const { data: users = [] } = useUsers();
   const { data: history = [] } = useActionHistory(level, id, actionId);
   const user = useSession((s) => s.user);
   const effectiveRole = useEffectiveRole();
@@ -110,6 +109,25 @@ export function ActionDetailView({
   const [dueDate, setDueDate] = React.useState(() => action?.due_date ?? "");
   const [priority, setPriority] = React.useState<ActionPriority>(() => action?.priority ?? "MEDIUM");
   const [commentText, setCommentText] = React.useState("");
+
+  // Every name shown on this view (owner, raiser, closer, history authors and
+  // OWNER_CHANGE from/to) is a bare user id — resolve just those, not the
+  // whole directory.
+  const nameIds = React.useMemo(
+    () => [
+      ownerId,
+      action?.action_by_id,
+      action?.raised_by,
+      action?.closed_by,
+      ...history.flatMap((h) => [
+        h.created_by,
+        h.event_type === "OWNER_CHANGE" ? h.old_value : null,
+        h.event_type === "OWNER_CHANGE" ? h.new_value : null,
+      ]),
+    ],
+    [ownerId, action?.action_by_id, action?.raised_by, action?.closed_by, history],
+  );
+  const { data: users = [] } = useUsersByIds(nameIds);
 
   if (!action) {
     return (
@@ -186,13 +204,12 @@ export function ActionDetailView({
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Owner" htmlFor="detail-owner">
-          <NativeSelect id="detail-owner" value={ownerId} onChange={(e) => setOwnerId(e.target.value)} disabled={!canEdit}>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.full_name}
-              </option>
-            ))}
-          </NativeSelect>
+          <ResourcePicker
+            id="detail-owner"
+            value={ownerId || null}
+            onChange={(id) => setOwnerId(id ?? "")}
+            disabled={!canEdit}
+          />
         </Field>
         <Field label="Due Date" htmlFor="detail-due-date">
           <Input id="detail-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={!canEdit} />

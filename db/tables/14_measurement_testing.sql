@@ -9,6 +9,7 @@ CREATE TABLE measurement_testing (
     executed_test_cases INTEGER,
     passed_test_cases INTEGER,
     automated_test_cases INTEGER,
+    automation_eligible_test_cases INTEGER,
     effort_test_case_design NUMERIC(10, 2),
     effort_test_execution NUMERIC(10, 2),
 

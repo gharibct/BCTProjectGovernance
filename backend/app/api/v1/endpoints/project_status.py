@@ -43,6 +43,41 @@ def _by_period_start(model: type) -> Any:
     )
 
 
+# Key Metrics and the narrative fields carry forward from the previous period so
+# a PM only re-keys what actually changed. The frontend pre-fills the form; this
+# backs it up for any create path that omits the fields (e.g. the dashboard's
+# quick "Submit Report").
+_CARRY_FORWARD_FIELDS = (
+    "revenue",
+    "onsite_fte",
+    "offshore_fte",
+    "projects_count",
+    "key_accomplishments",
+    "upcoming_key_releases",
+    "leadership_support_required",
+)
+
+
+async def _previous_period_report(
+    db: AsyncSession, project_id: UUID, period: ReportingPeriod
+) -> ProjectStatusReport | None:
+    """The project's most recent status report for a period of the same type
+    (Weekly/Monthly) that started before `period`."""
+    stmt = (
+        select(ProjectStatusReport)
+        .join(ReportingPeriod, ReportingPeriod.id == ProjectStatusReport.period_id)
+        .where(
+            ProjectStatusReport.project_id == project_id,
+            ReportingPeriod.period_type == period.period_type,
+            ReportingPeriod.start_date < period.start_date,
+        )
+        .order_by(ReportingPeriod.start_date.desc())
+        .limit(1)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return rows[0] if rows else None
+
+
 @router.get("", response_model=list[ProjectStatusReportRead])
 async def list_status_reports(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await project_status_report_crud.list(
@@ -75,6 +110,22 @@ async def create_status_report(
     payload: ProjectStatusReportCreate,
     db: AsyncSession = Depends(get_db),
 ):
+    period = await db.get(ReportingPeriod, payload.period_id)
+    if period is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Reporting period not found")
+
+    # Default Revenue / FTE / narrative from the previous period's report for
+    # any field the caller left blank.
+    previous = await _previous_period_report(db, project_id, period)
+    if previous is not None:
+        carried = {
+            field: getattr(previous, field)
+            for field in _CARRY_FORWARD_FIELDS
+            if getattr(payload, field) is None and getattr(previous, field) is not None
+        }
+        if carried:
+            payload = payload.model_copy(update=carried)
+
     return await project_status_report_crud.create(db, payload, project_id=project_id)
 
 

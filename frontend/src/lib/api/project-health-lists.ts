@@ -8,12 +8,20 @@ import type { ProjectHealthDashboardFilters } from "./project-health-dashboard";
 // Same filter-building convention as project-health-dashboard.ts's
 // useProjectHealthDashboardSummary, plus skip/limit paging and a title search.
 
+// Display helper for the "Geo" column on every drill-down table: "<Geo> — <Region>"
+// when the project has a region, plain "<Geo>" when it does not (region_id is nullable).
+export function formatGeoRegion(geoName: string | null, regionName: string | null): string {
+  if (!geoName) return "—";
+  return regionName ? `${geoName} — ${regionName}` : geoName;
+}
+
 export type ProjectListRow = {
   project_id: string;
   project_code: string;
   project_name: string;
   project_type_name: string | null;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   project_manager_name: string | null;
   start_date: string | null;
@@ -27,6 +35,7 @@ export type RagRow = {
   project_code: string;
   project_name: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   overall_rating: string | null;
   core_delivery_rating: string | null;
@@ -56,6 +65,7 @@ export type RiskRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   risk_id: string;
   risk_title: string;
@@ -73,6 +83,7 @@ export type IssueRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   issue_id: string;
   issue_title: string;
@@ -88,6 +99,7 @@ export type DependencyRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   dependency_id: string;
   dependency_title: string;
@@ -102,6 +114,7 @@ export type AssumptionRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   assumption_id: string;
   title: string;
@@ -114,6 +127,7 @@ export type OpportunityRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   opportunity_id: string;
   opportunity_title: string;
@@ -128,6 +142,7 @@ export type MetricRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   metric_name: string;
   target: string | null;
@@ -141,6 +156,7 @@ export type CommitmentRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   commitment_id: string;
   commitment_name: string;
@@ -155,6 +171,7 @@ export type PaymentMilestoneRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   milestone_id: string;
   milestone_name: string;
@@ -169,6 +186,7 @@ export type AssessmentRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   assessment_id: string;
   pm_health: string | null;
@@ -183,6 +201,7 @@ export type FindingRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   finding_id: string;
   finding_title: string;
@@ -209,6 +228,7 @@ export type DataIntegrityRow = {
   project_id: string;
   project_label: string;
   geo_name: string | null;
+  region_name: string | null;
   account_name: string | null;
   item_id: string;
   check_name: string;

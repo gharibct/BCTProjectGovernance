@@ -5,7 +5,7 @@ import * as React from "react";
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { useProjectHealthRag, type RagRow } from "@/lib/api/project-health-lists";
+import { formatGeoRegion, useProjectHealthRag, type RagRow } from "@/lib/api/project-health-lists";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDateTime, HealthBadge, StatTile } from "./project-health-kpi";
 
@@ -31,7 +31,7 @@ export function ProjectHealthRag() {
         </div>
       ),
     },
-    { key: "geo_name", label: "Geo" },
+    { key: "geo_name", label: "Geo - Region", render: (row) => formatGeoRegion(row.geo_name, row.region_name) },
     { key: "account_name", label: "Account" },
     { key: "overall_rating", label: "Overall RAG", render: (row) => <HealthBadge value={row.overall_rating} /> },
     { key: "core_delivery_rating", label: "Core Delivery", render: (row) => <HealthBadge value={row.core_delivery_rating} /> },
@@ -59,9 +59,14 @@ export function ProjectHealthRag() {
         }}
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <StatTile label="Green" value={summary?.health.green_count ?? "—"} accentClassName="border-t-emerald-500" />
         <StatTile label="Amber" value={summary?.health.amber_count ?? "—"} accentClassName="border-t-amber-500" />
+        <StatTile
+          label="Potential Red"
+          value={summary?.health.potential_red_count ?? "—"}
+          accentClassName="border-t-orange-500"
+        />
         <StatTile label="Red" value={summary?.health.red_count ?? "—"} accentClassName="border-t-red-500" />
         <StatTile
           label="Reporting Overdue"

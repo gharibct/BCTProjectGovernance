@@ -20,7 +20,6 @@ from app.schemas.dashboard import (
     DataIntegrityRow,
     DEAssessmentCompletionSummary,
     DEDashboardSummary,
-    DEFindingsSummary,
     DependencyRow,
     FindingRow,
     GeoHeadDashboardSummary,
@@ -131,7 +130,7 @@ async def get_my_dashboard_summary(
     reports_due = await dashboard_service.reports_due_summary(db, filters, projects)
     open_actions = await dashboard_service.my_open_actions(db, filters, projects, current_user.id)
 
-    green, amber, red = dashboard_service.health_split(project_matrix)
+    green, amber, potential_red, red = dashboard_service.health_split(project_matrix)
     actions_high, actions_medium, actions_low = dashboard_service.open_action_priority_split(open_actions)
 
     return MyDashboardSummary(
@@ -139,6 +138,7 @@ async def get_my_dashboard_summary(
         projects_requiring_attention=projects_requiring_attention,
         health_green=green,
         health_amber=amber,
+        health_potential_red=potential_red,
         health_red=red,
         reports_due=reports_due,
         open_actions_count=len(open_actions),
@@ -146,6 +146,7 @@ async def get_my_dashboard_summary(
         open_actions_high=actions_high,
         open_actions_medium=actions_medium,
         open_actions_low=actions_low,
+        open_findings_count=await dashboard_service.count_open_findings(db, filters),
         attention_items=attention_items,
         raido=RaidoSummary(
             open_risks=await dashboard_service.count_open_risks(db, filters),
@@ -195,7 +196,7 @@ async def get_account_head_dashboard_summary(
     projects = await dashboard_service.project_health_rows(db, filters)
     project_matrix = await dashboard_service.project_health_matrix(db, filters)
     account_matrix = await dashboard_service.account_health_matrix(db, filters)
-    green, amber, red = dashboard_service.health_split(project_matrix)
+    green, amber, potential_red, red = dashboard_service.health_split(project_matrix)
 
     queue, awaiting_review_count = await dashboard_service.report_review_queue(db, filters, projects)
     portfolio = dashboard_service.account_portfolio_health(project_matrix, account_matrix)
@@ -209,6 +210,7 @@ async def get_account_head_dashboard_summary(
         active_projects_count=await dashboard_service.count_active_projects(db, filters),
         health_green=green,
         health_amber=amber,
+        health_potential_red=potential_red,
         health_red=red,
         awaiting_review_count=awaiting_review_count,
         high_critical_risks_count=await dashboard_service.count_high_critical_risks(db, filters),
@@ -283,61 +285,41 @@ async def get_geo_head_dashboard_summary(
 
 # Delivery Excellence "My Summary" (design-reference/de-mysummary.jpg) —
 # delivery_excellence_id comes from the session, like project_manager_id does
-# for get_my_dashboard_summary above; an optional `period_id` query param
-# backs the page's Assessment Period selector (defaults to the nearest active
-# Monthly ReportingPeriod when omitted).
+# for get_my_dashboard_summary above. A DE assessment is independent of PM
+# reporting and of weekly/monthly reporting periods: everything below is
+# measured against the current calendar month (a project must be assessed at
+# least once per month, and may be assessed any number of times).
 @router.get(
     "/de-summary",
     response_model=DEDashboardSummary,
     dependencies=[Depends(require_role(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN))],
 )
 async def get_de_dashboard_summary(
-    period_id: UUID | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     filters = DashboardFilters(delivery_excellence_id=current_user.id)
+    month = dashboard_service.current_month_window()
 
-    if period_id is not None:
-        period = await db.get(ReportingPeriod, period_id)
-        if period is None:
-            raise HTTPException(status_code=404, detail="Reporting period not found.")
-    else:
-        period = await dashboard_service.de_default_period(db)
-
-    if period is None:
-        return DEDashboardSummary(
-            period_id=None,
-            period_label=None,
-            assessments_due_count=0,
-            completion=DEAssessmentCompletionSummary(completed_count=0, total_count=0),
-            red_amber_assessed_count=0,
-            findings=DEFindingsSummary(
-                open_count=0, overdue_count=0, new_this_period_count=0, closed_this_period_count=0, by_classification=[]
-            ),
-            work_queue=[],
-            attention_items=[],
-        )
-
-    work_queue = await dashboard_service.de_assessment_work_queue(db, filters, period)
+    work_queue = await dashboard_service.de_assessment_work_queue(db, filters, month)
     findings_by_project = await dashboard_service.de_findings_by_project(db, filters)
-    recent_assessments_by_project = await dashboard_service.de_recent_assessments(db, filters, period)
+    recent_assessments_by_project = await dashboard_service.de_recent_assessments(db, filters, month)
 
-    findings = dashboard_service.de_findings_summary(findings_by_project, period)
+    findings = dashboard_service.de_findings_summary(findings_by_project, month)
     attention_items = dashboard_service.de_attention_required(work_queue, findings_by_project, recent_assessments_by_project)
 
-    completed_count = sum(1 for r in work_queue if r.status == "Submitted")
+    completed_count = sum(1 for r in work_queue if r.status == "Assessed")
     total_count = len(work_queue)
-    pending_count = sum(1 for r in work_queue if r.status != "Submitted")
+    pending_count = sum(1 for r in work_queue if r.status != "Assessed")
     red_amber_count = sum(
         1 for r in work_queue if r.de_health in (HealthRating.AMBER, HealthRating.RED, HealthRating.POTENTIAL_RED)
     )
-    pci_values = [float(r.pci_score) for r in work_queue if r.status == "Submitted" and r.pci_score is not None]
+    pci_values = [float(r.pci_score) for r in work_queue if r.status == "Assessed" and r.pci_score is not None]
     average_pci = round(sum(pci_values) / len(pci_values), 1) if pci_values else None
 
     return DEDashboardSummary(
-        period_id=period.id,
-        period_label=period.label,
+        period_id=None,
+        period_label=month.label,
         assessments_due_count=total_count - completed_count,
         pending_count=pending_count,
         average_pci=average_pci,
@@ -413,13 +395,17 @@ async def get_project_health_dashboard(
         period = await dashboard_service.nearest_active_period(db)
 
     project_matrix = await dashboard_service.project_health_matrix(db, filters)
-    green, amber, red = dashboard_service.health_split(project_matrix)
+    green, amber, potential_red, red = dashboard_service.health_split(project_matrix)
     reports_due = await dashboard_service.reports_due_summary(db, filters, projects)
 
     return ProjectHealthDashboardSummary(
         portfolio=await dashboard_service.project_portfolio_summary(db, filters),
         health=ProjectHealthCardSummary(
-            green_count=green, amber_count=amber, red_count=red, reporting_overdue_count=reports_due.overdue_count
+            green_count=green,
+            amber_count=amber,
+            potential_red_count=potential_red,
+            red_count=red,
+            reporting_overdue_count=reports_due.overdue_count,
         ),
         account_health=await dashboard_service.account_rag_card_summary(db, filters),
         risks=await dashboard_service.risk_card_summary(db, filters),

@@ -1,0 +1,494 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Project Report Submission Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "tertiary-fixed": "#d2e4ff",
+                "on-secondary-fixed": "#001a40",
+                "on-primary": "#ffffff",
+                "on-background": "#0b1c30",
+                "surface-container-high": "#dce9ff",
+                "primary-fixed-dim": "#aac7ff",
+                "tertiary-fixed-dim": "#a0caff",
+                "on-tertiary": "#ffffff",
+                "on-secondary-container": "#fefcff",
+                "surface-variant": "#d3e4fe",
+                "surface": "#f8f9ff",
+                "on-primary-container": "#a3c3ff",
+                "on-surface": "#0b1c30",
+                "error": "#ba1a1a",
+                "on-primary-fixed-variant": "#08458b",
+                "outline-variant": "#c3c6d2",
+                "on-surface-variant": "#424751",
+                "surface-container": "#e5eeff",
+                "inverse-on-surface": "#eaf1ff",
+                "on-secondary-fixed-variant": "#004492",
+                "secondary-fixed-dim": "#acc7ff",
+                "inverse-surface": "#213145",
+                "surface-bright": "#f8f9ff",
+                "outline": "#737782",
+                "on-error-container": "#93000a",
+                "secondary-fixed": "#d7e2ff",
+                "inverse-primary": "#aac7ff",
+                "tertiary": "#003b68",
+                "surface-tint": "#2e5ea5",
+                "background": "#f8f9ff",
+                "primary": "#003874",
+                "surface-container-lowest": "#ffffff",
+                "on-primary-fixed": "#001b3e",
+                "on-tertiary-fixed-variant": "#00497e",
+                "surface-dim": "#cbdbf5",
+                "surface-container-low": "#eff4ff",
+                "on-tertiary-container": "#98c6ff",
+                "tertiary-container": "#00528e",
+                "on-tertiary-fixed": "#001c37",
+                "error-container": "#ffdad6",
+                "primary-fixed": "#d6e3ff",
+                "secondary-container": "#0071e8",
+                "secondary": "#0059ba",
+                "on-error": "#ffffff",
+                "primary-container": "#1a4f95",
+                "on-secondary": "#ffffff",
+                "surface-container-highest": "#d3e4fe"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+        },
+        "spacing": {
+                "lg": "24px",
+                "stack-gap": "12px",
+                "xl": "32px",
+                "sm": "8px",
+                "md": "16px",
+                "base": "4px",
+                "card-padding": "20px",
+                "container-margin": "20px",
+                "xs": "4px"
+        },
+        "fontFamily": {
+                "label-caps": [
+                        "Hanken Grotesk"
+                ],
+                "headline-md": [
+                        "Hanken Grotesk"
+                ],
+                "headline-sm-mobile": [
+                        "Hanken Grotesk"
+                ],
+                "display-lg": [
+                        "Hanken Grotesk"
+                ],
+                "headline-sm": [
+                        "Hanken Grotesk"
+                ],
+                "body-md": [
+                        "Hanken Grotesk"
+                ],
+                "body-lg": [
+                        "Hanken Grotesk"
+                ],
+                "stat-lg": [
+                        "Hanken Grotesk"
+                ]
+        },
+        "fontSize": {
+                "label-caps": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-sm-mobile": [
+                        "18px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "display-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-sm": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-md": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-lg": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "stat-lg": [
+                        "28px",
+                        {
+                                "lineHeight": "32px",
+                                "fontWeight": "700"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<style>
+        body {
+            background-color: #F8FAFC;
+        }
+        .soft-shadow {
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.05);
+        }
+        .activity-grid {
+            display: grid;
+            grid-template-columns: repeat(52, 1fr);
+            gap: 4px;
+        }
+        .activity-grid-monthly {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 4px;
+        }
+        .activity-cell {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+        .activity-cell-monthly {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+        }
+        .cell-pending { background-color: #e2e8f0; } /* Light Gray */
+        .cell-ontime { background-color: #10b981; } /* Green */
+        .cell-late { background-color: #ef4444; } /* Red/Amber */
+        
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface antialiased pb-24 md:pb-0 flex flex-col min-h-screen">
+<!-- NavigationDrawer (Web) -->
+<!-- TopAppBar -->
+<header class="flex items-center justify-between px-container-margin py-md w-full max-w-7xl mx-auto docked full-width top-0 bg-surface-bright dark:bg-inverse-surface flat no shadows z-40 sticky top-0 md:static">
+<div class="flex items-center gap-4">
+<h1 class="font-headline-md text-headline-md dark:text-on-surface-variant text-primary dark:text-primary-fixed-dim font-bold tracking-tight">Project Report Submission Dashboard</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full text-on-surface-variant dark:text-outline hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold shadow-sm md:hidden">
+                DS
+            </div>
+</div>
+</header>
+<main class="flex-1 w-full max-w-7xl mx-auto p-container-margin md:py-lg flex flex-col gap-lg">
+<!-- Header Info -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-display-lg text-display-lg text-on-surface font-bold">PRJ-2026-0013 - Reporting Summary</h2>
+<p class="font-body-lg text-body-lg text-outline mt-1">Cuetrans Implementation</p>
+</div>
+
+</div>
+<!-- Metric Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- Consolidated Weekly Progress Card -->
+<div class="bg-surface-container-lowest rounded-xl p-card-padding soft-shadow flex flex-col justify-between">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-label-caps text-label-caps text-outline uppercase tracking-wider">Weekly Delivery Status &amp; Progress</h3>
+<span class="material-symbols-outlined text-primary">donut_large</span>
+</div>
+<div class="flex flex-col md:flex-row items-center gap-6">
+<div class="relative w-32 h-32">
+<svg class="w-full h-full" viewBox="0 0 100 100">
+<!-- Background circle (Pending) -->
+<circle class="text-slate-200 stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-width="12"></circle>
+<!-- On Time circle -->
+<circle class="text-emerald-500 progress-ring__circle stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-dasharray="251.2" stroke-dashoffset="82.9" stroke-linecap="round" stroke-width="12"></circle>
+<!-- Late circle -->
+<circle class="text-red-500 progress-ring__circle stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-dasharray="251.2" stroke-dashoffset="217.5" stroke-linecap="round" stroke-width="12" style="transform: rotate(150deg);"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center flex-col">
+<span class="font-stat-lg text-stat-lg text-on-surface font-bold">80%</span>
+</div>
+</div>
+<div class="flex-1 w-full">
+<div class="font-stat-lg text-stat-lg text-on-surface mb-1">42 / 52</div>
+<div class="font-body-md text-body-md text-on-surface-variant mb-4">Weekly Reports Submitted</div>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+<span class="font-body-md text-body-md text-on-surface">On Time</span>
+</div>
+<span class="font-body-md text-body-md font-bold text-on-surface">35</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-red-500"></div>
+<span class="font-body-md text-body-md text-on-surface">Late</span>
+</div>
+<span class="font-body-md text-body-md font-bold text-on-surface">7</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-slate-200"></div>
+<span class="font-body-md text-body-md text-on-surface">Pending</span>
+</div>
+<span class="font-body-md text-body-md font-bold text-on-surface">10</span>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-6">
+<button class="w-full bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-primary-container transition-colors soft-shadow"><span class="material-symbols-outlined text-sm">arrow_forward</span>Goto Latest Report</button>
+</div></div>
+<!-- Progress Card - Monthly -->
+<div class="bg-surface-container-lowest rounded-xl p-card-padding soft-shadow flex flex-col justify-between"><div class="flex items-center justify-between mb-4">
+<h3 class="font-label-caps text-label-caps text-outline uppercase tracking-wider">Monthly Metrics Progress</h3>
+<span class="material-symbols-outlined text-secondary">bar_chart</span>
+</div>
+<div class="flex flex-col md:flex-row items-center gap-6">
+<div class="relative w-32 h-32">
+<svg class="w-full h-full" viewBox="0 0 100 100">
+<!-- Background circle (Pending) -->
+<circle class="text-slate-200 stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-width="12"></circle>
+<!-- On Time circle (8/12 = 66%) -->
+<circle class="text-secondary progress-ring__circle stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-dasharray="251.2" stroke-dashoffset="85.4" stroke-linecap="round" stroke-width="12"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center flex-col">
+<span class="font-stat-lg text-stat-lg text-on-surface font-bold">66%</span>
+</div>
+</div>
+<div class="flex-1 w-full">
+<div class="font-stat-lg text-stat-lg text-on-surface mb-1">8 / 12</div>
+<div class="font-body-md text-body-md text-on-surface-variant mb-4">Monthly Metrics Submitted</div>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-secondary"></div>
+<span class="font-body-md text-body-md text-on-surface">On Time</span>
+</div>
+<span class="font-body-md text-body-md font-bold text-on-surface">8</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-red-500"></div>
+<span class="font-body-md text-body-md text-on-surface">Late</span>
+</div>
+<span class="font-body-md text-body-md font-bold text-on-surface">0</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-slate-200"></div>
+<span class="font-body-md text-body-md text-on-surface">Pending</span>
+</div>
+<span class="font-body-md text-body-md font-bold text-on-surface">4</span>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-6">
+<button class="w-full bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-primary-container transition-colors soft-shadow"><span class="material-symbols-outlined text-sm">arrow_forward</span>Goto Latest Report</button>
+</div></div>
+</div>
+<!-- Split Reporting Activity Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-md mt-4">
+<!-- Weekly Activity Grid -->
+<div class="bg-surface-container-lowest rounded-xl p-card-padding soft-shadow">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold mb-6">Weekly Reporting Activity</h3>
+<div class="overflow-x-auto pb-4">
+<div class="min-w-[600px]">
+<!-- Months Header -->
+<div class="flex text-xs text-outline mb-2 ml-8 justify-between pr-4">
+<span class="">Jan</span><span class="">Feb</span><span class="">Mar</span><span class="">Apr</span><span class="">May</span><span class="">Jun</span>
+<span class="">Jul</span><span class="">Aug</span><span class="">Sep</span><span class="">Oct</span><span class="">Nov</span><span class="">Dec</span>
+</div>
+<div class="flex">
+<!-- Days Label -->
+<div class="flex flex-col text-xs text-outline mr-2 justify-around py-1 h-[110px]">
+<span class="">Mon</span>
+<span class="">Wed</span>
+<span class="">Fri</span>
+</div>
+<!-- Grid -->
+<div class="activity-grid flex-1">
+<script>
+                                document.write(Array.from({length: 52 * 7}).map((_, i) => {
+                                    let status = 'cell-pending';
+                                    const rand = Math.random();
+                                    if (rand > 0.95) status = 'cell-late';
+                                    else if (rand > 0.85) status = 'cell-ontime';
+                                    if (i > 250 && i < 280 && rand > 0.5) status = 'cell-ontime';
+                                    return `<div class="activity-cell ${status}"></div>`;
+                                }).join(''));
+                            </script><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-ontime"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-late"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div><div class="activity-cell cell-pending"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Monthly Activity Grid -->
+<div class="bg-surface-container-lowest rounded-xl p-card-padding soft-shadow">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold mb-6">Monthly Reporting Activity</h3>
+<div class="overflow-x-auto pb-4">
+<div class="min-w-[400px]">
+<!-- Months Header -->
+<div class="flex text-xs text-outline mb-2 justify-between pr-4 pl-2">
+<span class="">Jan</span><span class="">Feb</span><span class="">Mar</span><span class="">Apr</span><span class="">May</span><span class="">Jun</span>
+<span class="">Jul</span><span class="">Aug</span><span class="">Sep</span><span class="">Oct</span><span class="">Nov</span><span class="">Dec</span>
+</div>
+<div class="flex">
+<!-- Grid -->
+<div class="activity-grid-monthly flex-1 px-2">
+<script>
+                                document.write(Array.from({length: 12}).map((_, i) => {
+                                    let status = 'cell-pending';
+                                    if (i < 5) status = 'cell-ontime';
+                                    else if (i < 8) status = 'cell-late';
+                                    return `<div class="activity-cell-monthly ${status}"></div>`;
+                                }).join(''));
+                            </script><div class="activity-cell-monthly cell-ontime"></div><div class="activity-cell-monthly cell-ontime"></div><div class="activity-cell-monthly cell-ontime"></div><div class="activity-cell-monthly cell-ontime"></div><div class="activity-cell-monthly cell-ontime"></div><div class="activity-cell-monthly cell-late"></div><div class="activity-cell-monthly cell-late"></div><div class="activity-cell-monthly cell-late"></div><div class="activity-cell-monthly cell-pending"></div><div class="activity-cell-monthly cell-pending"></div><div class="activity-cell-monthly cell-pending"></div><div class="activity-cell-monthly cell-pending"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-end mt-4 text-sm text-outline">
+<div class="flex items-center gap-2">
+<span class="">Pending</span>
+<div class="w-3 h-3 rounded-sm cell-pending"></div>
+<span class="ml-2">On Time</span>
+<div class="w-3 h-3 rounded-sm cell-ontime"></div>
+<span class="ml-2">Late</span>
+<div class="w-3 h-3 rounded-sm cell-late"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Reports Table -->
+<div class="mt-4">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold mb-4">Reporting History</h3>
+<div class="bg-surface-container-lowest rounded-xl soft-shadow overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container border-b border-outline-variant">
+<th class="p-4 font-label-caps text-label-caps text-outline uppercase">Reporting Period</th>
+<th class="p-4 font-label-caps text-label-caps text-outline uppercase">Type</th>
+<th class="p-4 font-label-caps text-label-caps text-outline uppercase">Created On</th>
+<th class="p-4 font-label-caps text-label-caps text-outline uppercase">Status</th>
+<th class="p-4 font-label-caps text-label-caps text-outline uppercase">Last Updated</th>
+<th class="p-4 font-label-caps text-label-caps text-outline uppercase text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-4 font-body-md text-body-md font-bold text-on-surface">Aug 31, 2026</td>
+<td class="p-4"><span class="bg-surface-container text-on-surface-variant px-2 py-1 rounded text-xs font-semibold border border-outline-variant">Weekly Delivery Status</span></td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Sep 01, 2026</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-full text-xs font-bold">
+                                        Submitted
+                                    </span>
+</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Sep 01, 2026</td>
+<td class="p-4 text-right">
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-semibold hover:bg-surface-container transition-colors">Open</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-4 font-body-md text-body-md font-bold text-on-surface">Aug 24, 2026</td>
+<td class="p-4"><span class="bg-surface-container text-on-surface-variant px-2 py-1 rounded text-xs font-semibold border border-outline-variant">Weekly Delivery Status</span></td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Aug 26, 2026</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-full text-xs font-bold">
+                                        Late
+                                    </span>
+</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">Aug 26, 2026</td>
+<td class="p-4 text-right">
+<button class="bg-surface-container-lowest border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-semibold hover:bg-surface-container transition-colors">Open</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="p-4 font-body-md text-body-md font-bold text-on-surface">Aug 2026</td>
+<td class="p-4"><span class="bg-secondary-container text-on-secondary-container px-2 py-1 rounded text-xs font-semibold border border-secondary">Monthly Metrics</span></td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">--</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full text-xs font-bold">
+                                        Pending
+                                    </span>
+</td>
+<td class="p-4 font-body-md text-body-md text-on-surface-variant">--</td>
+<td class="p-4 text-right">
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-semibold hover:bg-secondary transition-colors">Start Draft</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-4 pt-2 bg-surface dark:bg-inverse-surface shadow-[0px_-4px_20px_rgba(0,0,0,0.05)] z-50 docked full-width bottom-0">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-4 py-1.5 hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-caps text-[10px] mt-1">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-4 py-1.5 hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">groups</span>
+<span class="font-label-caps text-[10px] mt-1">Patients</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-xl px-4 py-1.5 Active: scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">list_alt</span>
+<span class="font-label-caps text-[10px] mt-1">Actions</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline px-4 py-1.5 hover:bg-surface-container-low dark:hover:bg-surface-container-high transition-colors rounded-xl" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+<span class="font-label-caps text-[10px] mt-1">Settings</span>
+</a>
+</nav>
+
+
+</body></html>

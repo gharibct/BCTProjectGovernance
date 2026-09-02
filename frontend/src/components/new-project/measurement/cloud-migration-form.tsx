@@ -13,7 +13,7 @@ export function toCloudMigrationPayload(m: Record<string, string>): MetricTarget
   return {
     target_applications_migrated_pct: num(m.targetAppsMigrated),
     target_migration_success_rate_pct: num(m.targetSuccessRate),
-    target_migration_downtime_minutes: num(m.targetDowntime),
+    target_migration_downtime_hours: num(m.targetDowntime),
   };
 }
 
@@ -22,7 +22,7 @@ export function fromCloudMigrationTarget(data: MetricTargetCloudMigration | null
   return {
     targetAppsMigrated: str(data.target_applications_migrated_pct),
     targetSuccessRate: str(data.target_migration_success_rate_pct),
-    targetDowntime: str(data.target_migration_downtime_minutes),
+    targetDowntime: str(data.target_migration_downtime_hours),
   };
 }
 

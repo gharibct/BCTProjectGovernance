@@ -15,7 +15,10 @@ import { useNewProjectId } from "@/stores/new-project-ui";
 import { useBaselinePeriodId } from "@/lib/period-utils";
 import {
   useCreateMilestonePayment,
+  useDeleteMilestonePayment,
   useMilestonePayments,
+  useUpdateMilestonePayment,
+  type MilestonePayment,
   type MilestonePaymentPayload,
 } from "@/lib/api/contractual";
 
@@ -33,6 +36,16 @@ function buildMilestonePayload(values: Record<string, string>): MilestonePayment
     expected_date_of_payment: values.expected_date_of_payment || undefined,
     expected_payment_value: values.expected_payment_value || undefined,
     milestone_description: values.milestone_description || undefined,
+  };
+}
+
+// Populate the "New Payment Milestone" form from an existing row for in-place editing.
+function toValues(item: MilestonePayment): Record<string, string> {
+  return {
+    milestone_name: item.milestone_name,
+    expected_date_of_payment: item.expected_date_of_payment ?? "",
+    expected_payment_value: item.expected_payment_value ?? "",
+    milestone_description: item.milestone_description ?? "",
   };
 }
 
@@ -54,22 +67,62 @@ const MILESTONE_FIELDS: FieldDef[] = [
 export function MilestonesTab() {
   const projectId = useNewProjectId();
   const periodId = useBaselinePeriodId();
-  const { values, set, reset } = useEntryValues();
+  const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useMilestonePayments(projectId);
   const createMilestone = useCreateMilestonePayment(projectId);
+  const updateMilestone = useUpdateMilestonePayment(projectId);
+  const deleteMilestone = useDeleteMilestonePayment(projectId);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
-  const addMilestone = () => {
-    if (!values.milestone_name?.trim() || !values.expected_date_of_payment) return;
-    createMilestone.mutate(buildMilestonePayload(values), {
+  const startEdit = (item: MilestonePayment) => {
+    setEditingId(item.id);
+    load(toValues(item));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    reset();
+  };
+
+  const handleDelete = (item: MilestonePayment) => {
+    deleteMilestone.mutate(item.id, {
       onSuccess: () => {
-        reset();
-        showSuccess("Payment Milestone Added Successfully");
+        if (editingId === item.id) cancelEdit();
+        showSuccess("Payment Milestone Deleted Successfully");
       },
       onError: (err) =>
-        showError(err instanceof Error ? err.message : "Failed to add payment milestone."),
+        showError(err instanceof Error ? err.message : "Failed to delete payment milestone."),
     });
+  };
+
+  const submit = () => {
+    if (!values.milestone_name?.trim() || !values.expected_date_of_payment) return;
+    const payload = buildMilestonePayload(values);
+
+    if (editingId) {
+      updateMilestone.mutate(
+        { id: editingId, payload },
+        {
+          onSuccess: () => {
+            cancelEdit();
+            showSuccess("Payment Milestone Updated Successfully");
+          },
+          onError: (err) =>
+            showError(err instanceof Error ? err.message : "Failed to update payment milestone."),
+        }
+      );
+    } else {
+      createMilestone.mutate(payload, {
+        onSuccess: () => {
+          reset();
+          showSuccess("Payment Milestone Added Successfully");
+        },
+        onError: (err) =>
+          showError(err instanceof Error ? err.message : "Failed to add payment milestone."),
+      });
+    }
   };
 
   if (!projectId) {
@@ -77,6 +130,8 @@ export function MilestonesTab() {
       <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
     );
   }
+
+  const busy = createMilestone.isPending || updateMilestone.isPending;
 
   return (
     <div className="flex flex-col gap-8">
@@ -101,6 +156,8 @@ export function MilestonesTab() {
         <RegisterTable
           items={items}
           emptyLabel="No payment milestones defined yet."
+          onEdit={startEdit}
+          onDelete={handleDelete}
           columns={[
             { key: "milestone_name", label: "Payment Milestone" },
             { key: "expected_date_of_payment", label: "Expected Date" },
@@ -122,14 +179,19 @@ export function MilestonesTab() {
 
       <SectionCard icon={Flag} title="New Payment Milestone">
         <EntryFields defs={MILESTONE_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
+          {editingId ? (
+            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+              Cancel
+            </Button>
+          ) : null}
           <Button
-            onClick={addMilestone}
-            disabled={createMilestone.isPending}
+            onClick={submit}
+            disabled={busy}
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
-            {createMilestone.isPending ? <ButtonSpinner /> : null}
-            Add Payment Milestone
+            {busy ? <ButtonSpinner /> : null}
+            {editingId ? "Edit Payment Milestone" : "Add Payment Milestone"}
           </Button>
         </div>
       </SectionCard>

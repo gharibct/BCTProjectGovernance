@@ -11,12 +11,10 @@ import { FindingsDrawer } from "./findings-drawer";
 // mirrors action-tracker-trigger.tsx: an in-flow rounded pill, not a FAB.
 export function FindingsDrawerTrigger({
   projectId,
-  assessmentId,
   projectName,
   findings,
 }: {
   projectId: string;
-  assessmentId: string | null;
   projectName: string;
   findings: DEAssessmentFinding[];
 }) {
@@ -43,12 +41,7 @@ export function FindingsDrawerTrigger({
           <Plus className="size-4 text-slate-400 transition-colors group-hover:text-[#1a6fc4]" />
         </button>
       </SheetTrigger>
-      <FindingsDrawer
-        projectId={projectId}
-        assessmentId={assessmentId}
-        projectName={projectName}
-        findings={findings}
-      />
+      <FindingsDrawer projectId={projectId} projectName={projectName} findings={findings} />
     </Sheet>
   );
 }

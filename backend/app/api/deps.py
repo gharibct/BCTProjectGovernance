@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, Request, status
@@ -197,6 +198,61 @@ def require_project_de_scope(*allowed_roles: RoleCode):
         return current_user
 
     return dependency
+
+
+def require_project_de_assessment_access(*allowed_roles: RoleCode):
+    """Role check plus: the `project_id` path param's project must have a DE
+    allocated (project.delivery_excellence_id is not None).
+
+    Unlike `require_project_de_scope`, this does NOT require the caller to be
+    that DE — any user in an allowed role may assess any project that has been
+    allocated to Delivery Excellence (all DEs are treated equally). ADMIN
+    bypasses the allocation check. Used by the DE Assessment write routes."""
+
+    async def dependency(
+        project_id: UUID,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        role_code = await _role_code(db, current_user)
+        if role_code not in allowed_roles:
+            raise _FORBIDDEN
+        if role_code != RoleCode.ADMIN:
+            project = await db.get(Project, project_id)
+            if project is None or project.delivery_excellence_id is None:
+                raise _FORBIDDEN
+        return current_user
+
+    return dependency
+
+
+async def require_de_findings_write(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SimpleNamespace:
+    """Role gate for the portfolio POST/PUT /de-findings routes. The project is
+    not a path param here (it rides in the body on create, on the finding on
+    update), so the per-project "DE allocated" check is done inline in the
+    handler — this only enforces the role and hands back the resolved role so
+    the handler can let ADMIN bypass that check."""
+    role_code = await _role_code(db, current_user)
+    if role_code not in (RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN):
+        raise _FORBIDDEN
+    return SimpleNamespace(user=current_user, role=role_code)
+
+
+async def require_pm_findings_write(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SimpleNamespace:
+    """Role gate for PUT /pm-findings/{id}/action-taken. Like
+    require_de_findings_write but for the PM: the per-project "is this my
+    project" check (project.project_manager_id == caller) is done inline in the
+    handler; ADMIN bypasses it."""
+    role_code = await _role_code(db, current_user)
+    if role_code not in (RoleCode.PROJECT_MANAGER, RoleCode.ADMIN):
+        raise _FORBIDDEN
+    return SimpleNamespace(user=current_user, role=role_code)
 
 
 def require_project_access(*allowed_roles: RoleCode):

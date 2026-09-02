@@ -1,6 +1,10 @@
 -- DE Assessment Form (UX requirements §4.12) — Delivery Excellence's periodic
--- audit of a project. Assessment Date/Next Assessment Due Date and the history
--- list are a proposed addition (§7 items 10-12), mirroring Project Status.
+-- audit of a project. A DE assessment is independent of PM project reporting and
+-- of weekly/monthly reporting periods: any DELIVERY_EXCELLENCE user may assess a
+-- project that has a DE allocated, as often as needed, and at least once per
+-- calendar month. assessed_by records who performed it (set from the session).
+-- There is deliberately NO unique constraint on (project_id, assessment_date) —
+-- a project can be assessed multiple times on the same day.
 
 CREATE TABLE de_assessments (
     id UUID PRIMARY KEY,
@@ -13,9 +17,7 @@ CREATE TABLE de_assessments (
     next_assessment_due_date DATE,
     assessed_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-
-    UNIQUE (project_id, assessment_date)
+    updated_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX idx_de_assessments_project_id ON de_assessments(project_id, assessment_date DESC);
@@ -37,11 +39,15 @@ CREATE TABLE de_assessment_alerts (
 
 CREATE INDEX idx_de_assessment_alerts_assessment_id ON de_assessment_alerts(assessment_id);
 
+-- Findings are a project-level register, independent of any single assessment:
+-- a DE can raise, edit and close them across the project's whole life, with or
+-- without a DE assessment on record. (Contrast de_assessment_alerts, which stay
+-- tied to the assessment that auto-raised them.)
 CREATE TABLE de_assessment_findings (
     id UUID PRIMARY KEY,
-    assessment_id UUID NOT NULL REFERENCES de_assessments(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     sequence_no INTEGER NOT NULL,
-    classification TEXT NOT NULL, -- Observation/Recommendation (legacy) or Governance/Performance/Security/Financial
+    classification TEXT NOT NULL, -- Observation/Recommendation (legacy) or the Project RAG 6-category taxonomy
     description TEXT, -- the finding statement (DE Assessment Workspace)
     severity TEXT, -- Low, Medium, High, Critical
     assigned_to UUID REFERENCES users(id),
@@ -53,9 +59,9 @@ CREATE TABLE de_assessment_findings (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 
-    UNIQUE (assessment_id, sequence_no)
+    UNIQUE (project_id, sequence_no)
 );
 
-CREATE INDEX idx_de_assessment_findings_assessment_id ON de_assessment_findings(assessment_id);
+CREATE INDEX idx_de_assessment_findings_project_id ON de_assessment_findings(project_id);
 
 CREATE TRIGGER trg_de_assessment_findings_updated_at BEFORE UPDATE ON de_assessment_findings FOR EACH ROW EXECUTE FUNCTION set_updated_at();

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useStaffingTarget } from "@/lib/api/metric-targets";
+import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
 import {
   useCreateStaffingMeasurement,
   useLatestStaffingMeasurement,
@@ -32,8 +33,10 @@ function toValues(data: MeasurementStaffingRead): Record<string, string> {
     associates_joined_count: str(data.associates_joined_count),
   };
   for (const p of data.priority_metrics) {
-    values[`resp_${p.priority}`] = str(p.response_time_hours);
-    values[`lead_${p.priority}`] = str(p.lead_time_days);
+    values[`resptot_${p.priority}`] = str(p.response_time_hours_total);
+    values[`reqresp_${p.priority}`] = str(p.requests_responded_count);
+    values[`leadtot_${p.priority}`] = str(p.lead_time_days_total);
+    values[`onboard_${p.priority}`] = str(p.associates_onboarded_count);
   }
   return values;
 }
@@ -48,14 +51,17 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementStaf
     associates_joined_count: m.associates_joined_count || undefined,
     priority_metrics: PRIORITIES.map(({ key }) => ({
       priority: key,
-      response_time_hours: m[`resp_${key}`] || undefined,
-      lead_time_days: m[`lead_${key}`] || undefined,
+      response_time_hours_total: m[`resptot_${key}`] || undefined,
+      requests_responded_count: m[`reqresp_${key}`] || undefined,
+      lead_time_days_total: m[`leadtot_${key}`] || undefined,
+      associates_onboarded_count: m[`onboard_${key}`] || undefined,
     })),
   };
 }
 
 export function StaffingTab({ projectId }: { projectId: string }) {
   const { data: target } = useStaffingTarget(projectId);
+  const reference = useMetricReferenceLookup("PROFESSIONAL_STAFFING");
 
   const latestQuery = useLatestStaffingMeasurement(projectId);
   const createMutation = useCreateStaffingMeasurement(projectId);
@@ -89,17 +95,19 @@ export function StaffingTab({ projectId }: { projectId: string }) {
               key={`avg-resp-${p.key}`}
               label="Avg Response Time"
               badge={p.label}
-              formula="Average Response Time (hrs) over the last 4 periods for this priority"
+              metricKey="avg_response_time_hours"
+              reference={reference}
               target={num(targetFor(p.key)?.target_avg_response_time_hours)}
               current={num(latestFor(p.key)?.avg_response_time_hours)}
-              unit="Hours (trailing avg)"
+              unit="Hours"
               direction="lower-is-better"
               digits={1}
             />
           ))}
           <MetricTile
             label="Profiles Qualifying for Submission"
-            formula="# Profiles Submitted ÷ # of Requests × 100"
+            metricKey="pct_profiles_qualifying"
+            reference={reference}
             target={num(target?.target_pct_profiles_qualifying)}
             current={num(latest?.pct_profiles_qualifying)}
             unit="%"
@@ -108,7 +116,8 @@ export function StaffingTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Candidates Resulting in Joining"
-            formula="# Associates Joined ÷ # Interview Selects × 100"
+            metricKey="pct_candidates_joining"
+            reference={reference}
             target={num(target?.target_pct_candidates_joining)}
             current={num(latest?.pct_candidates_joining)}
             unit="%"
@@ -120,10 +129,11 @@ export function StaffingTab({ projectId }: { projectId: string }) {
               key={`lead-time-${p.key}`}
               label="Lead Time"
               badge={p.label}
-              formula="Average Lead Time to Onboarding (days) over the last 4 periods for this priority"
+              metricKey="avg_lead_time_days"
+              reference={reference}
               target={num(targetFor(p.key)?.target_avg_lead_time_days)}
               current={num(latestFor(p.key)?.avg_lead_time_days)}
-              unit="Days (trailing avg)"
+              unit="Days"
               direction="lower-is-better"
               digits={1}
             />
@@ -145,40 +155,56 @@ export function StaffingTab({ projectId }: { projectId: string }) {
             />
           </Field>
         </div>
-        <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-4">
+        <p className="mt-6 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+          Response &amp; Onboarding — per priority
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Enter this period&apos;s total and count; the average is total &divide; count.
+        </p>
+        <div className="mt-3 flex flex-col gap-4">
           {PRIORITIES.map((p) => (
-            <Field
-              key={`resp-${p.key}`}
-              label={`Response Time — ${p.label}`}
-              htmlFor={`resp-${p.key}`}
-              hint="Hours"
-            >
-              <Input
-                id={`resp-${p.key}`}
-                type="number"
-                min={0}
-                value={m[`resp_${p.key}`] ?? ""}
-                onChange={set(`resp_${p.key}`)}
-                className={inputClass}
-              />
-            </Field>
-          ))}
-          {PRIORITIES.map((p) => (
-            <Field
-              key={`lead-${p.key}`}
-              label={`Lead Time to Onboarding — ${p.label}`}
-              htmlFor={`lead-${p.key}`}
-              hint="Days"
-            >
-              <Input
-                id={`lead-${p.key}`}
-                type="number"
-                min={0}
-                value={m[`lead_${p.key}`] ?? ""}
-                onChange={set(`lead_${p.key}`)}
-                className={inputClass}
-              />
-            </Field>
+            <div key={`prio-${p.key}`} className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-4">
+              <Field label={`Total Response Time — ${p.label}`} htmlFor={`resptot-${p.key}`} hint="Hours">
+                <Input
+                  id={`resptot-${p.key}`}
+                  type="number"
+                  min={0}
+                  value={m[`resptot_${p.key}`] ?? ""}
+                  onChange={set(`resptot_${p.key}`)}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label={`# Requests Responded — ${p.label}`} htmlFor={`reqresp-${p.key}`}>
+                <Input
+                  id={`reqresp-${p.key}`}
+                  type="number"
+                  min={0}
+                  value={m[`reqresp_${p.key}`] ?? ""}
+                  onChange={set(`reqresp_${p.key}`)}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label={`Total Lead Time — ${p.label}`} htmlFor={`leadtot-${p.key}`} hint="Days">
+                <Input
+                  id={`leadtot-${p.key}`}
+                  type="number"
+                  min={0}
+                  value={m[`leadtot_${p.key}`] ?? ""}
+                  onChange={set(`leadtot_${p.key}`)}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label={`# Associates Onboarded — ${p.label}`} htmlFor={`onboard-${p.key}`}>
+                <Input
+                  id={`onboard-${p.key}`}
+                  type="number"
+                  min={0}
+                  value={m[`onboard_${p.key}`] ?? ""}
+                  onChange={set(`onboard_${p.key}`)}
+                  className={inputClass}
+                />
+              </Field>
+            </div>
           ))}
         </div>
       </SectionCard>

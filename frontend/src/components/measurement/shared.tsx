@@ -8,6 +8,7 @@ import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAiReview } from "@/components/ai/use-ai-review";
 import { usePageBanner } from "@/stores/page-banner";
+import type { MetricReferenceEntry, MetricReferenceLookup } from "@/lib/api/metric-reference";
 
 export const inputClass = "h-11";
 
@@ -56,10 +57,18 @@ function MetricPriorityBadge({ children }: { children: React.ReactNode }) {
   );
 }
 
-// (i) icon that opens a popover with the same formula shown inline under the
-// label — a consistent "more info" affordance across every tile, even though
-// the formula is already visible as the italic line below the label.
-function MetricInfoButton({ formula }: { formula: string }) {
+// (i) icon that opens a popover explaining the metric. When a reference entry
+// is available (from GET /metric-reference — every project type except
+// Consulting) it shows Unit / Formula / Operational Definition / Benchmark
+// Value; otherwise it degrades to just the formula string the call site
+// passed inline.
+function MetricInfoButton({
+  entry,
+  fallbackFormula,
+}: {
+  entry?: MetricReferenceEntry;
+  fallbackFormula?: string;
+}) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -71,7 +80,34 @@ function MetricInfoButton({ formula }: { formula: string }) {
           <Info className="size-4" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 text-xs text-slate-600">{formula}</PopoverContent>
+      <PopoverContent className="w-80 text-xs text-slate-600">
+        {entry ? (
+          <dl className="flex flex-col gap-2">
+            <div>
+              <dt className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Unit</dt>
+              <dd>{entry.unit}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">Formula</dt>
+              <dd className="font-medium text-slate-700">{entry.formula}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                Operational Definition
+              </dt>
+              <dd>{entry.operational_definition}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                Benchmark Value
+              </dt>
+              <dd>{entry.benchmark_value}</dd>
+            </div>
+          </dl>
+        ) : (
+          (fallbackFormula ?? "No reference available for this metric.")
+        )}
+      </PopoverContent>
     </Popover>
   );
 }
@@ -87,6 +123,8 @@ function MetricInfoButton({ formula }: { formula: string }) {
 // Index) regardless of whether a target value happens to exist for them.
 export function MetricTile({
   label,
+  metricKey,
+  reference,
   formula,
   target,
   current,
@@ -96,14 +134,23 @@ export function MetricTile({
   badge,
 }: {
   label: string;
-  formula: string;
+  // Looks the metric up in the fetched reference map; the per-priority tiles
+  // (SLA/MTTR, response/lead time) all pass the same base key.
+  metricKey?: string;
+  reference?: MetricReferenceLookup;
+  // Fallback formula string for a metric with no reference entry (Consulting).
+  formula?: string;
   target: number | null;
   current: number | null;
-  unit: string;
+  // Falls back to the reference entry's unit when omitted.
+  unit?: string;
   direction?: MetricDirection;
   digits?: number;
   badge?: string;
 }) {
+  const entry = metricKey ? reference?.[metricKey] : undefined;
+  const displayFormula = entry?.formula ?? formula ?? "";
+  const displayUnit = unit ?? entry?.unit ?? "";
   const notComputed = current === null;
   const comparable = !notComputed && target !== null && direction !== undefined;
   const isGood = comparable && (direction === "higher-is-better" ? current >= target : current <= target);
@@ -133,17 +180,17 @@ export function MetricTile({
         <p className="text-xs font-bold tracking-wide text-slate-700 uppercase">{label}</p>
         <div className="flex shrink-0 items-center gap-1.5">
           {badge ? <MetricPriorityBadge>{badge}</MetricPriorityBadge> : null}
-          <MetricInfoButton formula={formula} />
+          <MetricInfoButton entry={entry} fallbackFormula={formula} />
         </div>
       </div>
-      <p className="mt-0.5 text-[11px] italic text-slate-400">{formula}</p>
+      <p className="mt-0.5 text-[11px] italic text-slate-400">{displayFormula}</p>
 
       <p className="mt-3 text-[10px] font-bold tracking-wide text-slate-400 uppercase">Target</p>
       <div className="mt-1 flex h-11 items-center justify-end rounded-md bg-blue-100 px-2.5">
         <span className="text-lg font-bold text-[#1a4a7a] tabular-nums">
           {target === null ? "—" : target.toFixed(digits)}
         </span>
-        {target !== null ? <span className="ml-1 text-[11px] text-[#1a4a7a]/70">{unit}</span> : null}
+        {target !== null ? <span className="ml-1 text-[11px] text-[#1a4a7a]/70">{displayUnit}</span> : null}
       </div>
 
       <p className="mt-2 text-[10px] font-bold tracking-wide text-slate-400 uppercase">Computed</p>
@@ -151,7 +198,7 @@ export function MetricTile({
         <span className={`text-lg font-bold tabular-nums ${computedTextClass}`}>
           {notComputed ? "—" : current.toFixed(digits)}
         </span>
-        {!notComputed ? <span className="ml-1 text-[11px] opacity-70">{unit}</span> : null}
+        {!notComputed ? <span className="ml-1 text-[11px] opacity-70">{displayUnit}</span> : null}
       </div>
       <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
         {comparable ? <div className={`h-full rounded-full ${barClass}`} style={{ width: `${progressPct}%` }} /> : null}

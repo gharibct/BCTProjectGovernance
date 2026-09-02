@@ -25,22 +25,30 @@ def build_crud_router(
     create_schema: type,
     update_schema: type | None = None,
     allow_delete: bool = True,
+    include_list_route: bool = True,
     write_dependencies: Sequence[Depends] | None = None,
 ) -> APIRouter:
     """`write_dependencies` (e.g. `[Depends(require_role(RoleCode.ADMIN))]`)
     gates create/update/delete only — list/get stay open to every
-    authenticated caller, matching this router's existing read behavior."""
+    authenticated caller, matching this router's existing read behavior.
+
+    Pass `include_list_route=False` when the caller needs a hand-written
+    `GET ""` (e.g. one with a text `search` param) — the generic list route
+    below is registered at `include_router` time and would otherwise shadow it.
+    """
 
     router = APIRouter(prefix=prefix, tags=tags)
     write_dependencies = list(write_dependencies) if write_dependencies else []
 
-    @router.get("", response_model=Page[read_schema])
-    async def list_items(
-        pagination: PaginationParams = Depends(pagination_params),
-        db: AsyncSession = Depends(get_db),
-    ):
-        items, total = await crud.list(db, skip=pagination.skip, limit=pagination.limit)
-        return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+    if include_list_route:
+
+        @router.get("", response_model=Page[read_schema])
+        async def list_items(
+            pagination: PaginationParams = Depends(pagination_params),
+            db: AsyncSession = Depends(get_db),
+        ):
+            items, total = await crud.list(db, skip=pagination.skip, limit=pagination.limit)
+            return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
     @router.post("", response_model=read_schema, status_code=status.HTTP_201_CREATED, dependencies=write_dependencies)
     async def create_item(payload: create_schema, db: AsyncSession = Depends(get_db)):

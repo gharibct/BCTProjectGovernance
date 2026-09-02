@@ -181,7 +181,7 @@ export function GovernanceReviewWorkspace() {
                     ) : null}
                   </td>
                   <td className={cn("px-3 py-2.5 font-mono", m.complete ? "text-slate-600" : "text-[#1a6fc4]")}>
-                    {m.complete ? "100%" : "0%"}
+                    {m.progress_pct}%
                   </td>
                   <td className="px-3 py-2.5">
                     <span

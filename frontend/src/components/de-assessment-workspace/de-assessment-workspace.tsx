@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import { Suspense } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ClipboardCheck, HeartPulse } from "lucide-react";
+import { ArrowLeft, CalendarDays, ClipboardCheck, HeartPulse, History } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
 import {
+  CATEGORIES,
   HealthPicker,
   HealthPill,
   RATING_FROM_API,
@@ -22,27 +23,21 @@ import {
 import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole } from "@/stores/session";
 import { useProject } from "@/lib/api/projects";
-import { useAccounts, useReportingPeriods, useUsers } from "@/lib/api/reference-data";
+import { useAccounts, useUsers } from "@/lib/api/reference-data";
 import { useLatestHealthDeclaration } from "@/lib/api/health-declarations";
-import { canWriteDeAssessment } from "@/lib/api/de-assessment-permissions";
+import { canWriteDeAssessment, canAssessProject } from "@/lib/api/de-assessment-permissions";
 import {
   useCreateDEAssessment,
+  useDEAssessmentFindings,
   useDEAssessments,
-  useLatestDEAssessment,
   useUpdateDEAssessment,
   type DEAssessment,
-  type DEAssessmentFinding,
 } from "@/lib/api/de-assessment";
 import { HealthDot } from "./shared";
 import { FindingsDrawerTrigger } from "./findings-drawer/findings-drawer-trigger";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function inPeriod(dateStr: string | null, start?: string, end?: string): boolean {
-  if (!dateStr || !start || !end) return false;
-  return dateStr >= start && dateStr <= end;
 }
 
 function ContextItem({ label, children }: { label: string; children: React.ReactNode }) {
@@ -66,44 +61,41 @@ function FindingStat({ value, label, tone }: { value: number; label: string; ton
 function WorkspaceInner() {
   const { projectId: rawProjectId } = useParams<{ projectId: string }>();
   const projectId = rawProjectId ?? null;
-  const periodId = useSearchParams().get("period");
   const router = useRouter();
 
-  const canWrite = canWriteDeAssessment(useEffectiveRole());
+  const role = useEffectiveRole();
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
   const { data: project } = useProject(projectId);
   const { data: accounts = [] } = useAccounts();
   const { data: users = [] } = useUsers();
-  const { data: periods = [] } = useReportingPeriods();
   const { data: assessments = [] } = useDEAssessments(projectId);
-  const { data: latestDetails } = useLatestDEAssessment(projectId);
+  const { data: findings = [] } = useDEAssessmentFindings(projectId);
   const { data: health } = useLatestHealthDeclaration(projectId);
 
-  const period = periods.find((p) => p.id === periodId);
-  const periodLabel = period?.label ?? "Current period";
+  const hasDeAllocated = !!project?.delivery_excellence_id;
+  const canWrite = canAssessProject(role, hasDeAllocated);
+  // A non-DE viewer (or a DE looking at a project with no DE allocated) still
+  // sees the read-only workspace; only the write affordances are gated.
+  const roleCanWrite = canWriteDeAssessment(role);
 
-  // The assessment we're working on: the one dated in the selected period
-  // (Draft or already Submitted). Falls back to the newest Draft when no
-  // period is on the URL.
-  const working: DEAssessment | null =
-    assessments.find((a) => inPeriod(a.assessment_date, period?.start_date, period?.end_date)) ??
-    (!period && assessments[0]?.status === "Draft" ? assessments[0] : null);
+  // The assessment we're editing: the newest Draft (there is at most one open
+  // draft at a time). Otherwise the form is a blank NEW assessment — every
+  // Submit creates a new row, which is what lets a project be assessed more
+  // than once in a month.
+  const working: DEAssessment | null = assessments.find((a) => a.status === "Draft") ?? null;
 
-  const previous: DEAssessment | null =
-    assessments.find(
-      (a) =>
-        a.status === "Submitted" &&
-        a.id !== working?.id &&
-        (!period?.start_date || !a.assessment_date || a.assessment_date < period.start_date)
-    ) ?? null;
+  const submittedHistory = React.useMemo(
+    () =>
+      assessments
+        .filter((a) => a.status === "Submitted")
+        .sort((a, b) => (b.assessment_date ?? "").localeCompare(a.assessment_date ?? "")),
+    [assessments]
+  );
+  const previous: DEAssessment | null = submittedHistory[0] ?? null;
 
-  const findings: DEAssessmentFinding[] =
-    working && latestDetails?.id === working.id ? latestDetails.findings : [];
-
-  const isSubmitted = working?.status === "Submitted";
-  const readOnly = isSubmitted || !canWrite;
+  const readOnly = !canWrite;
 
   const accountName = accounts.find((a) => a.id === project?.account_id)?.name ?? "—";
   const pmName = users.find((u) => u.id === project?.project_manager_id)?.full_name ?? "—";
@@ -114,6 +106,7 @@ function WorkspaceInner() {
   const [healthValue, setHealthValue] = React.useState<KebabHealth>("green");
   const [pciScore, setPciScore] = React.useState("");
   const [remarks, setRemarks] = React.useState("");
+  const [assessmentDate, setAssessmentDate] = React.useState(today());
   const [errors, setErrors] = React.useState<{ pci?: string; remarks?: string }>({});
 
   const workingKey = working?.id ?? null;
@@ -122,6 +115,7 @@ function WorkspaceInner() {
     setHealthValue(working ? RATING_FROM_API[working.de_assessed_project_health] : "green");
     setPciScore(working?.pci_score ?? "");
     setRemarks(working?.remarks ?? "");
+    setAssessmentDate(working?.assessment_date ?? today());
     setErrors({});
   }
 
@@ -155,6 +149,7 @@ function WorkspaceInner() {
         {
           id: working.id,
           payload: {
+            assessment_date: assessmentDate || undefined,
             de_assessed_project_health: RATING_TO_API[healthValue],
             pci_score: pciScore || undefined,
             remarks: remarks || undefined,
@@ -166,7 +161,7 @@ function WorkspaceInner() {
     } else {
       createAssessment.mutate(
         {
-          assessment_date: today(),
+          assessment_date: assessmentDate || undefined,
           de_assessed_project_health: RATING_TO_API[healthValue],
           pci_score: pciScore || undefined,
           remarks: remarks || undefined,
@@ -186,6 +181,12 @@ function WorkspaceInner() {
     (f) => f.severity === "Critical" && f.status !== "Closed" && f.status !== "Cancelled"
   ).length;
 
+  const subtitle = working
+    ? "Editing Draft"
+    : roleCanWrite && !hasDeAllocated
+      ? "No Delivery Excellence resource allocated"
+      : "New Assessment";
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -200,18 +201,36 @@ function WorkspaceInner() {
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             Project Assessment — {project?.project_name ?? "…"}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Assessment Period: {periodLabel}
-            {isSubmitted ? " · Submitted (read-only)" : working ? " · Draft" : " · Not Started"}
-          </p>
+          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
         </div>
         <FindingsDrawerTrigger
           projectId={projectId}
-          assessmentId={working?.id ?? null}
           projectName={project?.project_name ?? "Project"}
           findings={findings}
         />
       </div>
+
+      {roleCanWrite && !hasDeAllocated ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+          No Delivery Excellence resource is allocated to this project yet. A DE must be
+          allocated (DE Allocation) before an assessment can be recorded.
+        </div>
+      ) : null}
+
+      {/* Assessment Date — leads the workspace; every section below describes
+          or supports the assessment being recorded on this date. */}
+      <SectionCard icon={CalendarDays} title="Assessment Date">
+        <Field label="Assessment Date" htmlFor="de-assessment-date" badge={<MandatoryBadge />}>
+          <Input
+            id="de-assessment-date"
+            type="date"
+            className="h-11 w-44"
+            value={assessmentDate}
+            disabled={readOnly}
+            onChange={(e) => setAssessmentDate(e.target.value)}
+          />
+        </Field>
+      </SectionCard>
 
       {/* Section 1 — Project Context Summary */}
       <SectionCard icon={ClipboardCheck} title="Project Context Summary">
@@ -249,30 +268,16 @@ function WorkspaceInner() {
                 <HealthPill rating={RATING_FROM_API[health.overall_rating]} />
               </span>
             </div>
-            <div>
-              <span className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-                Core Delivery
-              </span>
-              <span className="mt-1 block">
-                <HealthPill rating={RATING_FROM_API[health.core_delivery_rating]} />
-              </span>
-            </div>
-            <div>
-              <span className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-                Financial
-              </span>
-              <span className="mt-1 block">
-                <HealthPill rating={RATING_FROM_API[health.financial_rating]} />
-              </span>
-            </div>
-            <div>
-              <span className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-                People
-              </span>
-              <span className="mt-1 block">
-                <HealthPill rating={RATING_FROM_API[health.people_rating]} />
-              </span>
-            </div>
+            {CATEGORIES.map((category) => (
+              <div key={category.key}>
+                <span className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                  {category.name}
+                </span>
+                <span className="mt-1 block">
+                  <HealthPill rating={RATING_FROM_API[health[category.ratingField]]} />
+                </span>
+              </div>
+            ))}
           </div>
         ) : (
           <p className="text-sm text-slate-400">No project health declared for this period yet.</p>
@@ -353,6 +358,21 @@ function WorkspaceInner() {
         </div>
       </SectionCard>
 
+      {/* Section 5 — Assessment History (the full grid lives at /history) */}
+      <SectionCard icon={History} title="Assessment History">
+        {submittedHistory.length === 0 ? (
+          <p className="text-sm text-slate-400">No assessments submitted for this project yet.</p>
+        ) : (
+          <Link
+            href={`/de-assessment/${projectId}/history`}
+            className="text-sm font-semibold text-[#1a6fc4] hover:underline"
+          >
+            View all {submittedHistory.length} submitted assessment
+            {submittedHistory.length === 1 ? "" : "s"} →
+          </Link>
+        )}
+      </SectionCard>
+
       {/* Sticky footer actions */}
       <div className="sticky bottom-0 -mx-10 flex items-center justify-between border-t border-slate-200 bg-white/90 px-10 py-4 backdrop-blur">
         <Button variant="ghost" onClick={() => router.push("/de-assessment")}>
@@ -360,7 +380,9 @@ function WorkspaceInner() {
         </Button>
         {readOnly ? (
           <p className="text-sm text-slate-400">
-            {isSubmitted ? "This assessment has been submitted." : "You have read-only access."}
+            {roleCanWrite && !hasDeAllocated
+              ? "Allocate a DE to this project to record an assessment."
+              : "You have read-only access."}
           </p>
         ) : (
           <div className="flex gap-3">

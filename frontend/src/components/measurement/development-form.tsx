@@ -19,6 +19,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { fromDevelopmentTarget } from "@/components/new-project/measurement/development-form";
 import { useDevelopmentTarget } from "@/lib/api/metric-targets";
+import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
 import {
   useCreateDevelopmentMeasurement,
   useLatestDevelopmentMeasurement,
@@ -53,6 +54,8 @@ function toValues(data: MeasurementDevelopmentRead): Record<string, string> {
     total_test_cases_designed: str(data.total_test_cases_designed),
     executed_test_cases: str(data.executed_test_cases),
     passed_test_cases: str(data.passed_test_cases),
+    covered_code_elements: str(data.covered_code_elements),
+    total_applicable_code_elements: str(data.total_applicable_code_elements),
   };
   for (const d of data.defects_by_stage) {
     values[`defect_${d.sdlc_stage}_int`] = str(d.internal_defects);
@@ -76,6 +79,8 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementDeve
     total_test_cases_designed: m.total_test_cases_designed || undefined,
     executed_test_cases: m.executed_test_cases || undefined,
     passed_test_cases: m.passed_test_cases || undefined,
+    covered_code_elements: m.covered_code_elements || undefined,
+    total_applicable_code_elements: m.total_applicable_code_elements || undefined,
     defects_by_stage: DEFECT_STAGES.map((stage) => ({
       sdlc_stage: stage,
       internal_defects: Number(m[`defect_${stage}_int`] || 0),
@@ -87,6 +92,7 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementDeve
 export function DevelopmentTab({ projectId }: { projectId: string }) {
   const { data: targetData } = useDevelopmentTarget(projectId);
   const target = targetData ? fromDevelopmentTarget(targetData) : ({} as Record<string, string>);
+  const reference = useMetricReferenceLookup("DEVELOPMENT");
 
   const latestQuery = useLatestDevelopmentMeasurement(projectId);
   const createMutation = useCreateDevelopmentMeasurement(projectId);
@@ -129,7 +135,8 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Productivity"
-            formula="Actual Size ÷ Actual Effort (As on Date)"
+            metricKey="productivity"
+            reference={reference}
             target={num(target.targetProductivity)}
             current={num(latest?.productivity)}
             unit="Size Units / Person-Hour"
@@ -137,7 +144,8 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Effort Variation"
-            formula="(Actual Effort − Planned Effort) ÷ Planned Effort × 100"
+            metricKey="effort_variation_pct"
+            reference={reference}
             target={num(target.targetEffortVariation)}
             current={num(latest?.effort_variation_pct)}
             unit="%"
@@ -146,22 +154,26 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Schedule Performance Index"
-            formula="Actual % Completion ÷ Planned % Completion"
+            metricKey="schedule_performance_index"
+            reference={reference}
             target={num(target.targetSpi)}
             current={num(latest?.schedule_performance_index)}
-            unit="Index (Actual/Planned % Complete)"
+            unit="Index"
             direction="higher-is-better"
           />
           <MetricTile
             label="Cost Performance Index"
-            formula="Not computed — no cost baseline captured on this form"
+            metricKey="cost_performance_index"
+            reference={reference}
             target={num(target.targetCpi)}
             current={num(latest?.cost_performance_index)}
             unit="Index"
+            direction="higher-is-better"
           />
           <MetricTile
             label="Defect Leakage (Int vs Ext)"
-            formula="External Defects ÷ (Internal Defects + External Defects) × 100"
+            metricKey="defect_leakage_pct"
+            reference={reference}
             target={num(target.targetDefectLeakage)}
             current={num(latest?.defect_leakage_pct)}
             unit="%"
@@ -170,7 +182,8 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Test Execution Coverage"
-            formula="# Executed Test Cases ÷ Total Test Cases Designed × 100"
+            metricKey="test_execution_coverage_pct"
+            reference={reference}
             target={num(target.targetExecCoverage)}
             current={num(latest?.test_execution_coverage_pct)}
             unit="%"
@@ -179,7 +192,8 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Test Pass Rate"
-            formula="# Passed Test Cases ÷ # Executed Test Cases × 100"
+            metricKey="test_pass_rate_pct"
+            reference={reference}
             target={num(target.targetPassRate)}
             current={num(latest?.test_pass_rate_pct)}
             unit="%"
@@ -188,10 +202,13 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Code Coverage"
-            formula="Not computed — no coverage-tool feed captured on this form"
+            metricKey="code_coverage_pct"
+            reference={reference}
             target={num(target.targetCodeCoverage)}
             current={num(latest?.code_coverage_pct)}
             unit="%"
+            direction="higher-is-better"
+            digits={1}
           />
         </div>
         </div>
@@ -371,6 +388,30 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
               min={0}
               value={m.passed_test_cases ?? ""}
               onChange={set("passed_test_cases")}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Covered Code Elements" htmlFor="covered-code" hint="From the code-quality tool (optional)">
+            <Input
+              id="covered-code"
+              type="number"
+              min={0}
+              value={m.covered_code_elements ?? ""}
+              onChange={set("covered_code_elements")}
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="Total Applicable Code Elements"
+            htmlFor="total-code"
+            hint="From the code-quality tool (optional)"
+          >
+            <Input
+              id="total-code"
+              type="number"
+              min={0}
+              value={m.total_applicable_code_elements ?? ""}
+              onChange={set("total_applicable_code_elements")}
               className={inputClass}
             />
           </Field>

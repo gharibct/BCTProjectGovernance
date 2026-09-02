@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, ButtonSpinner, MandatoryBadge, Segmented } from "@/components/forms/form-primitives";
-import { useAccounts, useGeos, useUsers } from "@/lib/api/reference-data";
+import { ResourcePicker } from "@/components/forms/resource-picker";
+import { useAccounts, useGeos } from "@/lib/api/reference-data";
 import { useAccountHead, useGeoHead } from "@/lib/api/users";
 import { useProject, useProjects } from "@/lib/api/projects";
 import { useCreateAction, type ActionLevel, type ActionPriority } from "@/lib/api/actions";
@@ -36,7 +37,6 @@ export function ActionCreateView({
   name: string;
   onDone: () => void;
 }) {
-  const { data: users = [] } = useUsers();
   const { data: geos = [] } = useGeos();
   const { data: accounts = [] } = useAccounts();
   const { data: projects = [] } = useProjects();
@@ -175,20 +175,23 @@ export function ActionCreateView({
       </Field>
 
       <Field label="Assign To" htmlFor="action-owner" badge={<MandatoryBadge />}>
-        <NativeSelect
+        <ResourcePicker
           id="action-owner"
-          value={ownerId || derivedOwnerId}
-          onChange={(e) => {
+          value={ownerId || derivedOwnerId || null}
+          onChange={(id) => {
             setOwnerTouched(true);
-            setOwnerId(e.target.value);
+            setOwnerId(id ?? "");
           }}
-        >
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.full_name}
-            </option>
-          ))}
-        </NativeSelect>
+          // Only the session user's own name is known without a lookup; for
+          // anyone else (a derived project PM / geo head, or a picked person)
+          // let the picker resolve the name by id.
+          initialLabel={
+            (ownerId || derivedOwnerId) === sessionUser?.id
+              ? sessionUser?.full_name
+              : undefined
+          }
+          placeholder="Search people…"
+        />
       </Field>
 
       <Field label="Due Date" htmlFor="action-due-date" badge={<MandatoryBadge />} error={errors.due_date}>

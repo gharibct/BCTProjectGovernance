@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/forms/empty-state";
 import { Segmented } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
-import { useUsers } from "@/lib/api/reference-data";
+import { useUsersByIds } from "@/lib/api/reference-data";
 import {
   ACTION_PRIORITY_LABEL,
   ACTION_STATUS_LABEL,
@@ -56,7 +56,8 @@ export function ActionListView({
 }) {
   const [filter, setFilter] = React.useState<Filter>("active");
   const { data: actions = [], isLoading } = useActions(level, id);
-  const { data: users = [] } = useUsers();
+  const ownerIds = React.useMemo(() => actions.map((a) => a.action_by_id), [actions]);
+  const { data: users = [] } = useUsersByIds(ownerIds);
 
   const ownerName = (ownerId: string) => users.find((u) => u.id === ownerId)?.full_name ?? "Unassigned";
   const filtered = actions.filter((a) => matchesFilter(a, filter));

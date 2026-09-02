@@ -14,12 +14,10 @@ type View = "list" | "detail" | "create";
 // unmounts SheetContent on close, so view/selectedId reset for free.
 export function FindingsDrawer({
   projectId,
-  assessmentId,
   projectName,
   findings,
 }: {
   projectId: string;
-  assessmentId: string | null;
   projectName: string;
   findings: DEAssessmentFinding[];
 }) {
@@ -39,33 +37,17 @@ export function FindingsDrawer({
         </SheetDescription>
       </SheetHeader>
       <div className="flex-1 overflow-y-auto">
-        {view === "list" ? (
-          <FindingsListView
-            findings={findings}
-            assessmentId={assessmentId}
-            onSelect={(id) => {
-              setSelectedId(id);
-              setView("detail");
-            }}
-            onCreate={() => setView("create")}
-          />
-        ) : view === "detail" && selected ? (
+        {view === "detail" && selected ? (
           <FindingsDetailView
             projectId={projectId}
-            assessmentId={assessmentId}
             finding={selected}
             onBack={() => setView("list")}
           />
-        ) : view === "create" && assessmentId ? (
-          <FindingsCreateView
-            projectId={projectId}
-            assessmentId={assessmentId}
-            onDone={() => setView("list")}
-          />
+        ) : view === "create" ? (
+          <FindingsCreateView projectId={projectId} onDone={() => setView("list")} />
         ) : (
           <FindingsListView
             findings={findings}
-            assessmentId={assessmentId}
             onSelect={(id) => {
               setSelectedId(id);
               setView("detail");

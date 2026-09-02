@@ -129,7 +129,7 @@ const HEALTH_TONE: Record<string, string> = {
   green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   amber: "bg-amber-50 text-amber-700 ring-amber-200",
   red: "bg-red-50 text-red-700 ring-red-200",
-  "potential red": "bg-red-50 text-red-700 ring-red-200",
+  "potential red": "bg-orange-50 text-orange-700 ring-orange-200",
 };
 
 // RAG-value pill (Green/Amber/Red/Potential Red) — StatusBadge's TONE_MAP

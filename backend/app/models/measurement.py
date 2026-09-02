@@ -28,6 +28,8 @@ class MeasurementDevelopment(Base, UUIDPrimaryKey, TimestampColumns):
     total_test_cases_designed: Mapped[int | None]
     executed_test_cases: Mapped[int | None]
     passed_test_cases: Mapped[int | None]
+    covered_code_elements: Mapped[int | None]
+    total_applicable_code_elements: Mapped[int | None]
 
     # Computed by services.measurement_metrics, read-only in the UI.
     productivity: Mapped[Decimal | None] = mapped_column(Numeric)
@@ -61,12 +63,17 @@ class MeasurementSupport(Base, UUIDPrimaryKey, TimestampColumns):
 
     incidents_p1_count: Mapped[int | None]
     incidents_p1_person_days: Mapped[Decimal | None] = mapped_column(Numeric)
+    incidents_p1_resolved_within_sla_count: Mapped[int | None]
     incidents_p2_count: Mapped[int | None]
     incidents_p2_person_days: Mapped[Decimal | None] = mapped_column(Numeric)
+    incidents_p2_resolved_within_sla_count: Mapped[int | None]
     incidents_p3_count: Mapped[int | None]
     incidents_p3_person_days: Mapped[Decimal | None] = mapped_column(Numeric)
+    incidents_p3_resolved_within_sla_count: Mapped[int | None]
     service_requests_count: Mapped[int | None]
+    service_requests_total_person_days: Mapped[Decimal | None] = mapped_column(Numeric)
     user_clarifications_count: Mapped[int | None]
+    user_clarifications_total_person_days: Mapped[Decimal | None] = mapped_column(Numeric)
     tickets_reopened_count: Mapped[int | None]
     aging_tickets_count: Mapped[int | None]
     first_time_resolutions_count: Mapped[int | None]
@@ -74,7 +81,9 @@ class MeasurementSupport(Base, UUIDPrimaryKey, TimestampColumns):
     incident_sla_compliance_p1_pct: Mapped[Decimal | None] = mapped_column(Numeric)
     incident_sla_compliance_p2_pct: Mapped[Decimal | None] = mapped_column(Numeric)
     incident_sla_compliance_p3_pct: Mapped[Decimal | None] = mapped_column(Numeric)
-    incident_mttr_hours: Mapped[Decimal | None] = mapped_column(Numeric)
+    incident_mttr_p1_hours: Mapped[Decimal | None] = mapped_column(Numeric)
+    incident_mttr_p2_hours: Mapped[Decimal | None] = mapped_column(Numeric)
+    incident_mttr_p3_hours: Mapped[Decimal | None] = mapped_column(Numeric)
     service_request_mttr_hours: Mapped[Decimal | None] = mapped_column(Numeric)
     user_clarification_mttr_hours: Mapped[Decimal | None] = mapped_column(Numeric)
 
@@ -106,8 +115,15 @@ class MeasurementStaffingPriorityMetric(Base, UUIDPrimaryKey):
         ForeignKey("measurement_staffing.id", ondelete="CASCADE")
     )
     priority: Mapped[str]
+    # Deprecated: single per-period value, superseded by the *_total + count
+    # pair below. Kept nullable for historical rows; not written by new logic.
     response_time_hours: Mapped[Decimal | None] = mapped_column(Numeric)
     lead_time_days: Mapped[Decimal | None] = mapped_column(Numeric)
+    response_time_hours_total: Mapped[Decimal | None] = mapped_column(Numeric)
+    requests_responded_count: Mapped[int | None]
+    lead_time_days_total: Mapped[Decimal | None] = mapped_column(Numeric)
+    associates_onboarded_count: Mapped[int | None]
+    # Computed: this period's total / count (Excel formula), read-only in the UI.
     avg_response_time_hours: Mapped[Decimal | None] = mapped_column(Numeric)
     avg_lead_time_days: Mapped[Decimal | None] = mapped_column(Numeric)
 
@@ -122,6 +138,7 @@ class MeasurementTesting(Base, UUIDPrimaryKey, TimestampColumns):
     executed_test_cases: Mapped[int | None]
     passed_test_cases: Mapped[int | None]
     automated_test_cases: Mapped[int | None]
+    automation_eligible_test_cases: Mapped[int | None]
     effort_test_case_design: Mapped[Decimal | None] = mapped_column(Numeric)
     effort_test_execution: Mapped[Decimal | None] = mapped_column(Numeric)
 
@@ -185,6 +202,6 @@ class MeasurementCloudMigration(Base, UUIDPrimaryKey, TimestampColumns):
 
     applications_migrated_pct: Mapped[Decimal | None] = mapped_column(Numeric)
     migration_success_rate_pct: Mapped[Decimal | None] = mapped_column(Numeric)
-    migration_downtime_minutes: Mapped[Decimal | None] = mapped_column(Numeric)
+    migration_downtime_hours: Mapped[Decimal | None] = mapped_column(Numeric)
 
     last_updated_date: Mapped[date | None]

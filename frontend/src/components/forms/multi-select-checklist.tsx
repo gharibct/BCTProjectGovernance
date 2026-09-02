@@ -13,11 +13,13 @@ export function MultiSelectChecklist({
   value,
   onChange,
   emptyLabel,
+  disabled = false,
 }: {
   options: { value: string; label: string }[];
   value: string[];
   onChange: (next: string[]) => void;
   emptyLabel: string;
+  disabled?: boolean;
 }) {
   function toggle(id: string) {
     onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
@@ -27,7 +29,8 @@ export function MultiSelectChecklist({
     <div
       className={cn(
         "flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-200 p-3",
-        options.length === 0 && "items-center justify-center"
+        options.length === 0 && "items-center justify-center",
+        disabled && "opacity-60"
       )}
     >
       {options.length === 0 ? (
@@ -36,13 +39,22 @@ export function MultiSelectChecklist({
         options.map((option) => (
           <label
             key={option.value}
-            className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-slate-50"
+            className={cn(
+              "flex items-center gap-2.5 rounded-md px-2 py-1.5",
+              disabled ? "cursor-not-allowed" : "cursor-pointer hover:bg-slate-50"
+            )}
           >
             <Checkbox
               checked={value.includes(option.value)}
               onCheckedChange={() => toggle(option.value)}
+              disabled={disabled}
             />
-            <Label className="cursor-pointer text-sm font-normal text-slate-700">
+            <Label
+              className={cn(
+                "text-sm font-normal text-slate-700",
+                disabled ? "cursor-not-allowed" : "cursor-pointer"
+              )}
+            >
               {option.label}
             </Label>
           </label>

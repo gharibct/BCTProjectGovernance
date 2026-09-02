@@ -85,9 +85,9 @@ BUSINESS_KEYS: dict[str, tuple[KeyPart, ...]] = {
     "contractual_commitment_actuals": (Ref("commitment_id"), Local("period_date")),
     "milestone_payments": (Ref("project_id"), Local("milestone_name")),  # practical, not DB-unique
     "milestone_payment_actuals": (Ref("milestone_id"),),
-    "de_assessments": (Ref("project_id"), Local("assessment_date")),
+    "de_assessments": (Ref("project_id"), Local("assessment_date")),  # practical, not DB-unique (multiple assessments per day allowed)
     "de_assessment_alerts": (Local("alert_code"),),
-    "de_assessment_findings": (Ref("assessment_id"), Local("sequence_no")),
+    "de_assessment_findings": (Ref("project_id"), Local("sequence_no")),
     "data_integrity_checklist_items": (Local("module_name"), Local("item_name")),
     "integration_connections": (Local("integration_name"),),
     "account_status_reports": (Ref("account_id"), Ref("period_id")),

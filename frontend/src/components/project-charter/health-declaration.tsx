@@ -2,17 +2,11 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Activity, HeartPulse } from "lucide-react";
+import { HeartPulse } from "lucide-react";
 
 import { EmptyState } from "@/components/forms/empty-state";
-import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
-import {
-  useProject,
-  useUpdateProject,
-  type ApplicablePhase,
-  type ProjectStatus,
-} from "@/lib/api/projects";
+import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { currentPeriod } from "@/lib/period-utils";
 import {
@@ -25,7 +19,6 @@ import {
 import { HEALTH_CATEGORIES } from "@/lib/health-categories";
 import { HealthItemsTab } from "./health-items-tab";
 
-import { Field, SectionCard } from "@/components/forms/form-primitives";
 import { usePageBanner } from "@/stores/page-banner";
 
 export type HealthRating = "green" | "amber" | "potential-red" | "red";
@@ -65,25 +58,6 @@ export const HEALTH_LEVELS: {
     pillClass: "bg-red-50 text-red-700 ring-red-200",
     dotClass: "bg-red-500",
   },
-];
-
-const APPLICABLE_PHASES: ApplicablePhase[] = [
-  "Requirement",
-  "Design",
-  "CUT",
-  "Build & Deployment",
-  "Testing",
-  "UAT",
-  "Warranty",
-  "Support",
-];
-
-const PROJECT_STATUSES: ProjectStatus[] = [
-  "Draft",
-  "Approved",
-  "Hold",
-  "Closed",
-  "Open Only for Billing",
 ];
 
 export const CATEGORIES = [
@@ -186,7 +160,6 @@ export function useHealthDeclarationForm() {
   const { data: declarations } = useHealthDeclarations(projectId);
   const createDeclaration = useCreateHealthDeclaration(projectId);
   const updateDeclaration = useUpdateHealthDeclaration(projectId);
-  const updateProject = useUpdateProject(projectId);
 
   // RAG Status is part of both Weekly and Monthly reporting — it follows
   // whichever period is selected (?period=, forwarded by ProjectNav same as
@@ -206,18 +179,6 @@ export function useHealthDeclarationForm() {
       setRatings(seeded.ratings);
     } else {
       setRatings(DEFAULT_RATINGS);
-    }
-  }
-
-  const [applicablePhase, setApplicablePhase] = React.useState<ApplicablePhase | "">("");
-  const [projectStatus, setProjectStatus] = React.useState<ProjectStatus | "">("");
-  const [syncedProjectFor, setSyncedProjectFor] = React.useState<string | null>(null);
-  const projectKey = project ? project.id : projectId ? null : "none";
-  if (projectKey !== null && projectKey !== syncedProjectFor) {
-    setSyncedProjectFor(projectKey);
-    if (project) {
-      setApplicablePhase(project.applicable_phase ?? "");
-      setProjectStatus(project.project_status ?? "");
     }
   }
 
@@ -246,15 +207,11 @@ export function useHealthDeclarationForm() {
         financial_rating: RATING_TO_API[ratings.financial],
         compliance_rating: RATING_TO_API[ratings.compliance],
       };
-      await Promise.all([
-        existing
-          ? updateDeclaration.mutateAsync({ id: existing.id, payload: fields })
-          : createDeclaration.mutateAsync({ period_id: periodId, ...fields }),
-        updateProject.mutateAsync({
-          applicable_phase: applicablePhase || undefined,
-          project_status: projectStatus || undefined,
-        }),
-      ]);
+      if (existing) {
+        await updateDeclaration.mutateAsync({ id: existing.id, payload: fields });
+      } else {
+        await createDeclaration.mutateAsync({ period_id: periodId, ...fields });
+      }
       showSuccess("RAG Status Saved Successfully");
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to save self assessment.");
@@ -267,10 +224,6 @@ export function useHealthDeclarationForm() {
     projectId,
     ratings,
     setRating,
-    applicablePhase,
-    setApplicablePhase,
-    projectStatus,
-    setProjectStatus,
     declaredOverall,
     deAssessedHealth,
     overall,
@@ -338,7 +291,7 @@ export function HealthDeclaration({
 }: {
   form: ReturnType<typeof useHealthDeclarationForm>;
 }) {
-  const { ratings, setRating, applicablePhase, setApplicablePhase, projectStatus, setProjectStatus } = form;
+  const { ratings, setRating } = form;
   const [tab, setTab] = React.useState<(typeof HEALTH_CATEGORIES)[number]["label"]>(HEALTH_CATEGORIES[0].label);
   const activeTab = HEALTH_CATEGORIES.find((t) => t.label === tab)!;
   const activeCategory = CATEGORIES.find((c) => c.name === activeTab.category)!;
@@ -351,39 +304,6 @@ export function HealthDeclaration({
 
   return (
     <div className="flex flex-col gap-8">
-      <SectionCard icon={Activity} title="Treatment">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Applicable Phase" htmlFor="applicable-phase">
-            <NativeSelect
-              id="applicable-phase"
-              value={applicablePhase}
-              onChange={(e) => setApplicablePhase(e.target.value as ApplicablePhase)}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {APPLICABLE_PHASES.map((phase) => (
-                <option key={phase}>{phase}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field label="Project Status" htmlFor="project-status">
-            <NativeSelect
-              id="project-status"
-              value={projectStatus}
-              onChange={(e) => setProjectStatus(e.target.value as ProjectStatus)}
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {PROJECT_STATUSES.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-        </div>
-      </SectionCard>
-
       <div>
         <div className="flex items-center gap-3 pb-4 text-lg font-bold text-slate-900">
           <HeartPulse className="size-5 text-slate-700" />

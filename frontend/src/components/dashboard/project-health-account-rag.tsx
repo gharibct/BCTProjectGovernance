@@ -61,9 +61,14 @@ export function ProjectHealthAccountRag() {
         }}
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <StatTile label="Green" value={summary?.account_health.green_count ?? "—"} accentClassName="border-t-emerald-500" />
         <StatTile label="Amber" value={summary?.account_health.amber_count ?? "—"} accentClassName="border-t-amber-500" />
+        <StatTile
+          label="Potential Red"
+          value={summary?.account_health.potential_red_count ?? "—"}
+          accentClassName="border-t-orange-500"
+        />
         <StatTile label="Red" value={summary?.account_health.red_count ?? "—"} accentClassName="border-t-red-500" />
         <StatTile
           label="Reporting Overdue"

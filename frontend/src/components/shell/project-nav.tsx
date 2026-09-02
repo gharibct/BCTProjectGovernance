@@ -10,7 +10,6 @@ import {
   ClipboardList,
   FileText,
   LayoutGrid,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 
@@ -60,13 +59,6 @@ function buildGroups(base: string): NavGroup[] {
       ],
     },
     {
-      heading: "Delivery Excellence",
-      icon: ShieldCheck,
-      items: [
-        { label: "DE Assessment", href: `${base}/de-assessment`, done: false },
-      ],
-    },
-    {
       heading: "AI Hub",
       icon: Sparkles,
       // Not a period-completion task like the groups above, so there's no
@@ -82,13 +74,12 @@ function buildGroups(base: string): NavGroup[] {
 // Each period type reports on only a slice of buildGroups(). Weekly covers
 // Project Status and RAG Status; Monthly covers the three baseline registers
 // (Measurement, Contractual Compliance, RAIDO). Neither touches the Project
-// Charter or Delivery Excellence groups, so both are dropped; the standalone
-// Project Dashboard link and the AI Hub group stay in both.
+// Charter group, so it's dropped; the standalone Project Dashboard link and the
+// AI Hub group stay in both. (DE Assessment is no longer part of project
+// reporting — it lives at the top-level /de-assessment for the DE role.)
 function weeklyGroups(groups: NavGroup[]): NavGroup[] {
   return groups
-    .filter(
-      (group) => group.heading !== "Delivery Excellence" && group.heading !== "Project Charter",
-    )
+    .filter((group) => group.heading !== "Project Charter")
     .map((group) =>
       group.heading === "Report Project"
         ? {
@@ -109,9 +100,7 @@ const MONTHLY_REPORTING_ITEMS = new Set([
 
 function monthlyGroups(groups: NavGroup[]): NavGroup[] {
   return groups
-    .filter(
-      (group) => group.heading !== "Delivery Excellence" && group.heading !== "Project Charter",
-    )
+    .filter((group) => group.heading !== "Project Charter")
     .map((group) =>
       group.heading === "Report Project"
         ? { ...group, items: group.items.filter((item) => MONTHLY_REPORTING_ITEMS.has(item.label)) }

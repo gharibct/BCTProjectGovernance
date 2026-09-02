@@ -68,7 +68,7 @@ class DEAssessmentFindingUpdate(BaseModel):
 class DEAssessmentFindingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    assessment_id: UUID
+    project_id: UUID
     sequence_no: int
     classification: FindingClassification
     description: str | None = None
@@ -96,9 +96,10 @@ class DEAssessmentCreate(BaseModel):
     """Header only — Alerts and Findings are added afterward, one at a time,
     via their own registers (POST .../alerts, POST .../findings).
 
-    status defaults to Submitted so the legacy project-reporting form (which
-    only ever POSTs a finished assessment) is unaffected; the DE Assessment
-    Workspace passes status="Draft" for Save Draft.
+    `assessed_by` is always taken from the session, never the payload. status
+    defaults to Submitted so the charter DE Assessment form (which only ever
+    POSTs a finished assessment) is unaffected; the DE Assessment Workspace
+    passes status="Draft" for Save Draft.
     """
 
     assessment_date: date | None = None
@@ -107,13 +108,13 @@ class DEAssessmentCreate(BaseModel):
     remarks: str | None = None
     status: DEAssessmentStatus = DEAssessmentStatus.SUBMITTED
     next_assessment_due_date: date | None = None
-    assessed_by: UUID | None = None
 
 
 class DEAssessmentUpdate(BaseModel):
     """Editing a Draft. Rejected once the assessment is Submitted. Transitioning
     status to Submitted finalizes it (writes back the Project charter health)."""
 
+    assessment_date: date | None = None
     de_assessed_project_health: HealthRating | None = None
     pci_score: Decimal | None = None
     remarks: str | None = None
@@ -137,4 +138,5 @@ class DEAssessmentRead(BaseModel):
 
 class DEAssessmentReadWithDetails(DEAssessmentRead):
     alerts: list[DEAssessmentAlertRead] = []
-    findings: list[DEAssessmentFindingRead] = []
+    # Findings are no longer nested here — they're a project-level register,
+    # fetched via GET /projects/{project_id}/de-assessment-findings.

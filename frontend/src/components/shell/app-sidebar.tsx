@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   Eye,
+  FileSearch,
   FolderOpen,
   Globe,
   HeartPulse,
@@ -29,7 +30,7 @@ import { ROLE_MENUS, type MenuEntryId } from "@/lib/menu-config";
 import { useSession } from "@/stores/session";
 
 const itemClass =
-  "flex items-center gap-3.5 rounded-lg px-4 py-3 text-sm font-semibold text-white transition-colors";
+  "flex w-full items-center justify-start gap-3.5 rounded-lg px-4 py-2.5 text-left text-[13px] font-semibold text-white transition-colors";
 const activeClass = "bg-[#3f8ce0]";
 const idleClass = "hover:bg-white/10";
 
@@ -98,10 +99,18 @@ function SimpleLink({
 
 // A project counts as "Approved" once it's past Pending Approval — Draft and
 // Pending Approval are still being set up (Maintain Project); Approved
-// onward (Approved/Hold/Closed/Open Only for Billing) is what the DE Project
-// Approval screen produces and is what Project Reporting reports on.
+// onward (Approved/Under Amendment/Ongoing/Hold/Closed/Open Only for Billing)
+// is what the DE Project Approval screen produces and is what Amend Project
+// operates on.
 function isApproved(status: Project["project_status"]): boolean {
   return status !== "Draft" && status !== "Pending Approval";
+}
+
+// Report Project Status is narrower than isApproved: a project mid-revision
+// (Under Amendment) is back in the charter-editing flow, not a live project
+// to report on, so it's excluded here (it still shows under Amend Project).
+function canReport(status: Project["project_status"]): boolean {
+  return isApproved(status) && status !== "Under Amendment";
 }
 
 // Shared renderer for every project list in the sidebar: shows the project
@@ -224,6 +233,7 @@ export function AppSidebar() {
 
   const maintainProjects = patchProjects.filter((p) => !isApproved(p.project_status));
   const reportingProjects = patchProjects.filter((p) => isApproved(p.project_status));
+  const statusReportProjects = patchProjects.filter((p) => canReport(p.project_status));
 
   const inPatchAccounts = (id: string | null | undefined) =>
     !id ? false : patchAccountIds === null || patchAccountIds.has(id);
@@ -250,11 +260,11 @@ export function AppSidebar() {
   // active — no separate client-side intent flag to keep in sync.
   const routeProjectId = isNewProject ? pathname.split("/")[2] : undefined;
   const isMaintaining = isNewProject && routeProjectId !== NEW_PROJECT_SEGMENT;
-  // "Maintain Project" and "Amend Project" both link into
-  // /new-project/{id}/project-charter, so isMaintaining alone can't tell
-  // which of the two panels the open project actually belongs to.
-  const activeMaintainProject = isMaintaining ? projects.find((p) => p.id === routeProjectId) : undefined;
-  const isViewAmend = isMaintaining && !!activeMaintainProject && isApproved(activeMaintainProject.project_status);
+  // Amend Project is its own route tree (mirrors /project-reporting), so
+  // "Maintain" vs "Amend" is now a plain path-prefix check — no status
+  // disambiguation needed.
+  const isAmendProject = pathname.startsWith("/amend-project");
+  const amendProjectId = isAmendProject ? pathname.split("/")[2] : undefined;
   // /project-reporting/{projectId}(/...) — every project-reporting route is
   // nested under a :projectId segment, including the hub page itself.
   const reportingProjectId = isProjectReporting ? pathname.split("/")[2] : undefined;
@@ -298,9 +308,9 @@ export function AppSidebar() {
   );
   const isGeoHead = effectiveRole === "GEO_HEAD";
 
-  // Account Manager wants "Project Dashboard" last instead of grouped with
-  // the other one-click Dashboard shortcuts up top (where Project Manager
-  // and Admin keep it).
+  // Account Manager and Project Manager want "Project Dashboard" last instead
+  // of grouped with the other one-click Dashboard shortcuts up top (where
+  // Admin keeps it).
   const projectDashboardGroup = (
     <CollapsibleGroup icon={ClipboardCheck} label="Project Dashboard" active={isProjectReview} defaultOpen={isProjectReview}>
       <ProjectNavList
@@ -312,6 +322,9 @@ export function AppSidebar() {
     </CollapsibleGroup>
   );
   const isAccountManager = effectiveRole === "ACCOUNT_MANAGER";
+  // Project Manager also wants "Project Dashboard" last — see the Account
+  // Manager comment above the group's definition.
+  const isProjectManager = effectiveRole === "PROJECT_MANAGER";
 
   return (
     <aside className="w-64 shrink-0 bg-[#1a4a7a] py-6">
@@ -357,6 +370,14 @@ export function AppSidebar() {
             icon={ClipboardCheck}
             label="DE Assessment"
             active={pathname.startsWith("/de-assessment")}
+          />
+        ) : null}
+        {has("de-findings") ? (
+          <SimpleLink
+            href="/de-findings"
+            icon={FileSearch}
+            label="DE Findings"
+            active={pathname.startsWith("/de-findings")}
           />
         ) : null}
         {has("pmo-dashboard") ? (
@@ -412,9 +433,57 @@ export function AppSidebar() {
           <SimpleLink
             href="/new-project/new/create"
             icon={Plus}
-            label="New Project"
+            label="Create Project"
             active={isNewProject && !isMaintaining}
           />
+        ) : null}
+
+        {has("maintain-project") ? (
+          <CollapsibleGroup
+            icon={Wrench}
+            label="Provide Project Details"
+            active={isMaintaining}
+            defaultOpen={isMaintaining}
+          >
+            <ProjectNavList
+              projects={maintainProjects}
+              activeId={isMaintaining ? routeProjectId : undefined}
+              hrefFor={(project) => `/new-project/${project.id}/project-charter`}
+              emptyLabel="No projects yet."
+            />
+          </CollapsibleGroup>
+        ) : null}
+
+        {has("view-amend-projects") ? (
+          <CollapsibleGroup
+            icon={Eye}
+            label="Amend Project Details"
+            active={isAmendProject}
+            defaultOpen={isAmendProject}
+          >
+            <ProjectNavList
+              projects={reportingProjects}
+              activeId={amendProjectId}
+              hrefFor={(project) => `/amend-project/${project.id}/project-charter`}
+              emptyLabel="No approved projects yet."
+            />
+          </CollapsibleGroup>
+        ) : null}
+
+        {has("project-reporting") ? (
+          <CollapsibleGroup
+            icon={FolderOpen}
+            label="Report Project Status"
+            active={isProjectReporting}
+            defaultOpen={isProjectReporting}
+          >
+            <ProjectNavList
+              projects={statusReportProjects}
+              activeId={reportingProjectId}
+              hrefFor={(project) => `/project-reporting/${project.id}`}
+              emptyLabel="No approved projects yet."
+            />
+          </CollapsibleGroup>
         ) : null}
 
         {has("geo-review") ? (
@@ -445,7 +514,7 @@ export function AppSidebar() {
 
         {has("account-review") && !isGeoHead ? accountDashboardGroup : null}
 
-        {has("project-review") && !isAccountManager ? projectDashboardGroup : null}
+        {has("project-review") && !isAccountManager && !isProjectManager ? projectDashboardGroup : null}
 
         {has("account-reporting") ? (
           <CollapsibleGroup
@@ -511,54 +580,6 @@ export function AppSidebar() {
 
         {has("account-review") && isGeoHead ? accountDashboardGroup : null}
 
-        {has("maintain-project") ? (
-          <CollapsibleGroup
-            icon={Wrench}
-            label="Maintain Project"
-            active={isMaintaining && !isViewAmend}
-            defaultOpen={isMaintaining && !isViewAmend}
-          >
-            <ProjectNavList
-              projects={maintainProjects}
-              activeId={isMaintaining ? routeProjectId : undefined}
-              hrefFor={(project) => `/new-project/${project.id}/project-charter`}
-              emptyLabel="No projects yet."
-            />
-          </CollapsibleGroup>
-        ) : null}
-
-        {has("project-reporting") ? (
-          <CollapsibleGroup
-            icon={FolderOpen}
-            label="Report Project"
-            active={isProjectReporting}
-            defaultOpen={isProjectReporting}
-          >
-            <ProjectNavList
-              projects={reportingProjects}
-              activeId={reportingProjectId}
-              hrefFor={(project) => `/project-reporting/${project.id}`}
-              emptyLabel="No approved projects yet."
-            />
-          </CollapsibleGroup>
-        ) : null}
-
-        {has("view-amend-projects") ? (
-          <CollapsibleGroup
-            icon={Eye}
-            label="Amend Project"
-            active={isViewAmend}
-            defaultOpen={isViewAmend}
-          >
-            <ProjectNavList
-              projects={reportingProjects}
-              activeId={isMaintaining ? routeProjectId : undefined}
-              hrefFor={(project) => `/new-project/${project.id}/project-charter`}
-              emptyLabel="No approved projects yet."
-            />
-          </CollapsibleGroup>
-        ) : null}
-
         {has("system-health") ? (
           <Link href="#" className={cn(itemClass, idleClass)}>
             <ChartColumn className="size-5 shrink-0" />
@@ -584,7 +605,16 @@ export function AppSidebar() {
           />
         ) : null}
 
-        {has("project-review") && isAccountManager ? projectDashboardGroup : null}
+        {has("project-review") && (isAccountManager || isProjectManager) ? projectDashboardGroup : null}
+
+        {has("pm-findings") ? (
+          <SimpleLink
+            href="/pm-findings"
+            icon={FileSearch}
+            label="Findings"
+            active={pathname.startsWith("/pm-findings")}
+          />
+        ) : null}
       </nav>
     </aside>
   );

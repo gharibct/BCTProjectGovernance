@@ -13,7 +13,7 @@ import type { HealthRating } from "@/lib/api/projects";
 
 const HEALTH_BADGE_CLASS: Record<HealthRating, string> = {
   Red: "bg-red-50 text-red-700 ring-red-200",
-  "Potential Red": "bg-red-50 text-red-700 ring-red-200",
+  "Potential Red": "bg-orange-50 text-orange-700 ring-orange-200",
   Amber: "bg-amber-50 text-amber-700 ring-amber-200",
   Green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
 };
@@ -29,7 +29,7 @@ function HealthBadge({ health }: { health: HealthRating | null }) {
         HEALTH_BADGE_CLASS[health]
       )}
     >
-      {health === "Potential Red" ? "Red" : health}
+      {health}
     </span>
   );
 }

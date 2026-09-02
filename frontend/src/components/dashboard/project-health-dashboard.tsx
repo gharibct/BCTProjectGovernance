@@ -60,23 +60,26 @@ function SectionHeader({
   );
 }
 
-// Compact Green/Amber/Red/Overdue count strip shared by the Project Health
-// and Account Health cards — kept small so all three cards sit in one row.
+// Compact Green/Amber/Pot. Red/Red/Overdue count strip shared by the Project
+// Health and Account Health cards — kept small so all three cards sit in one row.
 function RagCounts({
   green,
   amber,
+  potentialRed,
   red,
   overdue,
 }: {
   green: React.ReactNode;
   amber: React.ReactNode;
+  potentialRed: React.ReactNode;
   red: React.ReactNode;
   overdue: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-4 gap-1.5">
+    <div className="grid grid-cols-5 gap-1">
       <RagCell label="Green" value={green} className="border-emerald-100 bg-emerald-50 text-emerald-700" valueClassName="text-emerald-600" />
       <RagCell label="Amber" value={amber} className="border-amber-100 bg-amber-50 text-amber-700" valueClassName="text-amber-500" />
+      <RagCell label="Pot. Red" value={potentialRed} className="border-orange-100 bg-orange-50 text-orange-700" valueClassName="text-orange-600" />
       <RagCell label="Red" value={red} className="border-red-100 bg-red-50 text-red-700" valueClassName="text-red-600" />
       <RagCell label="Overdue" value={overdue} className="border-slate-200 bg-slate-50 text-slate-500" valueClassName="text-slate-900" />
     </div>
@@ -170,6 +173,7 @@ export function ProjectHealthDashboard() {
               <RagCounts
                 green={data.health.green_count}
                 amber={data.health.amber_count}
+                potentialRed={data.health.potential_red_count}
                 red={data.health.red_count}
                 overdue={data.health.reporting_overdue_count}
               />
@@ -185,6 +189,7 @@ export function ProjectHealthDashboard() {
               <RagCounts
                 green={data.account_health.green_count}
                 amber={data.account_health.amber_count}
+                potentialRed={data.account_health.potential_red_count}
                 red={data.account_health.red_count}
                 overdue={data.account_health.reporting_overdue_count}
               />

@@ -9,6 +9,9 @@ from app.schemas.enums import StaffingPriority
 
 
 class MetricTargetDevelopmentIn(BaseModel):
+    target_size_unit: str | None = None
+    target_overall_planned_size: Decimal | None = None
+    target_overall_estimated_effort: Decimal | None = None
     target_productivity: Decimal | None = None
     target_effort_variation_pct: Decimal | None = None
     target_schedule_performance_index: Decimal | None = None
@@ -127,7 +130,7 @@ class MetricTargetCloudMaintenanceRead(MetricTargetCloudMaintenanceIn):
 class MetricTargetCloudMigrationIn(BaseModel):
     target_applications_migrated_pct: Decimal | None = None
     target_migration_success_rate_pct: Decimal | None = None
-    target_migration_downtime_minutes: Decimal | None = None
+    target_migration_downtime_hours: Decimal | None = None
 
 
 class MetricTargetCloudMigrationRead(MetricTargetCloudMigrationIn):

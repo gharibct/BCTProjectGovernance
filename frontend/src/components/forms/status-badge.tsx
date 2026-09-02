@@ -29,6 +29,7 @@ const TONE_MAP: Record<string, string> = {
   "open only for billing": "bg-slate-100 text-slate-600 ring-slate-200",
   pending: "bg-amber-50 text-amber-700 ring-amber-200",
   "pending approval": "bg-amber-50 text-amber-700 ring-amber-200",
+  "under amendment": "bg-violet-50 text-violet-700 ring-violet-200",
   "awaiting review": "bg-amber-50 text-amber-700 ring-amber-200",
   "in review": "bg-blue-50 text-[#1a6fc4] ring-blue-200",
   returned: "bg-red-50 text-red-700 ring-red-200",

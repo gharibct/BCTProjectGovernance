@@ -1,0 +1,296 @@
+# Single source of truth for the Measurement-tab "how this metric is
+# calculated" popup (Unit / Formula / Operational Definition / Benchmark
+# Value). Transcribed verbatim from "Project Governance Tool Requirement
+# _240726_Metrics_Updated 3.xlsx", sheet "Measurement".
+#
+# Keyed by the project_types.code strings (see db/seed_dev.sql). Each metric's
+# `key` matches the backend's computed-field name in
+# app/services/measurement_metrics.py / the Measurement*Read schema — for a
+# metric reported per-priority (Support's SLA/MTTR, Staffing's response/lead
+# time), one entry here covers every priority's tile, since the Excel sheet
+# itself has one row per metric with "(P1/P2/P3)" folded into the label.
+#
+# See app/services/measurement_metrics.py for the formula-correction notes —
+# each corrected metric is called out there at its compute site.
+
+DEVELOPMENT:
+  has_excel_reference: true
+  metrics:
+    - key: productivity
+      label: Productivity
+      unit: Size/Person-Day
+      mandatory: true
+      formula: "Actual Size / Actual Effort (person-days)"
+      operational_definition: >-
+        Delivery output completed and accepted per person-day. Use one
+        consistent sizing method (CP, FP, LOC or approved alternative) for
+        planned and actual values.
+      benchmark_value: "Within -0.4 to 5 CP/Manday. 0.45 CP/Manday"
+
+    - key: effort_variation_pct
+      label: Effort Variation
+      unit: "%"
+      mandatory: true
+      formula: "((Actual Effort - Estimated Effort) / Estimated Effort) x 100"
+      operational_definition: >-
+        Percentage deviation of final or forecast actual effort from the
+        approved estimate. Positive values indicate overrun; negative values
+        indicate underrun.
+      benchmark_value: "Within -10% to +10%; investigate when absolute variation exceeds 10%."
+
+    - key: schedule_performance_index
+      label: Schedule Performance Index (SPI)
+      unit: No Unit
+      mandatory: true
+      formula: "Earned Value (EV) / Planned Value (PV)"
+      operational_definition: >-
+        Schedule efficiency as of the reporting date. EV is budgeted effort
+        for work completed; PV is budgeted effort planned to be completed.
+      benchmark_value: "Green: >= 0.95; Amber: 0.90-0.94; Red: < 0.90. Values > 1.00 indicate ahead of plan."
+
+    - key: cost_performance_index
+      label: Cost Performance Index (CPI)
+      unit: No Unit
+      mandatory: true
+      formula: "Earned Value (EV) / Actual Cost (AC)"
+      operational_definition: >-
+        Cost efficiency as of the reporting date. Where cost data is
+        unavailable, approved effort-hours may be used consistently as the
+        cost proxy.
+      benchmark_value: "Green: >= 0.95; Amber: 0.90-0.94; Red: < 0.90. Values > 1.00 indicate favorable efficiency."
+
+    - key: defect_leakage_pct
+      label: Defect Leakage (Internal Vs External)
+      unit: "%"
+      mandatory: true
+      formula: "External Defects / (Internal Defects + External Defects) x 100"
+      operational_definition: >-
+        Proportion of total defects detected after release to UAT, customer
+        validation or production, based on the project's agreed
+        internal/external defect boundary.
+      benchmark_value: "<= 5%; stretch target <= 3%."
+
+    - key: code_coverage_pct
+      label: Code Coverage (Tool Based)
+      unit: "%"
+      mandatory: false
+      formula: "Covered Code Elements / Total Applicable Code Elements x 100"
+      operational_definition: >-
+        Percentage of applicable source-code statements, branches or lines
+        executed by automated tests, using the approved code-quality tool and
+        stated coverage type.
+      benchmark_value: ">= 80% overall and >= 90% for critical modules; no reduction below contractual target."
+
+    - key: test_execution_coverage_pct
+      label: "Test Execution Coverage (%)"
+      unit: "%"
+      mandatory: true
+      formula: "Executed Test Cases / Planned Test Cases x 100"
+      operational_definition: >-
+        Percentage of approved in-scope test cases executed during the
+        reporting cycle or test phase.
+      benchmark_value: ">= 95% by test-cycle closure; 100% for critical and committed test cases."
+
+    - key: test_pass_rate_pct
+      label: "Test Pass Rate (%)"
+      unit: "%"
+      mandatory: true
+      formula: "Passed Test Cases / Executed Test Cases x 100"
+      operational_definition: >-
+        Percentage of executed test cases with Pass status, excluding blocked
+        or not-run cases from the denominator.
+      benchmark_value: ">= 95% overall and 100% for critical business scenarios before release."
+
+SUPPORT:
+  has_excel_reference: true
+  metrics:
+    - key: incident_sla_compliance_pct
+      label: "Incident (P1/P2/P3) - SLA Compliance %"
+      unit: "%"
+      formula: "Incidents Resolved Within SLA / Total SLA-Applicable Incidents x 100"
+      operational_definition: >-
+        Percentage of SLA-applicable incidents resolved within the applicable
+        priority-specific contractual resolution time. Report separately for
+        P1, P2 and P3.
+      benchmark_value: "P1 >= 99%; P2 >= 98%; P3 >= 95%, or the higher contractual SLA."
+
+    - key: incident_mttr_hours
+      label: Incident (P1/P2/P3) - MTTR
+      unit: "Person-Hours / # of Incidents"
+      formula: "Total Incident Resolution Time / Number of Resolved Incidents"
+      operational_definition: >-
+        Average elapsed time from incident logging to restoration/resolution,
+        excluding only formally approved SLA pause periods. Report by
+        priority.
+      benchmark_value: "P1 <= 4 hours; P2 <= 8 hours; P3 <= 24 hours, or within contractual MTTR."
+
+    - key: service_request_mttr_hours
+      label: Service Request - MTTR
+      unit: "Person-Hours / # of SR"
+      formula: "Total Service Request Fulfilment Time / Number of Fulfilled Service Requests"
+      operational_definition: >-
+        Average elapsed time from service-request logging to fulfilment,
+        excluding formally approved waiting or hold periods.
+      benchmark_value: "<= 2 business days overall, or within the priority/category-specific contractual target."
+
+    - key: user_clarification_mttr_hours
+      label: User Clarification- MTTR
+      unit: "Person-Hours / # of UC"
+      formula: "Total Clarification Resolution Time / Number of Closed User Clarifications"
+      operational_definition: >-
+        Average elapsed time from clarification logging to provision and
+        acceptance of a complete response, excluding approved customer-wait
+        time.
+      benchmark_value: "<= 1 business day overall; critical clarification response <= 4 business hours."
+
+PROFESSIONAL_STAFFING:
+  has_excel_reference: true
+  metrics:
+    - key: avg_response_time_hours
+      label: Average Response Time to a request for resources
+      unit: "Person-Hours / # of Resource Request"
+      formula: "Sum of First Response Times / Number of Resource Requests"
+      operational_definition: >-
+        Average elapsed time from receipt of a complete resource request to
+        the first qualified response or acknowledgement. Calculate
+        separately by priority.
+      benchmark_value: "P1 <= 4 hours; P2 <= 8 hours; P3 <= 1 business day; P4 <= 2 business days."
+
+    - key: pct_profiles_qualifying
+      label: "Percentage of profiles that Qualify for Client Submissions (Profile submission vs Client Interview )"
+      unit: "%"
+      formula: "Profiles Progressing to Client Interview / Profiles Submitted x 100"
+      operational_definition: >-
+        Percentage of submitted candidate profiles accepted by the client for
+        interview; measures quality and fit of profile screening.
+      benchmark_value: ">= 60%; stretch target >= 70%."
+
+    - key: pct_candidates_joining
+      label: "Percentage of candidates that result in Joining  (Interview Selects v Joined)"
+      unit: "%"
+      formula: "Associates Joined / Interview Selects x 100"
+      operational_definition: >-
+        Percentage of candidates selected after interview who complete
+        onboarding and join within the agreed validity period.
+      benchmark_value: ">= 85%; stretch target >= 90%."
+
+    - key: avg_lead_time_days
+      label: Lead Time -  Resource Request to Onboarding
+      unit: "Person-Days / # of Onboarding"
+      formula: "Sum of (Onboarding Date - Request Date) / Number of Associates Onboarded"
+      operational_definition: >-
+        Average elapsed business days from receipt of a complete and approved
+        resource request to associate onboarding. Report separately by
+        priority.
+      benchmark_value: "P1 <= 10 business days; P2 <= 15; P3 <= 20; P4 <= 30, subject to skill scarcity and contract."
+
+TESTING:
+  has_excel_reference: true
+  metrics:
+    - key: test_execution_coverage_pct
+      label: "Test Execution Coverage  (%)"
+      unit: "%"
+      formula: "Executed Test Cases / Planned Test Cases x 100"
+      operational_definition: >-
+        Percentage of approved in-scope test cases executed in the test cycle
+        or reporting period.
+      benchmark_value: ">= 95% by cycle closure; 100% for critical and committed scenarios."
+
+    - key: test_pass_rate_pct
+      label: "Test Pass Rate (%)"
+      unit: "%"
+      formula: "Passed Test Cases / Executed Test Cases x 100"
+      operational_definition: >-
+        Percentage of executed test cases with Pass status; blocked and
+        not-run cases are excluded from the denominator and reported
+        separately.
+      benchmark_value: ">= 95% overall; 100% for critical scenarios before sign-off."
+
+    - key: automation_coverage_pct
+      label: "Automation Coverage (%)"
+      unit: "%"
+      formula: "Automated Test Cases / Automation-Eligible Test Cases x 100"
+      operational_definition: >-
+        Percentage of technically and economically automation-eligible
+        regression test cases implemented and successfully executable
+        through approved automation tools.
+      benchmark_value: ">= 70% of eligible regression suite; >= 80% for stable critical regression flows."
+
+    - key: test_design_productivity
+      label: Test Design Productivity
+      unit: "# of Test Case Designed/ Person-Days"
+      formula: "Test Cases Designed / Test Design Effort (person-days)"
+      operational_definition: >-
+        Number of reviewed and baselined test cases designed per person-day,
+        including required test data and traceability.
+      benchmark_value: ">= approved organizational baseline; initial planning range 8-12 test cases/person-day."
+
+    - key: test_execution_productivity
+      label: Test Execution Productivity
+      unit: "# of Executed Test Cases/ Person-Days"
+      formula: "Executed Test Cases / Test Execution Effort (person-days)"
+      operational_definition: >-
+        Number of test cases executed and evidence recorded per person-day.
+        Re-runs should be identified separately to avoid double counting.
+      benchmark_value: ">= approved organizational baseline; initial planning range 15-25 test cases/person-day."
+
+CLOUD_MAINTENANCE:
+  has_excel_reference: true
+  metrics:
+    - key: service_availability_pct
+      label: "Service Availability (%)"
+      unit: "%"
+      formula: "(Total Scheduled Service Time - Service Downtime) / Total Scheduled Service Time x 100"
+      operational_definition: >-
+        Percentage of agreed service hours during which the cloud service is
+        available, excluding only approved maintenance windows where
+        permitted by contract.
+      benchmark_value: ">= 99.9% monthly, or the higher contractual target."
+
+    - key: application_availability_pct
+      label: "Application Availability (%)"
+      unit: "%"
+      formula: "(Total Scheduled Application Time - Application Downtime) / Total Scheduled Application Time x 100"
+      operational_definition: >-
+        Percentage of agreed service hours during which the application is
+        usable end-to-end, excluding only approved maintenance windows where
+        permitted.
+      benchmark_value: ">= 99.5% monthly; critical applications >= 99.9%, or contractual target."
+
+CLOUD_MIGRATION:
+  has_excel_reference: true
+  metrics:
+    - key: applications_migrated_pct
+      label: "Applications Migrated  ( Planned Vs Actual)"
+      unit: "%"
+      formula: "Applications Migrated / Planned Applications for the Period x 100"
+      operational_definition: >-
+        Percentage of applications planned for migration in the approved wave
+        or reporting period that completed cutover and acceptance.
+      benchmark_value: ">= 95% per migration wave; 100% by committed program milestone."
+
+    - key: migration_success_rate_pct
+      label: "Migration Success Rate ( Success Vs Total)"
+      unit: "%"
+      formula: "Successful Migrations / Total Migration Attempts x 100"
+      operational_definition: >-
+        Percentage of migration attempts completing cutover, validation and
+        acceptance without rollback or severity-1 migration failure.
+      benchmark_value: ">= 98%; target 100% for business-critical applications."
+
+    - key: migration_downtime_hours
+      label: Migration Downtime
+      unit: Person-Hours
+      formula: "Migration End Date-Time - Migration Start Date-Time"
+      operational_definition: >-
+        Elapsed time from approved migration start to completed cutover and
+        service validation. Planned exclusions must be documented.
+      benchmark_value: "Within approved migration window and <= planned downtime; recommended critical-service target <= 2 hours."
+
+CONSULTING:
+  has_excel_reference: false
+  note: >-
+    The Excel Measurement sheet has no Consulting section. Consulting's
+    existing metrics (Effort Variation, SPI, CPI) are left unchanged and are
+    not checked against any Excel reference.
+  metrics: []

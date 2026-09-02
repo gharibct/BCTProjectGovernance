@@ -28,12 +28,14 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   emptyLabel,
   onEdit,
   onDelete,
+  onRowClick,
 }: {
   items: T[];
   columns: RegisterColumn<T>[];
   emptyLabel: string;
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
+  onRowClick?: (item: T) => void;
 }) {
   const showActions = !!(onEdit || onDelete);
   const [pendingDelete, setPendingDelete] = React.useState<T | null>(null);
@@ -66,7 +68,11 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
             </tr>
           ) : (
             items.map((item) => (
-              <tr key={item.id}>
+              <tr
+                key={item.id}
+                onClick={onRowClick ? () => onRowClick(item) : undefined}
+                className={onRowClick ? "cursor-pointer hover:bg-slate-50" : undefined}
+              >
                 {columns.map((c) => (
                   <td
                     key={c.key}

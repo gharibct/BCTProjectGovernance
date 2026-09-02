@@ -33,9 +33,15 @@ CREATE TABLE measurement_staffing_priority_metrics (
     id UUID PRIMARY KEY,
     measurement_id UUID NOT NULL REFERENCES measurement_staffing(id) ON DELETE CASCADE,
     priority TEXT NOT NULL, -- Critical, High, Medium, Low
+    -- Deprecated: single per-period value, superseded by the *_total + count
+    -- pair below. Kept for historical rows; not written by new logic.
     response_time_hours NUMERIC(10, 2),
     lead_time_days NUMERIC(10, 2),
-    -- Computed, read-only in the UI.
+    response_time_hours_total NUMERIC(12, 2),
+    requests_responded_count INTEGER,
+    lead_time_days_total NUMERIC(12, 2),
+    associates_onboarded_count INTEGER,
+    -- Computed (this period's total / count), read-only in the UI.
     avg_response_time_hours NUMERIC(10, 2),
     avg_lead_time_days NUMERIC(10, 2),
 

@@ -12,7 +12,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import PaginationParams, pagination_params, require_project_access
@@ -72,10 +72,11 @@ from app.services.measurement_metrics import (
     compute_defect_leakage_pct,
     compute_development_metrics,
     compute_staffing_metrics,
-    compute_staffing_priority_trailing_averages,
+    compute_staffing_priority_metrics,
     compute_support_metrics,
     compute_testing_metrics,
 )
+from app.services.status_report import ensure_draft_report
 
 router = APIRouter()
 
@@ -113,6 +114,9 @@ class MeasurementConfig:
     read_schema: type
     compute_metrics: Callable[[dict], dict]
     order_by: Callable[[type], Any]
+    # The column that identifies "the same snapshot" for an upsert on POST.
+    # None for event-based tabs (Cloud Migration) that allow repeats.
+    dedup_field: str | None = "period_id"
 
 
 def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
@@ -146,8 +150,36 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
 
     @sub.post("", response_model=cfg.read_schema, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
     async def create_item(project_id: UUID, payload: cfg.create_schema, db: AsyncSession = Depends(get_db)):
-        metrics = cfg.compute_metrics(payload.model_dump())
-        return await crud.create(db, payload, project_id=project_id, **metrics)
+        data = payload.model_dump()
+        metrics = cfg.compute_metrics(data)
+
+        # One snapshot per (project, period): the client only ever POSTs, so a
+        # re-save for a period that already has a row updates it in place
+        # instead of hitting the UNIQUE(project_id, period_id) constraint.
+        existing = None
+        if cfg.dedup_field is not None:
+            stmt = select(model).where(
+                model.project_id == project_id,
+                getattr(model, cfg.dedup_field) == data.get(cfg.dedup_field),
+            )
+            existing = (await db.execute(stmt)).scalar_one_or_none()
+
+        if existing is None:
+            obj = await crud.create(db, payload, project_id=project_id, **metrics)
+        else:
+            for key, value in {**data, **metrics}.items():
+                setattr(existing, key, value)
+            existing.updated_at = datetime.now(UTC)
+            await db.flush()
+            await db.refresh(existing)
+            obj = existing
+
+        # Period-scoped tabs count as "reporting started" for that period, so
+        # the Project Dashboard shows a Draft even if Project Status was never
+        # touched. Cloud Migration is event-based (as_of_date, no period_id).
+        if hasattr(model, "period_id"):
+            await ensure_draft_report(db, project_id, data["period_id"])
+        return obj
 
     @sub.get("/{item_id}", response_model=cfg.read_schema)
     async def get_item(project_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
@@ -168,6 +200,8 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
         for key, value in cfg.compute_metrics(merged).items():
             setattr(obj, key, value)
         await db.flush()
+        if hasattr(model, "period_id"):
+            await ensure_draft_report(db, project_id, obj.period_id)
         return obj
 
     @sub.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
@@ -252,6 +286,7 @@ router.include_router(
             read_schema=MeasurementCloudMigrationRead,
             compute_metrics=compute_cloud_migration_metrics,
             order_by=_by_as_of_date,
+            dedup_field=None,  # event-based: multiple attempts per day are allowed
         )
     )
 )
@@ -316,12 +351,31 @@ async def get_latest_development(project_id: UUID, db: AsyncSession = Depends(ge
 async def create_development(project_id: UUID, payload: MeasurementDevelopmentCreate, db: AsyncSession = Depends(get_db)):
     data = payload.model_dump(exclude={"defects_by_stage"})
     metrics = compute_development_metrics(data)
-
     now = datetime.now(UTC)
-    measurement = MeasurementDevelopment(id=uuid4(), project_id=project_id, created_at=now, updated_at=now, **data, **metrics)
-    db.add(measurement)
+
+    # One snapshot per (project, reporting period): the client only ever POSTs,
+    # so re-saving the same period updates that row in place instead of
+    # colliding with the UNIQUE(project_id, period_id) constraint.
+    stmt = select(MeasurementDevelopment).where(
+        MeasurementDevelopment.project_id == project_id,
+        MeasurementDevelopment.period_id == payload.period_id,
+    )
+    measurement = (await db.execute(stmt)).scalar_one_or_none()
+    if measurement is None:
+        measurement = MeasurementDevelopment(
+            id=uuid4(), project_id=project_id, created_at=now, updated_at=now, **data, **metrics
+        )
+        db.add(measurement)
+    else:
+        for key, value in {**data, **metrics}.items():
+            setattr(measurement, key, value)
+        measurement.updated_at = now
     await db.flush()
 
+    # Defects are a full replace — the client always posts the complete set.
+    await db.execute(
+        delete(MeasurementDevelopmentDefect).where(MeasurementDevelopmentDefect.measurement_id == measurement.id)
+    )
     defect_rows = [
         MeasurementDevelopmentDefect(id=uuid4(), measurement_id=measurement.id, **defect.model_dump())
         for defect in payload.defects_by_stage
@@ -333,6 +387,7 @@ async def create_development(project_id: UUID, payload: MeasurementDevelopmentCr
     await db.flush()
     await db.refresh(measurement)
 
+    await ensure_draft_report(db, project_id, payload.period_id)
     return await _load_development_with_defects(db, measurement)
 
 
@@ -365,6 +420,7 @@ async def update_development(
     _recompute_defect_leakage(obj, defects)
     await db.flush()
 
+    await ensure_draft_report(db, project_id, obj.period_id)
     return await _load_development_with_defects(db, obj)
 
 
@@ -407,6 +463,8 @@ async def upsert_defect(
     _recompute_defect_leakage(measurement, defects)
     await db.flush()
     await db.refresh(existing)
+
+    await ensure_draft_report(db, project_id, measurement.period_id)
     return existing
 
 
@@ -461,17 +519,35 @@ async def get_latest_staffing(project_id: UUID, db: AsyncSession = Depends(get_d
 async def create_staffing(project_id: UUID, payload: MeasurementStaffingCreate, db: AsyncSession = Depends(get_db)):
     data = payload.model_dump(exclude={"priority_metrics"})
     metrics = compute_staffing_metrics(data)
-
     now = datetime.now(UTC)
-    measurement = MeasurementStaffing(id=uuid4(), project_id=project_id, created_at=now, updated_at=now, **data, **metrics)
-    db.add(measurement)
+
+    # One snapshot per (project, reporting period): the client only ever POSTs,
+    # so re-saving the same period updates that row in place instead of
+    # colliding with the UNIQUE(project_id, period_id) constraint.
+    stmt = select(MeasurementStaffing).where(
+        MeasurementStaffing.project_id == project_id,
+        MeasurementStaffing.period_id == payload.period_id,
+    )
+    measurement = (await db.execute(stmt)).scalar_one_or_none()
+    if measurement is None:
+        measurement = MeasurementStaffing(
+            id=uuid4(), project_id=project_id, created_at=now, updated_at=now, **data, **metrics
+        )
+        db.add(measurement)
+    else:
+        for key, value in {**data, **metrics}.items():
+            setattr(measurement, key, value)
+        measurement.updated_at = now
     await db.flush()
 
+    # Priority metrics are a full replace — the client always posts the complete set.
+    await db.execute(
+        delete(MeasurementStaffingPriorityMetric).where(
+            MeasurementStaffingPriorityMetric.measurement_id == measurement.id
+        )
+    )
     priority_rows = []
     for priority_in in payload.priority_metrics:
-        # Trailing average is computed from prior periods only, since this
-        # period's row isn't committed yet at this point.
-        trailing = await compute_staffing_priority_trailing_averages(db, project_id, priority_in.priority)
         priority_rows.append(
             MeasurementStaffingPriorityMetric(
                 id=uuid4(),
@@ -479,13 +555,18 @@ async def create_staffing(project_id: UUID, payload: MeasurementStaffingCreate, 
                 priority=priority_in.priority,
                 response_time_hours=priority_in.response_time_hours,
                 lead_time_days=priority_in.lead_time_days,
-                **trailing,
+                response_time_hours_total=priority_in.response_time_hours_total,
+                requests_responded_count=priority_in.requests_responded_count,
+                lead_time_days_total=priority_in.lead_time_days_total,
+                associates_onboarded_count=priority_in.associates_onboarded_count,
+                **compute_staffing_priority_metrics(priority_in.model_dump()),
             )
         )
     db.add_all(priority_rows)
     await db.flush()
     await db.refresh(measurement)
 
+    await ensure_draft_report(db, project_id, payload.period_id)
     return await _load_staffing_with_priorities(db, measurement)
 
 
@@ -514,6 +595,7 @@ async def update_staffing(
         setattr(obj, key, value)
     await db.flush()
 
+    await ensure_draft_report(db, project_id, obj.period_id)
     return await _load_staffing_with_priorities(db, obj)
 
 
@@ -546,16 +628,22 @@ async def upsert_priority_metric(
         MeasurementStaffingPriorityMetric.priority == priority,
     )
     existing = (await db.execute(stmt)).scalar_one_or_none()
-    trailing = await compute_staffing_priority_trailing_averages(db, project_id, priority)
     if existing is None:
         existing = MeasurementStaffingPriorityMetric(id=uuid4(), measurement_id=measurement_id, priority=priority)
         db.add(existing)
     existing.response_time_hours = payload.response_time_hours
     existing.lead_time_days = payload.lead_time_days
-    existing.avg_response_time_hours = trailing["avg_response_time_hours"]
-    existing.avg_lead_time_days = trailing["avg_lead_time_days"]
+    existing.response_time_hours_total = payload.response_time_hours_total
+    existing.requests_responded_count = payload.requests_responded_count
+    existing.lead_time_days_total = payload.lead_time_days_total
+    existing.associates_onboarded_count = payload.associates_onboarded_count
+    computed = compute_staffing_priority_metrics(payload.model_dump())
+    existing.avg_response_time_hours = computed["avg_response_time_hours"]
+    existing.avg_lead_time_days = computed["avg_lead_time_days"]
     await db.flush()
     await db.refresh(existing)
+
+    await ensure_draft_report(db, project_id, measurement.period_id)
     return existing
 
 

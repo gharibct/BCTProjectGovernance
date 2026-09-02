@@ -14,6 +14,8 @@ import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import {
+  previousPeriodReport,
+  statusMetricsFromReport,
   useCreateStatusReport,
   useStatusReports,
   useUpdateStatusReport,
@@ -49,6 +51,13 @@ export function NewProjectStatusTabs() {
 
   const existing = reports?.find((r) => r.period_id === periodId);
 
+  // No report yet for this period → carry Key Metrics forward from the last
+  // period's report so unchanged figures don't have to be re-keyed.
+  const carriedFrom = existing ? undefined : previousPeriodReport(reports, periods, periodId);
+  const carriedFromLabel = carriedFrom
+    ? periods?.find((p) => p.id === carriedFrom.period_id)?.label
+    : null;
+
   const setPeriod = (id: string) => {
     router.replace(id ? `${pathname}?period=${id}` : pathname, { scroll: false });
   };
@@ -57,18 +66,15 @@ export function NewProjectStatusTabs() {
   // Draft/Submitted status rather than saved immediately like the grid rows.
   const [metrics, setMetrics] = React.useState(BLANK_METRICS);
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
-  const key = existing ? existing.id : `blank:${periodId}`;
+  const key = existing ? existing.id : `blank:${carriedFrom?.id ?? "none"}:${periodId}`;
   if (key !== syncedFor) {
     setSyncedFor(key);
     setMetrics(
       existing
-        ? {
-            revenue: existing.revenue ?? "",
-            onsite_fte: existing.onsite_fte ?? "",
-            offshore_fte: existing.offshore_fte ?? "",
-            projects_count: existing.projects_count?.toString() ?? "",
-          }
-        : BLANK_METRICS
+        ? statusMetricsFromReport(existing)
+        : carriedFrom
+          ? statusMetricsFromReport(carriedFrom)
+          : BLANK_METRICS
     );
   }
 
@@ -126,6 +132,11 @@ export function NewProjectStatusTabs() {
       {periodId ? (
         <div className="mt-6">
           <SectionCard icon={TrendingUp} title="Key Metrics">
+            {carriedFromLabel ? (
+              <p className="mb-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                Pre-filled from {carriedFromLabel}. Review and adjust before submitting.
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
               <Field label="Revenue" htmlFor="revenue">
                 <Input

@@ -41,12 +41,10 @@ function formatDate(value: string | null): string {
 
 export function FindingsListView({
   findings,
-  assessmentId,
   onSelect,
   onCreate,
 }: {
   findings: DEAssessmentFinding[];
-  assessmentId: string | null;
   onSelect: (id: string) => void;
   onCreate: () => void;
 }) {
@@ -60,16 +58,14 @@ export function FindingsListView({
       <div className="flex items-center justify-between gap-2">
         <Segmented options={FILTERS} value={filter} onChange={setFilter} className="h-9" />
         {canWrite ? (
-          <Button size="sm" className="gap-1.5" onClick={onCreate} disabled={!assessmentId}>
+          <Button size="sm" className="gap-1.5" onClick={onCreate}>
             <Plus className="size-4" />
             New Finding
           </Button>
         ) : null}
       </div>
 
-      {!assessmentId ? (
-        <EmptyState>Save a draft assessment before adding findings.</EmptyState>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState>
           No findings {filter === "all" ? "raised yet." : `in "${FILTERS.find((f) => f.value === filter)?.label}".`}
         </EmptyState>

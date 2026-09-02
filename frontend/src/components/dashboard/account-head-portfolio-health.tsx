@@ -43,6 +43,7 @@ export function AccountHeadPortfolioHealth({ rows }: { rows: AccountPortfolioHea
                   <div className="flex items-center gap-2 text-sm font-semibold">
                     <span className="text-emerald-600">{row.health_green}</span>
                     <span className="text-amber-500">{row.health_amber}</span>
+                    <span className="text-orange-600">{row.health_potential_red}</span>
                     <span className="text-red-600">{row.health_red}</span>
                   </div>
                   <div className="text-right">

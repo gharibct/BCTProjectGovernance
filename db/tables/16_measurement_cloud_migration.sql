@@ -17,7 +17,7 @@ CREATE TABLE measurement_cloud_migration (
     -- Computed, read-only in the UI.
     applications_migrated_pct NUMERIC(5, 2),
     migration_success_rate_pct NUMERIC(5, 2),
-    migration_downtime_minutes NUMERIC(10, 2),
+    migration_downtime_hours NUMERIC(10, 2),
 
     last_updated_date DATE,
     created_at TIMESTAMPTZ NOT NULL,

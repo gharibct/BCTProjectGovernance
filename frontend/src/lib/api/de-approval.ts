@@ -44,6 +44,10 @@ export type GovernanceModuleStatus = {
   gaps: string | null;
   review_action: DeModuleReviewAction;
   last_updated: string | null;
+  // Partial progress: required fields filled / required fields expected.
+  fields_complete: number;
+  fields_total: number;
+  progress_pct: number;
 };
 
 export type GovernanceCompleteness = {
@@ -59,7 +63,6 @@ export type DeApprovalKpis = {
   awaiting_review: number;
   in_review: number;
   returned: number;
-  approved: number;
 };
 
 export type DeApprovalQueueRow = {
@@ -68,6 +71,7 @@ export type DeApprovalQueueRow = {
   project_name: string;
   account_name: string | null;
   geo_name: string | null;
+  region_name: string | null;
   project_type_name: string | null;
   project_manager_name: string | null;
   completion_pct: number;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useCloudMaintenanceTarget } from "@/lib/api/metric-targets";
+import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
 import {
   useCreateCloudMaintenanceMeasurement,
   useLatestCloudMaintenanceMeasurement,
@@ -34,6 +35,7 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementClou
 
 export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
   const { data: target } = useCloudMaintenanceTarget(projectId);
+  const reference = useMetricReferenceLookup("CLOUD_MAINTENANCE");
 
   const latestQuery = useLatestCloudMaintenanceMeasurement(projectId);
   const createMutation = useCreateCloudMaintenanceMeasurement(projectId);
@@ -59,7 +61,8 @@ export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Service Availability"
-            formula="Total Uptime ÷ Total Scheduled Time × 100"
+            metricKey="service_availability_pct"
+            reference={reference}
             target={num(target?.target_service_availability_pct)}
             current={num(latest?.service_availability_pct)}
             unit="%"
@@ -67,7 +70,8 @@ export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Application Availability"
-            formula="(Total Scheduled Time − Application Downtime) ÷ Total Scheduled Time × 100"
+            metricKey="application_availability_pct"
+            reference={reference}
             target={num(target?.target_application_availability_pct)}
             current={num(latest?.application_availability_pct)}
             unit="%"

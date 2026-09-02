@@ -49,6 +49,7 @@ export type MyDashboardSummary = {
   projects_requiring_attention: number;
   health_green: number;
   health_amber: number;
+  health_potential_red: number;
   health_red: number;
   reports_due: ReportsDueSummary;
   open_actions_count: number;
@@ -56,6 +57,7 @@ export type MyDashboardSummary = {
   open_actions_high: number;
   open_actions_medium: number;
   open_actions_low: number;
+  open_findings_count: number;
   attention_items: AttentionItem[];
   raido: RaidoSummary;
   project_health: MyProjectHealthRow[];

@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access
+from app.api.deps import require_project_de_assessment_access
 from app.core.db import get_db
 from app.crud.de_assessment import de_assessment_alert_crud, de_assessment_crud, de_assessment_finding_crud
 from app.crud.projects import project_crud
 from app.models.de_assessment import DEAssessment, DEAssessmentAlert, DEAssessmentFinding
 from app.models.projects import Project
+from app.models.users import User
 from app.schemas.de_assessment import (
     DEAssessmentAlertIn,
     DEAssessmentAlertRead,
@@ -28,20 +29,10 @@ from app.services.health_rollup import compute_overall_project_health
 
 router = APIRouter(prefix="/projects/{project_id}/de-assessments", tags=["DE Assessment"])
 
-# PM/DE work — also reachable by an Account/Geo Head via the top-bar Work
-# Context, scoped to projects in their own accounts/geo (require_project_access
-# short-circuits for PROJECT_MANAGER / DELIVERY_EXCELLENCE / ADMIN).
-_write_roles = [
-    Depends(
-        require_project_access(
-            RoleCode.PROJECT_MANAGER,
-            RoleCode.DELIVERY_EXCELLENCE,
-            RoleCode.ACCOUNT_MANAGER,
-            RoleCode.GEO_HEAD,
-            RoleCode.ADMIN,
-        )
-    )
-]
+# A DE assessment is Delivery Excellence's own activity — any DELIVERY_EXCELLENCE
+# user (or ADMIN) may assess a project that has a DE allocated. It is not gated
+# on PM reporting and not restricted to the project's specific allocated DE.
+_de_write = require_project_de_assessment_access(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
 
 
 def _finalize_assessment(project: Project, assessment: DEAssessment) -> None:
@@ -61,21 +52,9 @@ async def _load_with_details(db: AsyncSession, assessment: DEAssessment) -> DEAs
         .scalars()
         .all()
     )
-    findings = (
-        (
-            await db.execute(
-                select(DEAssessmentFinding)
-                .where(DEAssessmentFinding.assessment_id == assessment.id)
-                .order_by(DEAssessmentFinding.sequence_no)
-            )
-        )
-        .scalars()
-        .all()
-    )
     return DEAssessmentReadWithDetails(
         **DEAssessmentRead.model_validate(assessment).model_dump(),
         alerts=[DEAssessmentAlertRead.model_validate(a) for a in alerts],
-        findings=[DEAssessmentFindingRead.model_validate(f) for f in findings],
     )
 
 
@@ -112,9 +91,14 @@ async def get_assessment(project_id: UUID, assessment_id: UUID, db: AsyncSession
 
 
 @router.post(
-    "", response_model=DEAssessmentReadWithDetails, status_code=status.HTTP_201_CREATED, dependencies=_write_roles
+    "", response_model=DEAssessmentReadWithDetails, status_code=status.HTTP_201_CREATED
 )
-async def create_assessment(project_id: UUID, payload: DEAssessmentCreate, db: AsyncSession = Depends(get_db)):
+async def create_assessment(
+    project_id: UUID,
+    payload: DEAssessmentCreate,
+    current_user: User = Depends(_de_write),
+    db: AsyncSession = Depends(get_db),
+):
     project = await project_crud.get(db, project_id)
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
@@ -129,7 +113,7 @@ async def create_assessment(project_id: UUID, payload: DEAssessmentCreate, db: A
         remarks=payload.remarks,
         status=payload.status,
         next_assessment_due_date=payload.next_assessment_due_date,
-        assessed_by=payload.assessed_by,
+        assessed_by=current_user.id,
         created_at=now,
         updated_at=now,
     )
@@ -143,9 +127,13 @@ async def create_assessment(project_id: UUID, payload: DEAssessmentCreate, db: A
     return await _load_with_details(db, assessment)
 
 
-@router.patch("/{assessment_id}", response_model=DEAssessmentReadWithDetails, dependencies=_write_roles)
+@router.patch("/{assessment_id}", response_model=DEAssessmentReadWithDetails)
 async def update_assessment(
-    project_id: UUID, assessment_id: UUID, payload: DEAssessmentUpdate, db: AsyncSession = Depends(get_db)
+    project_id: UUID,
+    assessment_id: UUID,
+    payload: DEAssessmentUpdate,
+    current_user: User = Depends(_de_write),
+    db: AsyncSession = Depends(get_db),
 ):
     assessment = await de_assessment_crud.get(db, assessment_id)
     if assessment is None or assessment.project_id != project_id:
@@ -160,6 +148,8 @@ async def update_assessment(
     await db.flush()
 
     if assessment.status == DEAssessmentStatus.SUBMITTED:
+        if assessment.assessed_by is None:
+            assessment.assessed_by = current_user.id
         project = await project_crud.get(db, project_id)
         if project is not None:
             _finalize_assessment(project, assessment)
@@ -172,7 +162,7 @@ async def update_assessment(
     "/{assessment_id}/alerts",
     response_model=DEAssessmentAlertRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=_write_roles,
+    dependencies=[Depends(_de_write)],
 )
 async def add_alert(project_id: UUID, assessment_id: UUID, payload: DEAssessmentAlertIn, db: AsyncSession = Depends(get_db)):
     assessment = await de_assessment_crud.get(db, assessment_id)
@@ -188,40 +178,53 @@ async def add_alert(project_id: UUID, assessment_id: UUID, payload: DEAssessment
     )
 
 
-@router.post(
-    "/{assessment_id}/findings",
-    response_model=DEAssessmentFindingRead,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=_write_roles,
+# --- Findings: a project-level register, independent of any assessment ---
+# (see db/tables/19_de_assessments.sql). A DE may raise, edit, and close
+# findings whether or not the project has ever had a DE assessment.
+findings_router = APIRouter(prefix="/projects/{project_id}/de-assessment-findings", tags=["DE Assessment Findings"])
+
+
+@findings_router.get("", response_model=list[DEAssessmentFindingRead])
+async def list_findings(project_id: UUID, db: AsyncSession = Depends(get_db)):
+    rows = (
+        await db.execute(
+            select(DEAssessmentFinding)
+            .where(DEAssessmentFinding.project_id == project_id)
+            .order_by(DEAssessmentFinding.sequence_no)
+        )
+    ).scalars().all()
+    return rows
+
+
+@findings_router.post(
+    "", response_model=DEAssessmentFindingRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(_de_write)]
 )
-async def add_finding(project_id: UUID, assessment_id: UUID, payload: DEAssessmentFindingIn, db: AsyncSession = Depends(get_db)):
-    assessment = await de_assessment_crud.get(db, assessment_id)
-    if assessment is None or assessment.project_id != project_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Assessment not found")
+async def add_finding(project_id: UUID, payload: DEAssessmentFindingIn, db: AsyncSession = Depends(get_db)):
     sequence_no = payload.sequence_no
     if sequence_no is None:
         current_max = (
             await db.execute(
                 select(func.max(DEAssessmentFinding.sequence_no)).where(
-                    DEAssessmentFinding.assessment_id == assessment_id
+                    DEAssessmentFinding.project_id == project_id
                 )
             )
         ).scalar_one_or_none()
         sequence_no = (current_max or 0) + 1
     return await de_assessment_finding_crud.create(
-        db, payload, assessment_id=assessment_id, sequence_no=sequence_no
+        db, payload, project_id=project_id, sequence_no=sequence_no
     )
 
 
-@router.put("/{assessment_id}/findings/{finding_id}", response_model=DEAssessmentFindingRead, dependencies=_write_roles)
+@findings_router.put(
+    "/{finding_id}", response_model=DEAssessmentFindingRead, dependencies=[Depends(_de_write)]
+)
 async def update_finding(
     project_id: UUID,
-    assessment_id: UUID,
     finding_id: UUID,
     payload: DEAssessmentFindingUpdate,
     db: AsyncSession = Depends(get_db),
 ):
     obj = await de_assessment_finding_crud.get(db, finding_id)
-    if obj is None or obj.assessment_id != assessment_id:
+    if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Finding not found")
     return await de_assessment_finding_crud.update(db, obj, payload)

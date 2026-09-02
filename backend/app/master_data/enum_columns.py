@@ -18,7 +18,8 @@ ENUM_COLUMNS: dict[str, dict[str, type[e.StrEnum]]] = {
         "project_owned": e.ProjectOwned,
         "billing_type": e.BillingType,
         "engagement_type": e.EngagementType,
-        "applicable_phase": e.ApplicablePhase,
+        # applicable_phase is multi-select (comma-joined list[ApplicablePhase]),
+        # so it can't be a single-enum dropdown/validation here.
         "project_status": e.ProjectStatus,
     },
     "risk_log": {

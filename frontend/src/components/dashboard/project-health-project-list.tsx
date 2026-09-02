@@ -6,7 +6,7 @@ import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { useProjectHealthProjectList, type ProjectListRow } from "@/lib/api/project-health-lists";
+import { formatGeoRegion, useProjectHealthProjectList, type ProjectListRow } from "@/lib/api/project-health-lists";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDate, HealthBadge, StatTile } from "./project-health-kpi";
 
@@ -40,7 +40,7 @@ export function ProjectHealthProjectList() {
       ),
     },
     { key: "project_type_name", label: "Project Type" },
-    { key: "geo_name", label: "Geo" },
+    { key: "geo_name", label: "Geo - Region", render: (row) => formatGeoRegion(row.geo_name, row.region_name) },
     { key: "account_name", label: "Account" },
     { key: "project_manager_name", label: "Project Manager" },
     { key: "start_date", label: "Start Date", render: (row) => formatDate(row.start_date) },

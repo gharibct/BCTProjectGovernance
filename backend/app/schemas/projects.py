@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from app.schemas.enums import (
     ApplicablePhase,
@@ -53,7 +53,21 @@ class ProjectBase(BaseModel):
     planned_end_date: date | None = None
     actual_end_date: date | None = None
 
-    applicable_phase: ApplicablePhase | None = None
+    # Multi-select on the Project Charter (Maintain / Amend Project) — zero or
+    # more SDLC phases. Stored comma-joined; see models/types.CommaSeparatedList.
+    applicable_phase: list[ApplicablePhase] = []
+
+    @field_validator("applicable_phase", mode="before")
+    @classmethod
+    def _coerce_applicable_phase(cls, v: object) -> object:
+        """Tolerate a NULL column (-> []) or a raw comma-joined string, so
+        this reads back cleanly whether or not it went through the ORM's
+        CommaSeparatedList type."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [part.strip() for part in v.split(",") if part.strip()]
+        return v
 
 
 class ProjectCreate(ProjectBase):
@@ -88,7 +102,8 @@ class ProjectUpdate(BaseModel):
     actual_start_date: date | None = None
     planned_end_date: date | None = None
     actual_end_date: date | None = None
-    applicable_phase: ApplicablePhase | None = None
+    # None = leave unchanged (PUT is exclude_unset); [] = clear all phases.
+    applicable_phase: list[ApplicablePhase] | None = None
     project_status: ProjectStatus | None = None
     updated_by: UUID | None = None
 

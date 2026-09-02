@@ -4,14 +4,17 @@ import { api, ApiError } from "./client";
 import type { HealthRating } from "./health-declarations";
 
 // Observation/Recommendation are the legacy register-tab values; the DE
-// Assessment Workspace uses Governance/Performance/Security/Financial.
+// Assessment Workspace's Classification aligns with the Project RAG's
+// 6-category taxonomy (see project-charter/health-declaration.tsx's CATEGORIES).
 export type FindingClassification =
   | "Observation"
   | "Recommendation"
-  | "Governance"
-  | "Performance"
-  | "Security"
-  | "Financial";
+  | "Core Delivery"
+  | "People"
+  | "Operational"
+  | "Customer"
+  | "Financial"
+  | "Compliance";
 // Lifecycle mirrors the Action Tracker; On Hold/Deferred stay valid for legacy rows.
 export type FindingStatus =
   | "Open"
@@ -25,12 +28,23 @@ export type FindingSeverity = "Low" | "Medium" | "High" | "Critical";
 export type DEAssessmentStatus = "Draft" | "Submitted";
 
 export const FINDING_CLASSIFICATION_OPTIONS: FindingClassification[] = [
-  "Governance",
-  "Performance",
-  "Security",
+  "Core Delivery",
+  "People",
+  "Operational",
+  "Customer",
   "Financial",
+  "Compliance",
 ];
 export const FINDING_SEVERITY_OPTIONS: FindingSeverity[] = ["Low", "Medium", "High", "Critical"];
+// Current lifecycle values for a status picker — legacy On Hold/Deferred are
+// omitted (still accepted on read for historical rows).
+export const FINDING_STATUS_OPTIONS: FindingStatus[] = [
+  "Open",
+  "In Progress",
+  "Awaiting Closure",
+  "Closed",
+  "Cancelled",
+];
 
 export type DEAssessmentAlert = {
   id: string;
@@ -46,7 +60,7 @@ export type DEAssessmentAlert = {
 
 export type DEAssessmentFinding = {
   id: string;
-  assessment_id: string;
+  project_id: string;
   sequence_no: number;
   classification: FindingClassification;
   description: string | null;
@@ -73,13 +87,12 @@ export type DEAssessment = {
   created_at: string;
   updated_at: string;
   alerts: DEAssessmentAlert[];
-  findings: DEAssessmentFinding[];
 };
 
 // Header only — Alerts and Findings are added afterward, one at a time, via
 // their own registers (useCreateDEAssessmentAlert/useCreateDEAssessmentFinding).
-// status defaults to "Submitted" server-side; the Workspace passes "Draft" for
-// Save Draft.
+// assessed_by is always set from the session server-side. status defaults to
+// "Submitted"; the Workspace passes "Draft" for Save Draft.
 export type DEAssessmentPayload = {
   assessment_date?: string;
   de_assessed_project_health: HealthRating;
@@ -89,6 +102,7 @@ export type DEAssessmentPayload = {
 };
 
 export type DEAssessmentUpdatePayload = {
+  assessment_date?: string;
   de_assessed_project_health?: HealthRating;
   pci_score?: string;
   remarks?: string;
@@ -159,6 +173,23 @@ export function useCreateDEAssessment(projectId: string | null) {
   });
 }
 
+// Findings are a project-level register (see backend
+// db/tables/19_de_assessments.sql) — no longer nested under an assessment, and
+// creatable whether or not the project has ever had a DE assessment.
+export function useDEAssessmentFindings(projectId: string | null) {
+  return useQuery({
+    queryKey: ["de-assessment-findings", projectId],
+    queryFn: () => api.get<DEAssessmentFinding[]>(`/projects/${projectId}/de-assessment-findings`),
+    enabled: !!projectId,
+  });
+}
+
+function invalidateFindings(queryClient: ReturnType<typeof useQueryClient>, projectId: string | null) {
+  queryClient.invalidateQueries({ queryKey: ["de-assessment-findings", projectId] });
+  // Dashboards surface open/overdue finding counts.
+  queryClient.invalidateQueries({ queryKey: ["dashboard-de-summary"] });
+}
+
 export function useCreateDEAssessmentAlert(projectId: string | null, assessmentId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -170,14 +201,12 @@ export function useCreateDEAssessmentAlert(projectId: string | null, assessmentI
   });
 }
 
-export function useCreateDEAssessmentFinding(projectId: string | null, assessmentId: string | null) {
+export function useCreateDEAssessmentFinding(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: DEAssessmentFindingPayload) =>
-      api.post<DEAssessmentFinding>(`/projects/${projectId}/de-assessments/${assessmentId}/findings`, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["de-assessment-latest", projectId] });
-    },
+      api.post<DEAssessmentFinding>(`/projects/${projectId}/de-assessment-findings`, payload),
+    onSuccess: () => invalidateFindings(queryClient, projectId),
   });
 }
 
@@ -200,16 +229,11 @@ export function useUpdateDEAssessment(projectId: string | null) {
 // Finding edits AND status transitions (Start / Awaiting Closure / Close /
 // Cancel) both go through this single PUT — the drawer just varies which
 // fields it sends.
-export function useUpdateDEAssessmentFinding(projectId: string | null, assessmentId: string | null) {
+export function useUpdateDEAssessmentFinding(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: DEAssessmentFindingPayload }) =>
-      api.put<DEAssessmentFinding>(
-        `/projects/${projectId}/de-assessments/${assessmentId}/findings/${id}`,
-        payload,
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["de-assessment-latest", projectId] });
-    },
+      api.put<DEAssessmentFinding>(`/projects/${projectId}/de-assessment-findings/${id}`, payload),
+    onSuccess: () => invalidateFindings(queryClient, projectId),
   });
 }

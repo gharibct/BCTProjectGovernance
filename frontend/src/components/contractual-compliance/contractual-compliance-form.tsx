@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
 import { CommitmentsTab } from "./commitments-tab";
 import { MilestonesTab } from "./milestones-tab";
 
-// Matches the New Project charter's Contractual Compliance form and the
-// RAIDO Register's tab pattern: register grid on top, "New <Item>" entry
-// form second.
+// Project Reporting view: the Commitment / Payment Milestone definitions are
+// fixed at charter time (New Project → Contractual Compliance), so this is
+// read-only register on top with an actuals-capture form below.
 const TABS = [
   { label: "Commitments", content: CommitmentsTab },
   { label: "Payment Milestones", content: MilestonesTab },
@@ -51,8 +51,9 @@ export function ContractualComplianceForm() {
       <div className="mt-10 flex flex-wrap items-start justify-between gap-4">
         <p className="flex max-w-2xl items-start gap-2 text-sm text-slate-500">
           <Lock className="mt-0.5 size-4 shrink-0" />
-          Each entry saves immediately when added — Commitments and
-          Payment Milestones are logged independently, row by row.
+          Commitment and Payment Milestone definitions are set at charter time
+          and are read-only here — only actuals can be recorded for the
+          selected reporting period.
         </p>
       </div>
     </div>

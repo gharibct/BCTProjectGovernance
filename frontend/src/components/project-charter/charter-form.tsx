@@ -43,7 +43,6 @@ import {
   useCreateProjectResource,
   useDeleteProjectResource,
   useProject,
-  useProjectOracleIds,
   useProjectResourceSummary,
   useProjectResources,
   useUpdateProject,
@@ -71,7 +70,6 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
   const { data: accounts } = useAccounts();
   const { data: users } = useUsers();
   const { data: geoHead } = useGeoHead(project?.geo_id ?? null);
-  const { data: oracleIds } = useProjectOracleIds(project?.id ?? null);
 
   return (
     <div className="flex flex-col gap-8">
@@ -254,19 +252,6 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
                 <option key={currency}>{currency}</option>
               ))}
             </NativeSelect>
-          </Field>
-          <Field
-            label="Oracle Project ID(s)"
-            htmlFor="oracle-ids"
-            hint="Comma-separated when the project maps to multiple Oracle IDs"
-          >
-            <Input
-              id="oracle-ids"
-              placeholder="e.g. ORA-88121, ORA-88122"
-              value={(oracleIds ?? []).map((o) => o.oracle_project_id).join(", ")}
-              className={inputClass}
-              disabled
-            />
           </Field>
         </div>
       </SectionCard>

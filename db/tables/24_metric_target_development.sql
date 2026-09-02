@@ -7,6 +7,13 @@ CREATE TABLE metric_target_development (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
 
+    -- Project-level planning inputs (UX §4.10 "Size & Effort"). Unlike the
+    -- per-period measurement_development snapshot, these are the one-time
+    -- baseline set at the planning stage.
+    target_size_unit TEXT, -- CP, FP, LOC, Other
+    target_overall_planned_size NUMERIC(14, 2),
+    target_overall_estimated_effort NUMERIC(14, 2),
+
     target_productivity NUMERIC(14, 4),
     target_effort_variation_pct NUMERIC(6, 2),
     target_schedule_performance_index NUMERIC(6, 3),

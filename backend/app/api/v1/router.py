@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     de_allocation,
     de_approval,
     de_assessment,
+    de_findings,
     documents,
     executive_updates,
     geo_health_declarations,
@@ -21,7 +22,9 @@ from app.api.v1.endpoints import (
     health_declarations,
     integrations,
     measurement,
+    metric_reference,
     metric_target,
+    pm_findings,
     project_status,
     projects,
     raid,
@@ -35,6 +38,7 @@ api_router = APIRouter()
 # auth.router is mounted separately in app.main (it must stay reachable
 # without an existing session — login/callback/config).
 api_router.include_router(reference_data.router)
+api_router.include_router(metric_reference.router)
 api_router.include_router(users.router)
 api_router.include_router(projects.router)
 api_router.include_router(ai_suggestions.router)
@@ -49,6 +53,9 @@ api_router.include_router(measurement.router)
 api_router.include_router(metric_target.router)
 api_router.include_router(contractual.router)
 api_router.include_router(de_assessment.router)
+api_router.include_router(de_assessment.findings_router)
+api_router.include_router(de_findings.router)
+api_router.include_router(pm_findings.router)
 api_router.include_router(de_allocation.router)
 api_router.include_router(de_approval.router)
 api_router.include_router(data_integrity.router)

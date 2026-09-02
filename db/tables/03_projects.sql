@@ -40,8 +40,8 @@ CREATE TABLE projects (
     ) STORED,
 
     -- Treatment / Health
-    applicable_phase TEXT, -- Requirement, Design, CUT, Build & Deployment, Testing, UAT, Warranty, Support
-    project_status TEXT NOT NULL, -- Draft, Pending Approval, Approved, Hold, Closed, Open Only for Billing
+    applicable_phase TEXT, -- multi-select, comma-joined: Requirement, Design, CUT, Build & Deployment, Testing, UAT, Warranty, Support
+    project_status TEXT NOT NULL, -- Draft, Pending Approval, Approved, Under Amendment, Ongoing, Hold, Closed, Open Only for Billing
     -- Denormalized read-only caches, kept in sync by the application whenever a
     -- health_declarations or de_assessments row is recorded (see 04_health_declarations.sql,
     -- 19_de_assessments.sql). overall_project_health is the highest-severity of the two.

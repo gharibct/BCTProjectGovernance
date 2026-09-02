@@ -14,6 +14,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/forms/empty-state";
+import { MultiSelectChecklist } from "@/components/forms/multi-select-checklist";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -36,7 +37,7 @@ import {
   type Project,
   type ProjectPayload,
 } from "@/lib/api/projects";
-import { useGeoHead } from "@/lib/api/users";
+import { useAccountHead, useGeoHead } from "@/lib/api/users";
 
 import {
   AutoBadge,
@@ -57,6 +58,18 @@ const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-em
 
 const CONTRACT_TYPES = ["FPP", "T&M", "Capped T&M", "Internal"] as const;
 const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
+// Matches backend enums.py's ApplicablePhase. Multi-select — a project can be
+// in more than one SDLC phase at once.
+const APPLICABLE_PHASES = [
+  "Requirement",
+  "Design",
+  "CUT",
+  "Build & Deployment",
+  "Testing",
+  "UAT",
+  "Warranty",
+  "Support",
+] as const;
 const YES_NO_OPTIONS = [
   { value: "Yes", label: "Yes" },
   { value: "No", label: "No" },
@@ -94,6 +107,7 @@ function valuesFromProject(project: Project): ProjectPayload {
     actual_start_date: project.actual_start_date ?? undefined,
     planned_end_date: project.planned_end_date ?? undefined,
     actual_end_date: project.actual_end_date ?? undefined,
+    applicable_phase: project.applicable_phase ?? [],
   };
 }
 
@@ -102,6 +116,12 @@ function valuesFromProject(project: Project): ProjectPayload {
 // counts as Draft too.
 function isDraftStatus(project: Project | undefined): boolean {
   return !project || project.project_status === "Draft";
+}
+
+// Statuses in which the charter is directly editable without an "Edit Project"
+// click: a Draft, or a project put back into edit via Amend ("Under Amendment").
+function isAmendableStatus(project: Project | undefined): boolean {
+  return isDraftStatus(project) || project?.project_status === "Under Amendment";
 }
 
 function useProjectProfileForm() {
@@ -143,7 +163,10 @@ function ProjectDescriptionTab({
   const projectId = useNewProjectId();
   const { data: project } = useProject(projectId);
   const isEditing = useNewProjectUi((state) => state.isEditing);
-  const locked = !isDraftStatus(project) && !isEditing;
+  const locked = !isAmendableStatus(project) && !isEditing;
+  // Project Type is fixed once a project exists and is being amended — the
+  // amendment snapshot/measurement wiring is keyed to the original type.
+  const projectTypeLocked = locked || project?.project_status === "Under Amendment";
 
   const { data: organizations } = useOrganizations();
   const { data: geos } = useGeos();
@@ -153,6 +176,19 @@ function ProjectDescriptionTab({
   const { data: accounts } = useAccounts();
   const { data: users } = useUsers();
   const { data: geoHead } = useGeoHead(values.geo_id ?? null);
+  const { data: accountHead, isLoading: accountHeadLoading } = useAccountHead(values.account_id ?? null);
+
+  // Delivery Manager is read-only, defaulted from the Account Head mapping
+  // for the selected account rather than picked manually. Skipped while the
+  // lookup is still in flight so an existing project's saved value isn't
+  // blanked out for a frame before the mapping resolves.
+  React.useEffect(() => {
+    if (accountHeadLoading) return;
+    if (values.delivery_manager_id !== accountHead?.id) {
+      setAndClear("delivery_manager_id")(accountHead?.id ?? undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountHeadLoading, accountHead?.id]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -170,6 +206,7 @@ function ProjectDescriptionTab({
           <Field
             label="Project Name"
             htmlFor="project-name"
+            required
             badge={<MandatoryBadge />}
             ai={fieldAi("project_name")}
             error={projectNameError}
@@ -190,7 +227,7 @@ function ProjectDescriptionTab({
         <>
         <SectionCard icon={Info} title="Project Details">
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-            <Field label="Contract Type" htmlFor="contract-type" ai={fieldAi("contract_type")}>
+            <Field label="Contract Type" htmlFor="contract-type" required ai={fieldAi("contract_type")}>
               <NativeSelect
                 id="contract-type"
                 value={values.contract_type ?? ""}
@@ -207,12 +244,12 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Project Type" htmlFor="project-type" ai={fieldAi("project_type_id")}>
+            <Field label="Project Type" htmlFor="project-type" required ai={fieldAi("project_type_id")}>
               <NativeSelect
                 id="project-type"
                 value={values.project_type_id ?? ""}
                 onChange={(e) => setAndClear("project_type_id")(e.target.value)}
-                disabled={locked}
+                disabled={projectTypeLocked}
               >
                 <option value="" disabled>
                   Select…
@@ -224,7 +261,7 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Project Owned" htmlFor="project-owned" ai={fieldAi("project_owned")}>
+            <Field label="Project Owned" htmlFor="project-owned" required ai={fieldAi("project_owned")}>
               <NativeSelect
                 id="project-owned"
                 value={values.project_owned ?? ""}
@@ -241,7 +278,7 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Organization" ai={fieldAi("organization_id")}>
+            <Field label="Organization" required ai={fieldAi("organization_id")}>
               <Segmented
                 options={(organizations ?? []).map((org) => ({ value: org.id, label: org.code }))}
                 value={values.organization_id ?? ""}
@@ -250,7 +287,7 @@ function ProjectDescriptionTab({
                 disabled={locked}
               />
             </Field>
-            <Field label="GEO" ai={fieldAi("geo_id")}>
+            <Field label="GEO" required ai={fieldAi("geo_id")}>
               <Segmented
                 options={(geos ?? []).map((geo) => ({ value: geo.id, label: geo.code }))}
                 value={values.geo_id ?? ""}
@@ -262,7 +299,7 @@ function ProjectDescriptionTab({
                 disabled={locked}
               />
             </Field>
-            <Field label="Region" htmlFor="region" ai={fieldAi("region_id")}>
+            <Field label="Region" htmlFor="region" required ai={fieldAi("region_id")}>
               <NativeSelect
                 id="region"
                 value={values.region_id ?? ""}
@@ -281,7 +318,7 @@ function ProjectDescriptionTab({
                   ))}
               </NativeSelect>
             </Field>
-            <Field label="Account Name" htmlFor="account-name" ai={fieldAi("account_id")}>
+            <Field label="Account Name" htmlFor="account-name" required ai={fieldAi("account_id")}>
               <NativeSelect
                 id="account-name"
                 value={values.account_id ?? ""}
@@ -298,7 +335,7 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Critical Flag" ai={fieldAi("critical_flag")}>
+            <Field label="Critical Flag" required ai={fieldAi("critical_flag")}>
               <Segmented
                 options={YES_NO_OPTIONS}
                 value={values.critical_flag ?? ""}
@@ -307,7 +344,7 @@ function ProjectDescriptionTab({
                 disabled={locked}
               />
             </Field>
-            <Field label="Product Flag" ai={fieldAi("product_flag")}>
+            <Field label="Product Flag" required ai={fieldAi("product_flag")}>
               <Segmented
                 options={YES_NO_OPTIONS}
                 value={values.product_flag ?? ""}
@@ -320,7 +357,7 @@ function ProjectDescriptionTab({
               />
             </Field>
             {values.product_flag === "Yes" ? (
-              <Field label="Product" htmlFor="product" ai={fieldAi("product_id")}>
+              <Field label="Product" htmlFor="product" required ai={fieldAi("product_id")}>
                 <NativeSelect
                   id="product"
                   value={values.product_id ?? ""}
@@ -338,12 +375,23 @@ function ProjectDescriptionTab({
                 </NativeSelect>
               </Field>
             ) : null}
+            <Field label="Applicable Phase" className="md:col-span-2">
+              <MultiSelectChecklist
+                options={APPLICABLE_PHASES.map((phase) => ({ value: phase, label: phase }))}
+                value={values.applicable_phase ?? []}
+                onChange={(next) =>
+                  setAndClear("applicable_phase")(next as ProjectPayload["applicable_phase"])
+                }
+                emptyLabel="No phases"
+                disabled={locked}
+              />
+            </Field>
           </div>
         </SectionCard>
 
         <SectionCard icon={UserRound} title="Delivery Team">
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-            <Field label="Project Manager" htmlFor="project-manager" ai={fieldAi("project_manager_id")}>
+            <Field label="Project Manager" htmlFor="project-manager" required ai={fieldAi("project_manager_id")}>
               <NativeSelect
                 id="project-manager"
                 value={values.project_manager_id ?? ""}
@@ -360,26 +408,10 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field
-              label="Delivery Manager"
-              htmlFor="delivery-manager"
-              ai={fieldAi("delivery_manager_id")}
-            >
-              <NativeSelect
-                id="delivery-manager"
-                value={values.delivery_manager_id ?? ""}
-                onChange={(e) => setAndClear("delivery_manager_id")(e.target.value)}
-                disabled={locked}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {(users ?? []).map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name}
-                  </option>
-                ))}
-              </NativeSelect>
+            <Field label="Delivery Manager" badge={<AutoBadge />}>
+              <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+                {accountHead?.full_name ?? "Not Assigned"}
+              </div>
             </Field>
             {/* Delivery Excellence is no longer assigned here — a DE (or Admin)
                 picks it up on the DE Project Allocation screen after the PM
@@ -394,7 +426,7 @@ function ProjectDescriptionTab({
 
         <SectionCard icon={Banknote} title="Commercials">
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-            <Field label="Project Revenue" htmlFor="project-revenue" ai={fieldAi("project_revenue")}>
+            <Field label="Project Revenue" htmlFor="project-revenue" required ai={fieldAi("project_revenue")}>
               <Input
                 id="project-revenue"
                 type="number"
@@ -408,7 +440,7 @@ function ProjectDescriptionTab({
                 disabled={locked}
               />
             </Field>
-            <Field label="Project Currency" htmlFor="project-currency" ai={fieldAi("project_currency")}>
+            <Field label="Project Currency" htmlFor="project-currency" required ai={fieldAi("project_currency")}>
               <NativeSelect
                 id="project-currency"
                 value={values.project_currency ?? ""}
@@ -453,7 +485,12 @@ function ScopeAndScheduleTab({
     <div className="flex flex-col gap-8">
       <SectionCard icon={ScanSearch} title="Scope Definition">
         <div className="flex flex-col gap-6">
-          <Field label="Customer Overview" htmlFor="customer-overview" ai={fieldAi("customer_overview")}>
+          <Field
+            label="Customer Overview"
+            htmlFor="customer-overview"
+            required
+            ai={fieldAi("customer_overview")}
+          >
             <Textarea
               id="customer-overview"
               placeholder="Who the customer is, their business, and the relationship context…"
@@ -465,6 +502,7 @@ function ScopeAndScheduleTab({
           <Field
             label="Project Scope Description"
             htmlFor="scope-description"
+            required
             badge={<MandatoryBadge />}
             ai={fieldAi("project_scope_description")}
           >
@@ -482,7 +520,12 @@ function ScopeAndScheduleTab({
 
       <SectionCard icon={CalendarDays} title="Schedule">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Planned Start Date" htmlFor="planned-start" ai={fieldAi("planned_start_date")}>
+          <Field
+            label="Planned Start Date"
+            htmlFor="planned-start"
+            required
+            ai={fieldAi("planned_start_date")}
+          >
             <Input
               id="planned-start"
               type="date"
@@ -492,7 +535,12 @@ function ScopeAndScheduleTab({
               disabled={locked}
             />
           </Field>
-          <Field label="Planned End Date" htmlFor="planned-end" ai={fieldAi("planned_end_date")}>
+          <Field
+            label="Planned End Date"
+            htmlFor="planned-end"
+            required
+            ai={fieldAi("planned_end_date")}
+          >
             <Input
               id="planned-end"
               type="date"
@@ -513,12 +561,11 @@ function ScopeAndScheduleTab({
   );
 }
 
-// Project Profile action bar, mapped onto ProjectStatus's Draft -> Pending
-// Approval lifecycle (see lib/api/projects.ts): Create Project (POST), Edit
-// Project (PUT — saves the current fields, and unlocks them if the project is
-// locked), Send To Approval (PUT — saves and moves Draft to Pending Approval,
-// which locks the form). Approval itself now happens on the DE Project Approval
-// screen, not here (docs/PendingPoints.txt 16-18).
+// Project Profile action bar: Create Project (POST) and Edit Project (PUT —
+// saves the current fields, and unlocks them if the project is locked).
+// Submitting the project for approval now has its own dedicated screen
+// (new-project/[projectId]/send-to-approval), which validates governance
+// completeness server-side before moving Draft -> Pending Approval.
 function ProjectDescriptionActions({
   values,
   ai,
@@ -545,22 +592,21 @@ function ProjectDescriptionActions({
   const status = project?.project_status;
   const isCreated = !!projectId;
   const isDraft = isDraftStatus(project);
-  // Edit Project and Send To Approval share the one `updateProject` mutation,
-  // so its `isPending` alone can't say which button was clicked — this tracks
-  // that, so only the clicked button shows a spinner.
-  const [pendingAction, setPendingAction] = React.useState<
-    "edit" | "save" | null
-  >(null);
+  // Tracks whether an Edit Project save is in flight, so only that button shows
+  // a spinner (Create has its own `createProject.isPending`).
+  const [pendingAction, setPendingAction] = React.useState<"edit" | null>(null);
 
   const statusMessage = isDraft
     ? "Editable by the Project Manager while the project is in Draft."
-    : status === "Pending Approval"
-      ? "Pending Approval — Delivery Excellence will review and approve. Click Edit Project to make changes."
-      : status === "Approved"
-        ? "Approved — click Edit Project to make changes."
-        : isEditing
-          ? "Editable by the Project Manager while the project is unlocked."
-          : "Locked — click Edit Project to make changes.";
+    : status === "Under Amendment"
+      ? "Under Amendment — every field except Project Type can be changed; then use Send To Approve."
+      : status === "Pending Approval"
+        ? "Pending Approval — Delivery Excellence will review and approve. Click Edit Project to make changes."
+        : status === "Approved"
+          ? "Approved — click Edit Project to make changes."
+          : isEditing
+            ? "Editable by the Project Manager while the project is unlocked."
+            : "Locked — click Edit Project to make changes.";
 
   const handleCreate = async () => {
     if (!values.project_name?.trim()) {
@@ -600,26 +646,7 @@ function ProjectDescriptionActions({
     }
   };
 
-  // Submits the Draft for approval: saves the fields and moves the project
-  // out of Draft, which locks the form (see `locked`) until an approver
-  // either clicks Approve (below) or a future "send back" action.
-  const handleSave = async () => {
-    onProjectNameErrorChange(null);
-    setPendingAction("save");
-    try {
-      await updateProject.mutateAsync({ ...values, project_status: "Pending Approval" });
-      await ai.resolveAll();
-      setEditing(false);
-      showSuccess("Project Sent to Approval Successfully");
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to save changes.");
-    } finally {
-      setPendingAction(null);
-    }
-  };
-
   const busy = createProject.isPending || updateProject.isPending;
-  const locked = !isDraft && !isEditing;
 
   return (
     <>
@@ -635,24 +662,14 @@ function ProjectDescriptionActions({
           </Button>
         ) : null}
         {isCreated ? (
-          <>
-            <Button
-              className={cn(secondaryClass, "gap-2")}
-              disabled={busy}
-              onClick={handleEdit}
-            >
-              {pendingAction === "edit" ? <ButtonSpinner /> : null}
-              Edit Project
-            </Button>
-            <Button
-              className={cn(primaryClass, "gap-2")}
-              disabled={locked || busy}
-              onClick={handleSave}
-            >
-              {pendingAction === "save" ? <ButtonSpinner /> : null}
-              Send To Approval
-            </Button>
-          </>
+          <Button
+            className={cn(secondaryClass, "gap-2")}
+            disabled={busy}
+            onClick={handleEdit}
+          >
+            {pendingAction === "edit" ? <ButtonSpinner /> : null}
+            Edit Project
+          </Button>
         ) : null}
       </div>
       <p className="flex items-center gap-2 text-sm text-slate-500">
@@ -705,7 +722,8 @@ export function ScopeScheduleForm() {
   }
 
   const isDraft = isDraftStatus(project);
-  const locked = !isDraft && !isEditing;
+  const isUnderAmendment = project?.project_status === "Under Amendment";
+  const locked = !isAmendableStatus(project) && !isEditing;
 
   return (
     <div>
@@ -735,9 +753,11 @@ export function ScopeScheduleForm() {
           <Lock className="size-4" />
           {isDraft
             ? "Editable by the Project Manager while the project is in Draft."
-            : isEditing
-              ? "Editable by the Project Manager while the project is unlocked."
-              : "Locked — click Edit Project on the Project Profile tab to make changes."}
+            : isUnderAmendment
+              ? "Under Amendment — editable; submit via Send To Approve when done."
+              : isEditing
+                ? "Editable by the Project Manager while the project is unlocked."
+                : "Locked — click Edit Project on the Project Profile tab to make changes."}
         </p>
       </div>
     </div>

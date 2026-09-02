@@ -52,11 +52,15 @@ export function Field({
   children,
   className,
   ai,
+  required,
 }: {
   label: string;
   htmlFor?: string;
   badge?: React.ReactNode;
   hint?: string;
+  // Renders a red "*" after the label. Used to mark every field that feeds
+  // the Send To Approval readiness check.
+  required?: boolean;
   // Field-level validation message — shown in place of `hint` when present.
   // Purely presentational (no aria-invalid/border wiring on the control
   // itself, since Field wraps arbitrary children); pair with a page banner
@@ -77,6 +81,11 @@ export function Field({
           className="text-sm font-bold tracking-wide text-slate-800"
         >
           {label}
+          {required ? (
+            <span className="ml-0.5 text-red-500" aria-hidden="true">
+              *
+            </span>
+          ) : null}
         </Label>
         {badge}
       </div>

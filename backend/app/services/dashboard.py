@@ -4,10 +4,12 @@ health 'worst wins' across a variable number of projects) is done in Python
 after a narrow query, since portfolio sizes for an internal PMO tool are small.
 """
 
+from calendar import monthrange
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from typing import NamedTuple
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
@@ -45,7 +47,7 @@ from app.models.metric_target import (
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
 from app.models.projects import Project
 from app.models.raid import AssumptionLog, DependencyLog, IssueLog, OpportunityLog, RiskLog
-from app.models.reference_data import Account, Geo, ProjectType, ReportingPeriod
+from app.models.reference_data import Account, Geo, ProjectType, Region, ReportingPeriod
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusReport
 from app.models.users import User, UserAccount
 from app.schemas.dashboard import (
@@ -576,7 +578,10 @@ async def _active_reporting_periods(db: AsyncSession) -> list[ReportingPeriod]:
 # One row per (in-scope project, active reporting period) pair that doesn't
 # yet have a Submitted/Approved status report — "due" reuses the existing
 # reporting_periods/project_status_reports mechanism instead of inventing a
-# new cadence concept the schema doesn't have.
+# new cadence concept the schema doesn't have. A pair only counts once the
+# period has actually started (no future periods) and only for periods that
+# begin on/after the project's start date — nothing was owed for periods
+# that ended before the project existed.
 async def _reports_due_rows(
     db: AsyncSession, filters: DashboardFilters, projects: list[ProjectHealthRow]
 ) -> list[dict]:
@@ -587,6 +592,17 @@ async def _reports_due_rows(
         return []
     project_ids = [p.project_id for p in projects]
     period_ids = [p.id for p in periods]
+
+    start_by_project: dict[UUID, date | None] = dict(
+        (
+            await db.execute(
+                select(
+                    Project.id,
+                    func.coalesce(Project.actual_start_date, Project.planned_start_date),
+                ).where(Project.id.in_(project_ids))
+            )
+        ).all()
+    )
 
     reports = (
         await db.execute(
@@ -603,7 +619,12 @@ async def _reports_due_rows(
     today = date.today()
     rows = []
     for project in projects:
+        project_start = start_by_project.get(project.project_id)
         for period in periods:
+            if period.start_date > today:
+                continue  # period hasn't started yet — reporting only runs "till current date"
+            if project_start is not None and period.start_date < project_start:
+                continue  # period begins before the project started — no report was owed
             if (project.project_id, period.id) in submitted:
                 continue
             rows.append(
@@ -778,19 +799,20 @@ def open_action_priority_split(actions: list[MyOpenActionRow] | list[AccountHead
     return high, medium, low
 
 
-def health_split(project_matrix: list[HealthMatrixRow]) -> tuple[int, int, int]:
-    """(green, amber, red) counts off the same overall_rating the health
-    table shows — Potential Red buckets into red, since the mockup's Health
-    Split only has three colors."""
-    green = amber = red = 0
+def health_split(project_matrix: list[HealthMatrixRow]) -> tuple[int, int, int, int]:
+    """(green, amber, potential_red, red) counts off the same overall_rating
+    the health table shows — one bucket per RAG value, best-to-worst."""
+    green = amber = potential_red = red = 0
     for row in project_matrix:
         if row.overall_rating == HealthRating.GREEN:
             green += 1
         elif row.overall_rating == HealthRating.AMBER:
             amber += 1
-        elif row.overall_rating in (HealthRating.RED, HealthRating.POTENTIAL_RED):
+        elif row.overall_rating == HealthRating.POTENTIAL_RED:
+            potential_red += 1
+        elif row.overall_rating == HealthRating.RED:
             red += 1
-    return green, amber, red
+    return green, amber, potential_red, red
 
 
 def to_my_project_health_rows(
@@ -810,7 +832,7 @@ def to_my_project_health_rows(
 # Approved == filed) across every active reporting period.
 async def account_rag_card_summary(db: AsyncSession, filters: DashboardFilters) -> AccountRagCardSummary:
     matrix = await account_health_matrix(db, filters)
-    green, amber, red = health_split(matrix)
+    green, amber, potential_red, red = health_split(matrix)
 
     accounts = await account_health_rows(db, filters)
     periods = await _active_reporting_periods(db)
@@ -834,7 +856,11 @@ async def account_rag_card_summary(db: AsyncSession, filters: DashboardFilters) 
                     overdue += 1
 
     return AccountRagCardSummary(
-        green_count=green, amber_count=amber, red_count=red, reporting_overdue_count=overdue
+        green_count=green,
+        amber_count=amber,
+        potential_red_count=potential_red,
+        red_count=red,
+        reporting_overdue_count=overdue,
     )
 
 
@@ -922,7 +948,8 @@ def account_portfolio_health(
                 active_projects_count=active_counts.get(account.entity_id, 0),
                 health_green=sum(1 for r in ratings if r == HealthRating.GREEN),
                 health_amber=sum(1 for r in ratings if r == HealthRating.AMBER),
-                health_red=sum(1 for r in ratings if r in (HealthRating.RED, HealthRating.POTENTIAL_RED)),
+                health_potential_red=sum(1 for r in ratings if r == HealthRating.POTENTIAL_RED),
+                health_red=sum(1 for r in ratings if r == HealthRating.RED),
                 status_label=_ACCOUNT_STATUS_LABELS.get(account.overall_rating, "Not Rated"),
             )
         )
@@ -1335,30 +1362,31 @@ async def geo_executive_update_summary(db: AsyncSession, geo_ids: list[UUID]) ->
 # Delivery Excellence "My Summary" (design-reference/de-mysummary.jpg) —
 # scoped to projects where the signed-in user is Project.delivery_excellence_id
 # (same one-value-FK idiom as project_manager_id, not an owned list like
-# accounts/geos). DEAssessment has no period FK of its own, so every helper
-# below takes an explicit ReportingPeriod and treats assessment_date as the
-# thing to bracket against it.
+# accounts/geos). A DE assessment is independent of weekly/monthly reporting
+# periods: the queue/dashboard work off the current *calendar month*
+# (current_month_window) and treat assessment_date as the thing to bracket
+# against it. Every helper below takes such a window, duck-typed to a
+# ReportingPeriod's .start_date / .end_date / .label.
+class MonthWindow(NamedTuple):
+    start_date: date
+    end_date: date
+    label: str
 
 
-# Nearest active Monthly ReportingPeriod — the page's period selector default,
-# since DEAssessment tracks no period of its own (see module docstring above).
-async def de_default_period(db: AsyncSession) -> ReportingPeriod | None:
-    periods = (
-        await db.execute(
-            select(ReportingPeriod).where(
-                ReportingPeriod.is_active.is_(True), ReportingPeriod.period_type == "Monthly"
-            )
-        )
-    ).scalars().all()
-    if not periods:
-        return None
-    return min(periods, key=lambda p: p.end_date)
+# The current calendar month — the DE Assessment cadence ("at least once per
+# month") is measured against this, not a reporting_periods row.
+def current_month_window(today: date | None = None) -> MonthWindow:
+    d = today or date.today()
+    start = d.replace(day=1)
+    end = d.replace(day=monthrange(d.year, d.month)[1])
+    return MonthWindow(start_date=start, end_date=end, label=start.strftime("%B %Y"))
 
 
-# One row per in-scope project, left-joined to that project's DEAssessment (if
-# any) dated within the selected period. "status" is Submitted / Draft (from the
-# in-period assessment's own status) or Not Started (no row for the period).
-# prev_* come from the latest Submitted assessment dated before the period.
+# One row per in-scope project. "status" reflects this calendar month:
+# "Assessed" (>=1 Submitted assessment this month), "Draft" (only a Draft this
+# month) or "Due" (nothing this month). A project may be assessed any number of
+# times per month; de_health / pci_score / assessed_by_name come from the most
+# recent assessment this month, prev_* from the latest Submitted one before it.
 _FINDING_OPEN_STATES = (
     FindingStatus.OPEN,
     FindingStatus.IN_PROGRESS,
@@ -1369,62 +1397,78 @@ _FINDING_OPEN_STATES = (
 
 
 async def de_assessment_work_queue(
-    db: AsyncSession, filters: DashboardFilters, period: ReportingPeriod
+    db: AsyncSession, filters: DashboardFilters, period: MonthWindow
 ) -> list[DEAssessmentWorkQueueRow]:
     conditions = _project_conditions(filters)
-    stmt = select(Project, User.full_name, Account.name, Geo.name).outerjoin(
+    stmt = select(Project, User.full_name, Account.name, Geo.name, Region.name).outerjoin(
         User, User.id == Project.project_manager_id
     ).outerjoin(Account, Account.id == Project.account_id).outerjoin(
         Geo, Geo.id == Project.geo_id
-    )
+    ).outerjoin(Region, Region.id == Project.region_id)
     if conditions:
         stmt = stmt.where(*conditions)
     rows = (await db.execute(stmt)).all()
     if not rows:
         return []
-    project_ids = [project.id for project, _, _, _ in rows]
+    project_ids = [project.id for project, *_ in rows]
 
     all_assessments = (
         await db.execute(select(DEAssessment).where(DEAssessment.project_id.in_(project_ids)))
     ).scalars().all()
 
-    in_period_by_project: dict[UUID, DEAssessment] = {}
+    # Per project: assessments this month, the count, and the latest Submitted
+    # one dated before this month (prev_*).
+    month_by_project: dict[UUID, list[DEAssessment]] = defaultdict(list)
+    last_by_project: dict[UUID, DEAssessment] = {}
     prev_by_project: dict[UUID, DEAssessment] = {}
     for a in all_assessments:
         if a.assessment_date is None:
             continue
+        current_last = last_by_project.get(a.project_id)
+        if current_last is None or a.assessment_date > current_last.assessment_date:
+            last_by_project[a.project_id] = a
         if period.start_date <= a.assessment_date <= period.end_date:
-            current = in_period_by_project.get(a.project_id)
-            if current is None or a.assessment_date > current.assessment_date:
-                in_period_by_project[a.project_id] = a
+            month_by_project[a.project_id].append(a)
         elif a.assessment_date < period.start_date and a.status == "Submitted":
-            current = prev_by_project.get(a.project_id)
-            if current is None or a.assessment_date > current.assessment_date:
+            current_prev = prev_by_project.get(a.project_id)
+            if current_prev is None or a.assessment_date > current_prev.assessment_date:
                 prev_by_project[a.project_id] = a
+
+    assessor_ids = {a.assessed_by for a in all_assessments if a.assessed_by is not None}
+    assessor_names: dict[UUID, str] = {}
+    if assessor_ids:
+        assessor_names = dict(
+            (await db.execute(select(User.id, User.full_name).where(User.id.in_(assessor_ids)))).all()
+        )
 
     open_findings_count: dict[UUID, int] = defaultdict(int)
     finding_rows = (
         await db.execute(
-            select(DEAssessment.project_id, func.count(DEAssessmentFinding.id))
-            .join(DEAssessmentFinding, DEAssessmentFinding.assessment_id == DEAssessment.id)
+            select(DEAssessmentFinding.project_id, func.count(DEAssessmentFinding.id))
             .where(
-                DEAssessment.project_id.in_(project_ids),
+                DEAssessmentFinding.project_id.in_(project_ids),
                 DEAssessmentFinding.status.in_([s.value for s in _FINDING_OPEN_STATES]),
             )
-            .group_by(DEAssessment.project_id)
+            .group_by(DEAssessmentFinding.project_id)
         )
     ).all()
     for project_id, count in finding_rows:
         open_findings_count[project_id] = count
 
     work_queue = []
-    for project, pm_name, account_name, geo_name in rows:
-        current = in_period_by_project.get(project.id)
+    for project, pm_name, account_name, geo_name, region_name in rows:
+        this_month = sorted(
+            month_by_project.get(project.id, []), key=lambda a: a.assessment_date, reverse=True
+        )
+        latest = this_month[0] if this_month else None
         prev = prev_by_project.get(project.id)
-        if current is None:
-            row_status = "Not Started"
+        last_any = last_by_project.get(project.id)
+        if any(a.status == "Submitted" for a in this_month):
+            row_status = "Assessed"
+        elif this_month:
+            row_status = "Draft"
         else:
-            row_status = "Draft" if current.status == "Draft" else "Submitted"
+            row_status = "Due"
         work_queue.append(
             DEAssessmentWorkQueueRow(
                 project_id=project.id,
@@ -1433,10 +1477,16 @@ async def de_assessment_work_queue(
                 project_manager_name=pm_name,
                 account_name=account_name,
                 geo_name=geo_name,
+                region_name=region_name,
                 pm_health=project.delivery_declared_overall_health,
-                de_health=current.de_assessed_project_health if current is not None else None,
-                pci_score=current.pci_score if current is not None else None,
+                de_health=latest.de_assessed_project_health if latest is not None else None,
+                pci_score=latest.pci_score if latest is not None else None,
                 status=row_status,
+                assessments_this_month=len(this_month),
+                last_assessment_date=last_any.assessment_date if last_any is not None else None,
+                assessed_by_name=(
+                    assessor_names.get(latest.assessed_by) if latest is not None else None
+                ),
                 open_findings_count=open_findings_count.get(project.id, 0),
                 prev_de_health=prev.de_assessed_project_health if prev is not None else None,
                 prev_pci_score=prev.pci_score if prev is not None else None,
@@ -1454,16 +1504,29 @@ async def de_findings_by_project(
     db: AsyncSession, filters: DashboardFilters
 ) -> dict[UUID, list[DEAssessmentFinding]]:
     project_ids = await _matching_project_ids(db, filters)
-    stmt = (
-        select(DEAssessmentFinding, DEAssessment.project_id)
-        .join(DEAssessment, DEAssessment.id == DEAssessmentFinding.assessment_id)
-        .where(DEAssessment.project_id.in_(project_ids))
-    )
-    rows = (await db.execute(stmt)).all()
+    stmt = select(DEAssessmentFinding).where(DEAssessmentFinding.project_id.in_(project_ids))
+    rows = (await db.execute(stmt)).scalars().all()
     by_project: dict[UUID, list[DEAssessmentFinding]] = defaultdict(list)
-    for finding, project_id in rows:
-        by_project[project_id].append(finding)
+    for finding in rows:
+        by_project[finding.project_id].append(finding)
     return by_project
+
+
+# Open findings across in-scope projects (My Summary "Open Findings" card).
+# Same shape as count_open_risks/count_open_issues; scoping comes from
+# _matching_project_ids, which already honors project_manager_id / account_ids /
+# geo_ids, so this works for every role /dashboard/my-summary serves.
+async def count_open_findings(db: AsyncSession, filters: DashboardFilters) -> int:
+    project_ids = await _matching_project_ids(db, filters)
+    stmt = (
+        select(func.count())
+        .select_from(DEAssessmentFinding)
+        .where(
+            DEAssessmentFinding.project_id.in_(project_ids),
+            DEAssessmentFinding.status.in_([s.value for s in _FINDING_OPEN_STATES]),
+        )
+    )
+    return (await db.execute(stmt)).scalar_one()
 
 
 # Findings have no due-date field — any still-Open finding raised more than
@@ -1545,7 +1608,7 @@ def de_attention_required(
         latest = recent[0] if recent else None
 
         if (
-            row.status == "Not Started"
+            row.status == "Due"
             and latest is not None
             and latest.next_assessment_due_date is not None
             and latest.next_assessment_due_date < today
@@ -1582,7 +1645,7 @@ def de_attention_required(
             items.append(
                 AttentionItem(
                     title=f"{row.project_name}: PM Health {row.pm_health} — DE Assessment pending",
-                    subtitle="No DE assessment recorded for this period yet",
+                    subtitle="No DE assessment recorded this month yet",
                     href=row.href,
                 )
             )
@@ -2122,9 +2185,10 @@ async def list_projects_for_health(
     total = (await db.execute(select(func.count()).select_from(Project).where(*conditions))).scalar_one()
     rows = (
         await db.execute(
-            select(Project, ProjectType.name, Geo.name, Account.name, User.full_name)
+            select(Project, ProjectType.name, Geo.name, Region.name, Account.name, User.full_name)
             .outerjoin(ProjectType, ProjectType.id == Project.project_type_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .outerjoin(User, User.id == Project.project_manager_id)
             .where(*conditions)
@@ -2141,6 +2205,7 @@ async def list_projects_for_health(
             project_name=project.project_name,
             project_type_name=project_type_name,
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             project_manager_name=pm_name,
             start_date=project.planned_start_date,
@@ -2148,7 +2213,7 @@ async def list_projects_for_health(
             overall_health=project.overall_project_health,
             status=project.project_status,
         )
-        for project, project_type_name, geo_name, account_name, pm_name in rows
+        for project, project_type_name, geo_name, region_name, account_name, pm_name in rows
     ]
     return items, total
 
@@ -2160,9 +2225,10 @@ async def list_rag_rows(db: AsyncSession, filters: DashboardFilters, period_id: 
     project_ids = [p.project_id for p in projects]
 
     project_geo = (
-        await db.execute(select(Project.id, Geo.name).outerjoin(Geo, Geo.id == Project.geo_id).where(Project.id.in_(project_ids)))
+        await db.execute(select(Project.id, Geo.name, Region.name).outerjoin(Geo, Geo.id == Project.geo_id).outerjoin(Region, Region.id == Project.region_id).where(Project.id.in_(project_ids)))
     ).all()
-    geo_by_project = dict(project_geo)
+    geo_by_project = {pid: g for pid, g, _ in project_geo}
+    region_by_project = {pid: r for pid, _, r in project_geo}
 
     decl_conditions = [HealthDeclaration.project_id.in_(project_ids)]
     if period_id is not None:
@@ -2189,6 +2255,7 @@ async def list_rag_rows(db: AsyncSession, filters: DashboardFilters, period_id: 
                 project_code=p.project_code,
                 project_name=p.project_name,
                 geo_name=geo_by_project.get(p.project_id),
+                region_name=region_by_project.get(p.project_id),
                 account_name=p.account_name,
                 overall_rating=decl.overall_rating if decl else None,
                 core_delivery_rating=decl.core_delivery_rating if decl else None,
@@ -2273,9 +2340,10 @@ async def list_risks_for_health(
     total = (await db.execute(select(func.count()).select_from(RiskLog).where(*conditions))).scalar_one()
     rows = (
         await db.execute(
-            select(RiskLog, Project.project_code, Project.project_name, Geo.name, Account.name, User.full_name)
+            select(RiskLog, Project.project_code, Project.project_name, Geo.name, Region.name, Account.name, User.full_name)
             .outerjoin(Project, Project.id == RiskLog.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .outerjoin(User, User.id == RiskLog.risk_owner)
             .where(*conditions)
@@ -2290,6 +2358,7 @@ async def list_risks_for_health(
             project_id=risk.project_id,
             project_label=f"{project_code} · {project_name}" if project_code else str(risk.project_id),
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             risk_id=risk.id,
             risk_title=risk.risk_title,
@@ -2302,7 +2371,7 @@ async def list_risks_for_health(
             target_resolution_date=risk.target_resolution_date,
             current_status=risk.current_status,
         )
-        for risk, project_code, project_name, geo_name, account_name, owner_name in rows
+        for risk, project_code, project_name, geo_name, region_name, account_name, owner_name in rows
     ]
     return items, total
 
@@ -2317,9 +2386,10 @@ async def list_issues_for_health(
     total = (await db.execute(select(func.count()).select_from(IssueLog).where(*conditions))).scalar_one()
     rows = (
         await db.execute(
-            select(IssueLog, Project.project_code, Project.project_name, Geo.name, Account.name, User.full_name)
+            select(IssueLog, Project.project_code, Project.project_name, Geo.name, Region.name, Account.name, User.full_name)
             .outerjoin(Project, Project.id == IssueLog.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .outerjoin(User, User.id == IssueLog.assigned_to)
             .where(*conditions)
@@ -2335,6 +2405,7 @@ async def list_issues_for_health(
             project_id=issue.project_id,
             project_label=f"{project_code} · {project_name}" if project_code else str(issue.project_id),
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             issue_id=issue.id,
             issue_title=issue.issue_title,
@@ -2345,7 +2416,7 @@ async def list_issues_for_health(
             age_days=(today - issue.raised_date).days if issue.raised_date else None,
             status=issue.status,
         )
-        for issue, project_code, project_name, geo_name, account_name, owner_name in rows
+        for issue, project_code, project_name, geo_name, region_name, account_name, owner_name in rows
     ]
     return items, total
 
@@ -2389,9 +2460,10 @@ async def list_dependencies_for_health(
     total = (await db.execute(select(func.count()).select_from(DependencyLog).where(*conditions))).scalar_one()
     rows = (
         await db.execute(
-            select(DependencyLog, Project.project_code, Project.project_name, Geo.name, Account.name, User.full_name)
+            select(DependencyLog, Project.project_code, Project.project_name, Geo.name, Region.name, Account.name, User.full_name)
             .outerjoin(Project, Project.id == DependencyLog.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .outerjoin(User, User.id == DependencyLog.owner)
             .where(*conditions)
@@ -2406,6 +2478,7 @@ async def list_dependencies_for_health(
             project_id=dep.project_id,
             project_label=f"{project_code} · {project_name}" if project_code else str(dep.project_id),
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             dependency_id=dep.id,
             dependency_title=dep.dependency_title,
@@ -2415,7 +2488,7 @@ async def list_dependencies_for_health(
             due_date=dep.required_by_date,
             status=dep.dependency_status,
         )
-        for dep, project_code, project_name, geo_name, account_name, owner_name in rows
+        for dep, project_code, project_name, geo_name, region_name, account_name, owner_name in rows
     ]
     return items, total
 
@@ -2455,9 +2528,10 @@ async def list_assumptions_for_health(
     total = (await db.execute(select(func.count()).select_from(AssumptionLog).where(*conditions))).scalar_one()
     rows = (
         await db.execute(
-            select(AssumptionLog, Project.project_code, Project.project_name, Geo.name, Account.name, User.full_name)
+            select(AssumptionLog, Project.project_code, Project.project_name, Geo.name, Region.name, Account.name, User.full_name)
             .outerjoin(Project, Project.id == AssumptionLog.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .outerjoin(User, User.id == AssumptionLog.owner)
             .where(*conditions)
@@ -2472,6 +2546,7 @@ async def list_assumptions_for_health(
             project_id=a.project_id,
             project_label=f"{project_code} · {project_name}" if project_code else str(a.project_id),
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             assumption_id=a.id,
             title=a.title,
@@ -2479,7 +2554,7 @@ async def list_assumptions_for_health(
             review_date=a.validation_date,
             status=a.current_status,
         )
-        for a, project_code, project_name, geo_name, account_name, owner_name in rows
+        for a, project_code, project_name, geo_name, region_name, account_name, owner_name in rows
     ]
     return items, total
 
@@ -2520,9 +2595,10 @@ async def list_opportunities_for_health(
     total = (await db.execute(select(func.count()).select_from(OpportunityLog).where(*conditions))).scalar_one()
     rows = (
         await db.execute(
-            select(OpportunityLog, Project.project_code, Project.project_name, Geo.name, Account.name, User.full_name)
+            select(OpportunityLog, Project.project_code, Project.project_name, Geo.name, Region.name, Account.name, User.full_name)
             .outerjoin(Project, Project.id == OpportunityLog.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .outerjoin(User, User.id == OpportunityLog.opportunity_owner)
             .where(*conditions)
@@ -2537,6 +2613,7 @@ async def list_opportunities_for_health(
             project_id=o.project_id,
             project_label=f"{project_code} · {project_name}" if project_code else str(o.project_id),
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             opportunity_id=o.id,
             opportunity_title=o.opportunity_title,
@@ -2546,7 +2623,7 @@ async def list_opportunities_for_health(
             target_date=o.target_implementation_date,
             status=o.status,
         )
-        for o, project_code, project_name, geo_name, account_name, owner_name in rows
+        for o, project_code, project_name, geo_name, region_name, account_name, owner_name in rows
     ]
     return items, total
 
@@ -2581,6 +2658,7 @@ async def list_payment_milestones_for_health(
                 Project.project_code,
                 Project.project_name,
                 Geo.name,
+                Region.name,
                 Account.name,
                 Project.project_currency,
                 MilestonePaymentActual.actual_date_of_payment,
@@ -2588,6 +2666,7 @@ async def list_payment_milestones_for_health(
             )
             .outerjoin(Project, Project.id == MilestonePayment.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .outerjoin(MilestonePaymentActual, MilestonePaymentActual.milestone_id == MilestonePayment.id)
             .where(*conditions)
@@ -2602,6 +2681,7 @@ async def list_payment_milestones_for_health(
             project_id=milestone.project_id,
             project_label=f"{project_code} · {project_name}" if project_code else str(milestone.project_id),
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             milestone_id=milestone.id,
             milestone_name=milestone.milestone_name,
@@ -2611,7 +2691,7 @@ async def list_payment_milestones_for_health(
             actual_date=actual_date,
             status=status or "Pending",
         )
-        for milestone, project_code, project_name, geo_name, account_name, currency, actual_date, status in rows
+        for milestone, project_code, project_name, geo_name, region_name, account_name, currency, actual_date, status in rows
     ]
     return items, total
 
@@ -2721,9 +2801,10 @@ async def list_commitments_for_health(
     total = (await db.execute(select(func.count()).select_from(ContractualCommitment).where(*conditions))).scalar_one()
     rows = (
         await db.execute(
-            select(ContractualCommitment, Project.project_code, Project.project_name, Geo.name, Account.name)
+            select(ContractualCommitment, Project.project_code, Project.project_name, Geo.name, Region.name, Account.name)
             .outerjoin(Project, Project.id == ContractualCommitment.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .where(*conditions)
             .order_by(ContractualCommitment.commitment_name)
@@ -2760,7 +2841,7 @@ async def list_commitments_for_health(
     latest_by_commitment = {row[0]: (row[1], row[2]) for row in latest_actuals}
 
     items = []
-    for commitment, project_code, project_name, geo_name, account_name in rows:
+    for commitment, project_code, project_name, geo_name, region_name, account_name in rows:
         latest_date, met_status = latest_by_commitment.get(commitment.id, (None, None))
         window = _COMMITMENT_CADENCE_WINDOW_DAYS.get(commitment.frequency)
         due_date = latest_date + timedelta(days=window) if (window is not None and latest_date is not None) else None
@@ -2769,6 +2850,7 @@ async def list_commitments_for_health(
                 project_id=commitment.project_id,
                 project_label=f"{project_code} · {project_name}" if project_code else str(commitment.project_id),
                 geo_name=geo_name,
+                region_name=region_name,
                 account_name=account_name,
                 commitment_id=commitment.id,
                 commitment_name=commitment.commitment_name,
@@ -2920,29 +3002,27 @@ async def list_findings_for_health(
     db: AsyncSession, filters: DashboardFilters, skip: int, limit: int
 ) -> tuple[list[FindingRow], int]:
     project_ids = await _matching_project_ids(db, filters)
-    conditions = [DEAssessment.project_id.in_(project_ids)]
+    conditions = [DEAssessmentFinding.project_id.in_(project_ids)]
 
     total = (
         await db.execute(
-            select(func.count())
-            .select_from(DEAssessmentFinding)
-            .join(DEAssessment, DEAssessment.id == DEAssessmentFinding.assessment_id)
-            .where(*conditions)
+            select(func.count()).select_from(DEAssessmentFinding).where(*conditions)
         )
     ).scalar_one()
     rows = (
         await db.execute(
             select(
                 DEAssessmentFinding,
-                DEAssessment.project_id,
+                DEAssessmentFinding.project_id,
                 Project.project_code,
                 Project.project_name,
                 Geo.name,
+                Region.name,
                 Account.name,
             )
-            .join(DEAssessment, DEAssessment.id == DEAssessmentFinding.assessment_id)
-            .outerjoin(Project, Project.id == DEAssessment.project_id)
+            .outerjoin(Project, Project.id == DEAssessmentFinding.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .where(*conditions)
             .order_by(DEAssessmentFinding.finding_date.desc())
@@ -2957,6 +3037,7 @@ async def list_findings_for_health(
             project_id=project_id,
             project_label=f"{project_code} · {project_name}" if project_code else str(project_id),
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             finding_id=finding.id,
             finding_title=(
@@ -2969,7 +3050,7 @@ async def list_findings_for_health(
             age_days=(today - finding.finding_date).days if finding.finding_date else None,
             status=finding.status,
         )
-        for finding, project_id, project_code, project_name, geo_name, account_name in rows
+        for finding, project_id, project_code, project_name, geo_name, region_name, account_name in rows
     ]
     return items, total
 
@@ -3028,12 +3109,14 @@ async def list_assessments_for_health(
                 Project.project_code,
                 Project.project_name,
                 Geo.name,
+                Region.name,
                 Account.name,
                 Project.delivery_declared_overall_health,
                 User.full_name,
             )
             .outerjoin(Project, Project.id == DEAssessment.project_id)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .outerjoin(User, User.id == DEAssessment.assessed_by)
             .where(*conditions)
@@ -3058,6 +3141,7 @@ async def list_assessments_for_health(
             project_id=a.project_id,
             project_label=f"{project_code} · {project_name}" if project_code else str(a.project_id),
             geo_name=geo_name,
+            region_name=region_name,
             account_name=account_name,
             assessment_id=a.id,
             pm_health=pm_health,
@@ -3067,7 +3151,7 @@ async def list_assessments_for_health(
             assessed_by_name=assessed_by_name,
             status="Compliant" if a.de_assessed_project_health == HealthRating.GREEN else "Red/Amber",
         )
-        for a, project_code, project_name, geo_name, account_name, pm_health, assessed_by_name in rows
+        for a, project_code, project_name, geo_name, region_name, account_name, pm_health, assessed_by_name in rows
     ]
     return items, total
 
@@ -3096,6 +3180,9 @@ _METRIC_FIELD_SPECS: dict[str, list[tuple[str, str, str]]] = {
         ("incident_sla_compliance_p1_pct", "target_incident_sla_compliance_p1_pct", "higher_better"),
         ("incident_sla_compliance_p2_pct", "target_incident_sla_compliance_p2_pct", "higher_better"),
         ("incident_sla_compliance_p3_pct", "target_incident_sla_compliance_p3_pct", "higher_better"),
+        ("incident_mttr_p1_hours", "target_incident_mttr_p1_hours", "lower_better"),
+        ("incident_mttr_p2_hours", "target_incident_mttr_p2_hours", "lower_better"),
+        ("incident_mttr_p3_hours", "target_incident_mttr_p3_hours", "lower_better"),
         ("service_request_mttr_hours", "target_service_request_mttr_hours", "lower_better"),
         ("user_clarification_mttr_hours", "target_user_clarification_mttr_hours", "lower_better"),
     ],
@@ -3117,7 +3204,7 @@ _METRIC_FIELD_SPECS: dict[str, list[tuple[str, str, str]]] = {
     "cloud_migration": [
         ("applications_migrated_pct", "target_applications_migrated_pct", "higher_better"),
         ("migration_success_rate_pct", "target_migration_success_rate_pct", "higher_better"),
-        ("migration_downtime_minutes", "target_migration_downtime_minutes", "lower_better"),
+        ("migration_downtime_hours", "target_migration_downtime_hours", "lower_better"),
     ],
 }
 
@@ -3235,6 +3322,9 @@ _METRIC_LABELS: dict[str, str] = {
     "incident_sla_compliance_p1_pct": "Incident SLA Compliance (P1) %",
     "incident_sla_compliance_p2_pct": "Incident SLA Compliance (P2) %",
     "incident_sla_compliance_p3_pct": "Incident SLA Compliance (P3) %",
+    "incident_mttr_p1_hours": "Incident MTTR (P1) (hrs)",
+    "incident_mttr_p2_hours": "Incident MTTR (P2) (hrs)",
+    "incident_mttr_p3_hours": "Incident MTTR (P3) (hrs)",
     "service_request_mttr_hours": "Service Request MTTR (hrs)",
     "user_clarification_mttr_hours": "User Clarification MTTR (hrs)",
     "pct_profiles_qualifying": "Profiles Qualifying %",
@@ -3246,7 +3336,7 @@ _METRIC_LABELS: dict[str, str] = {
     "application_availability_pct": "Application Availability %",
     "applications_migrated_pct": "Applications Migrated %",
     "migration_success_rate_pct": "Migration Success Rate %",
-    "migration_downtime_minutes": "Migration Downtime (min)",
+    "migration_downtime_hours": "Migration Downtime (hrs)",
 }
 
 
@@ -3264,15 +3354,17 @@ async def list_metrics_for_health(
 
     projects = (
         await db.execute(
-            select(Project.id, Project.project_code, Project.project_name, Geo.name, Account.name)
+            select(Project.id, Project.project_code, Project.project_name, Geo.name, Region.name, Account.name)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .where(Project.id.in_(project_ids))
         )
     ).all()
-    project_label_by_id = {pid: f"{code} · {name}" for pid, code, name, _, _ in projects}
-    geo_by_id = {pid: geo_name for pid, _, _, geo_name, _ in projects}
-    account_by_id = {pid: account_name for pid, _, _, _, account_name in projects}
+    project_label_by_id = {pid: f"{code} · {name}" for pid, code, name, _, _, _ in projects}
+    geo_by_id = {pid: geo_name for pid, _, _, geo_name, _, _ in projects}
+    region_by_id = {pid: region_name for pid, _, _, _, region_name, _ in projects}
+    account_by_id = {pid: account_name for pid, _, _, _, _, account_name in projects}
 
     discipline_tables = [
         ("development", MeasurementDevelopment, MetricTargetDevelopment, "period"),
@@ -3326,6 +3418,7 @@ async def list_metrics_for_health(
                         project_id=measurement.project_id,
                         project_label=project_label_by_id.get(measurement.project_id, str(measurement.project_id)),
                         geo_name=geo_by_id.get(measurement.project_id),
+                        region_name=region_by_id.get(measurement.project_id),
                         account_name=account_by_id.get(measurement.project_id),
                         metric_name=_METRIC_LABELS.get(actual_attr, actual_attr),
                         target=str(target_value) if target_value is not None else None,
@@ -3393,15 +3486,17 @@ async def list_data_integrity_for_health(
 
     projects = (
         await db.execute(
-            select(Project.id, Project.project_code, Project.project_name, Geo.name, Account.name)
+            select(Project.id, Project.project_code, Project.project_name, Geo.name, Region.name, Account.name)
             .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
             .outerjoin(Account, Account.id == Project.account_id)
             .where(Project.id.in_(project_ids))
         )
     ).all()
-    project_label_by_id = {pid: f"{code} · {name}" for pid, code, name, _, _ in projects}
-    geo_by_id = {pid: geo_name for pid, _, _, geo_name, _ in projects}
-    account_by_id = {pid: account_name for pid, _, _, _, account_name in projects}
+    project_label_by_id = {pid: f"{code} · {name}" for pid, code, name, _, _, _ in projects}
+    geo_by_id = {pid: geo_name for pid, _, _, geo_name, _, _ in projects}
+    region_by_id = {pid: region_name for pid, _, _, _, region_name, _ in projects}
+    account_by_id = {pid: account_name for pid, _, _, _, _, account_name in projects}
 
     status_rows = await data_integrity_rollup.compute_status_rows_bulk(db, project_ids, items_cfg)
     items_by_id = {item.id: item for item in items_cfg}
@@ -3417,6 +3512,7 @@ async def list_data_integrity_for_health(
                 project_id=project_id,
                 project_label=project_label_by_id.get(project_id, str(project_id)),
                 geo_name=geo_by_id.get(project_id),
+                region_name=region_by_id.get(project_id),
                 account_name=account_by_id.get(project_id),
                 item_id=item_id,
                 check_name=item.item_name,
@@ -3434,9 +3530,8 @@ async def list_data_integrity_for_health(
 
 # Nearest active reporting period regardless of type (Weekly/Monthly/Baseline)
 # — same "min by end_date across every active period" idiom
-# project_report_status/reporting_readiness already use, just exposed as its
-# own function since this page's period selector isn't Monthly-only like
-# de_default_period's DE Assessment use case.
+# project_report_status/reporting_readiness already use, exposed as its own
+# function for the Project Health dashboard's period selector.
 async def nearest_active_period(db: AsyncSession) -> ReportingPeriod | None:
     periods = await _active_reporting_periods(db)
     if not periods:

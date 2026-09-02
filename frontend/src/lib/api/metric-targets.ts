@@ -35,6 +35,9 @@ function useSaveMetricTarget<TPayload, TRead>(projectId: string | null, prefix: 
 export type MetricTargetDevelopment = {
   id: string;
   project_id: string;
+  target_size_unit: string | null;
+  target_overall_planned_size: number | null;
+  target_overall_estimated_effort: number | null;
   target_productivity: number | null;
   target_effort_variation_pct: number | null;
   target_schedule_performance_index: number | null;
@@ -168,7 +171,7 @@ export type MetricTargetCloudMigration = {
   project_id: string;
   target_applications_migrated_pct: number | null;
   target_migration_success_rate_pct: number | null;
-  target_migration_downtime_minutes: number | null;
+  target_migration_downtime_hours: number | null;
 };
 
 export type MetricTargetCloudMigrationPayload = Omit<MetricTargetCloudMigration, "id" | "project_id">;

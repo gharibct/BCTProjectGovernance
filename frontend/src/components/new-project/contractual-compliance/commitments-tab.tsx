@@ -16,7 +16,10 @@ import { useBaselinePeriodId } from "@/lib/period-utils";
 import {
   useCommitments,
   useCreateCommitment,
+  useDeleteCommitment,
+  useUpdateCommitment,
   type CommitmentFrequency,
+  type ContractualCommitment,
   type ContractualCommitmentPayload,
 } from "@/lib/api/contractual";
 
@@ -34,8 +37,20 @@ function buildCommitmentPayload(values: Record<string, string>): ContractualComm
     frequency: values.frequency as CommitmentFrequency,
     formula: values.formula || undefined,
     target: values.target || undefined,
-    penalty_applicable: values.penalty_applicable === "Y",
+    penalty_applicable: values.penalty_applicable === "Yes",
     penalty_value: values.penalty_value || undefined,
+  };
+}
+
+// Populate the "New Commitment" form from an existing row for in-place editing.
+function toValues(item: ContractualCommitment): Record<string, string> {
+  return {
+    commitment_name: item.commitment_name,
+    frequency: item.frequency,
+    formula: item.formula ?? "",
+    target: item.target ?? "",
+    penalty_applicable: item.penalty_applicable ? "Yes" : "No",
+    penalty_value: item.penalty_value ?? "",
   };
 }
 
@@ -68,7 +83,7 @@ const COMMITMENT_FIELDS: FieldDef[] = [
     key: "penalty_applicable",
     label: "Penalty Applicable",
     kind: "select",
-    options: ["Y", "N"],
+    options: ["Yes", "No"],
   },
   { key: "penalty_value", label: "Penalty Value", kind: "number" },
 ];
@@ -76,21 +91,59 @@ const COMMITMENT_FIELDS: FieldDef[] = [
 export function CommitmentsTab() {
   const projectId = useNewProjectId();
   const periodId = useBaselinePeriodId();
-  const { values, set, reset } = useEntryValues();
+  const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useCommitments(projectId);
   const createCommitment = useCreateCommitment(projectId);
+  const updateCommitment = useUpdateCommitment(projectId);
+  const deleteCommitment = useDeleteCommitment(projectId);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
-  const addCommitment = () => {
-    if (!values.commitment_name?.trim() || !values.frequency) return;
-    createCommitment.mutate(buildCommitmentPayload(values), {
+  const startEdit = (item: ContractualCommitment) => {
+    setEditingId(item.id);
+    load(toValues(item));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    reset();
+  };
+
+  const handleDelete = (item: ContractualCommitment) => {
+    deleteCommitment.mutate(item.id, {
       onSuccess: () => {
-        reset();
-        showSuccess("Commitment Added Successfully");
+        if (editingId === item.id) cancelEdit();
+        showSuccess("Commitment Deleted Successfully");
       },
-      onError: (err) => showError(err instanceof Error ? err.message : "Failed to add commitment."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete commitment."),
     });
+  };
+
+  const submit = () => {
+    if (!values.commitment_name?.trim() || !values.frequency) return;
+    const payload = buildCommitmentPayload(values);
+
+    if (editingId) {
+      updateCommitment.mutate(
+        { id: editingId, payload },
+        {
+          onSuccess: () => {
+            cancelEdit();
+            showSuccess("Commitment Updated Successfully");
+          },
+          onError: (err) => showError(err instanceof Error ? err.message : "Failed to update commitment."),
+        }
+      );
+    } else {
+      createCommitment.mutate(payload, {
+        onSuccess: () => {
+          reset();
+          showSuccess("Commitment Added Successfully");
+        },
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to add commitment."),
+      });
+    }
   };
 
   if (!projectId) {
@@ -98,6 +151,8 @@ export function CommitmentsTab() {
       <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
     );
   }
+
+  const busy = createCommitment.isPending || updateCommitment.isPending;
 
   return (
     <div className="flex flex-col gap-8">
@@ -122,6 +177,8 @@ export function CommitmentsTab() {
         <RegisterTable
           items={items}
           emptyLabel="No commitments defined yet."
+          onEdit={startEdit}
+          onDelete={handleDelete}
           columns={[
             { key: "commitment_name", label: "Commitment" },
             { key: "frequency", label: "Frequency" },
@@ -129,7 +186,7 @@ export function CommitmentsTab() {
             {
               key: "penalty_applicable",
               label: "Penalty",
-              render: (item) => (item.penalty_applicable ? "Y" : "N"),
+              render: (item) => (item.penalty_applicable ? "Yes" : "No"),
             },
             { key: "penalty_value", label: "Penalty Value", align: "right" },
           ]}
@@ -148,14 +205,19 @@ export function CommitmentsTab() {
 
       <SectionCard icon={ClipboardCheck} title="New Commitment">
         <EntryFields defs={COMMITMENT_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end gap-3">
+          {editingId ? (
+            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+              Cancel
+            </Button>
+          ) : null}
           <Button
-            onClick={addCommitment}
-            disabled={createCommitment.isPending}
+            onClick={submit}
+            disabled={busy}
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
-            {createCommitment.isPending ? <ButtonSpinner /> : null}
-            Add Commitment
+            {busy ? <ButtonSpinner /> : null}
+            {editingId ? "Edit Commitment" : "Add Commitment"}
           </Button>
         </div>
       </SectionCard>

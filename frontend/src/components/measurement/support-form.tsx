@@ -7,6 +7,7 @@ import { ChartColumn, Headset } from "lucide-react";
 
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useSupportTarget } from "@/lib/api/metric-targets";
+import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
 import {
   useCreateSupportMeasurement,
   useLatestSupportMeasurement,
@@ -15,23 +16,47 @@ import {
 } from "@/lib/api/measurement";
 import { MetricTile, inputClass, num, str, useMeasurementForm } from "./shared";
 
-// Ticket types with Count + Person-Days effort per the Measurement sheet.
+// Ticket types with Count + Person-Days effort + Resolved-within-SLA count,
+// per the Measurement sheet.
 const TICKET_ROWS = [
-  { key: "p1", label: "Incidents — P1", count: "incidents_p1_count", effort: "incidents_p1_person_days" },
-  { key: "p2", label: "Incidents — P2", count: "incidents_p2_count", effort: "incidents_p2_person_days" },
-  { key: "p3", label: "Incidents — P3", count: "incidents_p3_count", effort: "incidents_p3_person_days" },
+  {
+    key: "p1",
+    label: "Incidents — P1",
+    count: "incidents_p1_count",
+    effort: "incidents_p1_person_days",
+    sla: "incidents_p1_resolved_within_sla_count",
+  },
+  {
+    key: "p2",
+    label: "Incidents — P2",
+    count: "incidents_p2_count",
+    effort: "incidents_p2_person_days",
+    sla: "incidents_p2_resolved_within_sla_count",
+  },
+  {
+    key: "p3",
+    label: "Incidents — P3",
+    count: "incidents_p3_count",
+    effort: "incidents_p3_person_days",
+    sla: "incidents_p3_resolved_within_sla_count",
+  },
 ] as const;
 
 function toValues(data: MeasurementSupportRead): Record<string, string> {
   return {
     incidents_p1_count: str(data.incidents_p1_count),
     incidents_p1_person_days: str(data.incidents_p1_person_days),
+    incidents_p1_resolved_within_sla_count: str(data.incidents_p1_resolved_within_sla_count),
     incidents_p2_count: str(data.incidents_p2_count),
     incidents_p2_person_days: str(data.incidents_p2_person_days),
+    incidents_p2_resolved_within_sla_count: str(data.incidents_p2_resolved_within_sla_count),
     incidents_p3_count: str(data.incidents_p3_count),
     incidents_p3_person_days: str(data.incidents_p3_person_days),
+    incidents_p3_resolved_within_sla_count: str(data.incidents_p3_resolved_within_sla_count),
     service_requests_count: str(data.service_requests_count),
+    service_requests_total_person_days: str(data.service_requests_total_person_days),
     user_clarifications_count: str(data.user_clarifications_count),
+    user_clarifications_total_person_days: str(data.user_clarifications_total_person_days),
     tickets_reopened_count: str(data.tickets_reopened_count),
     aging_tickets_count: str(data.aging_tickets_count),
     first_time_resolutions_count: str(data.first_time_resolutions_count),
@@ -43,12 +68,17 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementSupp
     period_id: periodId,
     incidents_p1_count: m.incidents_p1_count || undefined,
     incidents_p1_person_days: m.incidents_p1_person_days || undefined,
+    incidents_p1_resolved_within_sla_count: m.incidents_p1_resolved_within_sla_count || undefined,
     incidents_p2_count: m.incidents_p2_count || undefined,
     incidents_p2_person_days: m.incidents_p2_person_days || undefined,
+    incidents_p2_resolved_within_sla_count: m.incidents_p2_resolved_within_sla_count || undefined,
     incidents_p3_count: m.incidents_p3_count || undefined,
     incidents_p3_person_days: m.incidents_p3_person_days || undefined,
+    incidents_p3_resolved_within_sla_count: m.incidents_p3_resolved_within_sla_count || undefined,
     service_requests_count: m.service_requests_count || undefined,
+    service_requests_total_person_days: m.service_requests_total_person_days || undefined,
     user_clarifications_count: m.user_clarifications_count || undefined,
+    user_clarifications_total_person_days: m.user_clarifications_total_person_days || undefined,
     tickets_reopened_count: m.tickets_reopened_count || undefined,
     aging_tickets_count: m.aging_tickets_count || undefined,
     first_time_resolutions_count: m.first_time_resolutions_count || undefined,
@@ -57,6 +87,7 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementSupp
 
 export function SupportTab({ projectId }: { projectId: string }) {
   const { data: target } = useSupportTarget(projectId);
+  const reference = useMetricReferenceLookup("SUPPORT");
 
   const latestQuery = useLatestSupportMeasurement(projectId);
   const createMutation = useCreateSupportMeasurement(projectId);
@@ -92,54 +123,89 @@ export function SupportTab({ projectId }: { projectId: string }) {
         <div className="rounded-xl bg-slate-50 p-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
-            label="Incident MTTR (Overall)"
-            formula="(Total Incident Person-Days × 8) ÷ Total Incidents"
-            target={null}
-            current={num(latest?.incident_mttr_hours)}
+            label="Incident MTTR"
+            badge="P1"
+            metricKey="incident_mttr_hours"
+            reference={reference}
+            target={num(target?.target_incident_mttr_p1_hours)}
+            current={num(latest?.incident_mttr_p1_hours)}
             unit="Person-Hours / Incident"
+            direction="lower-is-better"
+            digits={1}
+          />
+          <MetricTile
+            label="Incident MTTR"
+            badge="P2"
+            metricKey="incident_mttr_hours"
+            reference={reference}
+            target={num(target?.target_incident_mttr_p2_hours)}
+            current={num(latest?.incident_mttr_p2_hours)}
+            unit="Person-Hours / Incident"
+            direction="lower-is-better"
+            digits={1}
+          />
+          <MetricTile
+            label="Incident MTTR"
+            badge="P3"
+            metricKey="incident_mttr_hours"
+            reference={reference}
+            target={num(target?.target_incident_mttr_p3_hours)}
+            current={num(latest?.incident_mttr_p3_hours)}
+            unit="Person-Hours / Incident"
+            direction="lower-is-better"
             digits={1}
           />
           <MetricTile
             label="Service Request MTTR"
-            formula="Not computed — no resolution-duration field captured on this form"
+            metricKey="service_request_mttr_hours"
+            reference={reference}
             target={num(target?.target_service_request_mttr_hours)}
             current={num(latest?.service_request_mttr_hours)}
             unit="Hours"
+            direction="lower-is-better"
             digits={1}
           />
           <MetricTile
             label="User Clarification MTTR"
-            formula="Not computed — no resolution-duration field captured on this form"
+            metricKey="user_clarification_mttr_hours"
+            reference={reference}
             target={num(target?.target_user_clarification_mttr_hours)}
             current={num(latest?.user_clarification_mttr_hours)}
             unit="Hours"
+            direction="lower-is-better"
             digits={1}
           />
           <MetricTile
             label="SLA Compliance"
             badge="P1"
-            formula="Not computed — no SLA target threshold captured on this form"
+            metricKey="incident_sla_compliance_pct"
+            reference={reference}
             target={num(target?.target_incident_sla_compliance_p1_pct)}
             current={num(latest?.incident_sla_compliance_p1_pct)}
             unit="%"
+            direction="higher-is-better"
             digits={1}
           />
           <MetricTile
             label="SLA Compliance"
             badge="P2"
-            formula="Not computed — no SLA target threshold captured on this form"
+            metricKey="incident_sla_compliance_pct"
+            reference={reference}
             target={num(target?.target_incident_sla_compliance_p2_pct)}
             current={num(latest?.incident_sla_compliance_p2_pct)}
             unit="%"
+            direction="higher-is-better"
             digits={1}
           />
           <MetricTile
             label="SLA Compliance"
             badge="P3"
-            formula="Not computed — no SLA target threshold captured on this form"
+            metricKey="incident_sla_compliance_pct"
+            reference={reference}
             target={num(target?.target_incident_sla_compliance_p3_pct)}
             current={num(latest?.incident_sla_compliance_p3_pct)}
             unit="%"
+            direction="higher-is-better"
             digits={1}
           />
         </div>
@@ -154,6 +220,7 @@ export function SupportTab({ projectId }: { projectId: string }) {
                 <th className="px-4 py-3">Ticket Type</th>
                 <th className="px-4 py-3 text-right">Count</th>
                 <th className="px-4 py-3 text-right">Effort (Person-Days)</th>
+                <th className="px-4 py-3 text-right">Resolved within SLA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -165,6 +232,9 @@ export function SupportTab({ projectId }: { projectId: string }) {
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex justify-end">{cell(row.effort, `${row.label} effort`)}</div>
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex justify-end">{cell(row.sla, `${row.label} resolved within SLA`)}</div>
                   </td>
                 </tr>
               ))}
@@ -183,6 +253,20 @@ export function SupportTab({ projectId }: { projectId: string }) {
               className={inputClass}
             />
           </Field>
+          <Field
+            label="Service Request Total Resolution Time"
+            htmlFor="sr-total-days"
+            hint="Person-Days"
+          >
+            <Input
+              id="sr-total-days"
+              type="number"
+              min={0}
+              value={m.service_requests_total_person_days ?? ""}
+              onChange={set("service_requests_total_person_days")}
+              className={inputClass}
+            />
+          </Field>
           <Field label="# of User Clarifications" htmlFor="user-clarifications">
             <Input
               id="user-clarifications"
@@ -190,6 +274,20 @@ export function SupportTab({ projectId }: { projectId: string }) {
               min={0}
               value={m.user_clarifications_count ?? ""}
               onChange={set("user_clarifications_count")}
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="User Clarification Total Resolution Time"
+            htmlFor="uc-total-days"
+            hint="Person-Days"
+          >
+            <Input
+              id="uc-total-days"
+              type="number"
+              min={0}
+              value={m.user_clarifications_total_person_days ?? ""}
+              onChange={set("user_clarifications_total_person_days")}
               className={inputClass}
             />
           </Field>

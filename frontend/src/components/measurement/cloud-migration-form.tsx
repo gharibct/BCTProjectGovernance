@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useAiReview } from "@/components/ai/use-ai-review";
 import { useCloudMigrationTarget } from "@/lib/api/metric-targets";
+import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
 import {
   useCreateCloudMigrationMeasurement,
   useLatestCloudMigrationMeasurement,
@@ -25,6 +26,7 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
   const { data: target } = useCloudMigrationTarget(projectId);
   const { data: latest } = useLatestCloudMigrationMeasurement(projectId);
   const createMutation = useCreateCloudMigrationMeasurement(projectId);
+  const reference = useMetricReferenceLookup("CLOUD_MIGRATION");
 
   const { m, set: rawSet, setValue, setAll } = useMeasures();
   const [asOfDate, setAsOfDate] = React.useState(today);
@@ -118,7 +120,8 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Applications Migrated (Planned vs Actual)"
-            formula="Applications Migrated ÷ Planned Application Migration × 100"
+            metricKey="applications_migrated_pct"
+            reference={reference}
             target={num(target?.target_applications_migrated_pct)}
             current={num(latest?.applications_migrated_pct)}
             unit="%"
@@ -127,7 +130,8 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Migration Success Rate"
-            formula="Successful Migrations ÷ Total Migration Attempts × 100"
+            metricKey="migration_success_rate_pct"
+            reference={reference}
             target={num(target?.target_migration_success_rate_pct)}
             current={num(latest?.migration_success_rate_pct)}
             unit="%"
@@ -136,10 +140,11 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Migration Downtime"
-            formula="Migration End Time − Migration Start Time (minutes)"
-            target={num(target?.target_migration_downtime_minutes)}
-            current={num(latest?.migration_downtime_minutes)}
-            unit="Minutes"
+            metricKey="migration_downtime_hours"
+            reference={reference}
+            target={num(target?.target_migration_downtime_hours)}
+            current={num(latest?.migration_downtime_hours)}
+            unit="Hours"
             direction="lower-is-better"
             digits={1}
           />

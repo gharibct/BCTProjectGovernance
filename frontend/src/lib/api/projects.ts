@@ -23,6 +23,8 @@ export type ProjectStatus =
   | "Draft"
   | "Pending Approval"
   | "Approved"
+  | "Under Amendment"
+  | "Ongoing"
   | "Hold"
   | "Closed"
   | "Open Only for Billing";
@@ -57,7 +59,7 @@ export type Project = {
   actual_start_date: string | null;
   planned_end_date: string | null;
   actual_end_date: string | null;
-  applicable_phase: ApplicablePhase | null;
+  applicable_phase: ApplicablePhase[];
   project_status: ProjectStatus;
   planned_duration_days: number | null;
   actual_duration_days: number | null;
@@ -103,7 +105,7 @@ export type ProjectPayload = Partial<{
   actual_start_date: string;
   planned_end_date: string;
   actual_end_date: string;
-  applicable_phase: ApplicablePhase;
+  applicable_phase: ApplicablePhase[];
   project_status: ProjectStatus;
 }>;
 

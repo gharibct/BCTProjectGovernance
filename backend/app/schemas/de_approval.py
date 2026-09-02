@@ -27,6 +27,10 @@ class GovernanceModuleStatus(BaseModel):
     gaps: str | None = None
     review_action: DeModuleReviewAction = DeModuleReviewAction.NOT_REVIEWED
     last_updated: datetime | None = None
+    # Partial progress: required fields filled / required fields expected.
+    fields_complete: int = 0
+    fields_total: int = 0
+    progress_pct: int = 0
 
 
 class GovernanceCompleteness(BaseModel):
@@ -71,7 +75,6 @@ class DeApprovalKpis(BaseModel):
     awaiting_review: int
     in_review: int
     returned: int
-    approved: int
 
 
 class DeApprovalQueueRow(BaseModel):
@@ -80,6 +83,7 @@ class DeApprovalQueueRow(BaseModel):
     project_name: str
     account_name: str | None = None
     geo_name: str | None = None
+    region_name: str | None = None
     project_type_name: str | None = None
     project_manager_name: str | None = None
     completion_pct: int

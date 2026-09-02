@@ -19,6 +19,8 @@ CREATE TABLE measurement_development (
     total_test_cases_designed INTEGER,
     executed_test_cases INTEGER,
     passed_test_cases INTEGER,
+    covered_code_elements INTEGER,
+    total_applicable_code_elements INTEGER,
 
     -- Computed, read-only in the UI.
     productivity NUMERIC(14, 4),

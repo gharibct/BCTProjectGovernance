@@ -17,6 +17,7 @@ export type ProjectPortfolioSummary = {
 export type ProjectHealthCardSummary = {
   green_count: number;
   amber_count: number;
+  potential_red_count: number;
   red_count: number;
   reporting_overdue_count: number;
 };
@@ -26,6 +27,7 @@ export type ProjectHealthCardSummary = {
 export type AccountRagCardSummary = {
   green_count: number;
   amber_count: number;
+  potential_red_count: number;
   red_count: number;
   reporting_overdue_count: number;
 };

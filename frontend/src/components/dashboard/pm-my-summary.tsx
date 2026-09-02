@@ -71,7 +71,7 @@ export function PmMySummary() {
         <p className="text-slate-400">Loading…</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
             <StatCard
               label="My Projects"
               value={data.my_projects_count}
@@ -92,6 +92,7 @@ export function PmMySummary() {
                 <span className="flex items-baseline gap-3">
                   <span className="text-emerald-600">{data.health_green}</span>
                   <span className="text-amber-500">{data.health_amber}</span>
+                  <span className="text-orange-600">{data.health_potential_red}</span>
                   <span className="text-red-600">{data.health_red}</span>
                 </span>
               }
@@ -124,6 +125,14 @@ export function PmMySummary() {
                 </span>
               }
             />
+            <Link href="/pm-findings" className="block">
+              <StatCard
+                label="Open Findings"
+                value={data.open_findings_count}
+                accent={data.open_findings_count > 0 ? "amber" : undefined}
+                hint="View all ›"
+              />
+            </Link>
           </div>
 
           {data.attention_items.length > 0 ? (

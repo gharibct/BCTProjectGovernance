@@ -5,7 +5,7 @@ import * as React from "react";
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { useProjectHealthOpportunities, type OpportunityRow } from "@/lib/api/project-health-lists";
+import { formatGeoRegion, useProjectHealthOpportunities, type OpportunityRow } from "@/lib/api/project-health-lists";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDate, StatTile } from "./project-health-kpi";
 
@@ -29,7 +29,7 @@ export function ProjectHealthOpportunities() {
 
   const columns: RegisterColumn<Row>[] = [
     { key: "project_label", label: "Project" },
-    { key: "geo_name", label: "Geo" },
+    { key: "geo_name", label: "Geo - Region", render: (row) => formatGeoRegion(row.geo_name, row.region_name) },
     { key: "account_name", label: "Account" },
     {
       key: "opportunity_title",

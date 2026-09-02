@@ -50,3 +50,5 @@
 \ir tables/45_measurement_consulting.sql
 \ir tables/46_metric_target_consulting.sql
 \ir tables/47_de_project_module_reviews.sql
+\ir tables/48_project_amendments.sql
+\ir tables/49_project_amendment_snapshots.sql

@@ -13,7 +13,7 @@ import type { HealthRating } from "@/lib/api/projects";
 
 const HEALTH_DOT_CLASS: Record<HealthRating, string> = {
   Red: "bg-red-600",
-  "Potential Red": "bg-red-600",
+  "Potential Red": "bg-orange-500",
   Amber: "bg-amber-500",
   Green: "bg-emerald-500",
 };

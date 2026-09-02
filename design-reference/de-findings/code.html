@@ -1,0 +1,354 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DE Findings Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#fcdeb5",
+                        "primary": "#000000",
+                        "inverse-on-surface": "#f3f0f2",
+                        "tertiary-container": "#271901",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed-dim": "#c0c1ff",
+                        "surface-tint": "#565e74",
+                        "tertiary": "#000000",
+                        "on-tertiary-container": "#98805d",
+                        "surface-container": "#f0edef",
+                        "primary-fixed-dim": "#bec6e0",
+                        "on-surface-variant": "#45464d",
+                        "surface-variant": "#e4e2e4",
+                        "error": "#ba1a1a",
+                        "secondary": "#4648d4",
+                        "surface": "#fcf8fa",
+                        "on-primary-fixed": "#131b2e",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#76777d",
+                        "on-background": "#1b1b1d",
+                        "surface-bright": "#fcf8fa",
+                        "secondary-container": "#6063ee",
+                        "on-secondary-fixed": "#07006c",
+                        "inverse-surface": "#303032",
+                        "on-tertiary-fixed": "#271901",
+                        "inverse-primary": "#bec6e0",
+                        "on-primary-container": "#7c839b",
+                        "outline-variant": "#c6c6cd",
+                        "on-primary": "#ffffff",
+                        "surface-container-high": "#eae7e9",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "on-tertiary-fixed-variant": "#574425",
+                        "surface-container-low": "#f6f3f5",
+                        "surface-container-highest": "#e4e2e4",
+                        "surface-container-lowest": "#ffffff",
+                        "background": "#fcf8fa",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed": "#e1e0ff",
+                        "tertiary-fixed-dim": "#dec29a",
+                        "surface-dim": "#dcd9db",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#fffbff",
+                        "primary-fixed": "#dae2fd",
+                        "on-error": "#ffffff",
+                        "on-surface": "#1b1b1d",
+                        "on-secondary-fixed-variant": "#2f2ebe",
+                        "primary-container": "#131b2e"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "base": "4px",
+                        "stack-lg": "24px",
+                        "stack-md": "16px",
+                        "stack-sm": "8px",
+                        "container-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "display": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "600" }],
+                        "label-md": ["13px", { "lineHeight": "18px", "fontWeight": "500" }],
+                        "display": ["30px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "headline-lg": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["15px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="font-body-md text-body-md text-on-background min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<nav class="sticky top-0 z-50 flex justify-between items-center w-full px-container-padding bg-surface dark:bg-surface-dim border-b border-outline-variant dark:border-outline h-16">
+<div class="flex items-center gap-stack-lg h-full">
+<span class="text-headline-lg font-headline-lg font-bold text-primary dark:text-inverse-primary">DE Findings</span>
+
+</div>
+<div class="flex items-center gap-stack-md">
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input class="pl-9 pr-4 py-1.5 rounded bg-surface-container-low border-outline-variant focus:border-secondary focus:ring-1 focus:ring-secondary text-body-md h-9 w-64 outline-none" placeholder="Search..." type="text">
+</div>
+
+<div class="flex items-center gap-stack-sm text-on-surface-variant">
+<button class="p-1.5 hover:bg-surface-container-high rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">notifications</span></button>
+<button class="p-1.5 hover:bg-surface-container-high rounded-full transition-colors"><span class="material-symbols-outlined text-[20px]">settings</span></button>
+</div>
+<img class="w-8 h-8 rounded-full border border-outline-variant object-cover ml-2" data-alt="A small, circular profile picture of a professional user in a corporate setting, well-lit, high-resolution, light background, minimalist style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAF3Xkz5QEw0USvjI0r100EheAZVH_cFhlP4c6iqlktONWRFgBfF697WI8AO2QZvZjecksCB4S3emVsrzlnPXfp0aBHfDZ6uD0XMhuCZKFfBzbG24CH7aTB-8HJv4oR70tinaRxlN-6S5xHYWKySp9s0BrTaJ9cHqx847Vo96tG6Y3oXJcWx2qrNBfTDq55uPY8l3FqnMi3itQeVmbs-yFVMUJ33qWoOQjF7rCd7UoaemXj44kMfeNa7Q">
+</div>
+</nav>
+<main class="flex-1 max-w-[1440px] mx-auto w-full px-container-padding py-4 flex flex-col gap-4">
+<!-- Page Header -->
+<header class="flex justify-between items-end">
+<div>
+<h1 class="text-display font-display text-primary">DE Findings</h1>
+<p class="text-on-surface-variant mt-1 text-body-lg font-body-lg">Monitor and manage project findings</p>
+</div>
+<button class="bg-[#0f172a] text-white px-4 py-2 rounded font-label-md text-label-md hover:bg-[#1e293b] transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                New Finding
+            </button>
+</header>
+<!-- Global Filter Bar -->
+<section class="bg-surface-container-lowest border border-[#f1f5f9] p-3 rounded flex flex-wrap items-center gap-3 w-full">
+<div class="flex items-center gap-2 border-r border-[#f1f5f9] pr-3">
+<span class="text-label-sm font-label-sm text-outline">Geo:</span>
+<select class="border-[#f1f5f9] rounded text-body-md py-1 pl-2 pr-8 focus:border-secondary focus:ring-secondary bg-surface-container-lowest h-8">
+<option>All</option>
+</select>
+</div>
+<div class="flex items-center gap-2 border-r border-[#f1f5f9] pr-3">
+<span class="text-label-sm font-label-sm text-outline">Account:</span>
+<select class="border-[#f1f5f9] rounded text-body-md py-1 pl-2 pr-8 focus:border-secondary focus:ring-secondary bg-surface-container-lowest h-8">
+<option>All</option>
+</select>
+</div>
+<div class="flex items-center gap-2 border-r border-[#f1f5f9] pr-3">
+<span class="text-label-sm font-label-sm text-outline">Project:</span>
+<select class="border-[#f1f5f9] rounded text-body-md py-1 pl-2 pr-8 focus:border-secondary focus:ring-secondary bg-surface-container-lowest h-8">
+<option>All</option>
+</select>
+</div>
+<div class="flex items-center gap-2 border-r border-[#f1f5f9] pr-3">
+<span class="text-label-sm font-label-sm text-outline">Classification:</span>
+<select class="border-[#f1f5f9] rounded text-body-md py-1 pl-2 pr-8 focus:border-secondary focus:ring-secondary bg-surface-container-lowest h-8">
+<option>All</option>
+</select>
+</div>
+<div class="flex items-center gap-2 border-r border-[#f1f5f9] pr-3">
+<span class="text-label-sm font-label-sm text-outline">Severity:</span>
+<select class="border-[#f1f5f9] rounded text-body-md py-1 pl-2 pr-8 focus:border-secondary focus:ring-secondary bg-surface-container-lowest h-8">
+<option>All</option>
+</select>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-label-sm font-label-sm text-outline">Status:</span>
+<select class="border-[#f1f5f9] rounded text-body-md py-1 pl-2 pr-8 focus:border-secondary focus:ring-secondary bg-surface-container-lowest h-8">
+<option>Active</option>
+</select>
+</div>
+<div class="ml-auto relative">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[16px]">search</span>
+<input class="pl-8 pr-3 py-1 border-[#f1f5f9] rounded text-body-md h-8 w-48 focus:border-secondary focus:ring-secondary" placeholder="Search findings..." type="text">
+</div>
+</section>
+<!-- KPI Summary -->
+<section class="grid grid-cols-2 md:grid-cols-5 gap-gutter">
+<button class="bg-surface-container-lowest border border-[#f1f5f9] p-4 flex flex-col items-start gap-1 rounded hover:bg-surface-container-low transition-colors text-left focus:ring-2 focus:ring-secondary focus:outline-none">
+<span class="text-label-sm font-label-sm text-outline uppercase tracking-wider">Open Findings</span>
+<span class="text-display font-display text-primary">156</span>
+</button>
+<button class="bg-surface-container-lowest border border-[#f1f5f9] p-4 flex flex-col items-start gap-1 rounded hover:bg-surface-container-low transition-colors text-left focus:ring-2 focus:ring-secondary focus:outline-none relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
+<span class="text-label-sm font-label-sm text-error uppercase tracking-wider font-bold">Overdue</span>
+<span class="text-display font-display text-primary">24</span>
+</button>
+<button class="bg-surface-container-lowest border border-[#f1f5f9] p-4 flex flex-col items-start gap-1 rounded hover:bg-surface-container-low transition-colors text-left focus:ring-2 focus:ring-secondary focus:outline-none relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-error opacity-70"></div>
+<span class="text-label-sm font-label-sm text-error uppercase tracking-wider font-bold">High / Critical</span>
+<span class="text-display font-display text-primary">18</span>
+</button>
+<button class="bg-surface-container-lowest border border-[#f1f5f9] p-4 flex flex-col items-start gap-1 rounded hover:bg-surface-container-low transition-colors text-left focus:ring-2 focus:ring-secondary focus:outline-none relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-secondary"></div>
+<span class="text-label-sm font-label-sm text-secondary uppercase tracking-wider font-bold">Awaiting Closure</span>
+<span class="text-display font-display text-primary">12</span>
+</button>
+<button class="bg-surface-container-lowest border border-[#f1f5f9] p-4 flex flex-col items-start gap-1 rounded hover:bg-surface-container-low transition-colors text-left focus:ring-2 focus:ring-secondary focus:outline-none relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-green-500"></div>
+<span class="text-label-sm font-label-sm text-green-600 uppercase tracking-wider font-bold">Closed This Period</span>
+<span class="text-display font-display text-primary">31</span>
+</button>
+</section>
+<div class="flex gap-gutter items-start">
+<div class="flex-1 flex flex-col gap-stack-lg">
+<!-- Attention Required -->
+<section class="bg-surface-container-lowest border border-[#f1f5f9] rounded p-4"><div class="flex items-center gap-4 py-1 px-2">
+    <div class="flex items-center gap-2 text-error font-bold whitespace-nowrap">
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+        <span class="text-label-sm uppercase tracking-wider">Attention Required</span>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <button class="px-3 py-1 rounded-full bg-error/10 text-error text-label-sm hover:bg-error/20 transition-colors flex items-center gap-1">
+            12 Overdue &gt;30 days <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+        </button>
+        <button class="px-3 py-1 rounded-full bg-error/10 text-error text-label-sm hover:bg-error/20 transition-colors flex items-center gap-1">
+            6 Critical Open <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+        </button>
+        <button class="px-3 py-1 rounded-full bg-secondary/10 text-secondary text-label-sm hover:bg-secondary/20 transition-colors flex items-center gap-1">
+            8 Awaiting Closure <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+        </button>
+        <button class="px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-label-sm hover:bg-surface-container-highest transition-colors flex items-center gap-1">
+            4 Projects with &gt;5 Open <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+        </button>
+    </div>
+</div></section>
+<!-- Findings Grid -->
+<section class="bg-surface-container-lowest border border-[#f1f5f9] rounded overflow-hidden flex-1">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-[#f1f5f9] bg-[#f8fafc]">
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold whitespace-nowrap">Finding ID</th>
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold">Project</th>
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold">Account</th>
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold">Finding</th>
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold">Classification</th>
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold">Severity</th>
+
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold">Assigned To</th>
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold whitespace-nowrap">Due Date</th>
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold">Age</th>
+<th class="px-4 py-2 text-label-sm font-label-sm text-outline font-semibold">Status</th>
+
+</tr>
+</thead>
+<tbody class="text-body-md">
+<tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] h-[40px] transition-colors relative">
+<td class="px-4 py-2 whitespace-nowrap font-medium text-primary">FND-0048</td>
+<td class="px-4 py-2 text-secondary hover:underline cursor-pointer">Alpha Migration</td>
+<td class="px-4 py-2 text-on-surface-variant">Healthcare</td>
+<td class="px-4 py-2 truncate max-w-[400px] text-on-surface-variant" title="Monthly governance evidence incomplete">Monthly governance evidence incomplete</td>
+<td class="px-4 py-2 text-on-surface-variant">Governance</td>
+<td class="px-4 py-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-error/10 text-error">High</span>
+</td>
+
+<td class="px-4 py-2 text-on-surface-variant">John Smith</td>
+<td class="px-4 py-2 whitespace-nowrap text-on-surface-variant">25-Aug-2026</td>
+<td class="px-4 py-2 text-error font-medium">20 Days</td>
+<td class="px-4 py-2"><div class="flex items-center gap-2"><span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-error/10 text-error">Open</span><span class="flex items-center text-error font-bold text-[10px] whitespace-nowrap"><span class="material-symbols-outlined text-[14px]">warning</span>Overdue</span></div></td>
+
+</tr>
+<tr class="border-b border-[#f1f5f9] hover:bg-[#f8fafc] h-[40px] transition-colors">
+<td class="px-4 py-2 whitespace-nowrap font-medium text-primary">FND-0049</td>
+<td class="px-4 py-2 text-secondary hover:underline cursor-pointer">ERP Modernization</td>
+<td class="px-4 py-2 text-on-surface-variant">Manufacturing</td>
+<td class="px-4 py-2 truncate max-w-[400px] text-on-surface-variant" title="Risk mitigation plan not updated">Risk mitigation plan not updated</td>
+<td class="px-4 py-2 text-on-surface-variant">Process</td>
+<td class="px-4 py-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-orange-500/10 text-orange-700">Medium</span>
+</td>
+
+<td class="px-4 py-2 text-on-surface-variant">Mary Jones</td>
+<td class="px-4 py-2 whitespace-nowrap text-on-surface-variant">05-Sep-2026</td>
+<td class="px-4 py-2 text-on-surface-variant">12 Days</td>
+<td class="px-4 py-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/10 text-blue-700">In Progress</span>
+</td>
+
+</tr>
+<!-- More rows would go here -->
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- New Finding Drawer (Static Structural Representation on right for design purpose, usually this would be an overlay) -->
+<aside class="w-[400px] bg-surface-container-lowest border border-[#f1f5f9] rounded flex flex-col h-[calc(100vh-180px)] sticky top-24 shadow-[0px_4px_12px_rgba(15,23,42,0.08)]">
+<div class="px-4 py-3 border-b border-[#f1f5f9] flex justify-between items-center bg-[#f8fafc] rounded-t">
+<h3 class="text-headline-md font-headline-md text-primary">New Finding</h3>
+<button class="text-outline hover:text-primary"><span class="material-symbols-outlined text-[20px]">close</span></button>
+</div>
+<div class="p-4 flex-1 overflow-y-auto flex flex-col gap-4">
+<div>
+<label class="block text-label-md font-label-md text-primary mb-1">Project <span class="text-error">*</span></label>
+<div class="relative">
+<input class="w-full border-outline-variant rounded focus:border-secondary focus:ring-secondary text-body-md py-1.5 pl-3 pr-8" placeholder="Search projects..." type="text">
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+</div>
+</div>
+<!-- Context Card (Appears after selection) -->
+<div class="bg-surface-container-low p-3 rounded border border-[#f1f5f9] text-body-md flex flex-col gap-1">
+<div class="flex justify-between"><span class="text-outline">Account:</span> <span class="font-medium">Acme Corp</span></div>
+<div class="flex justify-between"><span class="text-outline">Geo:</span> <span class="font-medium">North America</span></div>
+<div class="flex justify-between"><span class="text-outline">PM:</span> <span class="font-medium">Sarah Jenkins</span></div>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-primary mb-1">Classification</label>
+<select class="w-full border-outline-variant rounded focus:border-secondary focus:ring-secondary text-body-md py-1.5">
+<option>Governance</option>
+<option>Process</option>
+<option>Technical</option>
+</select>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-primary mb-1">Severity</label>
+<select class="w-full border-outline-variant rounded focus:border-secondary focus:ring-secondary text-body-md py-1.5">
+<option>Low</option>
+<option>Medium</option>
+<option>High</option>
+<option>Critical</option>
+</select>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-primary mb-1">Finding Details</label>
+<textarea class="w-full border-outline-variant rounded focus:border-secondary focus:ring-secondary text-body-md py-1.5" rows="3"></textarea>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="block text-label-md font-label-md text-primary mb-1">Assigned To</label>
+<input class="w-full border-outline-variant rounded focus:border-secondary focus:ring-secondary text-body-md py-1.5" type="text">
+</div>
+<div>
+<label class="block text-label-md font-label-md text-primary mb-1">Due Date</label>
+<input class="w-full border-outline-variant rounded focus:border-secondary focus:ring-secondary text-body-md py-1.5" type="date">
+</div>
+</div>
+<div>
+<label class="block text-label-md font-label-md text-primary mb-1">Remarks</label>
+<textarea class="w-full border-outline-variant rounded focus:border-secondary focus:ring-secondary text-body-md py-1.5" rows="2"></textarea>
+</div>
+</div>
+<div class="p-4 border-t border-[#f1f5f9] flex justify-end gap-3 bg-[#f8fafc] rounded-b">
+<button class="px-4 py-2 text-primary bg-surface-container-lowest border border-[#f1f5f9] rounded font-label-md text-label-md hover:bg-surface-container-low transition-colors">Cancel</button>
+<button class="px-4 py-2 bg-[#0f172a] text-white rounded font-label-md text-label-md hover:bg-[#1e293b] transition-colors">Create Finding</button>
+</div>
+</aside>
+</div>
+</main>
+
+
+</body></html>

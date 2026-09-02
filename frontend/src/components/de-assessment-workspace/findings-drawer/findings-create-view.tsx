@@ -24,20 +24,18 @@ function today(): string {
 
 export function FindingsCreateView({
   projectId,
-  assessmentId,
   onDone,
 }: {
   projectId: string;
-  assessmentId: string;
   onDone: () => void;
 }) {
   const { data: users = [] } = useUsers();
-  const createFinding = useCreateDEAssessmentFinding(projectId, assessmentId);
+  const createFinding = useCreateDEAssessmentFinding(projectId);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
   const [description, setDescription] = React.useState("");
-  const [classification, setClassification] = React.useState<FindingClassification>("Governance");
+  const [classification, setClassification] = React.useState<FindingClassification>("Core Delivery");
   const [severity, setSeverity] = React.useState<FindingSeverity>("Low");
   const [assignedTo, setAssignedTo] = React.useState("");
   const [findingDate, setFindingDate] = React.useState(today);

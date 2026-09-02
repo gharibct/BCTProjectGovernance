@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
+import type { ReportingPeriod } from "./reference-data";
 
 export type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected";
 
@@ -69,6 +70,38 @@ export function useStatusReports(projectId: string | null) {
     queryFn: () => api.get<ProjectStatusReport[]>(`/projects/${projectId}/status-reports`),
     enabled: !!projectId,
   });
+}
+
+// The most recent report for a period of the SAME type (Weekly/Monthly)
+// strictly before the given one. Used to pre-fill Key Metrics (Revenue, FTE,
+// Projects Count) when a PM starts a new period's report — carried forward from
+// the last period so unchanged figures don't have to be re-keyed. Returns
+// undefined when there's no prior report (or the period can't be resolved).
+export function previousPeriodReport(
+  reports: ProjectStatusReport[] | undefined,
+  periods: ReportingPeriod[] | undefined,
+  periodId: string | null,
+): ProjectStatusReport | undefined {
+  if (!reports || !periods || !periodId) return undefined;
+  const selected = periods.find((p) => p.id === periodId);
+  if (!selected) return undefined;
+  return reports
+    .map((r) => ({ r, p: periods.find((pp) => pp.id === r.period_id) }))
+    .filter(
+      (x): x is { r: ProjectStatusReport; p: ReportingPeriod } =>
+        !!x.p && x.p.period_type === selected.period_type && x.p.start_date < selected.start_date,
+    )
+    .sort((a, b) => b.p.start_date.localeCompare(a.p.start_date))[0]?.r;
+}
+
+// Key Metrics form-state shape (all strings — they feed <input> values).
+export function statusMetricsFromReport(report: ProjectStatusReport) {
+  return {
+    revenue: report.revenue ?? "",
+    onsite_fte: report.onsite_fte ?? "",
+    offshore_fte: report.offshore_fte ?? "",
+    projects_count: report.projects_count?.toString() ?? "",
+  };
 }
 
 function invalidateStatusReports(queryClient: ReturnType<typeof useQueryClient>, projectId: string | null) {

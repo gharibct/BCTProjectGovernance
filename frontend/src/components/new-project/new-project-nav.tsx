@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FileText,
   NotebookText,
+  SendHorizontal,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -25,7 +26,11 @@ import {
   useRisks,
 } from "@/lib/api/raid";
 
-// Copy of the project navigation rail scoped to the New Project screens.
+// The project navigation rail for the project-setup screens. Backs both
+// /new-project/[projectId]/* (New Project + Maintain Project) and
+// /amend-project/[projectId]/* (Amend Project) — the route prefix is derived
+// from the current path, and the "Approval" group (Send To Approval) is
+// dropped in the amend tree since it only applies to Draft projects.
 // Every item is its own route so the browser URL, back button, and this
 // nav's active state all agree — no in-page tab switching. `done` marks
 // whether the task is completed for the current reporting period. Project
@@ -52,6 +57,9 @@ function buildGroups(
   oracleMapped: boolean,
   contractualComplianceComplete: boolean,
   raidoComplete: boolean,
+  sentForApproval: boolean,
+  isAmend: boolean,
+  amendmentActive: boolean,
 ): { heading: string; icon: LucideIcon; items: NavItem[] }[] {
   return [
     {
@@ -94,6 +102,9 @@ function buildGroups(
       icon: ClipboardList,
       items: [
         { label: "Measurement", href: `${base}/measurement`, done: false },
+        // Contractual Compliance stays on the Amend rail (full add/edit/delete
+        // of commitments & milestones); Project Reporting only records actuals.
+        // RAIDO is still Amend-excluded — it's maintained from Reporting.
         {
           label: "Contractual Compliance",
           href: `${base}/contractual-compliance`,
@@ -101,15 +112,42 @@ function buildGroups(
         },
       ],
     },
-    {
-      // RAIDO is not part of the mandatory approval baseline, so it lives in
-      // its own register group rather than under Project Baseline.
-      heading: "Project Register",
-      icon: NotebookText,
-      items: [
-        { label: "RAIDO Register", href: `${base}/raido`, done: raidoComplete },
-      ],
-    },
+    ...(isAmend
+      ? []
+      : [
+          {
+            // RAIDO is not part of the mandatory approval baseline, so it lives
+            // in its own register group rather than under Project Baseline.
+            heading: "Project Register",
+            icon: NotebookText,
+            items: [
+              { label: "RAIDO Register", href: `${base}/raido`, done: raidoComplete },
+            ],
+          },
+        ]),
+    // PM governance-completeness + submission. In the Maintain tree this is the
+    // one-shot "Send To Approval"; in the Amend tree it's the two-step "Amend &
+    // Approve" group (Initiate Amend, then Send To Approve).
+    ...(isAmend
+      ? [
+          {
+            heading: "Amend & Approve",
+            icon: SendHorizontal,
+            items: [
+              { label: "Initiate Amend", href: `${base}/initiate-amend`, done: amendmentActive },
+              { label: "Send To Approve", href: `${base}/send-to-approval`, done: sentForApproval },
+            ],
+          },
+        ]
+      : [
+          {
+            heading: "Approval",
+            icon: SendHorizontal,
+            items: [
+              { label: "Send To Approval", href: `${base}/send-to-approval`, done: sentForApproval },
+            ],
+          },
+        ]),
   ];
 }
 
@@ -136,6 +174,12 @@ function StatusIcon({ done }: { done: boolean }) {
 export function NewProjectNav() {
   const pathname = usePathname();
   const { projectId } = useParams<{ projectId: string }>();
+  // "new-project" | "amend-project" — the same rail serves both trees.
+  const routePrefix = pathname.split("/")[1] || "new-project";
+  const isAmend = routePrefix === "amend-project";
+  // The mandatory Create Project step (no project exists yet) has nothing
+  // else to navigate to, so the rail is dropped entirely on that screen.
+  const isCreateStep = pathname.endsWith("/create");
   const newProjectId = useNewProjectId();
   const { data: project } = useProject(newProjectId);
   const { data: oracleIds } = useProjectOracleIds(newProjectId);
@@ -146,8 +190,11 @@ export function NewProjectNav() {
   const { data: dependencies } = useDependencies(newProjectId);
   const { data: assumptions } = useAssumptions(newProjectId);
   const { data: opportunities } = useOpportunities(newProjectId);
+
+  if (isCreateStep) return null;
+
   const groups = buildGroups(
-    `/new-project/${projectId}`,
+    `/${routePrefix}/${projectId}`,
     !!newProjectId,
     project?.profile_completion_flag ?? false,
     project?.schedule_completion_flag ?? false,
@@ -158,6 +205,11 @@ export function NewProjectNav() {
       (dependencies?.length ?? 0) > 0 &&
       (assumptions?.length ?? 0) > 0 &&
       (opportunities?.length ?? 0) > 0,
+    isAmend
+      ? project?.project_status === "Pending Approval"
+      : !!project && project.project_status !== "Draft",
+    isAmend,
+    project?.project_status === "Under Amendment" || project?.project_status === "Pending Approval",
   );
 
   return (

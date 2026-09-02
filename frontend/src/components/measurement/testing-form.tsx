@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useTestingTarget } from "@/lib/api/metric-targets";
+import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
 import {
   useCreateTestingMeasurement,
   useLatestTestingMeasurement,
@@ -20,6 +21,7 @@ const MEASURES = [
   { key: "executed_test_cases", label: "# of Executed Test Cases", hint: "Count" },
   { key: "passed_test_cases", label: "# of Passed Test Cases", hint: "Count" },
   { key: "automated_test_cases", label: "# of Test Cases Automated", hint: "Count" },
+  { key: "automation_eligible_test_cases", label: "# of Automation-Eligible Test Cases", hint: "Count" },
   { key: "effort_test_case_design", label: "Effort Spent for Test Case Design", hint: "Person-Days" },
   { key: "effort_test_execution", label: "Effort Spent for Test Execution", hint: "Person-Days" },
 ] as const;
@@ -30,6 +32,7 @@ function toValues(data: MeasurementTestingRead): Record<string, string> {
     executed_test_cases: str(data.executed_test_cases),
     passed_test_cases: str(data.passed_test_cases),
     automated_test_cases: str(data.automated_test_cases),
+    automation_eligible_test_cases: str(data.automation_eligible_test_cases),
     effort_test_case_design: str(data.effort_test_case_design),
     effort_test_execution: str(data.effort_test_execution),
   };
@@ -42,6 +45,7 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementTest
     executed_test_cases: m.executed_test_cases || undefined,
     passed_test_cases: m.passed_test_cases || undefined,
     automated_test_cases: m.automated_test_cases || undefined,
+    automation_eligible_test_cases: m.automation_eligible_test_cases || undefined,
     effort_test_case_design: m.effort_test_case_design || undefined,
     effort_test_execution: m.effort_test_execution || undefined,
   };
@@ -49,6 +53,7 @@ function toPayload(m: Record<string, string>, periodId: string): MeasurementTest
 
 export function TestingTab({ projectId }: { projectId: string }) {
   const { data: target } = useTestingTarget(projectId);
+  const reference = useMetricReferenceLookup("TESTING");
 
   const latestQuery = useLatestTestingMeasurement(projectId);
   const createMutation = useCreateTestingMeasurement(projectId);
@@ -74,7 +79,8 @@ export function TestingTab({ projectId }: { projectId: string }) {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricTile
             label="Test Execution Coverage"
-            formula="# Executed Test Cases ÷ Total Test Cases Designed × 100"
+            metricKey="test_execution_coverage_pct"
+            reference={reference}
             target={num(target?.target_test_execution_coverage_pct)}
             current={num(latest?.test_execution_coverage_pct)}
             unit="%"
@@ -83,7 +89,8 @@ export function TestingTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Test Pass Rate"
-            formula="# Passed Test Cases ÷ # Executed Test Cases × 100"
+            metricKey="test_pass_rate_pct"
+            reference={reference}
             target={num(target?.target_test_pass_rate_pct)}
             current={num(latest?.test_pass_rate_pct)}
             unit="%"
@@ -92,7 +99,8 @@ export function TestingTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Automation Coverage"
-            formula="# Automated Test Cases ÷ Total Test Cases Designed × 100"
+            metricKey="automation_coverage_pct"
+            reference={reference}
             target={num(target?.target_automation_coverage_pct)}
             current={num(latest?.automation_coverage_pct)}
             unit="%"
@@ -101,7 +109,8 @@ export function TestingTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Test Design Productivity"
-            formula="Total Test Cases Designed ÷ Effort for Test Case Design"
+            metricKey="test_design_productivity"
+            reference={reference}
             target={num(target?.target_test_design_productivity)}
             current={num(latest?.test_design_productivity)}
             unit="Test Cases / Person-Day"
@@ -110,7 +119,8 @@ export function TestingTab({ projectId }: { projectId: string }) {
           />
           <MetricTile
             label="Test Execution Productivity"
-            formula="# Executed Test Cases ÷ Effort for Test Execution"
+            metricKey="test_execution_productivity"
+            reference={reference}
             target={num(target?.target_test_execution_productivity)}
             current={num(latest?.test_execution_productivity)}
             unit="Test Cases / Person-Day"

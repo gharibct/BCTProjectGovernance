@@ -46,24 +46,11 @@ export function ScopeScheduleView() {
           <Field label="Planned End Date">
             <Value>{project.planned_end_date}</Value>
           </Field>
-          <Field label="Actual Start Date">
-            <Value>{project.actual_start_date}</Value>
-          </Field>
-          <Field label="Actual End Date">
-            <Value>{project.actual_end_date}</Value>
-          </Field>
           <Field label="Planned Duration">
             <Value>
               {project.planned_duration_days != null
                 ? `${project.planned_duration_days} days`
                 : durationDays(project.planned_start_date, project.planned_end_date)}
-            </Value>
-          </Field>
-          <Field label="Actual Duration">
-            <Value>
-              {project.actual_duration_days != null
-                ? `${project.actual_duration_days} days`
-                : durationDays(project.actual_start_date, project.actual_end_date)}
             </Value>
           </Field>
         </div>

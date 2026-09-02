@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import * as React from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { api, type Page } from "./client";
 
@@ -94,11 +95,56 @@ export function useAccounts() {
   });
 }
 
+// Loads the whole (200-capped) directory. Fine for small user counts; for the
+// person pickers use useUserSearch / useUsersByIds instead — with 2000+
+// employees this list is truncated and unsearchable.
 export function useUsers() {
   return useQuery({
     queryKey: ["users"],
     queryFn: () => api.get<Page<User>>(`/users${REF_LIMIT}`),
     select: (page) => page.items,
+  });
+}
+
+export type UserSearchOpts = { roleCode?: string; activeOnly?: boolean };
+
+// Server-side typeahead for the resource picker. Empty term => first 20
+// alphabetical. Always enabled; `keepPreviousData` keeps the old list visible
+// (no flicker) while a new term's request is in flight.
+export function useUserSearch(term: string, opts: UserSearchOpts = {}) {
+  const { roleCode, activeOnly = true } = opts;
+  const q = term.trim();
+  return useQuery({
+    queryKey: ["users", "search", q, roleCode ?? null, activeOnly],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: "20" });
+      if (q) params.set("search", q);
+      if (activeOnly) params.set("is_active", "true");
+      if (roleCode) params.set("role_code", roleCode);
+      return api.get<Page<User>>(`/users?${params.toString()}`);
+    },
+    select: (page) => page.items,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+}
+
+// Resolve exact users by id — labels for a picker's current value and for
+// register/list columns that only carry owner ids. One query, keyed by the
+// sorted unique id set. No is_active filter, so an already-selected but since
+// deactivated user still resolves for display.
+export function useUsersByIds(ids: readonly (string | null | undefined)[]) {
+  const sorted = React.useMemo(
+    () => [...new Set(ids.filter((v): v is string => !!v))].sort(),
+    [ids],
+  );
+  return useQuery({
+    queryKey: ["users", "by-ids", sorted],
+    queryFn: () =>
+      api.get<Page<User>>(`/users?ids=${encodeURIComponent(sorted.join(","))}`),
+    select: (page) => page.items,
+    enabled: sorted.length > 0,
+    staleTime: 5 * 60_000,
   });
 }
 

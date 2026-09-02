@@ -26,12 +26,10 @@ import { FindingsRegisterTab } from "./findings-register-tab";
 
 // Alert and Findings are each their own register (register grid + "New
 // <Item>" entry form), matching the Contractual Compliance tab pattern —
-// each row saves immediately against the latest assessment, no separate
-// "save the tab" step.
-const TABS = [
-  { label: "Alert Register", content: AlertRegisterTab },
-  { label: "Findings Register", content: FindingsRegisterTab },
-] as const;
+// each row saves immediately, no separate "save the tab" step. Alerts are
+// logged against the latest assessment; Findings are a project-level
+// register, independent of any assessment.
+const TABS = [{ label: "Alert Register" }, { label: "Findings Register" }] as const;
 
 export function DeAssessmentForm() {
   const projectId = useNewProjectId();
@@ -47,7 +45,6 @@ export function DeAssessmentForm() {
   const dismiss = usePageBanner((state) => state.dismiss);
 
   const [tab, setTab] = React.useState<(typeof TABS)[number]["label"]>("Alert Register");
-  const Active = TABS.find((t) => t.label === tab)!.content;
 
   // Flagship "warning" banner: a real, pre-existing condition (previously a
   // static box buried inside the Alert Register tab, invisible while
@@ -155,7 +152,11 @@ export function DeAssessmentForm() {
         </div>
 
         <div className="mt-8">
-          <Active projectId={projectId} assessment={latest} />
+          {tab === "Alert Register" ? (
+            <AlertRegisterTab projectId={projectId} assessment={latest} />
+          ) : (
+            <FindingsRegisterTab projectId={projectId} />
+          )}
         </div>
       </div>
 

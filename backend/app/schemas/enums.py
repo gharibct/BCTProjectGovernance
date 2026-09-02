@@ -75,6 +75,8 @@ class ProjectStatus(StrEnum):
     DRAFT = "Draft"
     PENDING_APPROVAL = "Pending Approval"
     APPROVED = "Approved"
+    UNDER_AMENDMENT = "Under Amendment"
+    ONGOING = "Ongoing"
     HOLD = "Hold"
     CLOSED = "Closed"
     OPEN_ONLY_FOR_BILLING = "Open Only for Billing"
@@ -304,14 +306,16 @@ class MilestonePaymentStatus(StrEnum):
 
 class FindingClassification(StrEnum):
     # Observation/Recommendation are the legacy register-tab values (still
-    # accepted); Governance/Performance/Security/Financial are the DE
-    # Assessment Workspace vocabulary (design-reference/de-assessments).
+    # accepted); the rest mirrors Category's 6-value Project RAG taxonomy —
+    # the DE Assessment Workspace's Classification combo aligns with it.
     OBSERVATION = "Observation"
     RECOMMENDATION = "Recommendation"
-    GOVERNANCE = "Governance"
-    PERFORMANCE = "Performance"
-    SECURITY = "Security"
+    CORE_DELIVERY = "Core Delivery"
+    PEOPLE = "People"
+    OPERATIONAL = "Operational"
+    CUSTOMER = "Customer"
     FINANCIAL = "Financial"
+    COMPLIANCE = "Compliance"
 
 
 class FindingStatus(StrEnum):

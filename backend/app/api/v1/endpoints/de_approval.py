@@ -17,7 +17,7 @@ from app.core.db import get_db
 from app.crud.projects import project_crud
 from app.models.de_project_review import DeProjectModuleReview
 from app.models.projects import Project
-from app.models.reference_data import Account, Geo, ProjectType
+from app.models.reference_data import Account, Geo, ProjectType, Region
 from app.models.users import User
 from app.schemas.de_approval import (
     DeApprovalKpis,
@@ -35,6 +35,7 @@ from app.schemas.enums import (
     ProjectStatus,
     RoleCode,
 )
+from app.services.amendment import active_amendment
 from app.services.governance_completeness import compute_governance_completeness
 
 router = APIRouter(prefix="/de-approval", tags=["DE Approval"])
@@ -99,18 +100,19 @@ async def approval_queue(
     # convention as GET /dashboard/de-summary.
     pm = aliased(User)
     stmt = (
-        select(Project, pm.full_name, Account.name, Geo.name, ProjectType.name)
+        select(Project, pm.full_name, Account.name, Geo.name, Region.name, ProjectType.name)
         .outerjoin(pm, pm.id == Project.project_manager_id)
         .outerjoin(Account, Account.id == Project.account_id)
         .outerjoin(Geo, Geo.id == Project.geo_id)
+        .outerjoin(Region, Region.id == Project.region_id)
         .outerjoin(ProjectType, ProjectType.id == Project.project_type_id)
         .where(Project.delivery_excellence_id == current_user.id)
     )
     records = (await db.execute(stmt)).all()
 
-    kpis = DeApprovalKpis(awaiting_review=0, in_review=0, returned=0, approved=0)
+    kpis = DeApprovalKpis(awaiting_review=0, in_review=0, returned=0)
     rows: list[DeApprovalQueueRow] = []
-    for project, pm_name, account_name, geo_name, project_type_name in records:
+    for project, pm_name, account_name, geo_name, region_name, project_type_name in records:
         review_status = project.de_review_status
         awaiting = project.project_status == ProjectStatus.PENDING_APPROVAL and review_status is None
         if awaiting:
@@ -119,9 +121,9 @@ async def approval_queue(
             kpis.in_review += 1
         elif review_status == DeReviewStatus.RETURNED:
             kpis.returned += 1
-        elif review_status == DeReviewStatus.APPROVED:
-            kpis.approved += 1
 
+        if review_status == DeReviewStatus.APPROVED:
+            continue
         if project.project_status != ProjectStatus.PENDING_APPROVAL and review_status is None:
             continue
 
@@ -133,6 +135,7 @@ async def approval_queue(
                 project_name=project.project_name,
                 account_name=account_name,
                 geo_name=geo_name,
+                region_name=region_name,
                 project_type_name=project_type_name,
                 project_manager_name=pm_name,
                 completion_pct=completeness.completion_pct,
@@ -229,15 +232,26 @@ async def submit_decision(
     if project.project_status != ProjectStatus.PENDING_APPROVAL:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only a project Pending Approval can be reviewed")
 
+    amendment = await active_amendment(db, project_id)
     project.de_review_remarks = payload.remarks
     project.de_reviewed_by = payload.reviewed_by
     project.de_reviewed_at = datetime.now(UTC)
     if payload.decision == "Approve":
         project.project_status = ProjectStatus.APPROVED
         project.de_review_status = DeReviewStatus.APPROVED
+        if amendment is not None:
+            amendment.status = "Completed"
+            amendment.completed_at = datetime.now(UTC)
     else:  # Return
-        project.project_status = ProjectStatus.DRAFT
+        # An amendment goes back to Under Amendment for further edits; a
+        # first-time approval goes back to Draft.
+        project.project_status = (
+            ProjectStatus.UNDER_AMENDMENT if amendment is not None else ProjectStatus.DRAFT
+        )
         project.de_review_status = DeReviewStatus.RETURNED
+        if amendment is not None:
+            amendment.status = "In Progress"
+            amendment.submitted_at = None
 
     await db.flush()
     await db.refresh(project)

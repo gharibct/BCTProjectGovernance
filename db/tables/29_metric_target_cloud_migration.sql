@@ -8,7 +8,7 @@ CREATE TABLE metric_target_cloud_migration (
 
     target_applications_migrated_pct NUMERIC(5, 2),
     target_migration_success_rate_pct NUMERIC(5, 2),
-    target_migration_downtime_minutes NUMERIC(10, 2),
+    target_migration_downtime_hours NUMERIC(10, 2),
 
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

@@ -35,7 +35,7 @@ export function pct(a: number | null, b: number | null): number | null {
 export function useMeasures() {
   const [m, setM] = React.useState<Record<string, string>>({});
   const set =
-    (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setM((prev) => ({ ...prev, [key]: e.target.value }));
   const setAll = React.useCallback((values: Record<string, string>) => setM(values), []);
   return { m, set, setAll };
@@ -46,7 +46,7 @@ export function useMeasures() {
 // target and wire the shared Save button to it).
 export type MeasuresProps = {
   m: Record<string, string>;
-  set: (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => void;
+  set: (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
 };
 
 // Editable — at the planning stage there's no execution data to compute
@@ -57,16 +57,25 @@ export function MetricTile({
   value,
   unit,
   onChange,
+  required = true,
 }: {
   label: string;
   value: string;
   unit: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  // Every metric target feeds the Send To Approval check, so the "*" shows by
+  // default; pass required={false} for an optional tile.
+  required?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
       <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
         {label}
+        {required ? (
+          <span className="ml-0.5 text-red-500" aria-hidden="true">
+            *
+          </span>
+        ) : null}
       </p>
       <Input
         type="number"

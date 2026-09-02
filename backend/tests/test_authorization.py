@@ -251,6 +251,9 @@ def override_auth():
 
     def _apply(role_code, **fake_db_kwargs):
         user = make_user()
+        # Exposed so a test can assert an endpoint stamped the caller's id
+        # (e.g. assessed_by / reviewed_by) onto what it created.
+        _apply.user = user
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: FakeDB(role_code, **fake_db_kwargs)
         return {"X-API-Key": settings.api_key}
