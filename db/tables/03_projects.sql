@@ -40,8 +40,9 @@ CREATE TABLE projects (
     ) STORED,
 
     -- Treatment / Health
-    applicable_phase TEXT, -- multi-select, comma-joined: Requirement, Design, CUT, Build & Deployment, Testing, UAT, Warranty, Support
-    project_status TEXT NOT NULL, -- Draft, Pending Approval, Approved, Under Amendment, Ongoing, Hold, Closed, Open Only for Billing
+    applicable_phase TEXT, -- multi-select, comma-joined: Discovery / POC / Assessment / Consulting, Requirement, Design, CUT, Build & Deployment, Testing, UAT Support, Warranty, Support, Migration
+    project_status TEXT NOT NULL, -- Draft, Pending Approval, Approved, Under Amendment
+    lifecycle_status TEXT, -- Ongoing, Hold, Closed, Open Only for Billing (null = follow project_status)
     -- Denormalized read-only caches, kept in sync by the application whenever a
     -- health_declarations or de_assessments row is recorded (see 04_health_declarations.sql,
     -- 19_de_assessments.sql). overall_project_health is the highest-severity of the two.
@@ -76,6 +77,7 @@ CREATE INDEX idx_projects_organization_id ON projects(organization_id);
 CREATE INDEX idx_projects_project_manager_id ON projects(project_manager_id);
 CREATE INDEX idx_projects_overall_project_health ON projects(overall_project_health);
 CREATE INDEX idx_projects_project_status ON projects(project_status);
+CREATE INDEX idx_projects_lifecycle_status ON projects(lifecycle_status);
 CREATE INDEX idx_projects_delivery_excellence_id ON projects(delivery_excellence_id);
 CREATE INDEX idx_projects_de_review_status ON projects(de_review_status);
 

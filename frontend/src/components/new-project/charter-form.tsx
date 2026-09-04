@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
+  Activity,
   Banknote,
   CalendarDays,
   IdCard,
@@ -35,6 +36,7 @@ import {
   useProject,
   useUpdateProject,
   type Project,
+  type ProjectLifecycleStatus,
   type ProjectPayload,
 } from "@/lib/api/projects";
 import { useAccountHead, useGeoHead } from "@/lib/api/users";
@@ -61,19 +63,30 @@ const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as 
 // Matches backend enums.py's ApplicablePhase. Multi-select — a project can be
 // in more than one SDLC phase at once.
 const APPLICABLE_PHASES = [
+  "Discovery / POC / Assessment / Consulting",
   "Requirement",
   "Design",
   "CUT",
   "Build & Deployment",
   "Testing",
-  "UAT",
+  "UAT Support",
   "Warranty",
   "Support",
+  "Migration",
 ] as const;
 const YES_NO_OPTIONS = [
   { value: "Yes", label: "Yes" },
   { value: "No", label: "No" },
 ] as const;
+// Lifecycle statuses a PM sets while amending an approved project. Stored on
+// the project's own `lifecycle_status` field, separate from the approval
+// workflow (project_status).
+const PROJECT_LIFECYCLE_STATUS_OPTIONS: ProjectLifecycleStatus[] = [
+  "Ongoing",
+  "Hold",
+  "Closed",
+  "Open Only for Billing",
+];
 
 // Every field the Project Profile page collects (a subset of the Project
 // resource — Scope & Schedule owns the rest on its own page/PUT). Selects
@@ -108,6 +121,7 @@ function valuesFromProject(project: Project): ProjectPayload {
     planned_end_date: project.planned_end_date ?? undefined,
     actual_end_date: project.actual_end_date ?? undefined,
     applicable_phase: project.applicable_phase ?? [],
+    lifecycle_status: project.lifecycle_status ?? undefined,
   };
 }
 
@@ -164,6 +178,9 @@ function ProjectDescriptionTab({
   const { data: project } = useProject(projectId);
   const isEditing = useNewProjectUi((state) => state.isEditing);
   const locked = !isAmendableStatus(project) && !isEditing;
+  // The same charter form serves /new-project and /amend-project — the
+  // lifecycle Project Status combo only belongs to the Amend flow.
+  const isAmend = (usePathname() ?? "").split("/")[1] === "amend-project";
   // Project Type is fixed once a project exists and is being amended — the
   // amendment snapshot/measurement wiring is keyed to the original type.
   const projectTypeLocked = locked || project?.project_status === "Under Amendment";
@@ -222,6 +239,37 @@ function ProjectDescriptionTab({
           </Field>
         </div>
       </SectionCard>
+
+      {isAmend && project ? (
+        <SectionCard icon={Activity} title="Project Lifecycle">
+          <Field
+            label="Project Status"
+            htmlFor="lifecycle-status"
+            className="max-w-xs"
+            hint={
+              locked
+                ? "Editable once the amendment is initiated."
+                : "The project's current lifecycle state — optional."
+            }
+          >
+            <NativeSelect
+              id="lifecycle-status"
+              value={values.lifecycle_status ?? ""}
+              onChange={(e) =>
+                setAndClear("lifecycle_status")(
+                  (e.target.value || undefined) as ProjectLifecycleStatus | undefined,
+                )
+              }
+              disabled={locked}
+            >
+              <option value="">Select…</option>
+              {PROJECT_LIFECYCLE_STATUS_OPTIONS.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </NativeSelect>
+          </Field>
+        </SectionCard>
+      ) : null}
 
       {projectId ? (
         <>

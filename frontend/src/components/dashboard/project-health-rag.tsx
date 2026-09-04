@@ -5,7 +5,14 @@ import * as React from "react";
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { formatGeoRegion, useProjectHealthRag, type RagRow } from "@/lib/api/project-health-lists";
+import {
+  fetchAllProjectHealthRows,
+  formatGeoRegion,
+  PROJECT_HEALTH_LIST_PATHS,
+  useProjectHealthRag,
+  type RagRow,
+} from "@/lib/api/project-health-lists";
+import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDateTime, HealthBadge, StatTile } from "./project-health-kpi";
 
@@ -30,8 +37,14 @@ export function ProjectHealthRag() {
           <p className="text-xs text-slate-500">{row.project_name}</p>
         </div>
       ),
+      excelValue: (row) => `${row.project_code} — ${row.project_name}`,
     },
-    { key: "geo_name", label: "Geo - Region", render: (row) => formatGeoRegion(row.geo_name, row.region_name) },
+    {
+      key: "geo_name",
+      label: "Geo - Region",
+      render: (row) => formatGeoRegion(row.geo_name, row.region_name),
+      excelValue: (row) => formatGeoRegion(row.geo_name, row.region_name),
+    },
     { key: "account_name", label: "Account" },
     { key: "overall_rating", label: "Overall RAG", render: (row) => <HealthBadge value={row.overall_rating} /> },
     { key: "core_delivery_rating", label: "Core Delivery", render: (row) => <HealthBadge value={row.core_delivery_rating} /> },
@@ -79,6 +92,13 @@ export function ProjectHealthRag() {
         <ErrorBlock title="Couldn't load the RAG report." error={error} onRetry={() => refetch()} />
       ) : (
         <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex justify-end">
+            <ProjectHealthExportButton
+              filename="project-health-rag"
+              columns={columns}
+              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.rag, { ...filters })}
+            />
+          </div>
           <RegisterTable items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No projects found."} />
           <PaginationBar skip={skip} limit={PAGE_SIZE} total={data?.total ?? 0} onPageChange={setSkip} />
         </div>

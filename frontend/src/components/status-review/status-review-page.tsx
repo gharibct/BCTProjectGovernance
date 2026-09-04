@@ -131,7 +131,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
 }
 
 // Client wrapper reading the dynamic route param — matches the pattern used
-// by regional-reporting/hub-page.tsx for its scope-parameterized routes.
+// by reporting/regional-reporting-hub.tsx for its scope-parameterized routes.
 export function StatusReviewPage({ scope, paramName }: { scope: ReviewScope; paramName: string }) {
   const params = useParams<Record<string, string>>();
   const scopeId = params[paramName] ?? "";

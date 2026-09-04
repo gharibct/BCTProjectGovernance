@@ -20,6 +20,17 @@ async def test_list_projects_returns_200_for_any_role(client, override_auth):
     assert "items" in response.json()
 
 
+async def test_list_projects_accepts_exclude_status(client, override_auth):
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE)
+    response = await client.get(
+        "/api/v1/projects",
+        params=[("exclude_status", "Draft"), ("exclude_status", "Approved")],
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert "items" in response.json()
+
+
 async def test_create_project_rejects_non_pm_admin(client, override_auth):
     headers = override_auth(RoleCode.TEAM_MEMBER)
     response = await client.post("/api/v1/projects", json={}, headers=headers)

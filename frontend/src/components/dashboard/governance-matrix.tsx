@@ -70,11 +70,11 @@ export function GovernanceMatrix({
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold tracking-wide text-slate-500 uppercase">
-                {showAccountColumn ? <th className="min-w-[160px] px-5 py-3">Account</th> : null}
-                <th className="min-w-[200px] px-5 py-3">{entityColumnLabel}</th>
-                <th className="min-w-[100px] px-3 py-3 text-center">Overall</th>
+                {showAccountColumn ? <th className="min-w-[140px] px-4 py-3">Account</th> : null}
+                <th className="min-w-[170px] px-4 py-3">{entityColumnLabel}</th>
+                <th className="min-w-[72px] px-2 py-3 text-center">Overall</th>
                 {CATEGORIES.map((category) => (
-                  <th key={category.key} className="min-w-[110px] px-3 py-3 text-center">
+                  <th key={category.key} className="min-w-[72px] px-2 py-3 text-center">
                     {category.name}
                   </th>
                 ))}
@@ -84,18 +84,18 @@ export function GovernanceMatrix({
               {rows.map((row) => (
                 <tr key={row.entity_id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
                   {showAccountColumn ? (
-                    <td className="px-5 py-2.5 text-slate-700">{row.account_name ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-slate-700">{row.account_name ?? "—"}</td>
                   ) : null}
-                  <td className="px-5 py-2.5 font-semibold text-slate-900">
+                  <td className="px-4 py-2.5 font-semibold text-slate-900">
                     <Link href={entityHref(row.entity_id)} className="hover:underline">
                       {row.entity_label}
                     </Link>
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2.5">
                     <RagCell rating={row.overall_rating} />
                   </td>
                   {CATEGORIES.map((category) => (
-                    <td key={category.key} className="px-3 py-2.5">
+                    <td key={category.key} className="px-2 py-2.5">
                       <RagCell rating={row[category.ratingField]} />
                     </td>
                   ))}

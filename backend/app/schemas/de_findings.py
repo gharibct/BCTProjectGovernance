@@ -10,7 +10,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.schemas.de_assessment import DEAssessmentFindingIn
-from app.schemas.enums import FindingClassification, FindingSeverity, FindingStatus
+from app.schemas.enums import FindingClassification, FindingStatus
 
 
 class DEFindingListRow(BaseModel):
@@ -21,9 +21,9 @@ class DEFindingListRow(BaseModel):
     id: UUID
     project_id: UUID
     sequence_no: int
+    category: str
     classification: FindingClassification
     description: str | None = None
-    severity: FindingSeverity | None = None
     assigned_to: UUID | None = None
     action_taken: str | None = None
     finding_date: date | None = None
@@ -45,16 +45,14 @@ class DEFindingListRow(BaseModel):
 
 
 class DEFindingsKpis(BaseModel):
-    """The five KPI tiles plus the four "Attention Required" chip counts, all
-    computed over the Geo/Account/Project scope only (see de_findings.compute_kpis)."""
+    """The KPI tiles plus the "Attention Required" chip counts, all computed
+    over the Geo/Account/Project scope only (see de_findings.compute_kpis)."""
 
     open_findings: int
     overdue: int
-    high_critical: int
     awaiting_closure: int
     closed_this_period: int
     overdue_30d_count: int
-    critical_open_count: int
     awaiting_closure_count: int
     projects_over_5_open_count: int
     period_label: str | None = None

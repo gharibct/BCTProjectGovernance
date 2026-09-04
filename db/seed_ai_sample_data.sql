@@ -283,7 +283,7 @@ INSERT INTO ai_row_suggestions
   (id, project_id, screen, period_id, row_values, match_key, matched_entity_id, confidence, source_document, source_location, evidence, status, created_at, updated_at)
 VALUES
   (gen_random_uuid(), :'project_id'::uuid, 'de_assessment_findings', :'current_period_id'::uuid,
-   '{"classification":"Observation","action_taken":"Escalated to delivery manager","finding_date":"2026-08-05","status":"Open","remarks":"Procurement delay pending vendor response."}'::jsonb,
+   '{"category":"Core Delivery","classification":"Observation","action_taken":"Escalated to delivery manager","finding_date":"2026-08-05","status":"Open","remarks":"Procurement delay pending vendor response."}'::jsonb,
    NULL, NULL, 0.6, 'Steering_Committee_Minutes.pdf', 'Page 2', 'Procurement delay was raised in steering committee and escalated to the delivery manager.', 'pending', now(), now());
 
 COMMIT;

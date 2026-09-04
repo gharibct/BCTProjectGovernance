@@ -43,7 +43,13 @@ class ContractualCommitmentActualCreate(BaseModel):
     period_date: date
     actual_value: str | None = None
     met_status: MetStatus | None = None
-    recorded_by: UUID | None = None
+
+
+class ContractualCommitmentActualUpdate(BaseModel):
+    # period_date is immutable — it is the (commitment_id, period_date) unique
+    # key; move a reading by deleting and re-adding it.
+    actual_value: str | None = None
+    met_status: MetStatus | None = None
 
 
 class ContractualCommitmentActualRead(BaseModel):

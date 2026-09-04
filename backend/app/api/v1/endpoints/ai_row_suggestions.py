@@ -289,6 +289,7 @@ def _de_assessment_finding_test_rows() -> list[AiRowSuggestionIn]:
     return [
         AiRowSuggestionIn(
             values={
+                "category": "Core Delivery",
                 "classification": "Observation",
                 "action_taken": "Escalated to delivery manager",
                 "finding_date": "2026-08-05",

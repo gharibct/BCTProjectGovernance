@@ -51,7 +51,9 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     # project is currently in. Comma-joined in the TEXT column; list[str] in
     # Python (NULL reads back as []). Nullable to match the existing column.
     applicable_phase: Mapped[list[str] | None] = mapped_column(CommaSeparatedList)
-    project_status: Mapped[str]  # Draft, Pending Approval, Approved, Under Amendment, Ongoing, Hold, Closed, Open Only for Billing
+    project_status: Mapped[str]  # Draft, Pending Approval, Approved, Under Amendment
+    # Ongoing, Hold, Closed, Open Only for Billing — null means "follow project_status".
+    lifecycle_status: Mapped[str | None]
     # Health values: Red, Potential Red, Amber, Green. Kept in sync by services.health_rollup.
     delivery_declared_overall_health: Mapped[str | None]
     de_assessed_project_health: Mapped[str | None]

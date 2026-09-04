@@ -2,32 +2,30 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, type Page } from "./client";
 import {
+  FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
-  FINDING_SEVERITY_OPTIONS,
   FINDING_STATUS_OPTIONS,
   type DEAssessmentFinding,
   type DEAssessmentFindingPayload,
+  type FindingCategory,
   type FindingClassification,
-  type FindingSeverity,
   type FindingStatus,
 } from "./de-assessment";
 
 export {
+  FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
-  FINDING_SEVERITY_OPTIONS,
   FINDING_STATUS_OPTIONS,
 };
-export type { FindingClassification, FindingSeverity, FindingStatus };
+export type { FindingCategory, FindingClassification, FindingStatus };
 
 // The KPI-tile / attention-chip quick filters. One at a time, AND-composed
 // with every other filter (see backend services/de_findings.py).
 export type DeFindingsBucket =
   | "overdue"
-  | "high_critical"
   | "awaiting_closure"
   | "closed_this_period"
   | "overdue_30d"
-  | "critical_open"
   | "projects_over_5_open";
 
 export type DeFindingsFilter = {
@@ -35,7 +33,6 @@ export type DeFindingsFilter = {
   accountId?: string;
   projectId?: string;
   classification?: string;
-  severity?: string;
   // A FindingStatus value, "Active" (default — not Closed/Cancelled), or
   // undefined for all.
   status?: string;
@@ -47,9 +44,9 @@ export type DeFindingRow = {
   id: string;
   project_id: string;
   sequence_no: number;
+  category: string;
   classification: FindingClassification;
   description: string | null;
-  severity: FindingSeverity | null;
   assigned_to: string | null;
   action_taken: string | null;
   finding_date: string | null;
@@ -72,11 +69,9 @@ export type DeFindingRow = {
 export type DeFindingsKpis = {
   open_findings: number;
   overdue: number;
-  high_critical: number;
   awaiting_closure: number;
   closed_this_period: number;
   overdue_30d_count: number;
-  critical_open_count: number;
   awaiting_closure_count: number;
   projects_over_5_open_count: number;
   period_label: string | null;
@@ -90,7 +85,6 @@ function buildParams(p: DeFindingsFilter & { skip?: number; limit?: number }): s
   if (p.accountId) q.set("account_id", p.accountId);
   if (p.projectId) q.set("project_id", p.projectId);
   if (p.classification) q.set("classification", p.classification);
-  if (p.severity) q.set("severity", p.severity);
   if (p.status) q.set("status", p.status);
   if (p.search) q.set("search", p.search);
   if (p.bucket) q.set("bucket", p.bucket);

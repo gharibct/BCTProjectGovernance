@@ -42,9 +42,9 @@ class DEAssessmentFinding(Base, UUIDPrimaryKey, TimestampColumns):
     # assessment (they outlive it and can be raised without one).
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     sequence_no: Mapped[int]
-    classification: Mapped[str]  # Observation/Recommendation (legacy) or the Project RAG 6-category taxonomy
+    category: Mapped[str]  # the Project RAG 6-category taxonomy
+    classification: Mapped[str]  # Observation, Recommendation, NC (Non-Conformance)
     description: Mapped[str | None]  # the finding statement
-    severity: Mapped[str | None]  # Low, Medium, High, Critical
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     action_taken: Mapped[str | None]
     finding_date: Mapped[date | None]

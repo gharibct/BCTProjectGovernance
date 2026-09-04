@@ -13,6 +13,10 @@ export type RegisterColumn<T> = {
   align?: "right";
   badge?: boolean;
   render?: (item: T) => React.ReactNode;
+  // Plain-text cell value for spreadsheet export (see exportRowsToExcel).
+  // Falls back to item[key] when omitted — set it for columns whose
+  // render() composes several fields into one cell.
+  excelValue?: (item: T) => string | number | null | undefined;
 };
 
 // Shared list-view table for RAIDO registers (§4.5–4.9 of the spec): ID,

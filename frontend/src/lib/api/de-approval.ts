@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
-import type { ProjectStatus } from "./projects";
+import type { ProjectLifecycleStatus, ProjectStatus } from "./projects";
 
 // DE Project Approval (design-reference/de-approval) — the allocated Delivery
 // Excellence assessor reviews governance completeness module by module and
@@ -77,6 +77,7 @@ export type DeApprovalQueueRow = {
   completion_pct: number;
   gaps_count: number;
   project_status: ProjectStatus;
+  lifecycle_status: ProjectLifecycleStatus | null;
   de_review_status: DeReviewStatus | null;
   last_updated: string;
   href: string;
@@ -95,6 +96,7 @@ export type DeReviewDetail = {
   account_name: string | null;
   project_manager_name: string | null;
   project_status: ProjectStatus;
+  lifecycle_status: ProjectLifecycleStatus | null;
   de_review_status: DeReviewStatus | null;
   de_review_remarks: string | null;
   de_reviewed_by: string | null;

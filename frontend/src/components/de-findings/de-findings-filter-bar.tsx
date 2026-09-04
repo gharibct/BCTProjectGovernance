@@ -3,14 +3,18 @@
 import { NativeSelect } from "@/components/ui/native-select";
 import { useAccounts, useGeos } from "@/lib/api/reference-data";
 import { useProjects } from "@/lib/api/projects";
-import { FINDING_SEVERITY_OPTIONS, FINDING_STATUS_OPTIONS, type DeFindingsFilter } from "@/lib/api/de-findings";
+import {
+  FINDING_CLASSIFICATION_OPTIONS,
+  FINDING_STATUS_OPTIONS,
+  type DeFindingsFilter,
+} from "@/lib/api/de-findings";
 
 const DEFAULTS: DeFindingsFilter = { status: "Active" };
 
-// Portfolio-wide DE Findings filter bar — Geo / Account / Project / Severity /
-// Status. Modeled on project-health-filter-bar.tsx. The Project <select> lists
-// useProjects()'s first 200 (its hard cap) — acceptable for the current
-// portfolio. (Classification and free-text search are supported by the API but
+// Portfolio-wide DE Findings filter bar — Geo / Account / Project /
+// Classification / Status. Modeled on project-health-filter-bar.tsx. The
+// Project <select> lists useProjects()'s first 200 (its hard cap) — acceptable
+// for the current portfolio. (Free-text search is supported by the API but
 // intentionally not surfaced here.)
 export function DeFindingsFilterBar({
   filters,
@@ -26,7 +30,7 @@ export function DeFindingsFilterBar({
   const set = (patch: Partial<DeFindingsFilter>) => onChange({ ...filters, ...patch });
 
   const dirty =
-    Boolean(filters.geoId || filters.accountId || filters.projectId || filters.severity || filters.bucket) ||
+    Boolean(filters.geoId || filters.accountId || filters.projectId || filters.classification || filters.bucket) ||
     filters.status !== "Active";
 
   return (
@@ -81,17 +85,17 @@ export function DeFindingsFilterBar({
         </NativeSelect>
       </div>
 
-      <div className="w-32">
+      <div className="w-40">
         <NativeSelect
-          aria-label="Severity"
+          aria-label="Classification"
           className="h-9 bg-white text-sm"
-          value={filters.severity ?? ""}
-          onChange={(e) => set({ severity: e.target.value || undefined })}
+          value={filters.classification ?? ""}
+          onChange={(e) => set({ classification: e.target.value || undefined })}
         >
-          <option value="">Severity [All]</option>
-          {FINDING_SEVERITY_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}
+          <option value="">Classification [All]</option>
+          {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </NativeSelect>

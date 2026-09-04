@@ -283,6 +283,7 @@ async def compute_approval_readiness(db: AsyncSession, project: Project) -> Appr
         critical_gaps=modules_incomplete,
         modules=modules,
         project_status=project.project_status,
+        lifecycle_status=project.lifecycle_status,
         can_submit=modules_incomplete == 0
         and project.project_status in (ProjectStatus.DRAFT, ProjectStatus.UNDER_AMENDMENT),
     )

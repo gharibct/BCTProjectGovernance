@@ -227,9 +227,9 @@ async def test_add_finding_assigns_sequence_no_and_new_fields(client, override_a
     response = await client.post(
         f"/api/v1/projects/{_PROJECT_ID}/de-assessment-findings",
         json={
-            "classification": "Core Delivery",
+            "category": "Core Delivery",
+            "classification": "NC",
             "description": "RAID log incomplete",
-            "severity": "Critical",
             "due_date": "2026-08-15",
         },
         headers=headers,
@@ -238,8 +238,8 @@ async def test_add_finding_assigns_sequence_no_and_new_fields(client, override_a
     body = response.json()
     assert body["project_id"] == str(_PROJECT_ID)
     assert body["sequence_no"] == 1
-    assert body["severity"] == "Critical"
-    assert body["classification"] == "Core Delivery"
+    assert body["category"] == "Core Delivery"
+    assert body["classification"] == "NC"
     assert body["overdue"] is True  # due_date in the past, status Open
 
 
@@ -249,9 +249,9 @@ async def test_update_finding_status_transition(client, override_auth):
         id=finding_id,
         project_id=_PROJECT_ID,
         sequence_no=1,
-        classification="Core Delivery",
+        category="Core Delivery",
+        classification="NC",
         description="x",
-        severity="High",
         assigned_to=None,
         action_taken=None,
         finding_date=None,

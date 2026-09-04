@@ -5,7 +5,13 @@ import * as React from "react";
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { useProjectHealthAccountRag, type AccountRagRow } from "@/lib/api/project-health-lists";
+import {
+  fetchAllProjectHealthRows,
+  PROJECT_HEALTH_LIST_PATHS,
+  useProjectHealthAccountRag,
+  type AccountRagRow,
+} from "@/lib/api/project-health-lists";
+import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDateTime, HealthBadge, StatTile } from "./project-health-kpi";
 
@@ -30,6 +36,7 @@ export function ProjectHealthAccountRag() {
           <p className="text-xs text-slate-500">{row.project_count} project{row.project_count === 1 ? "" : "s"}</p>
         </div>
       ),
+      excelValue: (row) => `${row.account_name} (${row.project_count} project${row.project_count === 1 ? "" : "s"})`,
     },
     { key: "geo_name", label: "Geo" },
     { key: "overall_rating", label: "Overall RAG", render: (row) => <HealthBadge value={row.overall_rating} /> },
@@ -81,6 +88,13 @@ export function ProjectHealthAccountRag() {
         <ErrorBlock title="Couldn't load the Account RAG report." error={error} onRetry={() => refetch()} />
       ) : (
         <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex justify-end">
+            <ProjectHealthExportButton
+              filename="project-health-account-rag"
+              columns={columns}
+              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.accountRag, { ...filters })}
+            />
+          </div>
           <RegisterTable items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No accounts found."} />
           <PaginationBar skip={skip} limit={PAGE_SIZE} total={data?.total ?? 0} onPageChange={setSkip} />
         </div>

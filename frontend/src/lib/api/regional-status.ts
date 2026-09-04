@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
 import type { ProjectStatusCategory, ReportStatus } from "./project-status";
+import type { ReportingActivitySeries } from "@/lib/reporting-activity";
 
 // Account Reporting / Geo Reporting — manually authored, period-scoped
 // narrative reports (see backend/app/api/v1/endpoints/regional_status.py).
@@ -76,6 +77,21 @@ export function useRegionalStatusReports(scope: RegionalScope, scopeId: string |
   return useQuery({
     queryKey: ["regional-status-reports", scope, scopeId],
     queryFn: () => api.get<RegionalStatusReport[]>(basePath(scope, scopeId!)),
+    enabled: !!scopeId,
+  });
+}
+
+// Reporting Hub activity — server-computed Weekly submission timeline for the
+// progress ring + activity heatmap. Weekly-only (Account/Geo Status Reporting
+// has a single cadence); the per-period shapes are shared with Project
+// Reporting via @/lib/reporting-activity.
+export type WeeklyReportingActivity = { year: number; weekly: ReportingActivitySeries };
+
+export function useRegionalReportingActivity(scope: RegionalScope, scopeId: string | null) {
+  return useQuery({
+    queryKey: ["regional-reporting-activity", scope, scopeId],
+    queryFn: () =>
+      api.get<WeeklyReportingActivity>(`/${scope}s/${scopeId}/reporting-activity`),
     enabled: !!scopeId,
   });
 }

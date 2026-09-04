@@ -9,17 +9,16 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
-import { useUsers } from "@/lib/api/reference-data";
 import { useEffectiveRole } from "@/stores/session";
 import { usePageBanner } from "@/stores/page-banner";
 import { canWriteDeAssessment } from "@/lib/api/de-assessment-permissions";
 import {
+  FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
-  FINDING_SEVERITY_OPTIONS,
   useUpdateDEAssessmentFinding,
   type DEAssessmentFinding,
+  type FindingCategory,
   type FindingClassification,
-  type FindingSeverity,
   type FindingStatus,
 } from "@/lib/api/de-assessment";
 
@@ -53,16 +52,19 @@ export function FindingsDetailView({
   finding: DEAssessmentFinding;
   onBack: () => void;
 }) {
-  const { data: users = [] } = useUsers();
   const canWrite = canWriteDeAssessment(useEffectiveRole());
   const updateFinding = useUpdateDEAssessmentFinding(projectId);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
   const [description, setDescription] = React.useState(() => finding.description ?? "");
+  const [category, setCategory] = React.useState<FindingCategory | "">(
+    () => (finding.category as FindingCategory) ?? ""
+  );
   const [classification, setClassification] = React.useState<FindingClassification>(finding.classification);
-  const [severity, setSeverity] = React.useState<FindingSeverity | "">(finding.severity ?? "");
-  const [assignedTo, setAssignedTo] = React.useState(() => finding.assigned_to ?? "");
+  // A finding is always owned by the project's PM; there is no assignee picker.
+  // The finding's stored `assigned_to` is preserved as-is on save.
+  const assignedTo = finding.assigned_to ?? "";
   const [findingDate, setFindingDate] = React.useState(() => finding.finding_date ?? "");
   const [dueDate, setDueDate] = React.useState(() => finding.due_date ?? "");
   const [remarks, setRemarks] = React.useState(() => finding.remarks ?? "");
@@ -72,9 +74,9 @@ export function FindingsDetailView({
       {
         id: finding.id,
         payload: {
+          category: category || undefined,
           classification,
           description: description.trim() || undefined,
-          severity: severity || undefined,
           assigned_to: assignedTo || undefined,
           finding_date: findingDate || undefined,
           due_date: dueDate || undefined,
@@ -90,7 +92,7 @@ export function FindingsDetailView({
 
   const runTransition = (next: FindingStatus) => {
     updateFinding.mutate(
-      { id: finding.id, payload: { classification, status: next } },
+      { id: finding.id, payload: { status: next } },
       {
         onSuccess: () => showSuccess(`Finding marked ${next}.`),
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to update finding."),
@@ -126,6 +128,26 @@ export function FindingsDetailView({
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
+        <Field label="Category" htmlFor="detail-finding-category">
+          <NativeSelect
+            id="detail-finding-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as FindingCategory)}
+            disabled={!canWrite}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {FINDING_CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+            {category && !FINDING_CATEGORY_OPTIONS.includes(category as FindingCategory) ? (
+              <option value={category}>{category}</option>
+            ) : null}
+          </NativeSelect>
+        </Field>
         <Field label="Classification" htmlFor="detail-finding-classification">
           <NativeSelect
             id="detail-finding-classification"
@@ -143,38 +165,7 @@ export function FindingsDetailView({
             ) : null}
           </NativeSelect>
         </Field>
-        <Field label="Severity" htmlFor="detail-finding-severity">
-          <NativeSelect
-            id="detail-finding-severity"
-            value={severity}
-            onChange={(e) => setSeverity(e.target.value as FindingSeverity | "")}
-            disabled={!canWrite}
-          >
-            <option value="">—</option>
-            {FINDING_SEVERITY_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
       </div>
-
-      <Field label="Assigned To" htmlFor="detail-finding-assigned-to">
-        <NativeSelect
-          id="detail-finding-assigned-to"
-          value={assignedTo}
-          onChange={(e) => setAssignedTo(e.target.value)}
-          disabled={!canWrite}
-        >
-          <option value="">Unassigned</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.full_name}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Finding Date" htmlFor="detail-finding-date">

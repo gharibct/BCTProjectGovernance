@@ -8,14 +8,14 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field, MandatoryBadge } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
-import { useUsers } from "@/lib/api/reference-data";
+import { useProjects } from "@/lib/api/projects";
 import { usePageBanner } from "@/stores/page-banner";
 import {
+  FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
-  FINDING_SEVERITY_OPTIONS,
   useCreateDEAssessmentFinding,
+  type FindingCategory,
   type FindingClassification,
-  type FindingSeverity,
 } from "@/lib/api/de-assessment";
 
 function today(): string {
@@ -29,33 +29,44 @@ export function FindingsCreateView({
   projectId: string;
   onDone: () => void;
 }) {
-  const { data: users = [] } = useUsers();
+  const { data: projects = [] } = useProjects();
   const createFinding = useCreateDEAssessmentFinding(projectId);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
+  // A finding is always owned by the project's PM — there is no assignee picker.
+  // The PM id is stored on the finding's (retained) `assigned_to` column.
+  const assignedTo = projects.find((p) => p.id === projectId)?.project_manager_id ?? "";
+
   const [description, setDescription] = React.useState("");
-  const [classification, setClassification] = React.useState<FindingClassification>("Core Delivery");
-  const [severity, setSeverity] = React.useState<FindingSeverity>("Low");
-  const [assignedTo, setAssignedTo] = React.useState("");
+  const [category, setCategory] = React.useState<FindingCategory | "">("");
+  const [classification, setClassification] = React.useState<FindingClassification | "">("");
   const [findingDate, setFindingDate] = React.useState(today);
   const [dueDate, setDueDate] = React.useState("");
   const [remarks, setRemarks] = React.useState("");
   const [descriptionError, setDescriptionError] = React.useState<string | null>(null);
+  const [categoryError, setCategoryError] = React.useState<string | null>(null);
+  const [classificationError, setClassificationError] = React.useState<string | null>(null);
 
   const submit = () => {
-    if (!description.trim()) {
-      const message = "Finding description is required.";
-      setDescriptionError(message);
-      showError(message);
+    const missingDescription = !description.trim();
+    const missingCategory = !category;
+    const missingClassification = !classification;
+    if (missingDescription || missingCategory || missingClassification) {
+      setDescriptionError(missingDescription ? "Finding description is required." : null);
+      setCategoryError(missingCategory ? "Category is required." : null);
+      setClassificationError(missingClassification ? "Classification is required." : null);
+      showError("Please fix the highlighted fields.");
       return;
     }
     setDescriptionError(null);
+    setCategoryError(null);
+    setClassificationError(null);
     createFinding.mutate(
       {
         description: description.trim(),
-        classification,
-        severity,
+        category: category as FindingCategory,
+        classification: classification as FindingClassification,
         assigned_to: assignedTo || undefined,
         finding_date: findingDate || undefined,
         due_date: dueDate || undefined,
@@ -93,12 +104,47 @@ export function FindingsCreateView({
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Classification" htmlFor="finding-classification" badge={<MandatoryBadge />}>
+        <Field
+          label="Category"
+          htmlFor="finding-category"
+          badge={<MandatoryBadge />}
+          error={categoryError ?? undefined}
+        >
+          <NativeSelect
+            id="finding-category"
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value as FindingCategory);
+              if (categoryError) setCategoryError(null);
+            }}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {FINDING_CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field
+          label="Classification"
+          htmlFor="finding-classification"
+          badge={<MandatoryBadge />}
+          error={classificationError ?? undefined}
+        >
           <NativeSelect
             id="finding-classification"
             value={classification}
-            onChange={(e) => setClassification(e.target.value as FindingClassification)}
+            onChange={(e) => {
+              setClassification(e.target.value as FindingClassification);
+              if (classificationError) setClassificationError(null);
+            }}
           >
+            <option value="" disabled>
+              Select…
+            </option>
             {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -106,35 +152,7 @@ export function FindingsCreateView({
             ))}
           </NativeSelect>
         </Field>
-        <Field label="Severity" htmlFor="finding-severity" badge={<MandatoryBadge />}>
-          <NativeSelect
-            id="finding-severity"
-            value={severity}
-            onChange={(e) => setSeverity(e.target.value as FindingSeverity)}
-          >
-            {FINDING_SEVERITY_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
       </div>
-
-      <Field label="Assigned To" htmlFor="finding-assigned-to">
-        <NativeSelect
-          id="finding-assigned-to"
-          value={assignedTo}
-          onChange={(e) => setAssignedTo(e.target.value)}
-        >
-          <option value="">Unassigned</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.full_name}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Finding Date" htmlFor="finding-date">

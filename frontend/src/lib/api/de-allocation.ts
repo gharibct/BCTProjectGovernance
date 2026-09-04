@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
-import type { ProjectStatus } from "./projects";
+import type { ProjectLifecycleStatus, ProjectStatus } from "./projects";
 
 // DE Project Allocation (design-reference/de-approval) — assign a Delivery
 // Excellence assessor to projects that are Pending Approval or Approved (Draft is
@@ -14,6 +14,7 @@ export type DeAllocationRow = {
   account_name: string | null;
   project_manager_name: string | null;
   project_status: ProjectStatus;
+  lifecycle_status: ProjectLifecycleStatus | null;
   delivery_excellence_id: string | null;
   delivery_excellence_name: string | null;
   de_allocated_at: string | null;

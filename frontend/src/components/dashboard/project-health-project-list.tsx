@@ -6,7 +6,14 @@ import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { formatGeoRegion, useProjectHealthProjectList, type ProjectListRow } from "@/lib/api/project-health-lists";
+import {
+  fetchAllProjectHealthRows,
+  formatGeoRegion,
+  PROJECT_HEALTH_LIST_PATHS,
+  useProjectHealthProjectList,
+  type ProjectListRow,
+} from "@/lib/api/project-health-lists";
+import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDate, HealthBadge, StatTile } from "./project-health-kpi";
 
@@ -38,9 +45,15 @@ export function ProjectHealthProjectList() {
           <p className="text-xs text-slate-500">{row.project_name}</p>
         </div>
       ),
+      excelValue: (row) => `${row.project_code} — ${row.project_name}`,
     },
     { key: "project_type_name", label: "Project Type" },
-    { key: "geo_name", label: "Geo - Region", render: (row) => formatGeoRegion(row.geo_name, row.region_name) },
+    {
+      key: "geo_name",
+      label: "Geo - Region",
+      render: (row) => formatGeoRegion(row.geo_name, row.region_name),
+      excelValue: (row) => formatGeoRegion(row.geo_name, row.region_name),
+    },
     { key: "account_name", label: "Account" },
     { key: "project_manager_name", label: "Project Manager" },
     { key: "start_date", label: "Start Date", render: (row) => formatDate(row.start_date) },
@@ -83,16 +96,28 @@ export function ProjectHealthProjectList() {
         <ErrorBlock title="Couldn't load the project list." error={error} onRetry={() => refetch()} />
       ) : (
         <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setSkip(0);
-            }}
-            placeholder="Search projects…"
-            className="w-full max-w-sm rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-[#1a6fc4] focus:outline-none"
-          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSkip(0);
+              }}
+              placeholder="Search projects…"
+              className="w-full max-w-sm rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-[#1a6fc4] focus:outline-none"
+            />
+            <ProjectHealthExportButton
+              filename="project-health-project-list"
+              columns={columns}
+              fetchAll={() =>
+                fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.projects, {
+                  ...filters,
+                  search: search || undefined,
+                })
+              }
+            />
+          </div>
 
           <RegisterTable
             items={rows}

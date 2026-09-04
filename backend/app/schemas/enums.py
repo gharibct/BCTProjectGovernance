@@ -61,21 +61,33 @@ class YesNo(StrEnum):
 
 
 class ApplicablePhase(StrEnum):
+    DISCOVERY_POC_ASSESSMENT_CONSULTING = "Discovery / POC / Assessment / Consulting"
     REQUIREMENT = "Requirement"
     DESIGN = "Design"
     CUT = "CUT"
     BUILD_AND_DEPLOYMENT = "Build & Deployment"
     TESTING = "Testing"
-    UAT = "UAT"
+    UAT_SUPPORT = "UAT Support"
     WARRANTY = "Warranty"
     SUPPORT = "Support"
+    MIGRATION = "Migration"
 
 
 class ProjectStatus(StrEnum):
+    """The approval-workflow state. The project's lifecycle state (Ongoing / Hold /
+    Closed / Open Only for Billing) lives on a separate `lifecycle_status` column
+    — see ProjectLifecycleStatus."""
+
     DRAFT = "Draft"
     PENDING_APPROVAL = "Pending Approval"
     APPROVED = "Approved"
     UNDER_AMENDMENT = "Under Amendment"
+
+
+class ProjectLifecycleStatus(StrEnum):
+    """Set by the PM on the Amend charter page, independent of the approval
+    workflow. Null on a project means "follow project_status"."""
+
     ONGOING = "Ongoing"
     HOLD = "Hold"
     CLOSED = "Closed"
@@ -305,17 +317,11 @@ class MilestonePaymentStatus(StrEnum):
 
 
 class FindingClassification(StrEnum):
-    # Observation/Recommendation are the legacy register-tab values (still
-    # accepted); the rest mirrors Category's 6-value Project RAG taxonomy —
-    # the DE Assessment Workspace's Classification combo aligns with it.
+    # What kind of finding this is. The finding's subject area lives on a
+    # separate `category` field (the Category 6-value Project RAG taxonomy).
     OBSERVATION = "Observation"
     RECOMMENDATION = "Recommendation"
-    CORE_DELIVERY = "Core Delivery"
-    PEOPLE = "People"
-    OPERATIONAL = "Operational"
-    CUSTOMER = "Customer"
-    FINANCIAL = "Financial"
-    COMPLIANCE = "Compliance"
+    NC = "NC"  # Non-Conformance
 
 
 class FindingStatus(StrEnum):
@@ -329,13 +335,6 @@ class FindingStatus(StrEnum):
     CANCELLED = "Cancelled"
     ON_HOLD = "On Hold"
     DEFERRED = "Deferred"
-
-
-class FindingSeverity(StrEnum):
-    LOW = "Low"
-    MEDIUM = "Medium"
-    HIGH = "High"
-    CRITICAL = "Critical"
 
 
 class DEAssessmentStatus(StrEnum):

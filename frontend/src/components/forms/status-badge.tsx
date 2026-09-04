@@ -25,6 +25,7 @@ const TONE_MAP: Record<string, string> = {
   processing: "bg-blue-50 text-[#1a6fc4] ring-blue-200",
   processed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   excluded: "bg-slate-100 text-slate-500 ring-slate-200",
+  ongoing: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   hold: "bg-amber-50 text-amber-700 ring-amber-200",
   "open only for billing": "bg-slate-100 text-slate-600 ring-slate-200",
   pending: "bg-amber-50 text-amber-700 ring-amber-200",

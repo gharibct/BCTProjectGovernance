@@ -13,6 +13,7 @@ import {
   type DeAllocationAssignment,
   type DeAllocationRow,
 } from "@/lib/api/de-allocation";
+import { effectiveProjectStatus } from "@/lib/api/projects";
 import { canAllocateDe } from "@/lib/api/de-approval-permissions";
 import { usePageBanner } from "@/stores/page-banner";
 import { useSession } from "@/stores/session";
@@ -282,7 +283,7 @@ export function DeAllocationGrid() {
                                 {row.delivery_excellence_id ? "Allocated" : "Unallocated"}
                               </span>
                               {row.project_status === "Approved" ? (
-                                <StatusBadge value={row.project_status} />
+                                <StatusBadge value={effectiveProjectStatus(row)} />
                               ) : null}
                             </div>
                           </td>

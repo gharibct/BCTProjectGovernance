@@ -46,7 +46,6 @@ async def _pm_scope(current_user: User, db: AsyncSession) -> UUID | None:
 @router.get("", response_model=Page[DEFindingListRow], dependencies=_read_gate)
 async def list_findings(
     project_id: UUID | None = None,
-    severity: str | None = None,
     status: str | None = "Active",
     bucket: str | None = None,
     pagination: PaginationParams = Depends(pagination_params),
@@ -56,7 +55,6 @@ async def list_findings(
     filters = DEFindingFilters(
         project_id=project_id,
         project_manager_id=await _pm_scope(current_user, db),
-        severity=severity,
         status=status,
         bucket=bucket,
     )

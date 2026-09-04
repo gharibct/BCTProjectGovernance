@@ -19,7 +19,6 @@ from app.schemas.enums import (
     OpportunityImpact,
     OpportunityStatus,
     Probability,
-    ProjectStatus,
     RiskSeverity,
     RiskStatus,
 )
@@ -527,7 +526,8 @@ class ProjectListRow(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     overall_health: HealthRating | None = None
-    status: ProjectStatus
+    # Effective status: the project's lifecycle_status when set, else project_status.
+    status: str
 
 
 class RagRow(BaseModel):
@@ -709,6 +709,7 @@ class FindingRow(BaseModel):
     account_name: str | None = None
     finding_id: UUID
     finding_title: str
+    category: str
     classification: str
     action_taken: str | None = None
     owner_name: str | None = None

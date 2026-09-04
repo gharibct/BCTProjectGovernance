@@ -3,12 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "./client";
 import type { HealthRating } from "./health-declarations";
 
-// Observation/Recommendation are the legacy register-tab values; the DE
-// Assessment Workspace's Classification aligns with the Project RAG's
-// 6-category taxonomy (see project-charter/health-declaration.tsx's CATEGORIES).
-export type FindingClassification =
-  | "Observation"
-  | "Recommendation"
+// What kind of finding it is. The finding's subject area is a separate
+// `category` field (the Project RAG 6-category taxonomy).
+export type FindingClassification = "Observation" | "Recommendation" | "NC";
+// The Project RAG 6-category taxonomy (see project-charter/health-declaration.tsx's CATEGORIES).
+export type FindingCategory =
   | "Core Delivery"
   | "People"
   | "Operational"
@@ -24,10 +23,14 @@ export type FindingStatus =
   | "Cancelled"
   | "On Hold"
   | "Deferred";
-export type FindingSeverity = "Low" | "Medium" | "High" | "Critical";
 export type DEAssessmentStatus = "Draft" | "Submitted";
 
 export const FINDING_CLASSIFICATION_OPTIONS: FindingClassification[] = [
+  "Observation",
+  "Recommendation",
+  "NC",
+];
+export const FINDING_CATEGORY_OPTIONS: FindingCategory[] = [
   "Core Delivery",
   "People",
   "Operational",
@@ -35,7 +38,6 @@ export const FINDING_CLASSIFICATION_OPTIONS: FindingClassification[] = [
   "Financial",
   "Compliance",
 ];
-export const FINDING_SEVERITY_OPTIONS: FindingSeverity[] = ["Low", "Medium", "High", "Critical"];
 // Current lifecycle values for a status picker — legacy On Hold/Deferred are
 // omitted (still accepted on read for historical rows).
 export const FINDING_STATUS_OPTIONS: FindingStatus[] = [
@@ -62,9 +64,10 @@ export type DEAssessmentFinding = {
   id: string;
   project_id: string;
   sequence_no: number;
+  // Lenient string — legacy rows may hold a value outside the current taxonomy.
+  category: string;
   classification: FindingClassification;
   description: string | null;
-  severity: FindingSeverity | null;
   assigned_to: string | null;
   action_taken: string | null;
   finding_date: string | null;
@@ -118,9 +121,10 @@ export type DEAssessmentAlertPayload = {
 
 export type DEAssessmentFindingPayload = {
   sequence_no?: number;
-  classification: FindingClassification;
+  // Required by the create endpoint; omitted for status-only transitions.
+  category?: FindingCategory;
+  classification?: FindingClassification;
   description?: string;
-  severity?: FindingSeverity;
   assigned_to?: string;
   action_taken?: string;
   finding_date?: string;

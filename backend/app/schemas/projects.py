@@ -10,6 +10,7 @@ from app.schemas.enums import (
     ContractType,
     EngagementType,
     HealthRating,
+    ProjectLifecycleStatus,
     ProjectOwned,
     ProjectStatus,
     YesNo,
@@ -104,7 +105,10 @@ class ProjectUpdate(BaseModel):
     actual_end_date: date | None = None
     # None = leave unchanged (PUT is exclude_unset); [] = clear all phases.
     applicable_phase: list[ApplicablePhase] | None = None
-    project_status: ProjectStatus | None = None
+    # The approval-workflow state (project_status) is only ever moved by the
+    # dedicated transition endpoints, never this PUT. The PM sets the lifecycle
+    # state here from the Amend charter page.
+    lifecycle_status: ProjectLifecycleStatus | None = None
     updated_by: UUID | None = None
 
 
@@ -113,6 +117,7 @@ class ProjectRead(ProjectBase):
     id: UUID
     project_code: str
     project_status: ProjectStatus
+    lifecycle_status: ProjectLifecycleStatus | None = None
     planned_duration_days: int | None = None  # DB-computed
     actual_duration_days: int | None = None  # DB-computed
     delivery_declared_overall_health: HealthRating | None = None
@@ -122,6 +127,13 @@ class ProjectRead(ProjectBase):
     updated_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
+
+    # The status shown to users: the lifecycle state once the PM has set one,
+    # otherwise the approval-workflow state.
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def effective_status(self) -> str:
+        return self.lifecycle_status or self.project_status
 
     # Derived, not stored — see new-project-nav.tsx's section status icons.
     # Every field the corresponding charter screen collects must be filled

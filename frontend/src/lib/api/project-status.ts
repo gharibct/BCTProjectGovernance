@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
 import type { ReportingPeriod } from "./reference-data";
+import type { ReportingActivitySeries } from "@/lib/reporting-activity";
 
 export type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected";
 
@@ -68,6 +69,27 @@ export function useStatusReports(projectId: string | null) {
   return useQuery({
     queryKey: ["status-reports", projectId],
     queryFn: () => api.get<ProjectStatusReport[]>(`/projects/${projectId}/status-reports`),
+    enabled: !!projectId,
+  });
+}
+
+// --- Reporting Hub activity (GET /projects/{id}/reporting-activity) ---
+// Server-computed per-period submission timeline for the progress rings and
+// the activity heatmaps. Lateness rule matches services/dashboard.py's
+// _project_reporting_bucket, so the hub and portfolio dashboards agree.
+// The per-period shapes live in @/lib/reporting-activity (shared with the
+// Account Reporting hub); this is just the project-scoped response + hook.
+
+export type ReportingActivity = {
+  year: number;
+  weekly: ReportingActivitySeries;
+  monthly: ReportingActivitySeries;
+};
+
+export function useReportingActivity(projectId: string | null) {
+  return useQuery({
+    queryKey: ["reporting-activity", projectId],
+    queryFn: () => api.get<ReportingActivity>(`/projects/${projectId}/reporting-activity`),
     enabled: !!projectId,
   });
 }

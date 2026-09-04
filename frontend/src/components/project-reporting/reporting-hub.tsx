@@ -1,44 +1,28 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowRightToLine, CircleCheck, Flag, HeartPulse, ShieldCheck } from "lucide-react";
+import { CalendarDays, ChartColumn } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageBanner } from "@/components/shell/page-banner";
 import { StatusBadge } from "@/components/forms/status-badge";
-import { useProject, type HealthRating as ApiHealthRating } from "@/lib/api/projects";
+import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
-import { useStatusReports } from "@/lib/api/project-status";
-import { HealthPill, RATING_FROM_API } from "@/components/project-charter/health-declaration";
-import { StarterCards } from "./starter-cards";
-
-// No Milestones backend yet — this tile stays sample data until one exists.
-const MILESTONES_STAT = {
-  label: "Milestones",
-  value: "12/15",
-  qualifier: "On Track",
-  qualifierClass: "text-[#1a6fc4]",
-  icon: Flag,
-};
-
-// Mirrors health-declaration.tsx's own three fields: Delivery Declared
-// Overall, DE Assessed Project Health, and the highest-severity Overall
-// Health rollup between them — all real backend columns on Project.
-const HEALTH_STATS: {
-  label: string;
-  field: "delivery_declared_overall_health" | "de_assessed_project_health" | "overall_project_health";
-  icon: typeof HeartPulse;
-}[] = [
-  { label: "Delivery Declared Health", field: "delivery_declared_overall_health", icon: HeartPulse },
-  { label: "DE Assessed Health", field: "de_assessed_project_health", icon: ShieldCheck },
-  { label: "Overall Health", field: "overall_project_health", icon: CircleCheck },
-];
-
-function ratingFrom(value: ApiHealthRating | null) {
-  return value ? RATING_FROM_API[value] : null;
-}
+import { useReportingActivity, useStatusReports } from "@/lib/api/project-status";
+import {
+  comboPeriods,
+  currentActivityPeriodId,
+  EMPTY_ACTIVITY_SERIES,
+} from "@/lib/reporting-activity";
+import {
+  MONTHLY_ACCENT,
+  ReportingProgressCard,
+  WEEKLY_ACCENT,
+} from "@/components/reporting/progress-ring-card";
+import { ReportingActivityGrid } from "@/components/reporting/activity-grid";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
@@ -49,87 +33,89 @@ export function ReportingHub() {
   const { data: project } = useProject(projectId ?? null);
   const { data: periods = [] } = useReportingPeriods();
   const { data: reports = [] } = useStatusReports(projectId ?? null);
-  // Project Dashboard (the consolidated report preview + submit screen) is
-  // where entering the reporting flow for a period should land — Project
-  // Status/RAG Status stay reachable from its nav for actually editing.
+  const { data: activity } = useReportingActivity(projectId ?? null);
+
+  // Project Dashboard (the consolidated preview + submit screen) is where
+  // entering the reporting flow for a period should land.
   const dashboardHref = `/project-reporting/${projectId}/dashboard`;
 
-  // The list endpoint already orders by the period's start_date desc, so
-  // the first row is the latest report across both Weekly and Monthly.
-  const latestReport = reports[0];
-  const latestReportHref = latestReport ? `${dashboardHref}?period=${latestReport.period_id}` : dashboardHref;
+  const weekly = activity?.weekly ?? EMPTY_ACTIVITY_SERIES;
+  const monthly = activity?.monthly ?? EMPTY_ACTIVITY_SERIES;
+
+  const currentWeekId = currentActivityPeriodId(weekly.items);
+  const currentMonthId = currentActivityPeriodId(monthly.items);
+
+  // undefined until the user picks explicitly, so each combo defaults to the
+  // current period once the activity loads without a sync effect.
+  const [weekOverride, setWeekOverride] = useState<string>();
+  const [monthOverride, setMonthOverride] = useState<string>();
+  const weekId = weekOverride ?? currentWeekId ?? "";
+  const monthId = monthOverride ?? currentMonthId ?? "";
+
+  // Combo options: in-window periods only (after project start, up to today
+  // or the project end), newest first, at most 15 back from the current one.
+  const weekOptions = useMemo(() => comboPeriods(weekly.items), [weekly]);
+  const monthOptions = useMemo(() => comboPeriods(monthly.items), [monthly]);
+
+  const periodHref = (periodId: string) =>
+    periodId ? `${dashboardHref}?period=${periodId}` : dashboardHref;
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-            {project?.project_code ? `${project.project_code} - Reporting Summary` : "Report Project"}
-          </h1>
-          <p className="mt-2 max-w-3xl text-slate-500">
-            {project?.project_scope_description || project?.customer_overview || project?.project_name}
-          </p>
-        </div>
-        <Button
-          asChild
-          className="h-11 shrink-0 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
-        >
-          <Link href={latestReportHref}>
-            <ArrowRightToLine className="size-4" />
-            Goto Latest Report
-          </Link>
-        </Button>
+      <div>
+        <h1 className="text-4xl font-bold tracking-tight text-slate-900">
+          {project?.project_code ? `${project.project_code} - Reporting Summary` : "Report Project"}
+        </h1>
+        <p className="mt-2 max-w-3xl text-slate-500">
+          {project?.project_scope_description || project?.customer_overview || project?.project_name}
+        </p>
       </div>
 
       <PageBanner />
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-              {MILESTONES_STAT.label}
-            </span>
-            <MILESTONES_STAT.icon className="size-4.5 text-[#1a6fc4]" />
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-900">{MILESTONES_STAT.value}</span>
-            <span
-              className={cn(
-                "text-xs font-bold tracking-wide uppercase",
-                MILESTONES_STAT.qualifierClass
-              )}
-            >
-              {MILESTONES_STAT.qualifier}
-            </span>
-          </div>
-        </div>
-
-        {HEALTH_STATS.map((stat) => {
-          const rating = ratingFrom(project?.[stat.field] ?? null);
-          return (
-            <div
-              key={stat.label}
-              className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-                  {stat.label}
-                </span>
-                <stat.icon className="size-4.5 text-[#1a6fc4]" />
-              </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                {rating ? (
-                  <HealthPill rating={rating} />
-                ) : (
-                  <span className="text-sm font-semibold text-slate-400">Not assessed</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <ReportingProgressCard
+          title="Delivery Status Reporting (Weekly)"
+          icon={CalendarDays}
+          captionNoun="Weekly Reports"
+          series={weekly}
+          accent={WEEKLY_ACCENT}
+          comboLabel="Week Selection"
+          options={weekOptions}
+          value={weekId}
+          currentId={currentWeekId}
+          onChange={setWeekOverride}
+          actionHref={periodHref(weekId)}
+          actionLabel="Open Delivery Status Reporting"
+        />
+        <ReportingProgressCard
+          title="Metrics Reporting (Monthly)"
+          icon={ChartColumn}
+          captionNoun="Monthly Metrics"
+          series={monthly}
+          accent={MONTHLY_ACCENT}
+          comboLabel="Month Selection"
+          options={monthOptions}
+          value={monthId}
+          currentId={currentMonthId}
+          onChange={setMonthOverride}
+          actionHref={periodHref(monthId)}
+          actionLabel="Open Metric Reporting"
+        />
       </div>
 
-      <StarterCards />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <ReportingActivityGrid
+          title="Weekly Reporting Activity"
+          items={weekly.items}
+          variant="weekly"
+        />
+        <ReportingActivityGrid
+          title="Monthly Reporting Activity"
+          items={monthly.items}
+          variant="monthly"
+        />
+      </div>
 
       <section>
         <h2 className="text-lg font-bold text-slate-900">Reporting History</h2>
@@ -155,6 +141,12 @@ export function ReportingHub() {
               ) : (
                 reports.map((report) => {
                   const period = periods.find((p) => p.id === report.period_id);
+                  const typeLabel =
+                    period?.period_type === "Weekly"
+                      ? "Weekly Delivery Status"
+                      : period?.period_type === "Monthly"
+                        ? "Monthly Metrics"
+                        : (period?.period_type ?? "—");
                   return (
                     <tr
                       key={report.id}
@@ -172,7 +164,7 @@ export function ReportingHub() {
                               : "bg-blue-50 text-[#1a6fc4]"
                           )}
                         >
-                          {period?.period_type ?? "—"}
+                          {typeLabel}
                         </span>
                       </td>
                       <td className="px-3 py-3.5 text-slate-700">{formatDate(report.created_at)}</td>

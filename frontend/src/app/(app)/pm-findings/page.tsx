@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PmFindingsView } from "@/components/pm-findings/pm-findings-view";
 
 export const metadata: Metadata = {
-  title: "Findings | Project Governance Tool",
+  title: "DE Findings | Project Governance Tool",
 };
 
 export default function PmFindingsPage() {

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
-import type { Project, ProjectStatus } from "./projects";
+import type { Project, ProjectLifecycleStatus, ProjectStatus } from "./projects";
 
 // Maintain Project — "Send To Approval" screen. The PM-facing mirror of the DE
 // governance completeness check: the modules a Project Manager must finish
@@ -39,6 +39,7 @@ export type ApprovalReadiness = {
   critical_gaps: number;
   modules: ApprovalReadinessModule[];
   project_status: ProjectStatus;
+  lifecycle_status: ProjectLifecycleStatus | null;
   can_submit: boolean;
 };
 

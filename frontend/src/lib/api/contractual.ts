@@ -153,6 +153,11 @@ export type ContractualCommitmentActualPayload = {
   met_status?: MetStatus;
 };
 
+export type ContractualCommitmentActualUpdatePayload = {
+  actual_value?: string;
+  met_status?: MetStatus;
+};
+
 export type MilestonePaymentActual = {
   id: string;
   milestone_id: string;
@@ -191,6 +196,51 @@ export function useCreateCommitmentActual(projectId: string | null, commitmentId
   });
 }
 
+// Full actuals history for one commitment (newest first, server-ordered). The
+// register summary uses useLatestCommitmentActuals; this backs the per-commitment
+// history drawer, so it is gated by `enabled` to fire only when that is open.
+export function useCommitmentActuals(
+  projectId: string | null,
+  commitmentId: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: commitmentActualsKey(projectId, commitmentId),
+    queryFn: () =>
+      api.get<ContractualCommitmentActual[]>(
+        `/projects/${projectId}/contractual-commitments/${commitmentId}/actuals`,
+      ),
+    enabled: !!projectId && !!commitmentId && enabled,
+  });
+}
+
+export function useUpdateCommitmentActual(projectId: string | null, commitmentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: ContractualCommitmentActualUpdatePayload }) =>
+      api.put<ContractualCommitmentActual>(
+        `/projects/${projectId}/contractual-commitments/${commitmentId}/actuals/${id}`,
+        payload,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: commitmentActualsKey(projectId, commitmentId) });
+    },
+  });
+}
+
+export function useDeleteCommitmentActual(projectId: string | null, commitmentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.delete(
+        `/projects/${projectId}/contractual-commitments/${commitmentId}/actuals/${id}`,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: commitmentActualsKey(projectId, commitmentId) });
+    },
+  });
+}
+
 export function useUpsertMilestoneActual(projectId: string | null, milestoneId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -205,8 +255,13 @@ export function useUpsertMilestoneActual(projectId: string | null, milestoneId: 
   });
 }
 
-// Latest recorded actual per commitment id — one list query each (the set of
-// commitments per project is small), reduced to the most recent by period_date.
+export type CommitmentActualsSummary = {
+  latest: ContractualCommitmentActual | null;
+  count: number;
+};
+
+// Latest recorded actual + total count per commitment id — one list query each
+// (the set of commitments per project is small), reduced from the full list.
 export function useLatestCommitmentActuals(projectId: string | null, commitmentIds: string[]) {
   const results = useQueries({
     queries: commitmentIds.map((id) => ({
@@ -218,13 +273,16 @@ export function useLatestCommitmentActuals(projectId: string | null, commitmentI
       enabled: !!projectId,
     })),
   });
-  const byId: Record<string, ContractualCommitmentActual | null> = {};
+  const byId: Record<string, CommitmentActualsSummary> = {};
   commitmentIds.forEach((id, i) => {
     const rows = results[i]?.data ?? [];
-    byId[id] =
-      rows.length === 0
-        ? null
-        : [...rows].sort((a, b) => b.period_date.localeCompare(a.period_date))[0];
+    byId[id] = {
+      count: rows.length,
+      latest:
+        rows.length === 0
+          ? null
+          : [...rows].sort((a, b) => b.period_date.localeCompare(a.period_date))[0],
+    };
   });
   return byId;
 }

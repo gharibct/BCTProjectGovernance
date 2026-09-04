@@ -35,3 +35,18 @@ export function exportTemplate(filename: string, headers: string[]): void {
   XLSX.utils.book_append_sheet(wb, ws, "Template");
   XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
 }
+
+// Data export — a header row plus one row per record, written as a plain
+// .xlsx (no formulas/formatting). Counterpart to exportTemplate, used by the
+// Project Health grids' "Download to Excel" action.
+export function exportRowsToExcel(
+  filename: string,
+  headers: string[],
+  rows: (string | number | null | undefined)[][],
+): void {
+  const aoa = [headers, ...rows.map((row) => row.map((cell) => cell ?? ""))];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+}

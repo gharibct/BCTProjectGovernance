@@ -18,9 +18,11 @@ from app.models.contractual import (
     MilestonePayment,
     MilestonePaymentActual,
 )
+from app.models.users import User
 from app.schemas.contractual import (
     ContractualCommitmentActualCreate,
     ContractualCommitmentActualRead,
+    ContractualCommitmentActualUpdate,
     ContractualCommitmentCreate,
     ContractualCommitmentRead,
     ContractualCommitmentUpdate,
@@ -36,7 +38,10 @@ router = APIRouter(tags=["Contractual Compliance"])
 
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
-_pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_write_dep = require_project_access(
+    RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN
+)
+_pm_write = [Depends(_pm_write_dep)]
 
 
 # --- Commitments ---
@@ -103,18 +108,96 @@ async def list_commitment_actuals(project_id: UUID, commitment_id: UUID, db: Asy
     "/{commitment_id}/actuals",
     response_model=ContractualCommitmentActualRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=_pm_write,
 )
 async def create_commitment_actual(
     project_id: UUID,
     commitment_id: UUID,
     payload: ContractualCommitmentActualCreate,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(_pm_write_dep),
 ):
+    """Record an actual reading for the commitment's period ending `period_date`.
+
+    Upsert on (commitment_id, period_date) — re-recording an existing date
+    overwrites that row (matches the Measurement / Milestone-actual convention
+    and the table's UNIQUE constraint). `recorded_by` is always stamped from
+    the session, never the payload.
+    """
     commitment = await contractual_commitment_crud.get(db, commitment_id)
     if commitment is None or commitment.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Commitment not found")
-    return await contractual_commitment_actual_crud.create(db, payload, commitment_id=commitment_id)
+
+    existing, _ = await contractual_commitment_actual_crud.list(
+        db,
+        filters={
+            ContractualCommitmentActual.commitment_id: commitment_id,
+            ContractualCommitmentActual.period_date: payload.period_date,
+        },
+        limit=1,
+    )
+    if existing:
+        row = await contractual_commitment_actual_crud.update(
+            db,
+            existing[0],
+            ContractualCommitmentActualUpdate(
+                actual_value=payload.actual_value, met_status=payload.met_status
+            ),
+        )
+        row.recorded_by = user.id
+        await db.flush()
+        await db.refresh(row)
+        return row
+
+    return await contractual_commitment_actual_crud.create(
+        db, payload, commitment_id=commitment_id, recorded_by=user.id
+    )
+
+
+async def _get_actual_or_404(
+    db: AsyncSession, project_id: UUID, commitment_id: UUID, actual_id: UUID
+) -> ContractualCommitmentActual:
+    commitment = await contractual_commitment_crud.get(db, commitment_id)
+    if commitment is None or commitment.project_id != project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Commitment not found")
+    actual = await contractual_commitment_actual_crud.get(db, actual_id)
+    if actual is None or actual.commitment_id != commitment_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Commitment actual not found")
+    return actual
+
+
+@commitments_router.put(
+    "/{commitment_id}/actuals/{actual_id}",
+    response_model=ContractualCommitmentActualRead,
+)
+async def update_commitment_actual(
+    project_id: UUID,
+    commitment_id: UUID,
+    actual_id: UUID,
+    payload: ContractualCommitmentActualUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(_pm_write_dep),
+):
+    actual = await _get_actual_or_404(db, project_id, commitment_id, actual_id)
+    row = await contractual_commitment_actual_crud.update(db, actual, payload)
+    row.recorded_by = user.id
+    await db.flush()
+    await db.refresh(row)
+    return row
+
+
+@commitments_router.delete(
+    "/{commitment_id}/actuals/{actual_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=_pm_write,
+)
+async def delete_commitment_actual(
+    project_id: UUID,
+    commitment_id: UUID,
+    actual_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    actual = await _get_actual_or_404(db, project_id, commitment_id, actual_id)
+    await contractual_commitment_actual_crud.delete(db, actual)
 
 
 # --- Milestone Payments ---

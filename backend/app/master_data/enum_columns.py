@@ -21,6 +21,7 @@ ENUM_COLUMNS: dict[str, dict[str, type[e.StrEnum]]] = {
         # applicable_phase is multi-select (comma-joined list[ApplicablePhase]),
         # so it can't be a single-enum dropdown/validation here.
         "project_status": e.ProjectStatus,
+        "lifecycle_status": e.ProjectLifecycleStatus,
     },
     "risk_log": {
         "risk_category": e.Category,
@@ -98,6 +99,7 @@ ENUM_COLUMNS: dict[str, dict[str, type[e.StrEnum]]] = {
     "de_assessments": {"de_assessed_project_health": e.HealthRating},
     "de_assessment_alerts": {"alert_category": e.Category},
     "de_assessment_findings": {
+        "category": e.Category,
         "classification": e.FindingClassification,
         "status": e.FindingStatus,
     },

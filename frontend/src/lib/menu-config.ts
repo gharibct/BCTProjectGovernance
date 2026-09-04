@@ -20,6 +20,7 @@ export type MenuEntryId =
   | "delivery-excellence-dashboard"
   | "de-assessment"
   | "de-findings"
+  | "de-projects"
   | "de-allocation"
   | "de-approval"
   | "pmo-dashboard"
@@ -47,7 +48,14 @@ const DASHBOARD_ONLY_MENU: MenuEntryId[] = ["dashboard"];
 export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
   PROJECT_MANAGER: PROJECT_MANAGER_MENU,
   TEAM_MEMBER: DASHBOARD_ONLY_MENU,
-  DELIVERY_EXCELLENCE: ["delivery-excellence-dashboard", "de-allocation", "de-approval", "de-assessment", "de-findings"],
+  DELIVERY_EXCELLENCE: [
+    "delivery-excellence-dashboard",
+    "de-allocation",
+    "de-approval",
+    "de-assessment",
+    "de-findings",
+    "de-projects",
+  ],
   // No PMO login exists yet — this is wired the same way as every other
   // role's My Summary, ready for when a PMO user can sign in (see
   // pmo-my-summary.tsx).
@@ -68,6 +76,7 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
     "de-approval",
     "de-assessment",
     "de-findings",
+    "de-projects",
     "pmo-dashboard",
     "account-reporting",
     "geo-reporting",

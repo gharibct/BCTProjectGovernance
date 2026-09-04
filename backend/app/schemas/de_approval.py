@@ -13,6 +13,7 @@ from app.schemas.enums import (
     DeModuleReviewAction,
     DeReviewStatus,
     GovernanceModuleKey,
+    ProjectLifecycleStatus,
     ProjectStatus,
 )
 
@@ -52,6 +53,7 @@ class DeAllocationRow(BaseModel):
     account_name: str | None = None
     project_manager_name: str | None = None
     project_status: ProjectStatus
+    lifecycle_status: ProjectLifecycleStatus | None = None
     delivery_excellence_id: UUID | None = None
     delivery_excellence_name: str | None = None
     de_allocated_at: datetime | None = None
@@ -89,6 +91,7 @@ class DeApprovalQueueRow(BaseModel):
     completion_pct: int
     gaps_count: int
     project_status: ProjectStatus
+    lifecycle_status: ProjectLifecycleStatus | None = None
     de_review_status: DeReviewStatus | None = None
     last_updated: datetime
     href: str
@@ -110,6 +113,7 @@ class DeReviewDetail(BaseModel):
     account_name: str | None = None
     project_manager_name: str | None = None
     project_status: ProjectStatus
+    lifecycle_status: ProjectLifecycleStatus | None = None
     de_review_status: DeReviewStatus | None = None
     de_review_remarks: str | None = None
     de_reviewed_by: UUID | None = None

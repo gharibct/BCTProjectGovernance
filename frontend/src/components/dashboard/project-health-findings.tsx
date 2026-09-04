@@ -5,7 +5,14 @@ import * as React from "react";
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { formatGeoRegion, useProjectHealthFindings, type FindingRow } from "@/lib/api/project-health-lists";
+import {
+  fetchAllProjectHealthRows,
+  formatGeoRegion,
+  PROJECT_HEALTH_LIST_PATHS,
+  useProjectHealthFindings,
+  type FindingRow,
+} from "@/lib/api/project-health-lists";
+import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, StatTile } from "./project-health-kpi";
 
@@ -22,13 +29,19 @@ export function ProjectHealthFindings() {
 
   const columns: RegisterColumn<Row>[] = [
     { key: "project_label", label: "Project" },
-    { key: "geo_name", label: "Geo - Region", render: (row) => formatGeoRegion(row.geo_name, row.region_name) },
+    {
+      key: "geo_name",
+      label: "Geo - Region",
+      render: (row) => formatGeoRegion(row.geo_name, row.region_name),
+      excelValue: (row) => formatGeoRegion(row.geo_name, row.region_name),
+    },
     { key: "account_name", label: "Account" },
     {
       key: "finding_title",
       label: "Finding",
       render: (row) => <span className="font-semibold text-slate-900">{row.finding_title}</span>,
     },
+    { key: "category", label: "Category" },
     { key: "classification", label: "Classification" },
     {
       key: "action_taken",
@@ -77,6 +90,13 @@ export function ProjectHealthFindings() {
         <ErrorBlock title="Couldn't load findings." error={error} onRetry={() => refetch()} />
       ) : (
         <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex justify-end">
+            <ProjectHealthExportButton
+              filename="project-health-findings"
+              columns={columns}
+              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.findings, { ...filters })}
+            />
+          </div>
           <RegisterTable items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No findings found."} />
           <PaginationBar skip={skip} limit={PAGE_SIZE} total={data?.total ?? 0} onPageChange={setSkip} />
         </div>

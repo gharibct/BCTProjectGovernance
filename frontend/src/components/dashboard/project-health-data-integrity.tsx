@@ -6,7 +6,14 @@ import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { cn } from "@/lib/utils";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { formatGeoRegion, useProjectHealthDataIntegrity, type DataIntegrityRow } from "@/lib/api/project-health-lists";
+import {
+  fetchAllProjectHealthRows,
+  formatGeoRegion,
+  PROJECT_HEALTH_LIST_PATHS,
+  useProjectHealthDataIntegrity,
+  type DataIntegrityRow,
+} from "@/lib/api/project-health-lists";
+import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDate, StatTile } from "./project-health-kpi";
 
@@ -43,7 +50,12 @@ export function ProjectHealthDataIntegrity() {
 
   const columns: RegisterColumn<Row>[] = [
     { key: "project_label", label: "Project" },
-    { key: "geo_name", label: "Geo - Region", render: (row) => formatGeoRegion(row.geo_name, row.region_name) },
+    {
+      key: "geo_name",
+      label: "Geo - Region",
+      render: (row) => formatGeoRegion(row.geo_name, row.region_name),
+      excelValue: (row) => formatGeoRegion(row.geo_name, row.region_name),
+    },
     { key: "account_name", label: "Account" },
     {
       key: "check_name",
@@ -97,6 +109,13 @@ export function ProjectHealthDataIntegrity() {
         <ErrorBlock title="Couldn't load data integrity." error={error} onRetry={() => refetch()} />
       ) : (
         <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex justify-end">
+            <ProjectHealthExportButton
+              filename="project-health-data-integrity"
+              columns={columns}
+              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.dataIntegrity, { ...filters })}
+            />
+          </div>
           <RegisterTable items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No checklist items found."} />
           <PaginationBar skip={skip} limit={PAGE_SIZE} total={data?.total ?? 0} onPageChange={setSkip} />
         </div>

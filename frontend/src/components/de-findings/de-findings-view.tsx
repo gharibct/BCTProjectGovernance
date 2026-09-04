@@ -36,7 +36,6 @@ type Tile = {
 const TILES: Tile[] = [
   { label: "Open Findings", read: (k) => k.open_findings },
   { label: "Overdue", read: (k) => k.overdue, bucket: "overdue", accent: "border-t-red-500" },
-  { label: "High / Critical", read: (k) => k.high_critical, bucket: "high_critical", accent: "border-t-red-400" },
   { label: "Awaiting Closure", read: (k) => k.awaiting_closure, bucket: "awaiting_closure", accent: "border-t-indigo-500" },
   { label: "Closed This Period", read: (k) => k.closed_this_period, bucket: "closed_this_period", accent: "border-t-emerald-500" },
 ];
@@ -45,7 +44,6 @@ type Chip = { label: (k: DeFindingsKpis) => string; bucket: DeFindingsBucket };
 
 const CHIPS: Chip[] = [
   { label: (k) => `${k.overdue_30d_count} Overdue >30 days`, bucket: "overdue_30d" },
-  { label: (k) => `${k.critical_open_count} Critical Open`, bucket: "critical_open" },
   { label: (k) => `${k.awaiting_closure_count} Awaiting Closure`, bucket: "awaiting_closure" },
   { label: (k) => `${k.projects_over_5_open_count} Projects with >5 Open`, bucket: "projects_over_5_open" },
 ];
@@ -88,9 +86,11 @@ export function DeFindingsView() {
       label: "Finding",
       render: (r) => <span className="line-clamp-2 max-w-sm text-slate-600">{r.description || "—"}</span>,
     },
+    { key: "category", label: "Category" },
     { key: "classification", label: "Classification" },
-    { key: "severity", label: "Severity", badge: true },
-    { key: "assignee_name", label: "Assigned To" },
+    // Assignee column is intentionally hidden: findings are always raised
+    // against the project (owned by its PM), so there is no per-finding assignee
+    // to show. The backend field/column is retained.
     { key: "due_date", label: "Due Date", render: (r) => formatDate(r.due_date) },
     {
       key: "age_days",
@@ -139,7 +139,7 @@ export function DeFindingsView() {
         }}
       />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {TILES.map((tile) => {
           const active = tile.bucket ? filters.bucket === tile.bucket : !filters.bucket;
           return (
@@ -183,7 +183,6 @@ export function DeFindingsView() {
             >
               {kpis.data ? chip.label(kpis.data) : chip.label({
                 overdue_30d_count: 0,
-                critical_open_count: 0,
                 awaiting_closure_count: 0,
                 projects_over_5_open_count: 0,
               } as DeFindingsKpis)}

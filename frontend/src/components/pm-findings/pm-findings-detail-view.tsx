@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { usePageBanner } from "@/stores/page-banner";
-import { FINDING_CLASSIFICATION_OPTIONS, FINDING_SEVERITY_OPTIONS } from "@/lib/api/de-findings";
+import { FINDING_CATEGORY_OPTIONS, FINDING_CLASSIFICATION_OPTIONS } from "@/lib/api/de-findings";
 import { usePmFindingActionTaken, type DeFindingRow } from "@/lib/api/pm-findings";
 
 const ACTIONABLE = ["Open", "In Progress"];
@@ -63,6 +63,18 @@ export function PmFindingsDetailView({
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
+        <Field label="Category">
+          <NativeSelect value={row.category} disabled>
+            {FINDING_CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+            {row.category && !FINDING_CATEGORY_OPTIONS.includes(row.category as (typeof FINDING_CATEGORY_OPTIONS)[number]) ? (
+              <option value={row.category}>{row.category}</option>
+            ) : null}
+          </NativeSelect>
+        </Field>
         <Field label="Classification">
           <NativeSelect value={row.classification} disabled>
             {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
@@ -75,26 +87,13 @@ export function PmFindingsDetailView({
             ) : null}
           </NativeSelect>
         </Field>
-        <Field label="Severity">
-          <NativeSelect value={row.severity ?? ""} disabled>
-            <option value="">—</option>
-            {FINDING_SEVERITY_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Assigned To">
-          <Input value={row.assignee_name ?? "Unassigned"} disabled />
-        </Field>
-        <Field label="Due Date">
-          <Input type="date" value={row.due_date ?? ""} disabled />
-        </Field>
-      </div>
+      {/* Assignee is not shown: a finding is always owned by the project's PM.
+          The backend field/column is retained. */}
+      <Field label="Due Date">
+        <Input type="date" value={row.due_date ?? ""} disabled />
+      </Field>
 
       <Field label="Remarks" htmlFor="pm-finding-remarks" hint="What was done to address this finding.">
         <Textarea

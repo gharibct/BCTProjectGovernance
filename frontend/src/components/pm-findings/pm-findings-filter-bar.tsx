@@ -3,13 +3,12 @@
 import { NativeSelect } from "@/components/ui/native-select";
 import { useProjects } from "@/lib/api/projects";
 import { useSession } from "@/stores/session";
-import { FINDING_SEVERITY_OPTIONS, FINDING_STATUS_OPTIONS, type PmFindingsFilter } from "@/lib/api/pm-findings";
+import { FINDING_STATUS_OPTIONS, type PmFindingsFilter } from "@/lib/api/pm-findings";
 
 const DEFAULTS: PmFindingsFilter = { status: "Active" };
 
 // The list is already scoped server-side to the caller's own projects, so this
-// only needs Project / Severity / Status (the KPI tiles + attention chips
-// drive the `bucket`).
+// only needs Project / Status (the KPI tiles + attention chips drive the `bucket`).
 export function PmFindingsFilterBar({
   filters,
   onChange,
@@ -23,7 +22,7 @@ export function PmFindingsFilterBar({
 
   const set = (patch: Partial<PmFindingsFilter>) => onChange({ ...filters, ...patch });
 
-  const dirty = Boolean(filters.projectId || filters.severity || filters.bucket) || filters.status !== "Active";
+  const dirty = Boolean(filters.projectId || filters.bucket) || filters.status !== "Active";
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
@@ -40,22 +39,6 @@ export function PmFindingsFilterBar({
           {myProjects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.project_code} · {p.project_name}
-            </option>
-          ))}
-        </NativeSelect>
-      </div>
-
-      <div className="w-32">
-        <NativeSelect
-          aria-label="Severity"
-          className="h-9 bg-white text-sm"
-          value={filters.severity ?? ""}
-          onChange={(e) => set({ severity: e.target.value || undefined })}
-        >
-          <option value="">Severity [All]</option>
-          {FINDING_SEVERITY_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s}
             </option>
           ))}
         </NativeSelect>

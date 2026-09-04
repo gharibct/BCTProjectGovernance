@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -32,7 +32,9 @@ from app.schemas.regional_status import (
     GeoStatusReportRead,
     GeoStatusReportUpdate,
 )
+from app.schemas.reporting_activity import WeeklyReportingActivityResponse
 from app.schemas.status_review import StatusReportReviewRequest
+from app.services.reporting_activity import build_weekly_reporting_activity
 
 # Account Reporting / Geo Reporting (manually authored, period-scoped —
 # see db/tables/34_account_geo_status_reports.sql): list/latest/create/edit,
@@ -195,6 +197,29 @@ async def review_geo_status_report(
     await db.flush()
     await db.refresh(obj)
     return obj
+
+
+# Reporting Hub activity — the Weekly submission timeline behind the progress
+# ring and the activity heatmap (design-reference/project-reporting-dashboard,
+# adapted for the single Weekly cadence). Read-only aggregation.
+account_activity_router = APIRouter(
+    prefix="/accounts/{account_id}/reporting-activity", tags=["Account Reporting"]
+)
+geo_activity_router = APIRouter(prefix="/geos/{geo_id}/reporting-activity", tags=["Geo Reporting"])
+
+
+@account_activity_router.get("", response_model=WeeklyReportingActivityResponse)
+async def get_account_reporting_activity(
+    account_id: UUID, year: int | None = None, db: AsyncSession = Depends(get_db)
+):
+    return await build_weekly_reporting_activity(db, "account", account_id, year or date.today().year)
+
+
+@geo_activity_router.get("", response_model=WeeklyReportingActivityResponse)
+async def get_geo_reporting_activity(
+    geo_id: UUID, year: int | None = None, db: AsyncSession = Depends(get_db)
+):
+    return await build_weekly_reporting_activity(db, "geo", geo_id, year or date.today().year)
 
 
 # Account Reporting / Geo Reporting status grids (mirrors project_status.py's

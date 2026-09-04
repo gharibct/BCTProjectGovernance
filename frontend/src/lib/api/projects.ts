@@ -8,27 +8,33 @@ export type BillingType = "FPP" | "FB" | "T&M" | "Product" | "Unit Based Billing
 export type EngagementType = "Implementation" | "Support";
 export type YesNo = "Yes" | "No";
 export type ApplicablePhase =
+  | "Discovery / POC / Assessment / Consulting"
   | "Requirement"
   | "Design"
   | "CUT"
   | "Build & Deployment"
   | "Testing"
-  | "UAT"
+  | "UAT Support"
   | "Warranty"
-  | "Support";
-// Matches backend/app/schemas/enums.py's ProjectStatus. A project is
-// "Draft" the moment it's created; the charter's Send To Approval / Approve
-// actions move it through Pending Approval to Approved.
-export type ProjectStatus =
-  | "Draft"
-  | "Pending Approval"
-  | "Approved"
-  | "Under Amendment"
-  | "Ongoing"
-  | "Hold"
-  | "Closed"
-  | "Open Only for Billing";
+  | "Support"
+  | "Migration";
+// Matches backend/app/schemas/enums.py's ProjectStatus — the approval-workflow
+// state only. A project is "Draft" the moment it's created; the charter's Send
+// To Approval / Approve actions move it through Pending Approval to Approved.
+export type ProjectStatus = "Draft" | "Pending Approval" | "Approved" | "Under Amendment";
+// The project's lifecycle state, set by the PM on the Amend charter page —
+// independent of the approval workflow. Null means "follow project_status".
+export type ProjectLifecycleStatus = "Ongoing" | "Hold" | "Closed" | "Open Only for Billing";
 export type HealthRating = "Red" | "Potential Red" | "Amber" | "Green";
+
+// The status shown to users: the lifecycle state once one is set, else the
+// approval-workflow state. Backend exposes the same value as `effective_status`.
+export function effectiveProjectStatus(p: {
+  project_status: ProjectStatus;
+  lifecycle_status?: ProjectLifecycleStatus | null;
+}): string {
+  return p.lifecycle_status ?? p.project_status;
+}
 
 export type Project = {
   id: string;
@@ -61,6 +67,9 @@ export type Project = {
   actual_end_date: string | null;
   applicable_phase: ApplicablePhase[];
   project_status: ProjectStatus;
+  lifecycle_status: ProjectLifecycleStatus | null;
+  // Server-computed: lifecycle_status ?? project_status (see effectiveProjectStatus).
+  effective_status: string;
   planned_duration_days: number | null;
   actual_duration_days: number | null;
   delivery_declared_overall_health: HealthRating | null;
@@ -106,13 +115,25 @@ export type ProjectPayload = Partial<{
   planned_end_date: string;
   actual_end_date: string;
   applicable_phase: ApplicablePhase[];
-  project_status: ProjectStatus;
+  // Approval-workflow transitions go through their own endpoints, never this
+  // payload — the charter form only sets the lifecycle state.
+  lifecycle_status: ProjectLifecycleStatus;
 }>;
 
 export function useProjects() {
   return useQuery({
     queryKey: ["projects"],
     queryFn: () => api.get<Page<Project>>("/projects?limit=200"),
+    select: (page) => page.items,
+  });
+}
+
+// All non-Draft projects — backs the DE "Projects" read-only browser. Draft
+// projects are excluded server-side (they never leave the server).
+export function useDeProjects() {
+  return useQuery({
+    queryKey: ["projects", "exclude-draft"],
+    queryFn: () => api.get<Page<Project>>("/projects?exclude_status=Draft&limit=200"),
     select: (page) => page.items,
   });
 }

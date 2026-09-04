@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/client";
 import { useDeApprovalQueue, type DeApprovalQueueRow } from "@/lib/api/de-approval";
+import { effectiveProjectStatus } from "@/lib/api/projects";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { StatCard } from "@/components/de-assessment-workspace/shared";
@@ -20,7 +21,7 @@ import { StatCard } from "@/components/de-assessment-workspace/shared";
 function statusLabel(row: DeApprovalQueueRow): string {
   if (row.de_review_status) return row.de_review_status;
   if (row.project_status === "Pending Approval") return "Awaiting Review";
-  return row.project_status;
+  return effectiveProjectStatus(row);
 }
 
 const STATUS_BADGE_CLASS: Record<string, string> = {

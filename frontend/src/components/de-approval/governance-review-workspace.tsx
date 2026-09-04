@@ -17,6 +17,7 @@ import {
   type DeReviewDecision,
 } from "@/lib/api/de-approval";
 import { canWriteDeApproval } from "@/lib/api/de-approval-permissions";
+import { effectiveProjectStatus } from "@/lib/api/projects";
 import { usePageBanner } from "@/stores/page-banner";
 import { useSession } from "@/stores/session";
 import { Button } from "@/components/ui/button";
@@ -136,7 +137,9 @@ export function GovernanceReviewWorkspace() {
           {detail.account_name ?? "—"}
           {" · "}
           {detail.de_review_status ??
-            (detail.project_status === "Pending Approval" ? "Awaiting Review" : detail.project_status)}
+            (detail.project_status === "Pending Approval"
+              ? "Awaiting Review"
+              : effectiveProjectStatus(detail))}
         </p>
       </div>
 
@@ -288,7 +291,7 @@ export function GovernanceReviewWorkspace() {
             {readOnly ? (
               <p className="text-sm text-slate-400">
                 {detail.project_status !== "Pending Approval"
-                  ? `This project is ${detail.project_status}. No decision pending.`
+                  ? `This project is ${effectiveProjectStatus(detail)}. No decision pending.`
                   : "You have read-only access."}
               </p>
             ) : (

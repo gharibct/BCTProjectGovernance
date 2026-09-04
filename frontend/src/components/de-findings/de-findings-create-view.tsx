@@ -12,11 +12,11 @@ import { useAccounts, useGeos, useUsers } from "@/lib/api/reference-data";
 import { useProjects } from "@/lib/api/projects";
 import { usePageBanner } from "@/stores/page-banner";
 import {
+  FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
-  FINDING_SEVERITY_OPTIONS,
   useCreateDeFinding,
+  type FindingCategory,
   type FindingClassification,
-  type FindingSeverity,
 } from "@/lib/api/de-findings";
 
 function today(): string {
@@ -34,16 +34,21 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
 
   const [projectId, setProjectId] = React.useState("");
   const [description, setDescription] = React.useState("");
-  const [classification, setClassification] = React.useState<FindingClassification>("Core Delivery");
-  const [severity, setSeverity] = React.useState<FindingSeverity>("Low");
-  // Defaults to the picked project's PM; follows the project until the user
-  // picks someone else by hand.
+  const [category, setCategory] = React.useState<FindingCategory | "">("");
+  const [classification, setClassification] = React.useState<FindingClassification | "">("");
+  // A finding is always owned by the project's PM — there is no assignee
+  // picker. This tracks the picked project's PM so it is stored on the finding
+  // (the backend `assigned_to` column is retained even though it is not shown).
   const [assignedTo, setAssignedTo] = React.useState("");
-  const [assignedToTouched, setAssignedToTouched] = React.useState(false);
   const [findingDate, setFindingDate] = React.useState(today);
   const [dueDate, setDueDate] = React.useState("");
   const [remarks, setRemarks] = React.useState("");
-  const [errors, setErrors] = React.useState<{ project?: string; description?: string }>({});
+  const [errors, setErrors] = React.useState<{
+    project?: string;
+    description?: string;
+    category?: string;
+    classification?: string;
+  }>({});
 
   const project = projects.find((p) => p.id === projectId) ?? null;
   const accountName = accounts.find((a) => a.id === project?.account_id)?.name ?? "—";
@@ -54,9 +59,13 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
     const next: typeof errors = {};
     if (!projectId) next.project = "Select a project.";
     if (!description.trim()) next.description = "Finding description is required.";
+    if (!category) next.category = "Category is required.";
+    if (!classification) next.classification = "Classification is required.";
     if (Object.keys(next).length > 0) {
       setErrors(next);
-      showError(next.project ?? next.description ?? "Please fix the highlighted fields.");
+      showError(
+        next.project ?? next.description ?? next.category ?? next.classification ?? "Please fix the highlighted fields."
+      );
       return;
     }
     setErrors({});
@@ -64,8 +73,8 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
       {
         project_id: projectId,
         description: description.trim(),
-        classification,
-        severity,
+        category: category as FindingCategory,
+        classification: classification as FindingClassification,
         assigned_to: assignedTo || undefined,
         finding_date: findingDate || undefined,
         due_date: dueDate || undefined,
@@ -97,9 +106,7 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
             const id = e.target.value;
             setProjectId(id);
             if (errors.project) setErrors((p) => ({ ...p, project: undefined }));
-            if (!assignedToTouched) {
-              setAssignedTo(projects.find((p) => p.id === id)?.project_manager_id ?? "");
-            }
+            setAssignedTo(projects.find((p) => p.id === id)?.project_manager_id ?? "");
           }}
         >
           <option value="">Select a project…</option>
@@ -142,12 +149,42 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Classification" htmlFor="finding-classification" badge={<MandatoryBadge />}>
+        <Field label="Category" htmlFor="finding-category" badge={<MandatoryBadge />} error={errors.category}>
+          <NativeSelect
+            id="finding-category"
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value as FindingCategory);
+              if (errors.category) setErrors((p) => ({ ...p, category: undefined }));
+            }}
+          >
+            <option value="" disabled>
+              Select…
+            </option>
+            {FINDING_CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </NativeSelect>
+        </Field>
+        <Field
+          label="Classification"
+          htmlFor="finding-classification"
+          badge={<MandatoryBadge />}
+          error={errors.classification}
+        >
           <NativeSelect
             id="finding-classification"
             value={classification}
-            onChange={(e) => setClassification(e.target.value as FindingClassification)}
+            onChange={(e) => {
+              setClassification(e.target.value as FindingClassification);
+              if (errors.classification) setErrors((p) => ({ ...p, classification: undefined }));
+            }}
           >
+            <option value="" disabled>
+              Select…
+            </option>
             {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -155,38 +192,7 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
             ))}
           </NativeSelect>
         </Field>
-        <Field label="Severity" htmlFor="finding-severity" badge={<MandatoryBadge />}>
-          <NativeSelect
-            id="finding-severity"
-            value={severity}
-            onChange={(e) => setSeverity(e.target.value as FindingSeverity)}
-          >
-            {FINDING_SEVERITY_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
       </div>
-
-      <Field label="Assigned To" htmlFor="finding-assigned-to">
-        <NativeSelect
-          id="finding-assigned-to"
-          value={assignedTo}
-          onChange={(e) => {
-            setAssignedTo(e.target.value);
-            setAssignedToTouched(true);
-          }}
-        >
-          <option value="">Unassigned</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.full_name}
-            </option>
-          ))}
-        </NativeSelect>
-      </Field>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Finding Date" htmlFor="finding-date">

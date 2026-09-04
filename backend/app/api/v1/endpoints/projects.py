@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +18,7 @@ from app.models.projects import Project, ProjectOracleId, ProjectResource
 from app.models.users import User
 from app.schemas.approval_readiness import ApprovalReadiness
 from app.schemas.common import Page
-from app.schemas.enums import ProjectStatus, RoleCode
+from app.schemas.enums import ProjectLifecycleStatus, ProjectStatus, RoleCode
 from app.schemas.projects import (
     ProjectCreate,
     ProjectOracleIdCreate,
@@ -34,12 +34,12 @@ from app.services.amendment import active_amendment, initiate_amendment
 from app.services.approval_readiness import compute_approval_readiness
 from app.services.code_generator import generate_code
 
-_AMENDABLE_STATUSES = (
-    ProjectStatus.APPROVED,
-    ProjectStatus.ONGOING,
-    ProjectStatus.HOLD,
-    ProjectStatus.OPEN_ONLY_FOR_BILLING,
-)
+def _is_amendable(obj: Project) -> bool:
+    """An approved project can be amended unless its lifecycle state is Closed."""
+    return (
+        obj.project_status == ProjectStatus.APPROVED
+        and obj.lifecycle_status != ProjectLifecycleStatus.CLOSED
+    )
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -59,13 +59,32 @@ _pm_write = [
 
 @router.get("", response_model=Page[ProjectRead])
 async def list_projects(
+    exclude_status: list[ProjectStatus] | None = Query(None),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    items, total = await project_crud.list(
-        db, skip=pagination.skip, limit=pagination.limit, order_by=Project.updated_at.desc()
-    )
-    return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+    if not exclude_status:
+        items, total = await project_crud.list(
+            db, skip=pagination.skip, limit=pagination.limit, order_by=Project.updated_at.desc()
+        )
+        return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+
+    # e.g. ?exclude_status=Draft — the DE "Projects" browser hides Draft projects.
+    vals = [s.value for s in exclude_status]
+    where = Project.project_status.notin_(vals)
+    total = (
+        await db.execute(select(func.count()).select_from(Project).where(where))
+    ).scalar_one()
+    items = (
+        await db.execute(
+            select(Project)
+            .where(where)
+            .order_by(Project.updated_at.desc())
+            .offset(pagination.skip)
+            .limit(pagination.limit)
+        )
+    ).scalars().all()
+    return Page(items=list(items), total=total, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_create)
@@ -113,12 +132,13 @@ async def initiate_project_amendment(
     obj = await project_crud.get(db, project_id)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
-    if obj.project_status not in _AMENDABLE_STATUSES:
+    if not _is_amendable(obj):
+        effective = obj.lifecycle_status or obj.project_status
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
-                f"Only an approved project can be amended (this one is {obj.project_status}). "
-                "Allowed: Approved, Hold, Open Only for Billing."
+                f"Only an approved project that isn't Closed can be amended "
+                f"(this one is {effective})."
             ),
         )
     if await active_amendment(db, project_id) is not None:

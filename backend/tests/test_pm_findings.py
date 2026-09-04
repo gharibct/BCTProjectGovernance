@@ -32,9 +32,9 @@ def _fake_finding(**overrides):
         "id": uuid4(),
         "project_id": _PROJECT_ID,
         "sequence_no": 1,
-        "classification": "Core Delivery",
+        "category": "Core Delivery",
+        "classification": "NC",
         "description": "x",
-        "severity": "High",
         "assigned_to": None,
         "action_taken": None,
         "finding_date": None,
@@ -77,7 +77,6 @@ async def test_list_accepts_filter_params(client, override_auth):
         "/api/v1/pm-findings",
         params={
             "project_id": str(uuid4()),
-            "severity": "High",
             "status": "Open",
             "bucket": "overdue",
             "skip": 5,
@@ -108,11 +107,9 @@ async def test_kpis_shape_for_pm(client, override_auth):
     for key in (
         "open_findings",
         "overdue",
-        "high_critical",
         "awaiting_closure",
         "closed_this_period",
         "overdue_30d_count",
-        "critical_open_count",
         "awaiting_closure_count",
         "projects_over_5_open_count",
     ):

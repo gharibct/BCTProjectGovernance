@@ -23,7 +23,6 @@ from app.services.dashboard import MonthWindow, _FINDING_OPEN_STATES, current_mo
 
 _OPEN_VALUES = [s.value for s in _FINDING_OPEN_STATES]
 _CLOSED_VALUES = [FindingStatus.CLOSED.value, FindingStatus.CANCELLED.value]
-_HIGH_SEVERITIES = ["High", "Critical"]
 _ATTENTION_OVERDUE_DAYS = 30
 _PROJECT_OPEN_THRESHOLD = 5
 
@@ -37,7 +36,6 @@ class DEFindingFilters:
     # projects — used by the PM Findings screen, not the portfolio DE screen.
     project_manager_id: UUID | None = None
     classification: str | None = None
-    severity: str | None = None
     # A concrete FindingStatus value, the sentinel "Active" (= not Closed /
     # Cancelled), or None for all.
     status: str | None = None
@@ -78,8 +76,6 @@ def _conditions(filters: DEFindingFilters) -> list:
         conditions.append(Project.project_manager_id == filters.project_manager_id)
     if filters.classification:
         conditions.append(DEAssessmentFinding.classification == filters.classification)
-    if filters.severity:
-        conditions.append(DEAssessmentFinding.severity == filters.severity)
 
     if filters.status == "Active":
         conditions.append(DEAssessmentFinding.status.notin_(_CLOSED_VALUES))
@@ -108,16 +104,6 @@ def _conditions(filters: DEFindingFilters) -> list:
             DEAssessmentFinding.due_date.is_not(None),
             DEAssessmentFinding.due_date < today - timedelta(days=_ATTENTION_OVERDUE_DAYS),
             DEAssessmentFinding.status.notin_(_CLOSED_VALUES),
-        ]
-    elif bucket == "high_critical":
-        conditions += [
-            DEAssessmentFinding.status.in_(_OPEN_VALUES),
-            DEAssessmentFinding.severity.in_(_HIGH_SEVERITIES),
-        ]
-    elif bucket == "critical_open":
-        conditions += [
-            DEAssessmentFinding.status.in_(_OPEN_VALUES),
-            DEAssessmentFinding.severity == "Critical",
         ]
     elif bucket == "awaiting_closure":
         conditions.append(DEAssessmentFinding.status == FindingStatus.AWAITING_CLOSURE.value)
@@ -173,9 +159,9 @@ async def list_de_findings(
                 id=finding.id,
                 project_id=finding.project_id,
                 sequence_no=finding.sequence_no,
+                category=finding.category,
                 classification=finding.classification,
                 description=finding.description,
-                severity=finding.severity,
                 assigned_to=finding.assigned_to,
                 action_taken=finding.action_taken,
                 finding_date=finding.finding_date,
@@ -230,11 +216,9 @@ def compute_kpis(findings: list, window: MonthWindow) -> DEFindingsKpis:
     return DEFindingsKpis(
         open_findings=len(open_findings),
         overdue=len(overdue),
-        high_critical=len([f for f in open_findings if f.severity in _HIGH_SEVERITIES]),
         awaiting_closure=len(awaiting),
         closed_this_period=len(closed_this_period),
         overdue_30d_count=len(overdue_30d),
-        critical_open_count=len([f for f in open_findings if f.severity == "Critical"]),
         awaiting_closure_count=len(awaiting),
         projects_over_5_open_count=sum(
             1 for n in open_per_project.values() if n > _PROJECT_OPEN_THRESHOLD
@@ -245,8 +229,8 @@ def compute_kpis(findings: list, window: MonthWindow) -> DEFindingsKpis:
 
 async def de_findings_kpis(db: AsyncSession, filters: DEFindingFilters) -> DEFindingsKpis:
     """KPI tiles + attention counts over the Geo/Account/Project scope only —
-    classification/severity/status/search/bucket do NOT narrow the numbers, so
-    the tiles stay a stable overview while the grid reacts to everything."""
+    classification/status/search/bucket do NOT narrow the numbers, so the tiles
+    stay a stable overview while the grid reacts to everything."""
     scope: list = []
     if filters.geo_id is not None:
         scope.append(Project.geo_id == filters.geo_id)

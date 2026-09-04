@@ -8,7 +8,6 @@ from app.schemas.enums import (
     Category,
     DEAssessmentStatus,
     FindingClassification,
-    FindingSeverity,
     FindingStatus,
     HealthRating,
 )
@@ -42,9 +41,9 @@ class DEAssessmentAlertRead(BaseModel):
 class DEAssessmentFindingIn(BaseModel):
     # sequence_no is assigned server-side when omitted (max existing + 1).
     sequence_no: int | None = None
+    category: Category
     classification: FindingClassification
     description: str | None = None
-    severity: FindingSeverity | None = None
     assigned_to: UUID | None = None
     action_taken: str | None = None
     finding_date: date | None = None
@@ -54,9 +53,9 @@ class DEAssessmentFindingIn(BaseModel):
 
 
 class DEAssessmentFindingUpdate(BaseModel):
+    category: Category | None = None
     classification: FindingClassification | None = None
     description: str | None = None
-    severity: FindingSeverity | None = None
     assigned_to: UUID | None = None
     action_taken: str | None = None
     finding_date: date | None = None
@@ -70,9 +69,11 @@ class DEAssessmentFindingRead(BaseModel):
     id: UUID
     project_id: UUID
     sequence_no: int
+    # Lenient str on read so legacy rows that predate the taxonomy still
+    # round-trip; the write schemas above pin it to Category.
+    category: str
     classification: FindingClassification
     description: str | None = None
-    severity: FindingSeverity | None = None
     assigned_to: UUID | None = None
     action_taken: str | None = None
     finding_date: date | None = None

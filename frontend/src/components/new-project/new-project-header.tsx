@@ -1,7 +1,7 @@
 "use client";
 
 import { useNewProjectId } from "@/stores/new-project-ui";
-import { useProject } from "@/lib/api/projects";
+import { effectiveProjectStatus, useProject } from "@/lib/api/projects";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { PageBanner } from "@/components/shell/page-banner";
 
@@ -33,7 +33,7 @@ export function NewProjectHeader({
             </p>
           ) : null}
         </div>
-        <StatusBadge value={project?.project_status ?? "Draft"} size="lg" />
+        <StatusBadge value={project ? effectiveProjectStatus(project) : "Draft"} size="lg" />
       </div>
       <PageBanner />
     </>

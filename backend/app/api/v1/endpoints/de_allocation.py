@@ -61,6 +61,7 @@ async def _row(
         account_name=account_name,
         project_manager_name=pm_name,
         project_status=project.project_status,
+        lifecycle_status=project.lifecycle_status,
         delivery_excellence_id=project.delivery_excellence_id,
         delivery_excellence_name=de_name,
         de_allocated_at=project.de_allocated_at,

@@ -177,8 +177,8 @@ function WorkspaceInner() {
   const openCount = findings.filter((f) => f.status === "Open" || f.status === "In Progress").length;
   const overdueCount = findings.filter((f) => f.overdue).length;
   const awaitingCount = findings.filter((f) => f.status === "Awaiting Closure").length;
-  const criticalCount = findings.filter(
-    (f) => f.severity === "Critical" && f.status !== "Closed" && f.status !== "Cancelled"
+  const ncOpenCount = findings.filter(
+    (f) => f.classification === "NC" && f.status !== "Closed" && f.status !== "Cancelled"
   ).length;
 
   const subtitle = working
@@ -295,9 +295,9 @@ function WorkspaceInner() {
             tone={awaitingCount ? "text-amber-600" : undefined}
           />
           <FindingStat
-            value={criticalCount}
-            label="Critical"
-            tone={criticalCount ? "text-red-700" : undefined}
+            value={ncOpenCount}
+            label="Open NC"
+            tone={ncOpenCount ? "text-red-700" : undefined}
           />
         </div>
       </SectionCard>

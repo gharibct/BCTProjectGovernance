@@ -15,7 +15,6 @@ def _finding(**overrides):
     defaults = {
         "project_id": uuid4(),
         "status": "Open",
-        "severity": "High",
         "due_date": None,
         "finding_date": None,
         "updated_at": now,
@@ -33,33 +32,31 @@ def test_compute_kpis_counts_every_bucket():
 
     findings = [
         # 1: open, overdue by 5d (not >30), p1
-        _finding(project_id=p1, status="Open", severity="High", due_date=today - timedelta(days=5)),
-        # 2: open, overdue by 40d (>30), critical, p1
-        _finding(project_id=p1, status="Open", severity="Critical", due_date=today - timedelta(days=40)),
+        _finding(project_id=p1, status="Open", due_date=today - timedelta(days=5)),
+        # 2: open, overdue by 40d (>30), p1
+        _finding(project_id=p1, status="Open", due_date=today - timedelta(days=40)),
         # 3: in progress, not overdue (future due), p1
-        _finding(project_id=p1, status="In Progress", severity="Medium", due_date=today + timedelta(days=5)),
+        _finding(project_id=p1, status="In Progress", due_date=today + timedelta(days=5)),
         # 4: awaiting closure, no due date, p1
-        _finding(project_id=p1, status="Awaiting Closure", severity="Low", due_date=None),
+        _finding(project_id=p1, status="Awaiting Closure", due_date=None),
         # 5: closed this month, past due but closed → not overdue
-        _finding(project_id=p1, status="Closed", severity="High", due_date=today - timedelta(days=3), updated_at=now),
+        _finding(project_id=p1, status="Closed", due_date=today - timedelta(days=3), updated_at=now),
         # 6: cancelled, past due → not overdue, not open
-        _finding(project_id=p1, status="Cancelled", severity="Critical", due_date=today - timedelta(days=10)),
-        # 7: open, critical, no due date, p2
-        _finding(project_id=p2, status="Open", severity="Critical", due_date=None),
+        _finding(project_id=p1, status="Cancelled", due_date=today - timedelta(days=10)),
+        # 7: open, no due date, p2
+        _finding(project_id=p2, status="Open", due_date=None),
         # 8: closed but outside the current month → not closed_this_period
-        _finding(project_id=p2, status="Closed", severity="Low", updated_at=before_window),
+        _finding(project_id=p2, status="Closed", updated_at=before_window),
     ]
 
     kpis = compute_kpis(findings, window)
 
     assert kpis.open_findings == 5  # 1 2 3 4 7
     assert kpis.overdue == 2  # 1 2
-    assert kpis.high_critical == 3  # 1 High, 2 Critical, 7 Critical
     assert kpis.awaiting_closure == 1  # 4
     assert kpis.awaiting_closure_count == 1
     assert kpis.closed_this_period == 1  # 5 only
     assert kpis.overdue_30d_count == 1  # 2 only
-    assert kpis.critical_open_count == 2  # 2 7
     assert kpis.projects_over_5_open_count == 0  # p1 has 4 open, p2 has 1
     assert kpis.period_label == window.label
 

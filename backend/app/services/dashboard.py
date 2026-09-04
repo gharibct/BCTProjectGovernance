@@ -121,6 +121,7 @@ from app.schemas.enums import (
     IssueStatus,
     OpportunityImpact,
     OpportunityStatus,
+    ProjectLifecycleStatus,
     ReportStatus,
     RiskSeverity,
     RiskStatus,
@@ -179,7 +180,10 @@ async def _matching_project_ids(db: AsyncSession, filters: DashboardFilters):
 
 
 async def count_active_projects(db: AsyncSession, filters: DashboardFilters) -> int:
-    conditions = [*_project_conditions(filters), Project.project_status != "Closed"]
+    conditions = [
+        *_project_conditions(filters),
+        Project.lifecycle_status.is_distinct_from(ProjectLifecycleStatus.CLOSED.value),
+    ]
     return (await db.execute(select(func.count()).select_from(Project).where(*conditions))).scalar_one()
 
 
@@ -202,7 +206,7 @@ async def count_delayed_projects(db: AsyncSession, filters: DashboardFilters) ->
         Project.planned_end_date.is_not(None),
         Project.planned_end_date < date.today(),
         Project.actual_end_date.is_(None),
-        Project.project_status != "Closed",
+        Project.lifecycle_status.is_distinct_from(ProjectLifecycleStatus.CLOSED.value),
     ]
     return (await db.execute(select(func.count()).select_from(Project).where(*conditions))).scalar_one()
 
@@ -1554,6 +1558,7 @@ def de_findings_summary(
         if f.status == FindingStatus.CLOSED and period.start_date <= f.updated_at.date() <= period.end_date
     ]
 
+    # Grouped by the finding's classification (Observation / Recommendation / NC).
     by_classification: dict[str, int] = defaultdict(int)
     for f in open_findings:
         by_classification[f.classification] += 1
@@ -2082,12 +2087,16 @@ async def project_portfolio_summary(db: AsyncSession, filters: DashboardFilters)
     active_count = await count_active_projects(db, filters)
     completed_count = (
         await db.execute(
-            select(func.count()).select_from(Project).where(*base_conditions, Project.project_status == "Closed")
+            select(func.count())
+            .select_from(Project)
+            .where(*base_conditions, Project.lifecycle_status == ProjectLifecycleStatus.CLOSED.value)
         )
     ).scalar_one()
     on_hold_count = (
         await db.execute(
-            select(func.count()).select_from(Project).where(*base_conditions, Project.project_status == "Hold")
+            select(func.count())
+            .select_from(Project)
+            .where(*base_conditions, Project.lifecycle_status == ProjectLifecycleStatus.HOLD.value)
         )
     ).scalar_one()
     return ProjectPortfolioSummary(
@@ -2211,7 +2220,7 @@ async def list_projects_for_health(
             start_date=project.planned_start_date,
             end_date=project.planned_end_date,
             overall_health=project.overall_project_health,
-            status=project.project_status,
+            status=project.lifecycle_status or project.project_status,
         )
         for project, project_type_name, geo_name, region_name, account_name, pm_name in rows
     ]
@@ -3041,8 +3050,9 @@ async def list_findings_for_health(
             account_name=account_name,
             finding_id=finding.id,
             finding_title=(
-                f"{finding.classification} — {finding.finding_date}" if finding.finding_date else finding.classification
+                f"{finding.category} — {finding.finding_date}" if finding.finding_date else finding.category
             ),
+            category=finding.category,
             classification=finding.classification,
             action_taken=finding.action_taken,
             owner_name=None,

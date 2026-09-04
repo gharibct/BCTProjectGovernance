@@ -54,6 +54,7 @@ def _fake_project(**overrides):
         actual_end_date=None,
         applicable_phase=None,
         project_status="Draft",
+        lifecycle_status=None,
         planned_duration_days=None,
         actual_duration_days=None,
         delivery_declared_overall_health=None,
@@ -256,6 +257,29 @@ async def test_initiate_amendment_422_when_not_approved(client, override_auth):
     headers = override_auth(RoleCode.ADMIN, get_map={(Project, _PROJECT_ID): project})
     response = await client.post(f"/api/v1/projects/{_PROJECT_ID}/initiate-amendment", headers=headers)
     assert response.status_code == 422
+
+
+async def test_initiate_amendment_422_when_closed(client, override_auth):
+    project = _fake_project(project_status="Approved", lifecycle_status="Closed")
+    headers = override_auth(RoleCode.ADMIN, get_map={(Project, _PROJECT_ID): project})
+    response = await client.post(f"/api/v1/projects/{_PROJECT_ID}/initiate-amendment", headers=headers)
+    assert response.status_code == 422
+
+
+async def test_initiate_amendment_ok_when_approved_and_on_hold(client, override_auth, monkeypatch):
+    async def _no_amendment(db, project_id):
+        return None
+
+    async def _initiate(db, project, actor_id):
+        project.project_status = "Under Amendment"
+        return SimpleNamespace(id=uuid4())
+
+    monkeypatch.setattr("app.api.v1.endpoints.projects.active_amendment", _no_amendment)
+    monkeypatch.setattr("app.api.v1.endpoints.projects.initiate_amendment", _initiate)
+    project = _fake_project(project_status="Approved", lifecycle_status="Hold")
+    headers = override_auth(RoleCode.PROJECT_MANAGER, get_map={(Project, _PROJECT_ID): project})
+    response = await client.post(f"/api/v1/projects/{_PROJECT_ID}/initiate-amendment", headers=headers)
+    assert response.status_code == 200
 
 
 async def test_initiate_amendment_200_flips_to_under_amendment(client, override_auth, monkeypatch):

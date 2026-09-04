@@ -205,6 +205,7 @@ export type FindingRow = {
   account_name: string | null;
   finding_id: string;
   finding_title: string;
+  category: string;
   classification: string;
   action_taken: string | null;
   owner_name: string | null;
@@ -244,6 +245,49 @@ export type ProjectHealthListParams = ProjectHealthDashboardFilters & {
   search?: string;
 };
 
+// Single source for the drill-down list endpoint paths — shared by the
+// per-screen hooks below and by fetchAllProjectHealthRows (the grids'
+// "Download to Excel" action).
+export const PROJECT_HEALTH_LIST_PATHS = {
+  projects: "/dashboard/project-health/projects",
+  rag: "/dashboard/project-health/rag",
+  accountRag: "/dashboard/project-health/account-rag",
+  risks: "/dashboard/project-health/risks",
+  issues: "/dashboard/project-health/issues",
+  dependencies: "/dashboard/project-health/dependencies",
+  assumptions: "/dashboard/project-health/assumptions",
+  opportunities: "/dashboard/project-health/opportunities",
+  metrics: "/dashboard/project-health/metrics",
+  commitments: "/dashboard/project-health/commitments",
+  paymentMilestones: "/dashboard/project-health/payment-milestones",
+  assessments: "/dashboard/project-health/assessments",
+  findings: "/dashboard/project-health/findings",
+  actions: "/dashboard/project-health/actions",
+  dataIntegrity: "/dashboard/project-health/data-integrity",
+} as const;
+
+// Backend caps the page limit at 200 (pagination_params, le=200), so the
+// export walks the endpoint page by page until it has the full result set.
+const EXPORT_PAGE_SIZE = 200;
+const EXPORT_MAX_ROWS = 20000;
+
+// Pulls every row matching the current filters — the "Download to Excel"
+// action must export the whole filtered result set, not just the page the
+// user happens to be looking at.
+export async function fetchAllProjectHealthRows<T>(
+  path: string,
+  params: Omit<ProjectHealthListParams, "skip" | "limit">,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let skip = 0; skip < EXPORT_MAX_ROWS; skip += EXPORT_PAGE_SIZE) {
+    const query = buildParams({ ...params, skip, limit: EXPORT_PAGE_SIZE });
+    const page = await api.get<Page<T>>(`${path}?${query}`);
+    out.push(...page.items);
+    if (page.items.length === 0 || out.length >= page.total) break;
+  }
+  return out;
+}
+
 function buildParams(params: ProjectHealthListParams): string {
   const q = new URLSearchParams();
   if (params.geoId) q.set("geo_id", params.geoId);
@@ -260,7 +304,7 @@ export function useProjectHealthProjectList(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-projects", params],
-    queryFn: () => api.get<Page<ProjectListRow>>(`/dashboard/project-health/projects?${query}`),
+    queryFn: () => api.get<Page<ProjectListRow>>(`${PROJECT_HEALTH_LIST_PATHS.projects}?${query}`),
   });
 }
 
@@ -268,7 +312,7 @@ export function useProjectHealthRag(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-rag", params],
-    queryFn: () => api.get<Page<RagRow>>(`/dashboard/project-health/rag?${query}`),
+    queryFn: () => api.get<Page<RagRow>>(`${PROJECT_HEALTH_LIST_PATHS.rag}?${query}`),
   });
 }
 
@@ -276,7 +320,7 @@ export function useProjectHealthAccountRag(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-account-rag", params],
-    queryFn: () => api.get<Page<AccountRagRow>>(`/dashboard/project-health/account-rag?${query}`),
+    queryFn: () => api.get<Page<AccountRagRow>>(`${PROJECT_HEALTH_LIST_PATHS.accountRag}?${query}`),
   });
 }
 
@@ -284,7 +328,7 @@ export function useProjectHealthRisks(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-risks", params],
-    queryFn: () => api.get<Page<RiskRow>>(`/dashboard/project-health/risks?${query}`),
+    queryFn: () => api.get<Page<RiskRow>>(`${PROJECT_HEALTH_LIST_PATHS.risks}?${query}`),
   });
 }
 
@@ -292,7 +336,7 @@ export function useProjectHealthIssues(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-issues", params],
-    queryFn: () => api.get<Page<IssueRow>>(`/dashboard/project-health/issues?${query}`),
+    queryFn: () => api.get<Page<IssueRow>>(`${PROJECT_HEALTH_LIST_PATHS.issues}?${query}`),
   });
 }
 
@@ -300,7 +344,7 @@ export function useProjectHealthDependencies(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-dependencies", params],
-    queryFn: () => api.get<Page<DependencyRow>>(`/dashboard/project-health/dependencies?${query}`),
+    queryFn: () => api.get<Page<DependencyRow>>(`${PROJECT_HEALTH_LIST_PATHS.dependencies}?${query}`),
   });
 }
 
@@ -308,7 +352,7 @@ export function useProjectHealthAssumptions(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-assumptions", params],
-    queryFn: () => api.get<Page<AssumptionRow>>(`/dashboard/project-health/assumptions?${query}`),
+    queryFn: () => api.get<Page<AssumptionRow>>(`${PROJECT_HEALTH_LIST_PATHS.assumptions}?${query}`),
   });
 }
 
@@ -316,7 +360,7 @@ export function useProjectHealthOpportunities(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-opportunities", params],
-    queryFn: () => api.get<Page<OpportunityRow>>(`/dashboard/project-health/opportunities?${query}`),
+    queryFn: () => api.get<Page<OpportunityRow>>(`${PROJECT_HEALTH_LIST_PATHS.opportunities}?${query}`),
   });
 }
 
@@ -324,7 +368,7 @@ export function useProjectHealthMetrics(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-metrics", params],
-    queryFn: () => api.get<Page<MetricRow>>(`/dashboard/project-health/metrics?${query}`),
+    queryFn: () => api.get<Page<MetricRow>>(`${PROJECT_HEALTH_LIST_PATHS.metrics}?${query}`),
   });
 }
 
@@ -332,7 +376,7 @@ export function useProjectHealthCommitments(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-commitments", params],
-    queryFn: () => api.get<Page<CommitmentRow>>(`/dashboard/project-health/commitments?${query}`),
+    queryFn: () => api.get<Page<CommitmentRow>>(`${PROJECT_HEALTH_LIST_PATHS.commitments}?${query}`),
   });
 }
 
@@ -340,7 +384,7 @@ export function useProjectHealthPaymentMilestones(params: ProjectHealthListParam
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-payment-milestones", params],
-    queryFn: () => api.get<Page<PaymentMilestoneRow>>(`/dashboard/project-health/payment-milestones?${query}`),
+    queryFn: () => api.get<Page<PaymentMilestoneRow>>(`${PROJECT_HEALTH_LIST_PATHS.paymentMilestones}?${query}`),
   });
 }
 
@@ -348,7 +392,7 @@ export function useProjectHealthAssessments(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-assessments", params],
-    queryFn: () => api.get<Page<AssessmentRow>>(`/dashboard/project-health/assessments?${query}`),
+    queryFn: () => api.get<Page<AssessmentRow>>(`${PROJECT_HEALTH_LIST_PATHS.assessments}?${query}`),
   });
 }
 
@@ -356,7 +400,7 @@ export function useProjectHealthFindings(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-findings", params],
-    queryFn: () => api.get<Page<FindingRow>>(`/dashboard/project-health/findings?${query}`),
+    queryFn: () => api.get<Page<FindingRow>>(`${PROJECT_HEALTH_LIST_PATHS.findings}?${query}`),
   });
 }
 
@@ -364,7 +408,7 @@ export function useProjectHealthActions(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-actions", params],
-    queryFn: () => api.get<Page<ActionRow>>(`/dashboard/project-health/actions?${query}`),
+    queryFn: () => api.get<Page<ActionRow>>(`${PROJECT_HEALTH_LIST_PATHS.actions}?${query}`),
   });
 }
 
@@ -372,6 +416,6 @@ export function useProjectHealthDataIntegrity(params: ProjectHealthListParams) {
   const query = buildParams(params);
   return useQuery({
     queryKey: ["dashboard-project-health-data-integrity", params],
-    queryFn: () => api.get<Page<DataIntegrityRow>>(`/dashboard/project-health/data-integrity?${query}`),
+    queryFn: () => api.get<Page<DataIntegrityRow>>(`${PROJECT_HEALTH_LIST_PATHS.dataIntegrity}?${query}`),
   });
 }

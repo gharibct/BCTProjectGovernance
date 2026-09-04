@@ -37,9 +37,9 @@ def _fake_finding(**overrides):
         "id": uuid4(),
         "project_id": _PROJECT_ID,
         "sequence_no": 1,
-        "classification": "Core Delivery",
+        "category": "Core Delivery",
+        "classification": "NC",
         "description": "x",
-        "severity": "High",
         "assigned_to": None,
         "action_taken": None,
         "finding_date": None,
@@ -83,8 +83,7 @@ async def test_list_accepts_all_filter_params(client, override_auth):
             "geo_id": str(uuid4()),
             "account_id": str(uuid4()),
             "project_id": str(uuid4()),
-            "classification": "Core Delivery",
-            "severity": "High",
+            "classification": "Observation",
             "status": "Open",
             "search": "governance",
             "bucket": "overdue",
@@ -122,11 +121,9 @@ async def test_kpis_shape_for_de(client, override_auth):
     for key in (
         "open_findings",
         "overdue",
-        "high_critical",
         "awaiting_closure",
         "closed_this_period",
         "overdue_30d_count",
-        "critical_open_count",
         "awaiting_closure_count",
         "projects_over_5_open_count",
     ):
@@ -146,9 +143,9 @@ async def test_create_with_project_in_body_as_de(client, override_auth):
         "/api/v1/de-findings",
         json={
             "project_id": str(_PROJECT_ID),
-            "classification": "Core Delivery",
+            "category": "Core Delivery",
+            "classification": "NC",
             "description": "Monthly governance evidence incomplete",
-            "severity": "Critical",
             "due_date": "2026-08-15",
         },
         headers=headers,
@@ -157,7 +154,8 @@ async def test_create_with_project_in_body_as_de(client, override_auth):
     body = response.json()
     assert body["project_id"] == str(_PROJECT_ID)
     assert body["sequence_no"] == 1
-    assert body["severity"] == "Critical"
+    assert body["category"] == "Core Delivery"
+    assert body["classification"] == "NC"
     assert body["overdue"] is True  # past due_date, status Open
 
 
@@ -168,7 +166,7 @@ async def test_create_forbidden_for_non_de(client, override_auth):
     )
     response = await client.post(
         "/api/v1/de-findings",
-        json={"project_id": str(_PROJECT_ID), "classification": "Core Delivery"},
+        json={"project_id": str(_PROJECT_ID), "category": "Core Delivery", "classification": "NC"},
         headers=headers,
     )
     assert response.status_code == 403
@@ -181,7 +179,7 @@ async def test_create_forbidden_when_project_has_no_de(client, override_auth):
     )
     response = await client.post(
         "/api/v1/de-findings",
-        json={"project_id": str(_PROJECT_ID), "classification": "Core Delivery"},
+        json={"project_id": str(_PROJECT_ID), "category": "Core Delivery", "classification": "NC"},
         headers=headers,
     )
     assert response.status_code == 403
@@ -191,7 +189,7 @@ async def test_create_404_when_project_missing(client, override_auth):
     headers = override_auth(RoleCode.DELIVERY_EXCELLENCE)  # empty get_map
     response = await client.post(
         "/api/v1/de-findings",
-        json={"project_id": str(_PROJECT_ID), "classification": "Core Delivery"},
+        json={"project_id": str(_PROJECT_ID), "category": "Core Delivery", "classification": "NC"},
         headers=headers,
     )
     assert response.status_code == 404

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
@@ -21,7 +21,9 @@ from app.schemas.project_status import (
     ProjectStatusReportRead,
     ProjectStatusReportUpdate,
 )
+from app.schemas.reporting_activity import ReportingActivityResponse
 from app.schemas.status_review import StatusReportReviewRequest
+from app.services.reporting_activity import build_reporting_activity
 
 # Weekly/Monthly history (UX §4.4 / §7 items 2-3): list (period-sorted) +
 # latest + create + edit. No delete — reports are a retained audit trail.
@@ -235,3 +237,19 @@ async def update_status_item_rollup_status(
     await db.flush()
     await db.refresh(obj)
     return obj
+
+
+# Reporting Hub (design-reference/project-reporting-dashboard) — the per-period
+# Weekly/Monthly submission timeline behind the two progress rings and the two
+# activity heatmaps. Read-only aggregation; no role gate beyond the global
+# auth the other GETs in this file rely on.
+activity_router = APIRouter(prefix="/projects/{project_id}/reporting-activity", tags=["Project Status"])
+
+
+@activity_router.get("", response_model=ReportingActivityResponse)
+async def get_reporting_activity(
+    project_id: UUID,
+    year: int | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    return await build_reporting_activity(db, project_id, year or date.today().year)

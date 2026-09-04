@@ -16,6 +16,7 @@ import {
   type ApprovalReadiness,
   type SendToApprovalError,
 } from "@/lib/api/approval-readiness";
+import { effectiveProjectStatus } from "@/lib/api/projects";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,6 @@ import { EmptyState } from "@/components/forms/empty-state";
 //                    against the Under Amendment flow.
 export type SendToApprovalMode = "maintain" | "amend-initiate" | "amend-approve";
 
-const AMENDABLE_STATUSES = ["Approved", "Hold", "Open Only for Billing"];
 
 function Tile({
   label,
@@ -94,7 +94,8 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
 
   const isPendingApproval = view.project_status === "Pending Approval";
   const isUnderAmendment = view.project_status === "Under Amendment";
-  const canInitiate = AMENDABLE_STATUSES.includes(view.project_status);
+  // An approved project can be amended unless its lifecycle state is Closed.
+  const canInitiate = view.project_status === "Approved" && view.lifecycle_status !== "Closed";
   const busy = send.isPending || recall.isPending || initiate.isPending;
 
   const onSubmit = () => {
@@ -173,8 +174,8 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
             </p>
           ) : !canInitiate ? (
             <p className="text-sm text-slate-400">
-              This project is {view.project_status} — only an Approved, Hold or Open Only for Billing
-              project can be amended.
+              This project is {effectiveProjectStatus(view)} — only an Approved project that isn&apos;t
+              Closed can be amended.
             </p>
           ) : null}
 
@@ -206,10 +207,12 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
             </p>
           ) : isAmend && !isUnderAmendment ? (
             <p className="text-sm text-slate-400">
-              This project is {view.project_status}. Initiate an amendment first.
+              This project is {effectiveProjectStatus(view)}. Initiate an amendment first.
             </p>
           ) : !isAmend && view.project_status !== "Draft" ? (
-            <p className="text-sm text-slate-400">This project is {view.project_status}. Nothing to submit.</p>
+            <p className="text-sm text-slate-400">
+              This project is {effectiveProjectStatus(view)}. Nothing to submit.
+            </p>
           ) : view.modules_incomplete > 0 ? (
             <p className="text-xs text-amber-600">
               {view.modules_incomplete} mandatory module(s) still incomplete.

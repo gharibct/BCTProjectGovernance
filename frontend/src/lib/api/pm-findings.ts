@@ -2,21 +2,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, type Page } from "./client";
 import {
-  FINDING_SEVERITY_OPTIONS,
   FINDING_STATUS_OPTIONS,
   type DeFindingRow,
   type DeFindingsBucket,
   type DeFindingsKpis,
 } from "./de-findings";
 
-export { FINDING_SEVERITY_OPTIONS, FINDING_STATUS_OPTIONS };
+export { FINDING_STATUS_OPTIONS };
 export type { DeFindingRow, DeFindingsBucket, DeFindingsKpis };
 
 // The PM screen is scoped server-side to the caller's own projects, so it only
-// exposes Project / Severity / Status filters (+ the KPI/attention `bucket`).
+// exposes Project / Status filters (+ the KPI/attention `bucket`).
 export type PmFindingsFilter = {
   projectId?: string;
-  severity?: string;
   status?: string;
   bucket?: DeFindingsBucket;
 };
@@ -24,7 +22,6 @@ export type PmFindingsFilter = {
 function buildParams(p: PmFindingsFilter & { skip?: number; limit?: number }): string {
   const q = new URLSearchParams();
   if (p.projectId) q.set("project_id", p.projectId);
-  if (p.severity) q.set("severity", p.severity);
   if (p.status) q.set("status", p.status);
   if (p.bucket) q.set("bucket", p.bucket);
   if (p.skip !== undefined) q.set("skip", String(p.skip));

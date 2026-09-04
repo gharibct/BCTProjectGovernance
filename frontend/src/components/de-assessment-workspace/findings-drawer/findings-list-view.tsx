@@ -82,11 +82,11 @@ export function FindingsListView({
                   <h4 className="text-sm font-bold text-slate-900">
                     {finding.description?.trim() || `Finding #${finding.sequence_no}`}
                   </h4>
-                  {finding.severity ? <StatusBadge value={finding.severity} /> : null}
+                  {finding.classification ? <StatusBadge value={finding.classification} /> : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                   <StatusBadge value={finding.status} />
-                  <span>{finding.classification}</span>
+                  <span>{finding.category}</span>
                   <span>Due {formatDate(finding.due_date)}</span>
                   {finding.overdue ? <span className="font-semibold text-red-600">Overdue</span> : null}
                 </div>

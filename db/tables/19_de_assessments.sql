@@ -47,9 +47,9 @@ CREATE TABLE de_assessment_findings (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     sequence_no INTEGER NOT NULL,
-    classification TEXT NOT NULL, -- Observation/Recommendation (legacy) or the Project RAG 6-category taxonomy
+    category TEXT NOT NULL, -- the Project RAG 6-category taxonomy (Core Delivery, People, Operational, Customer, Financial, Compliance)
+    classification TEXT NOT NULL, -- Observation, Recommendation, NC (Non-Conformance)
     description TEXT, -- the finding statement (DE Assessment Workspace)
-    severity TEXT, -- Low, Medium, High, Critical
     assigned_to UUID REFERENCES users(id),
     action_taken TEXT,
     finding_date DATE,

@@ -12,7 +12,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.schemas.enums import ProjectStatus
+from app.schemas.enums import ProjectLifecycleStatus, ProjectStatus
 
 
 class ApprovalReadinessModule(BaseModel):
@@ -37,4 +37,5 @@ class ApprovalReadiness(BaseModel):
     critical_gaps: int
     modules: list[ApprovalReadinessModule]
     project_status: ProjectStatus
+    lifecycle_status: ProjectLifecycleStatus | None = None
     can_submit: bool

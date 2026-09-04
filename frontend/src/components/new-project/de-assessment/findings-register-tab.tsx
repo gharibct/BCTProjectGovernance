@@ -10,18 +10,21 @@ import { RegisterImportToolbar } from "@/components/forms/register-import-toolba
 import { Button } from "@/components/ui/button";
 import { usePageBanner } from "@/stores/page-banner";
 import {
+  FINDING_CATEGORY_OPTIONS,
+  FINDING_CLASSIFICATION_OPTIONS,
   useCreateDEAssessmentFinding,
   useDEAssessmentFindings,
   type DEAssessmentFindingPayload,
+  type FindingCategory,
   type FindingClassification,
   type FindingStatus,
 } from "@/lib/api/de-assessment";
 
-const CLASSIFICATIONS: FindingClassification[] = ["Observation", "Recommendation"];
 const FINDING_STATUSES: FindingStatus[] = ["Open", "Closed", "On Hold", "Deferred"];
 
 const FINDING_FIELDS: FieldDef[] = [
-  { key: "classification", label: "Classification", kind: "select", options: CLASSIFICATIONS, mandatory: true },
+  { key: "category", label: "Category", kind: "select", options: FINDING_CATEGORY_OPTIONS, mandatory: true },
+  { key: "classification", label: "Classification", kind: "select", options: FINDING_CLASSIFICATION_OPTIONS, mandatory: true },
   { key: "action_taken", label: "Action Taken", kind: "text", placeholder: "Action taken" },
   { key: "finding_date", label: "Date", kind: "date" },
   { key: "status", label: "Status", kind: "select", options: FINDING_STATUSES },
@@ -32,13 +35,14 @@ export function FindingsRegisterTab({ projectId }: { projectId: string | null })
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useDEAssessmentFindings(projectId);
   const createFinding = useCreateDEAssessmentFinding(projectId);
-  const [classificationError, setClassificationError] = React.useState<string | null>(null);
+  const [errors, setErrors] = React.useState<{ category?: string; classification?: string }>({});
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
   // sequence_no is assigned server-side (per project), so it's omitted here —
   // which also means bulk import needs no client-side counter.
   const buildFindingPayload = (v: Record<string, string>): DEAssessmentFindingPayload => ({
+    category: v.category as FindingCategory,
     classification: v.classification as FindingClassification,
     action_taken: v.action_taken || undefined,
     finding_date: v.finding_date || undefined,
@@ -47,13 +51,15 @@ export function FindingsRegisterTab({ projectId }: { projectId: string | null })
   });
 
   const addFinding = () => {
-    if (!values.classification) {
-      const message = "Classification is required.";
-      setClassificationError(message);
-      showError(message);
+    const next: { category?: string; classification?: string } = {};
+    if (!values.category) next.category = "Category is required.";
+    if (!values.classification) next.classification = "Classification is required.";
+    if (next.category || next.classification) {
+      setErrors(next);
+      showError(next.category ?? next.classification ?? "Please fix the highlighted fields.");
       return;
     }
-    setClassificationError(null);
+    setErrors({});
     const payload = buildFindingPayload(values);
     createFinding.mutate(payload, {
       onSuccess: () => {
@@ -78,6 +84,7 @@ export function FindingsRegisterTab({ projectId }: { projectId: string | null })
           emptyLabel="No findings logged yet."
           columns={[
             { key: "sequence_no", label: "#" },
+            { key: "category", label: "Category" },
             { key: "classification", label: "Classification" },
             { key: "action_taken", label: "Action Taken" },
             { key: "finding_date", label: "Date" },
@@ -92,7 +99,7 @@ export function FindingsRegisterTab({ projectId }: { projectId: string | null })
           defs={FINDING_FIELDS}
           values={values}
           set={set}
-          errors={classificationError ? { classification: classificationError } : undefined}
+          errors={Object.keys(errors).length > 0 ? errors : undefined}
         />
         <div className="mt-6 flex justify-end">
           <Button

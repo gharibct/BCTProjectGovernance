@@ -46,6 +46,7 @@ def _fake_project(**overrides):
         actual_end_date=None,
         applicable_phase=None,
         project_status="Draft",
+        lifecycle_status=None,
         planned_duration_days=None,
         actual_duration_days=None,
         delivery_declared_overall_health=None,

@@ -380,6 +380,14 @@ export function AppSidebar() {
             active={pathname.startsWith("/de-findings")}
           />
         ) : null}
+        {has("de-projects") ? (
+          <SimpleLink
+            href="/de-projects"
+            icon={FolderOpen}
+            label="Projects"
+            active={pathname.startsWith("/de-projects")}
+          />
+        ) : null}
         {has("pmo-dashboard") ? (
           <SimpleLink
             href="/dashboard/pmo"
@@ -611,7 +619,7 @@ export function AppSidebar() {
           <SimpleLink
             href="/pm-findings"
             icon={FileSearch}
-            label="Findings"
+            label="DE Findings"
             active={pathname.startsWith("/pm-findings")}
           />
         ) : null}

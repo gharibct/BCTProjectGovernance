@@ -7,6 +7,7 @@ from app.models.contractual import (
 )
 from app.schemas.contractual import (
     ContractualCommitmentActualCreate,
+    ContractualCommitmentActualUpdate,
     ContractualCommitmentCreate,
     ContractualCommitmentUpdate,
     MilestonePaymentActualUpsert,
@@ -18,7 +19,7 @@ contractual_commitment_crud = CRUDBase[ContractualCommitment, ContractualCommitm
     ContractualCommitment
 )
 contractual_commitment_actual_crud = CRUDBase[
-    ContractualCommitmentActual, ContractualCommitmentActualCreate, ContractualCommitmentActualCreate
+    ContractualCommitmentActual, ContractualCommitmentActualCreate, ContractualCommitmentActualUpdate
 ](ContractualCommitmentActual)
 milestone_payment_crud = CRUDBase[MilestonePayment, MilestonePaymentCreate, MilestonePaymentUpdate](MilestonePayment)
 milestone_payment_actual_crud = CRUDBase[
