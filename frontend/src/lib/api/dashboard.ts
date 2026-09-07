@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./client";
 import type { HealthRating } from "./projects";
+import type { FindingStatus } from "./de-assessment";
 
 export type ProjectTypeBreakdownRow = {
   project_type_id: string | null;
@@ -62,6 +63,24 @@ export type HighlightRow = {
   created_at: string;
 };
 
+// One open Non-Conformance (DE assessment finding classified "NC", still
+// open) — the row shape for the "Open NC" list section on the PM, Account
+// and CXO dashboards.
+export type OpenNcRow = {
+  finding_id: string;
+  project_id: string;
+  project_label: string;
+  account_name: string | null;
+  category: string;
+  classification: string;
+  description: string | null;
+  owner_name: string | null;
+  finding_date: string | null;
+  due_date: string | null;
+  age_days: number | null;
+  status: FindingStatus;
+};
+
 export type DashboardSummary = {
   active_projects: number;
   projects_by_type: ProjectTypeBreakdownRow[];
@@ -77,6 +96,8 @@ export type DashboardSummary = {
   project_matrix: HealthMatrixRow[];
   account_highlights: HighlightRow[];
   project_highlights: HighlightRow[];
+  open_ncs_count: number;
+  open_ncs: OpenNcRow[];
 };
 
 // Role-scoping for the Geo Head / Account Manager dashboards (see
@@ -100,5 +121,25 @@ export function useDashboardSummary(scope: DashboardScope, options?: { enabled?:
     queryKey: ["dashboard-summary", scope],
     queryFn: () => api.get<DashboardSummary>(`/dashboard/summary${buildQuery(scope)}`),
     enabled: options?.enabled ?? true,
+  });
+}
+
+// Standalone "Open NC" (open Non-Conformance findings) for one project /
+// account / geo — powers the KPI + list section on the per-entity Project,
+// Account and Geo dashboards and their Review screens. scope=account|geo
+// rolls up every project under that entity.
+export type OpenNcListResponse = {
+  open_ncs_count: number;
+  open_ncs: OpenNcRow[];
+};
+
+export function useOpenNcs(scope: "project" | "account" | "geo", scopeId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["open-ncs", scope, scopeId],
+    queryFn: () =>
+      api.get<OpenNcListResponse>(
+        `/dashboard/open-ncs?scope=${scope}&scope_id=${encodeURIComponent(scopeId as string)}`,
+      ),
+    enabled: Boolean(scopeId),
   });
 }

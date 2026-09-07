@@ -1,30 +1,63 @@
 "use client";
 
+import { type ReactNode } from "react";
+
 import { NativeSelect } from "@/components/ui/native-select";
-import { useAccounts, useGeos, useProjectTypes, useReportingPeriods } from "@/lib/api/reference-data";
+import { useAccounts, useGeos, useProjectTypes, useRegions, useReportingPeriods } from "@/lib/api/reference-data";
 import type { ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
 
+// Ownership model values — mirrors backend schemas.enums.ProjectOwned and the
+// Project Charter's "Project Owned" dropdown.
+const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
+
 // Project Health dashboard (design-reference/Project-Health.html) filter bar
-// — Geo/Account/Project Type/Period only, no Project selector: there's no
+// — Geo/Account/Project Type/Period, plus opt-in Region and Ownership
+// (showRegion / showOwnership) used by the Project List screen. No Project
+// selector: there's no
 // existing portfolio-scale project picker in this codebase to build one
 // from, and a flat <select> enumerating every org-wide project wouldn't
 // scale or fit this page's org-wide (not project-scoped) purpose.
+//
+// `children` lets a drill-down add its list-specific filters (e.g. the
+// Findings screen's Classification / Due Status) into this one bar rather
+// than stacking a second filter row. Such a page passes `extraFiltersActive`
+// so Reset stays visible while they're set, and `onReset` so Reset clears
+// them too.
 export function ProjectHealthFilterBar({
   filters,
   onChange,
   showPeriod = true,
+  showRegion = false,
+  showOwnership = false,
+  children,
+  extraFiltersActive = false,
+  onReset,
 }: {
   filters: ProjectHealthDashboardFilters;
   onChange: (next: ProjectHealthDashboardFilters) => void;
   showPeriod?: boolean;
+  showRegion?: boolean;
+  showOwnership?: boolean;
+  children?: ReactNode;
+  extraFiltersActive?: boolean;
+  onReset?: () => void;
 }) {
   const { data: geos = [] } = useGeos();
+  const { data: regions = [] } = useRegions();
   const { data: accounts = [] } = useAccounts();
   const { data: projectTypes = [] } = useProjectTypes();
   const { data: periods = [] } = useReportingPeriods();
 
+  // Cascade the Region list off the selected Geo when one is chosen.
+  const regionOptions = filters.geoId ? regions.filter((region) => region.geo_id === filters.geoId) : regions;
+
   const hasFilters = Boolean(
-    filters.geoId || filters.accountId || filters.projectTypeId || (showPeriod && filters.periodId)
+    filters.geoId ||
+      (showRegion && filters.regionId) ||
+      filters.accountId ||
+      filters.projectTypeId ||
+      (showOwnership && filters.projectOwned) ||
+      (showPeriod && filters.periodId)
   );
 
   return (
@@ -36,7 +69,7 @@ export function ProjectHealthFilterBar({
           aria-label="Geo"
           className="h-9 bg-white text-sm"
           value={filters.geoId ?? ""}
-          onChange={(e) => onChange({ ...filters, geoId: e.target.value || undefined })}
+          onChange={(e) => onChange({ ...filters, geoId: e.target.value || undefined, regionId: undefined })}
         >
           <option value="">Geo [All]</option>
           {geos.map((geo) => (
@@ -46,6 +79,24 @@ export function ProjectHealthFilterBar({
           ))}
         </NativeSelect>
       </div>
+
+      {showRegion ? (
+        <div className="w-44">
+          <NativeSelect
+            aria-label="Region"
+            className="h-9 bg-white text-sm"
+            value={filters.regionId ?? ""}
+            onChange={(e) => onChange({ ...filters, regionId: e.target.value || undefined })}
+          >
+            <option value="">Region [All]</option>
+            {regionOptions.map((region) => (
+              <option key={region.id} value={region.id}>
+                {region.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      ) : null}
 
       <div className="w-48">
         <NativeSelect
@@ -79,6 +130,24 @@ export function ProjectHealthFilterBar({
         </NativeSelect>
       </div>
 
+      {showOwnership ? (
+        <div className="w-44">
+          <NativeSelect
+            aria-label="Ownership"
+            className="h-9 bg-white text-sm"
+            value={filters.projectOwned ?? ""}
+            onChange={(e) => onChange({ ...filters, projectOwned: e.target.value || undefined })}
+          >
+            <option value="">Ownership [All]</option>
+            {PROJECT_OWNED_OPTIONS.map((owned) => (
+              <option key={owned} value={owned}>
+                {owned}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      ) : null}
+
       {showPeriod ? (
         <div className="w-40">
           <NativeSelect
@@ -97,10 +166,15 @@ export function ProjectHealthFilterBar({
         </div>
       ) : null}
 
-      {hasFilters ? (
+      {children}
+
+      {hasFilters || extraFiltersActive ? (
         <button
           type="button"
-          onClick={() => onChange({})}
+          onClick={() => {
+            onChange({});
+            onReset?.();
+          }}
           className="ml-auto text-sm font-semibold text-[#1a6fc4] hover:underline"
         >
           Reset

@@ -8,6 +8,7 @@ import { useAccounts, useGeos } from "@/lib/api/reference-data";
 import { useDashboardSummary, type DashboardScope } from "@/lib/api/dashboard";
 import { GovernanceMatrix } from "./governance-matrix";
 import { TopHighlights } from "./top-highlights";
+import { OpenNcList } from "./open-nc-list";
 
 function KpiCard({ label, value, hint, valueClass }: { label: string; value: number; hint: string; valueClass?: string }) {
   return (
@@ -109,7 +110,7 @@ export function DashboardView({
         <p className="text-slate-400">Loading…</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-6">
             <KpiCard label="Active Projects" value={data.active_projects} hint="Currently in flight" />
             <KpiCard
               label="Delayed Projects"
@@ -120,6 +121,12 @@ export function DashboardView({
             <KpiCard label="Open Risks" value={data.open_risks} hint="Open or monitoring" />
             <KpiCard label="Open Issues" value={data.open_issues} hint="Not yet resolved" />
             <KpiCard label="Pending Approvals" value={data.pending_approvals} hint="Opportunities + DE alerts" />
+            <KpiCard
+              label="Open NC"
+              value={data.open_ncs_count}
+              hint="Non-Conformances (findings)"
+              valueClass={data.open_ncs_count > 0 ? "text-amber-600" : undefined}
+            />
           </div>
 
           <GovernanceMatrix
@@ -182,6 +189,8 @@ export function DashboardView({
           </div>
 
           <TopHighlights items={rowScope === "account" ? data.account_highlights : data.project_highlights} />
+
+          <OpenNcList rows={data.open_ncs} showAccount={rowScope === "account"} />
         </>
       )}
     </div>

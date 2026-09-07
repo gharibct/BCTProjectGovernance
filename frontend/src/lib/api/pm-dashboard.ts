@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./client";
 import type { ActionPriority } from "./actions";
-import type { HealthMatrixRow } from "./dashboard";
+import type { HealthMatrixRow, OpenNcRow } from "./dashboard";
+
+export type { OpenNcRow };
 
 // Project Manager "My Summary" (design-reference/pm-mysummary.jpg) — a
 // separate, session-scoped endpoint from useDashboardSummary: the backend
@@ -58,10 +60,12 @@ export type MyDashboardSummary = {
   open_actions_medium: number;
   open_actions_low: number;
   open_findings_count: number;
+  open_ncs_count: number;
   attention_items: AttentionItem[];
   raido: RaidoSummary;
   project_health: MyProjectHealthRow[];
   open_actions: MyOpenActionRow[];
+  open_ncs: OpenNcRow[];
 };
 
 export function useMyDashboardSummary() {

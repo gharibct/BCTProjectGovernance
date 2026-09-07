@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -26,6 +27,7 @@ from app.schemas.dashboard import (
     IssueRow,
     MetricRow,
     MyDashboardSummary,
+    OpenNcListResponse,
     OpportunityRow,
     PaymentMilestoneRow,
     PmoDashboardSummary,
@@ -81,6 +83,31 @@ async def get_dashboard_summary(
         project_matrix=await dashboard_service.project_health_matrix(db, filters),
         account_highlights=await dashboard_service.account_highlights(db, filters),
         project_highlights=await dashboard_service.project_highlights(db, filters),
+        open_ncs_count=await dashboard_service.count_open_ncs(db, filters),
+        open_ncs=await dashboard_service.list_open_ncs(db, filters),
+    )
+
+
+# Standalone "Open NC" section for a single project / account / geo — used by
+# the per-entity Project / Account / Geo dashboards (reporting hub) and the
+# matching Review screens. `scope=account|geo` rolls up every project under
+# that account/geo, mirroring how the summary endpoints already scope.
+@router.get("/open-ncs", response_model=OpenNcListResponse)
+async def get_open_ncs(
+    scope: Literal["project", "account", "geo"] = Query(...),
+    scope_id: UUID = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if scope == "project":
+        filters = DashboardFilters(project_id=scope_id)
+    elif scope == "account":
+        filters = DashboardFilters(account_id=scope_id)
+    else:
+        filters = DashboardFilters(geo_id=scope_id)
+    return OpenNcListResponse(
+        open_ncs_count=await dashboard_service.count_open_ncs(db, filters),
+        open_ncs=await dashboard_service.list_open_ncs(db, filters),
     )
 
 
@@ -147,6 +174,7 @@ async def get_my_dashboard_summary(
         open_actions_medium=actions_medium,
         open_actions_low=actions_low,
         open_findings_count=await dashboard_service.count_open_findings(db, filters),
+        open_ncs_count=await dashboard_service.count_open_ncs(db, filters),
         attention_items=attention_items,
         raido=RaidoSummary(
             open_risks=await dashboard_service.count_open_risks(db, filters),
@@ -156,6 +184,7 @@ async def get_my_dashboard_summary(
         ),
         project_health=dashboard_service.to_my_project_health_rows(project_matrix, report_status),
         open_actions=open_actions,
+        open_ncs=await dashboard_service.list_open_ncs(db, filters),
     )
 
 
@@ -217,11 +246,13 @@ async def get_account_head_dashboard_summary(
         open_actions_high=actions_high,
         open_actions_medium=actions_medium,
         open_actions_low=actions_low,
+        open_ncs_count=await dashboard_service.count_open_ncs(db, filters),
         report_review_queue=queue,
         account_portfolio_health=portfolio,
         attention_items=attention_items,
         reporting_readiness=readiness,
         open_actions=open_actions,
+        open_ncs=await dashboard_service.list_open_ncs(db, filters),
     )
 
 
@@ -434,13 +465,21 @@ _project_health_role = [Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleC
 @router.get("/project-health/projects", response_model=Page[ProjectListRow], dependencies=_project_health_role)
 async def get_project_health_project_list(
     geo_id: UUID | None = Query(default=None),
+    region_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
+    project_owned: str | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = DashboardFilters(
+        geo_id=geo_id,
+        region_id=region_id,
+        account_id=account_id,
+        project_type_id=project_type_id,
+        project_owned=project_owned,
+    )
     items, total = await dashboard_service.list_projects_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -636,12 +675,19 @@ async def get_project_health_findings(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
+    classification: str | None = Query(default=None),
+    overdue: bool | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
     filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
     items, total = await dashboard_service.list_findings_for_health(
-        db, filters, skip=pagination.skip, limit=pagination.limit
+        db,
+        filters,
+        skip=pagination.skip,
+        limit=pagination.limit,
+        classification=classification,
+        overdue=overdue,
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 

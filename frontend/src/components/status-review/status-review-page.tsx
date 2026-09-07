@@ -20,6 +20,7 @@ const SCOPE_ACTION_LEVEL: Record<ReviewScope, ActionLevel> = {
 import { GeoAccountMatrixSection } from "./geo-account-matrix-section";
 import { OverviewSection } from "./overview-section";
 import { RagStatusSection } from "./rag-status-section";
+import { OpenNcSection } from "./open-nc-section";
 import { ReviewActions } from "./review-actions";
 import { ExecutiveUpdateSection } from "@/components/regional-reporting/executive-update-section";
 
@@ -123,6 +124,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
               <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
             </>
           )}
+          <OpenNcSection scope={scope} scopeId={scopeId} />
           <ReviewActions scope={scope} scopeId={scopeId} report={report} />
         </>
       )}

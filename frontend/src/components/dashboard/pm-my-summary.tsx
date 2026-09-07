@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { useMyDashboardSummary } from "@/lib/api/pm-dashboard";
 import { PmMyProjectsHealthTable } from "./pm-my-projects-health-table";
+import { OpenNcList } from "./open-nc-list";
 
 // PM "My Summary" (design-reference/pm-mysummary.jpg) — the real,
 // /dashboard/my-summary-backed replacement for the PM's landing page.
@@ -71,7 +72,7 @@ export function PmMySummary() {
         <p className="text-slate-400">Loading…</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-6">
             <StatCard
               label="My Projects"
               value={data.my_projects_count}
@@ -131,6 +132,14 @@ export function PmMySummary() {
                 value={data.open_findings_count}
                 accent={data.open_findings_count > 0 ? "amber" : undefined}
                 hint="View all ›"
+              />
+            </Link>
+            <Link href="/pm-findings" className="block">
+              <StatCard
+                label="Open NC"
+                value={data.open_ncs_count}
+                accent={data.open_ncs_count > 0 ? "amber" : undefined}
+                hint="Non-Conformances ›"
               />
             </Link>
           </div>
@@ -223,6 +232,8 @@ export function PmMySummary() {
               </section>
             </div>
           </div>
+
+          <OpenNcList rows={data.open_ncs} />
         </>
       )}
     </div>

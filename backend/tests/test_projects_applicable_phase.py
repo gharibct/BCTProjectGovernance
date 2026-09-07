@@ -20,8 +20,8 @@ def test_read_coercion_tolerates_null_and_raw_string():
     # mode="before" validator lives on ProjectBase, inherited by ProjectCreate.
     assert ProjectCreate.model_validate({"project_name": "X", "applicable_phase": None}).applicable_phase == []
     assert ProjectCreate.model_validate(
-        {"project_name": "X", "applicable_phase": "Design, UAT"}
-    ).applicable_phase == [ApplicablePhase.DESIGN, ApplicablePhase.UAT]
+        {"project_name": "X", "applicable_phase": "Design, UAT Support"}
+    ).applicable_phase == [ApplicablePhase.DESIGN, ApplicablePhase.UAT_SUPPORT]
 
 
 def test_update_none_means_unchanged():
@@ -33,7 +33,10 @@ def test_update_none_means_unchanged():
 
 def test_type_decorator_round_trip():
     t = CommaSeparatedList()
-    assert t.process_bind_param([ApplicablePhase.UAT, ApplicablePhase.SUPPORT], None) == "UAT,Support"
+    assert (
+        t.process_bind_param([ApplicablePhase.UAT_SUPPORT, ApplicablePhase.SUPPORT], None)
+        == "UAT Support,Support"
+    )
     assert t.process_bind_param([], None) is None
     assert t.process_bind_param(None, None) is None
     assert t.process_bind_param("Testing", None) == "Testing"  # master-data import path

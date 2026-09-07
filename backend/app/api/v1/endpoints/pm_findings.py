@@ -2,9 +2,10 @@
 projects (`project.project_manager_id == caller`; ADMIN sees all). Reads reuse
 the DE Findings list/KPI service (`services/de_findings.py`) with a
 `project_manager_id` scope. The only write a PM can do is "Action Taken":
-record remarks and move the finding to "Awaiting Closure".
+record what was done (+ the date) and move the finding to "Awaiting Closure".
 """
 
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -26,8 +27,13 @@ from app.models.users import User
 from app.schemas.common import Page
 from app.schemas.de_assessment import DEAssessmentFindingRead
 from app.schemas.de_findings import DEFindingListRow, DEFindingsKpis, PmFindingActionTaken
-from app.schemas.enums import FindingStatus, RoleCode
-from app.services.de_findings import DEFindingFilters, de_findings_kpis, list_de_findings
+from app.schemas.enums import DEFindingHistoryEventType, FindingStatus, RoleCode
+from app.services.de_findings import (
+    DEFindingFilters,
+    de_findings_kpis,
+    list_de_findings,
+    record_finding_history,
+)
 
 router = APIRouter(prefix="/pm-findings", tags=["PM Findings"])
 
@@ -95,7 +101,19 @@ async def action_taken(
             http_status.HTTP_409_CONFLICT, f"Finding is {obj.status}, not open for action"
         )
 
-    obj.remarks = payload.remarks
+    old_status = obj.status
+    obj.action_taken = payload.action_taken
+    obj.action_taken_date = payload.action_taken_date or date.today()
     obj.status = FindingStatus.AWAITING_CLOSURE.value
     await db.flush()
+
+    await record_finding_history(
+        db,
+        obj.id,
+        DEFindingHistoryEventType.ACTION_TAKEN,
+        ctx.user.id,
+        old_value=old_status,
+        new_value=obj.status,
+        comment=payload.action_taken,
+    )
     return obj

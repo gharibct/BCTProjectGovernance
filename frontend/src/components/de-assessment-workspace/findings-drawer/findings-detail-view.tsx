@@ -15,12 +15,14 @@ import { canWriteDeAssessment } from "@/lib/api/de-assessment-permissions";
 import {
   FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
+  useDEFindingHistory,
   useUpdateDEAssessmentFinding,
   type DEAssessmentFinding,
   type FindingCategory,
   type FindingClassification,
   type FindingStatus,
 } from "@/lib/api/de-assessment";
+import { FindingHistoryTimeline } from "@/components/de-findings/finding-history-timeline";
 
 type Transition = { label: string; next: FindingStatus; className?: string };
 
@@ -37,7 +39,11 @@ function transitionsFor(status: FindingStatus): Transition[] {
         { label: "Cancel Finding", next: "Cancelled" },
       ];
     case "Awaiting Closure":
-      return [{ label: "Close Finding", next: "Closed", className: "bg-emerald-600 hover:bg-emerald-700" }];
+      // Close is terminal; Reopen sends it back to Open for more PM action.
+      return [
+        { label: "Close Finding", next: "Closed", className: "bg-emerald-600 hover:bg-emerald-700" },
+        { label: "Reopen Finding", next: "Open" },
+      ];
     default:
       return [];
   }
@@ -54,6 +60,7 @@ export function FindingsDetailView({
 }) {
   const canWrite = canWriteDeAssessment(useEffectiveRole());
   const updateFinding = useUpdateDEAssessmentFinding(projectId);
+  const { data: history = [] } = useDEFindingHistory(projectId, finding.id);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
@@ -222,6 +229,8 @@ export function FindingsDetailView({
           ) : null}
         </>
       ) : null}
+
+      <FindingHistoryTimeline entries={history} />
     </div>
   );
 }

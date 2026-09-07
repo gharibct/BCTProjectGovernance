@@ -51,11 +51,13 @@ CREATE TABLE de_assessment_findings (
     classification TEXT NOT NULL, -- Observation, Recommendation, NC (Non-Conformance)
     description TEXT, -- the finding statement (DE Assessment Workspace)
     assigned_to UUID REFERENCES users(id),
-    action_taken TEXT,
+    action_taken TEXT, -- what the PM did to address it (PM Findings screen)
+    action_taken_date DATE, -- when the PM recorded the action
     finding_date DATE,
     due_date DATE,
     status TEXT NOT NULL, -- Open, In Progress, Awaiting Closure, Closed, Cancelled (+ legacy On Hold/Deferred)
-    remarks TEXT,
+    remarks TEXT, -- the DE's verification remarks recorded at closure (DE Findings Closure)
+    closure_date DATE, -- when the DE closed the finding
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 
@@ -65,3 +67,19 @@ CREATE TABLE de_assessment_findings (
 CREATE INDEX idx_de_assessment_findings_project_id ON de_assessment_findings(project_id);
 
 CREATE TRIGGER trg_de_assessment_findings_updated_at BEFORE UPDATE ON de_assessment_findings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- Append-only audit trail — one row per creation, status move (Start / Mark
+-- Awaiting Closure / Close / Reopen / Cancel), or PM "Action Taken" on a
+-- finding. Modelled on action_history (db/tables/44_actions.sql).
+CREATE TABLE de_assessment_finding_history (
+    id UUID PRIMARY KEY,
+    finding_id UUID NOT NULL REFERENCES de_assessment_findings(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL, -- CREATED, STATUS_CHANGE, ACTION_TAKEN
+    comment TEXT,
+    old_value TEXT,
+    new_value TEXT,
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_de_assessment_finding_history_finding_id ON de_assessment_finding_history(finding_id, created_at);

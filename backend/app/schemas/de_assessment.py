@@ -46,10 +46,12 @@ class DEAssessmentFindingIn(BaseModel):
     description: str | None = None
     assigned_to: UUID | None = None
     action_taken: str | None = None
+    action_taken_date: date | None = None
     finding_date: date | None = None
     due_date: date | None = None
     status: FindingStatus = FindingStatus.OPEN
     remarks: str | None = None
+    closure_date: date | None = None
 
 
 class DEAssessmentFindingUpdate(BaseModel):
@@ -58,10 +60,12 @@ class DEAssessmentFindingUpdate(BaseModel):
     description: str | None = None
     assigned_to: UUID | None = None
     action_taken: str | None = None
+    action_taken_date: date | None = None
     finding_date: date | None = None
     due_date: date | None = None
     status: FindingStatus | None = None
     remarks: str | None = None
+    closure_date: date | None = None
 
 
 class DEAssessmentFindingRead(BaseModel):
@@ -76,10 +80,12 @@ class DEAssessmentFindingRead(BaseModel):
     description: str | None = None
     assigned_to: UUID | None = None
     action_taken: str | None = None
+    action_taken_date: date | None = None
     finding_date: date | None = None
     due_date: date | None = None
     status: FindingStatus
     remarks: str | None = None
+    closure_date: date | None = None
     created_at: datetime
     updated_at: datetime
 

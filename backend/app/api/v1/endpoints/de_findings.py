@@ -27,13 +27,24 @@ from app.schemas.de_assessment import (
     DEAssessmentFindingRead,
     DEAssessmentFindingUpdate,
 )
-from app.schemas.de_findings import DEFindingCreate, DEFindingListRow, DEFindingsKpis
-from app.schemas.enums import RoleCode
+from app.schemas.de_findings import (
+    DEFindingCreate,
+    DEFindingHistoryRead,
+    DEFindingListRow,
+    DEFindingsKpis,
+)
+from app.schemas.enums import DEFindingHistoryEventType, RoleCode
 from app.services.de_findings import (
     DEFindingFilters,
+    FindingStatusError,
+    apply_closure_side_effects,
+    check_finding_transition,
     create_project_finding,
     de_findings_kpis,
     list_de_findings,
+    list_finding_history,
+    record_finding_history,
+    record_status_change,
 )
 
 router = APIRouter(prefix="/de-findings", tags=["DE Findings"])
@@ -91,7 +102,11 @@ async def create_finding(
             http_status.HTTP_403_FORBIDDEN, "Project has no Delivery Excellence allocated"
         )
     finding_in = DEAssessmentFindingIn(**payload.model_dump(exclude={"project_id"}))
-    return await create_project_finding(db, payload.project_id, finding_in)
+    obj = await create_project_finding(db, payload.project_id, finding_in)
+    await record_finding_history(
+        db, obj.id, DEFindingHistoryEventType.CREATED, ctx.user.id, new_value=obj.status
+    )
+    return obj
 
 
 @router.put("/{finding_id}", response_model=DEAssessmentFindingRead)
@@ -109,4 +124,29 @@ async def update_finding(
         raise HTTPException(
             http_status.HTTP_403_FORBIDDEN, "Project has no Delivery Excellence allocated"
         )
-    return await de_assessment_finding_crud.update(db, obj, payload)
+
+    old_status = obj.status
+    new_status = payload.status
+    try:
+        check_finding_transition(old_status, new_status)
+    except FindingStatusError as exc:
+        raise HTTPException(http_status.HTTP_409_CONFLICT, str(exc)) from exc
+
+    updated = await de_assessment_finding_crud.update(db, obj, payload)
+    apply_closure_side_effects(updated, new_status)
+    await db.flush()
+
+    await record_status_change(db, updated.id, ctx.user.id, old_status, new_status)
+    return updated
+
+
+@router.get(
+    "/{finding_id}/history",
+    response_model=list[DEFindingHistoryRead],
+    dependencies=_read_gate,
+)
+async def get_finding_history(finding_id: UUID, db: AsyncSession = Depends(get_db)):
+    obj = await de_assessment_finding_crud.get(db, finding_id)
+    if obj is None:
+        raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Finding not found")
+    return await list_finding_history(db, finding_id)

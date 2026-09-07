@@ -337,6 +337,18 @@ class FindingStatus(StrEnum):
     DEFERRED = "Deferred"
 
 
+class DEFindingHistoryEventType(StrEnum):
+    """de_assessment_finding_history.event_type — the finding's append-only
+    audit trail, modelled on ActionHistoryEventType. CREATED when the finding
+    is raised; STATUS_CHANGE for every lifecycle move (Start / Mark Awaiting
+    Closure / Close / Reopen / Cancel), carrying old_value/new_value;
+    ACTION_TAKEN when the PM records what they did (comment holds the text)."""
+
+    CREATED = "CREATED"
+    STATUS_CHANGE = "STATUS_CHANGE"
+    ACTION_TAKEN = "ACTION_TAKEN"
+
+
 class DEAssessmentStatus(StrEnum):
     """A DE assessment is a Draft until the DE submits it. "Not Started" is the
     absence of a row for the period and is never stored."""

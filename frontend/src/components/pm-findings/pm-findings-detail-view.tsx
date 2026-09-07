@@ -14,9 +14,14 @@ import { usePmFindingActionTaken, type DeFindingRow } from "@/lib/api/pm-finding
 
 const ACTIONABLE = ["Open", "In Progress"];
 
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 // The PM's view of a finding: everything the DE captured is read-only; the PM
-// records what they did in Remarks and clicks "Action Taken", which moves the
-// finding to "Awaiting Closure" for the DE to close.
+// records what they did in "Action Taken" (plus the date it was done) and
+// clicks "Action Taken", which moves the finding to "Awaiting Closure" for the
+// DE to verify and close.
 export function PmFindingsDetailView({
   row,
   canAct,
@@ -30,13 +35,18 @@ export function PmFindingsDetailView({
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
-  const [remarks, setRemarks] = React.useState(() => row.remarks ?? "");
+  const [actionTakenText, setActionTakenText] = React.useState(() => row.action_taken ?? "");
+  const [actionTakenDate, setActionTakenDate] = React.useState(() => row.action_taken_date ?? today());
 
   const isActionable = ACTIONABLE.includes(row.status);
 
   const submit = () => {
     actionTaken.mutate(
-      { id: row.id, remarks: remarks.trim() },
+      {
+        id: row.id,
+        action_taken: actionTakenText.trim(),
+        action_taken_date: actionTakenDate || undefined,
+      },
       {
         onSuccess: () => {
           showSuccess("Finding moved to Awaiting Closure.");
@@ -95,21 +105,31 @@ export function PmFindingsDetailView({
         <Input type="date" value={row.due_date ?? ""} disabled />
       </Field>
 
-      <Field label="Remarks" htmlFor="pm-finding-remarks" hint="What was done to address this finding.">
+      <Field label="Action Taken" htmlFor="pm-finding-action-taken" hint="What was done to address this finding.">
         <Textarea
-          id="pm-finding-remarks"
-          value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
+          id="pm-finding-action-taken"
+          value={actionTakenText}
+          onChange={(e) => setActionTakenText(e.target.value)}
           rows={4}
           disabled={!canAct || !isActionable}
           placeholder="Describe the action taken…"
         />
       </Field>
 
+      <Field label="Action Taken Date" htmlFor="pm-finding-action-taken-date">
+        <Input
+          id="pm-finding-action-taken-date"
+          type="date"
+          value={actionTakenDate}
+          onChange={(e) => setActionTakenDate(e.target.value)}
+          disabled={!canAct || !isActionable}
+        />
+      </Field>
+
       {!canAct ? null : isActionable ? (
         <Button
           onClick={submit}
-          disabled={actionTaken.isPending || !remarks.trim()}
+          disabled={actionTaken.isPending || !actionTakenText.trim()}
           className="gap-2 self-start"
         >
           {actionTaken.isPending ? <ButtonSpinner /> : null}

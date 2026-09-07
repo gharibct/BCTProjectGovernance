@@ -5,6 +5,7 @@ import { BarChart3 } from "lucide-react";
 
 import { HealthPill, RATING_FROM_API } from "@/components/project-charter/health-declaration";
 import { STATUS_CATEGORIES } from "@/lib/status-categories";
+import { useOpenNcs } from "@/lib/api/dashboard";
 import {
   useReviewHealthDeclaration,
   useReviewStatusItems,
@@ -86,6 +87,8 @@ export function OverviewSection({
   const { data: reports = [] } = useReviewStatusReports(scope, scopeId);
   const report = reports.find((r) => r.period_id === periodId);
   const { data: declaration } = useReviewHealthDeclaration(scope, scopeId, periodId);
+  const { data: openNcs } = useOpenNcs(scope, scopeId);
+  const openNcCount = openNcs?.open_ncs_count ?? null;
 
   // Decimal fields come back from the API as strings like "5.00" — trim the
   // trailing zeros so a whole-number FTE count doesn't show ".00".
@@ -101,7 +104,7 @@ export function OverviewSection({
         {OVERVIEW_HEADING[scope]}
       </h2>
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
         <SnapshotStat label="Revenue" value={report?.revenue ?? "—"} />
         <SnapshotStat label="Projects" value={report?.projects_count ?? "—"} />
         <SnapshotStat label="ON:OFF FTE" value={fteRatio} />
@@ -112,6 +115,16 @@ export function OverviewSection({
               <HealthPill rating={RATING_FROM_API[declaration.overall_rating]} />
             ) : (
               <span className="text-sm font-semibold text-slate-400">Not assessed</span>
+            )
+          }
+        />
+        <SnapshotStat
+          label="Open NC"
+          value={
+            openNcCount === null ? (
+              "—"
+            ) : (
+              <span className={openNcCount > 0 ? "text-red-600" : undefined}>{openNcCount}</span>
             )
           }
         />

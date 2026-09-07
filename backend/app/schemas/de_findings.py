@@ -7,10 +7,10 @@ body-carries-project create payload."""
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.de_assessment import DEAssessmentFindingIn
-from app.schemas.enums import FindingClassification, FindingStatus
+from app.schemas.enums import DEFindingHistoryEventType, FindingClassification, FindingStatus
 
 
 class DEFindingListRow(BaseModel):
@@ -26,10 +26,12 @@ class DEFindingListRow(BaseModel):
     description: str | None = None
     assigned_to: UUID | None = None
     action_taken: str | None = None
+    action_taken_date: date | None = None
     finding_date: date | None = None
     due_date: date | None = None
     status: FindingStatus
     remarks: str | None = None
+    closure_date: date | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -66,8 +68,35 @@ class DEFindingCreate(DEAssessmentFindingIn):
     project_id: UUID
 
 
+class DEFindingHistoryCreate(BaseModel):
+    """Internal — written by the finding write paths, never accepted from a
+    client. `created_at` is filled by CRUDBase.create."""
+
+    finding_id: UUID
+    event_type: DEFindingHistoryEventType
+    comment: str | None = None
+    old_value: str | None = None
+    new_value: str | None = None
+    created_by: UUID
+
+
+class DEFindingHistoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    finding_id: UUID
+    event_type: DEFindingHistoryEventType
+    comment: str | None = None
+    old_value: str | None = None
+    new_value: str | None = None
+    created_by: UUID
+    created_at: datetime
+
+
 class PmFindingActionTaken(BaseModel):
     """Body for PUT /pm-findings/{id}/action-taken — the PM records what was
-    done and the finding moves to "Awaiting Closure". Remarks are mandatory."""
+    done (mandatory) and the date it was done (defaults to today server-side),
+    and the finding moves to "Awaiting Closure"."""
 
-    remarks: str = Field(min_length=1)
+    action_taken: str = Field(min_length=1)
+    action_taken_date: date | None = None

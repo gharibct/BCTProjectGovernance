@@ -11,14 +11,17 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.de_assessment import de_assessment_finding_crud
-from app.models.de_assessment import DEAssessmentFinding
+from app.crud.de_assessment import (
+    de_assessment_finding_crud,
+    de_assessment_finding_history_crud,
+)
+from app.models.de_assessment import DEAssessmentFinding, DEAssessmentFindingHistory
 from app.models.projects import Project
 from app.models.reference_data import Account, Geo, Region
 from app.models.users import User
 from app.schemas.de_assessment import DEAssessmentFindingIn
-from app.schemas.de_findings import DEFindingListRow, DEFindingsKpis
-from app.schemas.enums import FindingStatus
+from app.schemas.de_findings import DEFindingHistoryCreate, DEFindingListRow, DEFindingsKpis
+from app.schemas.enums import DEFindingHistoryEventType, FindingStatus
 from app.services.dashboard import MonthWindow, _FINDING_OPEN_STATES, current_month_window
 
 _OPEN_VALUES = [s.value for s in _FINDING_OPEN_STATES]
@@ -77,10 +80,19 @@ def _conditions(filters: DEFindingFilters) -> list:
     if filters.classification:
         conditions.append(DEAssessmentFinding.classification == filters.classification)
 
-    if filters.status == "Active":
-        conditions.append(DEAssessmentFinding.status.notin_(_CLOSED_VALUES))
-    elif filters.status:
-        conditions.append(DEAssessmentFinding.status == filters.status)
+    # Status sentinels: "Active" (the default) = everything except
+    # Closed/Cancelled; "All" (or blank/None) = no status filter; any other
+    # value = an exact lifecycle match. A `bucket` carries its own status
+    # predicate (e.g. closed_this_period ⇒ Closed, awaiting_closure ⇒ that
+    # status), so when one is set it owns the status dimension and this filter
+    # steps aside — otherwise the default "Active" contradicts the bucket and
+    # the grid comes back empty even though its KPI tile shows a count.
+    status = (filters.status or "").strip()
+    if not filters.bucket:
+        if status == "Active":
+            conditions.append(DEAssessmentFinding.status.notin_(_CLOSED_VALUES))
+        elif status and status != "All":
+            conditions.append(DEAssessmentFinding.status == status)
 
     if filters.search:
         like = f"%{filters.search.strip()}%"
@@ -164,10 +176,12 @@ async def list_de_findings(
                 description=finding.description,
                 assigned_to=finding.assigned_to,
                 action_taken=finding.action_taken,
+                action_taken_date=finding.action_taken_date,
                 finding_date=finding.finding_date,
                 due_date=finding.due_date,
                 status=finding.status,
                 remarks=finding.remarks,
+                closure_date=finding.closure_date,
                 created_at=finding.created_at,
                 updated_at=finding.updated_at,
                 project_label=f"{p_code} · {p_name}" if p_code else str(finding.project_id),
@@ -267,3 +281,89 @@ async def create_project_finding(
     return await de_assessment_finding_crud.create(
         db, payload, project_id=project_id, sequence_no=sequence_no
     )
+
+
+# --- Status transitions (shared by the portfolio PUT and the project-scoped
+# register, so the rules can't drift between the two write paths) ------------
+
+_REOPENABLE = (FindingStatus.OPEN.value, FindingStatus.IN_PROGRESS.value)
+
+
+class FindingStatusError(ValueError):
+    """A status transition that isn't allowed. Endpoints turn this into HTTP 409."""
+
+
+def check_finding_transition(old_status: str, new_status: str | None) -> None:
+    """Closed is terminal — nothing moves out of it."""
+    if new_status is not None and new_status != old_status and old_status == FindingStatus.CLOSED.value:
+        raise FindingStatusError("A closed finding cannot be reopened.")
+
+
+def apply_closure_side_effects(finding: DEAssessmentFinding, new_status: str | None) -> None:
+    """Closing defaults the closure date to today; reopening from Awaiting
+    Closure clears any closure fields that were pre-filled. Mutates `finding`."""
+    if new_status == FindingStatus.CLOSED.value and finding.closure_date is None:
+        finding.closure_date = date.today()
+    elif new_status in _REOPENABLE:
+        finding.closure_date = None
+        finding.remarks = None
+
+
+# --- Finding history (append-only audit trail) ------------------------------
+
+
+async def record_finding_history(
+    db: AsyncSession,
+    finding_id: UUID,
+    event_type: DEFindingHistoryEventType,
+    user_id: UUID,
+    *,
+    old_value: str | None = None,
+    new_value: str | None = None,
+    comment: str | None = None,
+) -> None:
+    """Write one row to de_assessment_finding_history. Called by every finding
+    write path (portfolio PUT, project-scoped register, PM Action Taken)."""
+    await de_assessment_finding_history_crud.create(
+        db,
+        DEFindingHistoryCreate(
+            finding_id=finding_id,
+            event_type=event_type,
+            old_value=old_value,
+            new_value=new_value,
+            comment=comment,
+            created_by=user_id,
+        ),
+    )
+
+
+async def record_status_change(
+    db: AsyncSession,
+    finding_id: UUID,
+    user_id: UUID,
+    old_status: str | None,
+    new_status: str | None,
+) -> None:
+    """No-op unless the status actually changed — the update schemas send the
+    field on every save, so callers can't tell a real transition from a re-save
+    of the same value."""
+    if new_status is None or new_status == old_status:
+        return
+    await record_finding_history(
+        db,
+        finding_id,
+        DEFindingHistoryEventType.STATUS_CHANGE,
+        user_id,
+        old_value=old_status,
+        new_value=new_status,
+    )
+
+
+async def list_finding_history(db: AsyncSession, finding_id: UUID) -> list:
+    items, _ = await de_assessment_finding_history_crud.list(
+        db,
+        filters={DEAssessmentFindingHistory.finding_id: finding_id},
+        order_by=DEAssessmentFindingHistory.created_at.asc(),
+        limit=500,
+    )
+    return items

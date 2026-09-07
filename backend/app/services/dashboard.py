@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import NamedTuple
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account_health_declarations import AccountHealthDeclaration
@@ -90,6 +90,7 @@ from app.schemas.dashboard import (
     MyOpenActionRow,
     MyProjectHealthRow,
     AccountHeadOpenActionRow,
+    OpenNcRow,
     OpportunityCardSummary,
     OpportunityRow,
     PaymentMilestoneRow,
@@ -115,6 +116,7 @@ from app.schemas.enums import (
     AssumptionStatus,
     Criticality,
     DependencyStatus,
+    FindingClassification,
     FindingStatus,
     HealthRating,
     IssueSeverity,
@@ -134,8 +136,15 @@ from app.services.health_rollup import compute_overall_rating
 @dataclass
 class DashboardFilters:
     geo_id: UUID | None = None
+    region_id: UUID | None = None
     account_id: UUID | None = None
+    # Single-project scope — used by the per-entity Project Dashboard / Project
+    # Review "Open NC" section (see dashboard.py's get_open_ncs).
+    project_id: UUID | None = None
     project_type_id: UUID | None = None
+    # Ownership model filter — matches Project.project_owned ("Fully Owned",
+    # "Co-Owned", "Customer Driven"). Used by the Project Health project list.
+    project_owned: str | None = None
     health_status: HealthRating | None = None
     # Role-scoping for the Geo Head / Account Manager dashboards — a user can
     # own more than one geo/account (see user_geos/user_accounts), so these
@@ -156,8 +165,14 @@ def _project_conditions(filters: DashboardFilters) -> list:
     conditions = []
     if filters.geo_id is not None:
         conditions.append(Project.geo_id == filters.geo_id)
+    if filters.region_id is not None:
+        conditions.append(Project.region_id == filters.region_id)
+    if filters.project_owned is not None:
+        conditions.append(Project.project_owned == filters.project_owned)
     if filters.account_id is not None:
         conditions.append(Project.account_id == filters.account_id)
+    if filters.project_id is not None:
+        conditions.append(Project.id == filters.project_id)
     if filters.geo_ids is not None:
         conditions.append(Project.geo_id.in_(filters.geo_ids))
     if filters.account_ids is not None:
@@ -1533,6 +1548,89 @@ async def count_open_findings(db: AsyncSession, filters: DashboardFilters) -> in
     return (await db.execute(stmt)).scalar_one()
 
 
+# Open Non-Conformances — the subset of open findings classified "NC"
+# (Non-Conformance), as opposed to Observation / Recommendation. Backs the
+# "Open NC" KPI + list section on the PM, Account and CXO dashboards; scope
+# comes from _matching_project_ids, so the same pair works for a single PM's
+# projects and for an account-/geo-wide rollup.
+async def count_open_ncs(db: AsyncSession, filters: DashboardFilters) -> int:
+    project_ids = await _matching_project_ids(db, filters)
+    stmt = (
+        select(func.count())
+        .select_from(DEAssessmentFinding)
+        .where(
+            DEAssessmentFinding.project_id.in_(project_ids),
+            DEAssessmentFinding.classification == FindingClassification.NC.value,
+            DEAssessmentFinding.status.in_([s.value for s in _FINDING_OPEN_STATES]),
+        )
+    )
+    return (await db.execute(stmt)).scalar_one()
+
+
+async def list_open_ncs(db: AsyncSession, filters: DashboardFilters) -> list[OpenNcRow]:
+    project_ids = await _matching_project_ids(db, filters)
+    # Explicit column list (not `select(DEAssessmentFinding)`) so the query
+    # never references columns a not-yet-migrated live DB may lack
+    # (action_taken_date / closure_date — see db/add_de_findings_closure_fields.sql).
+    stmt = (
+        select(
+            DEAssessmentFinding.id,
+            DEAssessmentFinding.project_id,
+            DEAssessmentFinding.category,
+            DEAssessmentFinding.classification,
+            DEAssessmentFinding.description,
+            DEAssessmentFinding.finding_date,
+            DEAssessmentFinding.due_date,
+            DEAssessmentFinding.status,
+            Project.project_code,
+            Project.project_name,
+            Account.name,
+            User.full_name,
+        )
+        .outerjoin(Project, Project.id == DEAssessmentFinding.project_id)
+        .outerjoin(Account, Account.id == Project.account_id)
+        .outerjoin(User, User.id == DEAssessmentFinding.assigned_to)
+        .where(
+            DEAssessmentFinding.project_id.in_(project_ids),
+            DEAssessmentFinding.classification == FindingClassification.NC.value,
+            DEAssessmentFinding.status.in_([s.value for s in _FINDING_OPEN_STATES]),
+        )
+        .order_by(DEAssessmentFinding.finding_date.desc())
+    )
+    rows = (await db.execute(stmt)).all()
+    today = date.today()
+    return [
+        OpenNcRow(
+            finding_id=finding_id,
+            project_id=project_id,
+            project_label=f"{project_code} · {project_name}" if project_code else str(project_id),
+            account_name=account_name,
+            category=category,
+            classification=classification,
+            description=description,
+            owner_name=owner_name,
+            finding_date=finding_date,
+            due_date=due_date,
+            age_days=(today - finding_date).days if finding_date else None,
+            status=status,
+        )
+        for (
+            finding_id,
+            project_id,
+            category,
+            classification,
+            description,
+            finding_date,
+            due_date,
+            status,
+            project_code,
+            project_name,
+            account_name,
+            owner_name,
+        ) in rows
+    ]
+
+
 # Findings have no due-date field — any still-Open finding raised more than
 # this many days ago is treated as overdue, an editorial threshold consistent
 # with a monthly assessment cadence.
@@ -2217,6 +2315,7 @@ async def list_projects_for_health(
             region_name=region_name,
             account_name=account_name,
             project_manager_name=pm_name,
+            project_owned=project.project_owned,
             start_date=project.planned_start_date,
             end_date=project.planned_end_date,
             overall_health=project.overall_project_health,
@@ -3004,14 +3103,33 @@ async def findings_card_summary(
     )
 
 
-# DEAssessmentFinding has no title/owner/due-date fields — "Finding" is
-# derived from classification + date, and Owner/Due Date are left blank
-# (there's nothing on the model to source them from).
+# "Finding" title is derived from classification + date; Owner is left blank
+# (nothing on the model to source it from). `classification` narrows to one
+# FindingClassification value; `overdue` (True/False, None = all) splits on
+# "has a past due date and isn't Closed/Cancelled".
 async def list_findings_for_health(
-    db: AsyncSession, filters: DashboardFilters, skip: int, limit: int
+    db: AsyncSession,
+    filters: DashboardFilters,
+    skip: int,
+    limit: int,
+    *,
+    classification: str | None = None,
+    overdue: bool | None = None,
 ) -> tuple[list[FindingRow], int]:
     project_ids = await _matching_project_ids(db, filters)
+    today = date.today()
     conditions = [DEAssessmentFinding.project_id.in_(project_ids)]
+    if classification:
+        conditions.append(DEAssessmentFinding.classification == classification)
+    if overdue is not None:
+        is_overdue = and_(
+            DEAssessmentFinding.due_date.is_not(None),
+            DEAssessmentFinding.due_date < today,
+            DEAssessmentFinding.status.not_in(
+                [FindingStatus.CLOSED.value, FindingStatus.CANCELLED.value]
+            ),
+        )
+        conditions.append(is_overdue if overdue else not_(is_overdue))
 
     total = (
         await db.execute(
@@ -3040,7 +3158,6 @@ async def list_findings_for_health(
         )
     ).all()
 
-    today = date.today()
     items = [
         FindingRow(
             project_id=project_id,
@@ -3056,7 +3173,7 @@ async def list_findings_for_health(
             classification=finding.classification,
             action_taken=finding.action_taken,
             owner_name=None,
-            due_date=None,
+            due_date=finding.due_date,
             age_days=(today - finding.finding_date).days if finding.finding_date else None,
             status=finding.status,
         )

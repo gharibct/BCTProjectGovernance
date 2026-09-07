@@ -55,6 +55,8 @@ async def test_dashboard_summary_returns_200_for_any_role(client, override_auth)
     assert body["open_risks"] == 0
     assert body["project_health"] == []
     assert body["account_health"] == []
+    assert body["open_ncs_count"] == 0
+    assert body["open_ncs"] == []
 
 
 async def test_my_summary_requires_auth(client):
@@ -70,6 +72,8 @@ async def test_my_summary_returns_zeroed_shape_for_pm(client, override_auth):
     assert response.status_code == 200
     body = response.json()
     assert body["open_findings_count"] == 0
+    assert body["open_ncs_count"] == 0
+    assert body["open_ncs"] == []
     assert body["my_projects_count"] == 0
     assert body["open_actions_count"] == 0
 

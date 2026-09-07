@@ -23,8 +23,17 @@ from app.schemas.de_assessment import (
     DEAssessmentReadWithDetails,
     DEAssessmentUpdate,
 )
-from app.schemas.enums import DEAssessmentStatus, RoleCode
+from app.schemas.de_findings import DEFindingHistoryRead
+from app.schemas.enums import DEAssessmentStatus, DEFindingHistoryEventType, RoleCode
 from app.services.code_generator import generate_code
+from app.services.de_findings import (
+    FindingStatusError,
+    apply_closure_side_effects,
+    check_finding_transition,
+    list_finding_history,
+    record_finding_history,
+    record_status_change,
+)
 from app.services.health_rollup import compute_overall_project_health
 
 router = APIRouter(prefix="/projects/{project_id}/de-assessments", tags=["DE Assessment"])
@@ -197,9 +206,14 @@ async def list_findings(project_id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 @findings_router.post(
-    "", response_model=DEAssessmentFindingRead, status_code=status.HTTP_201_CREATED, dependencies=[Depends(_de_write)]
+    "", response_model=DEAssessmentFindingRead, status_code=status.HTTP_201_CREATED
 )
-async def add_finding(project_id: UUID, payload: DEAssessmentFindingIn, db: AsyncSession = Depends(get_db)):
+async def add_finding(
+    project_id: UUID,
+    payload: DEAssessmentFindingIn,
+    current_user: User = Depends(_de_write),
+    db: AsyncSession = Depends(get_db),
+):
     sequence_no = payload.sequence_no
     if sequence_no is None:
         current_max = (
@@ -210,21 +224,45 @@ async def add_finding(project_id: UUID, payload: DEAssessmentFindingIn, db: Asyn
             )
         ).scalar_one_or_none()
         sequence_no = (current_max or 0) + 1
-    return await de_assessment_finding_crud.create(
+    obj = await de_assessment_finding_crud.create(
         db, payload, project_id=project_id, sequence_no=sequence_no
     )
+    await record_finding_history(
+        db, obj.id, DEFindingHistoryEventType.CREATED, current_user.id, new_value=obj.status
+    )
+    return obj
 
 
-@findings_router.put(
-    "/{finding_id}", response_model=DEAssessmentFindingRead, dependencies=[Depends(_de_write)]
-)
+@findings_router.get("/{finding_id}/history", response_model=list[DEFindingHistoryRead])
+async def finding_history(project_id: UUID, finding_id: UUID, db: AsyncSession = Depends(get_db)):
+    obj = await de_assessment_finding_crud.get(db, finding_id)
+    if obj is None or obj.project_id != project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Finding not found")
+    return await list_finding_history(db, finding_id)
+
+
+@findings_router.put("/{finding_id}", response_model=DEAssessmentFindingRead)
 async def update_finding(
     project_id: UUID,
     finding_id: UUID,
     payload: DEAssessmentFindingUpdate,
+    current_user: User = Depends(_de_write),
     db: AsyncSession = Depends(get_db),
 ):
     obj = await de_assessment_finding_crud.get(db, finding_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Finding not found")
-    return await de_assessment_finding_crud.update(db, obj, payload)
+
+    old_status = obj.status
+    new_status = payload.status
+    try:
+        check_finding_transition(old_status, new_status)
+    except FindingStatusError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+
+    updated = await de_assessment_finding_crud.update(db, obj, payload)
+    apply_closure_side_effects(updated, new_status)
+    await db.flush()
+
+    await record_status_change(db, updated.id, current_user.id, old_status, new_status)
+    return updated

@@ -70,10 +70,12 @@ export type DEAssessmentFinding = {
   description: string | null;
   assigned_to: string | null;
   action_taken: string | null;
+  action_taken_date: string | null;
   finding_date: string | null;
   due_date: string | null;
   status: FindingStatus;
   remarks: string | null;
+  closure_date: string | null;
   overdue: boolean;
 };
 
@@ -127,10 +129,12 @@ export type DEAssessmentFindingPayload = {
   description?: string;
   assigned_to?: string;
   action_taken?: string;
+  action_taken_date?: string;
   finding_date?: string;
   due_date?: string;
   status?: FindingStatus;
   remarks?: string;
+  closure_date?: string;
 };
 
 // Full assessment history for a project (newest first), header-only rows.
@@ -190,8 +194,39 @@ export function useDEAssessmentFindings(projectId: string | null) {
 
 function invalidateFindings(queryClient: ReturnType<typeof useQueryClient>, projectId: string | null) {
   queryClient.invalidateQueries({ queryKey: ["de-assessment-findings", projectId] });
+  // The finding drawer's "Progress & History" timeline.
+  queryClient.invalidateQueries({ queryKey: ["de-finding-history"] });
   // Dashboards surface open/overdue finding counts.
   queryClient.invalidateQueries({ queryKey: ["dashboard-de-summary"] });
+}
+
+// --- Finding history (append-only audit trail) ---
+
+export type FindingHistoryEventType = "CREATED" | "STATUS_CHANGE" | "ACTION_TAKEN";
+
+export type FindingHistoryEntry = {
+  id: string;
+  finding_id: string;
+  event_type: FindingHistoryEventType;
+  comment: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  created_by: string;
+  created_at: string;
+};
+
+// One append-only row per creation, status move, or PM "Action Taken" on a
+// finding. The project-scoped read endpoint serves every finding surface
+// (DE Findings screen, DE Assessment Workspace) since each carries project_id.
+export function useDEFindingHistory(projectId: string | null, findingId: string | null) {
+  return useQuery({
+    queryKey: ["de-finding-history", projectId, findingId],
+    queryFn: () =>
+      api.get<FindingHistoryEntry[]>(
+        `/projects/${projectId}/de-assessment-findings/${findingId}/history`,
+      ),
+    enabled: !!projectId && !!findingId,
+  });
 }
 
 export function useCreateDEAssessmentAlert(projectId: string | null, assessmentId: string | null) {

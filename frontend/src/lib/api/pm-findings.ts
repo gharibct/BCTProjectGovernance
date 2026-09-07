@@ -46,8 +46,19 @@ export function usePmFindingsKpis(params: Pick<PmFindingsFilter, "projectId">) {
 export function usePmFindingActionTaken() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, remarks }: { id: string; remarks: string }) =>
-      api.put<DeFindingRow>(`/pm-findings/${id}/action-taken`, { remarks }),
+    mutationFn: ({
+      id,
+      action_taken,
+      action_taken_date,
+    }: {
+      id: string;
+      action_taken: string;
+      action_taken_date?: string;
+    }) =>
+      api.put<DeFindingRow>(`/pm-findings/${id}/action-taken`, {
+        action_taken,
+        action_taken_date,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pm-findings"] });
       queryClient.invalidateQueries({ queryKey: ["pm-findings-kpis"] });

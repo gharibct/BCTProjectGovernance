@@ -106,7 +106,7 @@ export function DeFindingsFilterBar({
           aria-label="Status"
           className="h-9 bg-white text-sm"
           value={filters.status ?? "All"}
-          onChange={(e) => set({ status: e.target.value === "All" ? undefined : e.target.value })}
+          onChange={(e) => set({ status: e.target.value })}
         >
           <option value="Active">Active</option>
           {FINDING_STATUS_OPTIONS.map((s) => (

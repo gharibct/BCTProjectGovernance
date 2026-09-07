@@ -37,10 +37,12 @@ def _fake_finding(**overrides):
         "description": "x",
         "assigned_to": None,
         "action_taken": None,
+        "action_taken_date": None,
         "finding_date": None,
         "due_date": None,
         "status": "Open",
         "remarks": None,
+        "closure_date": None,
         "created_at": now,
         "updated_at": now,
     }
@@ -136,13 +138,14 @@ async def test_action_taken_as_owning_pm(client, override_auth):
 
     response = await client.put(
         f"/api/v1/pm-findings/{finding_id}/action-taken",
-        json={"remarks": "Reconfigured the pipeline and validated"},
+        json={"action_taken": "Reconfigured the pipeline and validated", "action_taken_date": "2026-09-01"},
         headers=headers,
     )
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "Awaiting Closure"
-    assert body["remarks"] == "Reconfigured the pipeline and validated"
+    assert body["action_taken"] == "Reconfigured the pipeline and validated"
+    assert body["action_taken_date"] == "2026-09-01"
 
 
 async def test_action_taken_as_admin_bypasses_owner_check(client, override_auth):
@@ -156,14 +159,14 @@ async def test_action_taken_as_admin_bypasses_owner_check(client, override_auth)
     )
     response = await client.put(
         f"/api/v1/pm-findings/{finding_id}/action-taken",
-        json={"remarks": "Closed out on the PM's behalf"},
+        json={"action_taken": "Closed out on the PM's behalf"},
         headers=headers,
     )
     assert response.status_code == 200
     assert response.json()["status"] == "Awaiting Closure"
 
 
-async def test_action_taken_requires_remarks(client, override_auth):
+async def test_action_taken_requires_action_taken(client, override_auth):
     finding_id = uuid4()
     headers = override_auth(
         RoleCode.PROJECT_MANAGER,
@@ -172,7 +175,7 @@ async def test_action_taken_requires_remarks(client, override_auth):
             (Project, _PROJECT_ID): _fake_project(),
         },
     )
-    for body in ({}, {"remarks": ""}):
+    for body in ({}, {"action_taken": ""}):
         response = await client.put(
             f"/api/v1/pm-findings/{finding_id}/action-taken", json=body, headers=headers
         )
@@ -187,7 +190,7 @@ async def test_action_taken_forbidden_for_de(client, override_auth):
     )
     response = await client.put(
         f"/api/v1/pm-findings/{finding_id}/action-taken",
-        json={"remarks": "x"},
+        json={"action_taken": "x"},
         headers=headers,
     )
     assert response.status_code == 403
@@ -204,7 +207,7 @@ async def test_action_taken_forbidden_when_not_the_projects_pm(client, override_
     )
     response = await client.put(
         f"/api/v1/pm-findings/{finding_id}/action-taken",
-        json={"remarks": "trying to touch someone else's project"},
+        json={"action_taken": "trying to touch someone else's project"},
         headers=headers,
     )
     assert response.status_code == 403
@@ -214,7 +217,7 @@ async def test_action_taken_404_when_finding_missing(client, override_auth):
     headers = override_auth(RoleCode.PROJECT_MANAGER)  # empty get_map
     response = await client.put(
         f"/api/v1/pm-findings/{uuid4()}/action-taken",
-        json={"remarks": "x"},
+        json={"action_taken": "x"},
         headers=headers,
     )
     assert response.status_code == 404
@@ -233,7 +236,7 @@ async def test_action_taken_409_when_finding_already_closed(client, override_aut
     project.project_manager_id = override_auth.user.id
     response = await client.put(
         f"/api/v1/pm-findings/{finding_id}/action-taken",
-        json={"remarks": "too late"},
+        json={"action_taken": "too late"},
         headers=headers,
     )
     assert response.status_code == 409

@@ -20,6 +20,11 @@ export function FindingsDrawerTrigger({
 }) {
   const [open, setOpen] = React.useState(false);
   const overdueCount = findings.filter((f) => f.overdue).length;
+  // Button count reflects findings that still need attention — Active (Open /
+  // In Progress), Overdue, and Awaiting Closure. Closed and Cancelled are excluded.
+  const activeCount = findings.filter(
+    (f) => f.status !== "Closed" && f.status !== "Cancelled"
+  ).length;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -30,7 +35,7 @@ export function FindingsDrawerTrigger({
         >
           <span className="text-xs font-bold tracking-wider text-slate-500 uppercase">Findings</span>
           <span className="rounded-full bg-[#1a6fc4] px-2 py-0.5 text-xs font-bold text-white">
-            {findings.length}
+            {activeCount}
           </span>
           {overdueCount > 0 ? (
             <span className="flex items-center text-xs font-semibold text-red-600">

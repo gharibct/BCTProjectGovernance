@@ -25,6 +25,9 @@ EXCLUDED_TABLES: frozenset[str] = frozenset(
         # category as user_activity_log above.
         "actions",
         "action_history",
+        # DE finding audit trail — append-only, written only by the finding
+        # write paths (same category as action_history above).
+        "de_assessment_finding_history",
         # Amend Approved Project: a control row + a pure append-only pre-amend
         # value snapshot, written only by the amendment service — not master data.
         "project_amendments",

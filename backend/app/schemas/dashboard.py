@@ -87,6 +87,35 @@ class HighlightRow(BaseModel):
     created_at: datetime
 
 
+class OpenNcRow(BaseModel):
+    """One open Non-Conformance — a DE assessment finding classified 'NC'
+    whose status is still open. Row shape for the "Open NC" list section
+    added to the PM, Account and CXO dashboards; on the Account/CXO
+    dashboards the list rolls up across every in-scope project."""
+
+    finding_id: UUID
+    project_id: UUID
+    project_label: str
+    account_name: str | None = None
+    category: str
+    classification: str
+    description: str | None = None
+    owner_name: str | None = None
+    finding_date: date | None = None
+    due_date: date | None = None
+    age_days: int | None = None
+    status: FindingStatus
+
+
+class OpenNcListResponse(BaseModel):
+    """Standalone "Open NC" payload for a single project / account / geo —
+    the per-entity Project, Account and Geo dashboards (both the reporting
+    hub and the review screen) render this as a KPI count + list section."""
+
+    open_ncs_count: int
+    open_ncs: list[OpenNcRow]
+
+
 class DashboardSummary(BaseModel):
     active_projects: int
     projects_by_type: list[ProjectTypeBreakdownRow]
@@ -102,6 +131,10 @@ class DashboardSummary(BaseModel):
     project_matrix: list[HealthMatrixRow]
     account_highlights: list[HighlightRow]
     project_highlights: list[HighlightRow]
+    # Open Non-Conformances (NC-classified DE findings) rolled up across
+    # every in-scope project — KPI count plus the full list.
+    open_ncs_count: int
+    open_ncs: list[OpenNcRow]
 
 
 # Project Manager "My Summary" (design-reference/pm-mysummary.jpg) — a
@@ -161,10 +194,12 @@ class MyDashboardSummary(BaseModel):
     open_actions_medium: int
     open_actions_low: int
     open_findings_count: int
+    open_ncs_count: int
     attention_items: list[AttentionItem]
     raido: RaidoSummary
     project_health: list[MyProjectHealthRow]
     open_actions: list[MyOpenActionRow]
+    open_ncs: list[OpenNcRow]
 
 
 # Account Head "My Summary" (design-reference/acchead-mysummary.jpg) — the
@@ -231,11 +266,14 @@ class AccountHeadDashboardSummary(BaseModel):
     open_actions_high: int
     open_actions_medium: int
     open_actions_low: int
+    open_ncs_count: int
     report_review_queue: list[ReportReviewQueueRow]
     account_portfolio_health: list[AccountPortfolioHealthRow]
     attention_items: list[AttentionItem]
     reporting_readiness: ReportingReadiness
     open_actions: list[AccountHeadOpenActionRow]
+    # Open Non-Conformances rolled up across every project in the account(s).
+    open_ncs: list[OpenNcRow]
 
 
 # Geo Head "My Summary" (design-reference/geohead-mysummary.jpg) — the Geo
@@ -523,6 +561,8 @@ class ProjectListRow(BaseModel):
     region_name: str | None = None
     account_name: str | None = None
     project_manager_name: str | None = None
+    # Ownership model — "Fully Owned", "Co-Owned", "Customer Driven" (schemas.enums.ProjectOwned).
+    project_owned: str | None = None
     start_date: date | None = None
     end_date: date | None = None
     overall_health: HealthRating | None = None

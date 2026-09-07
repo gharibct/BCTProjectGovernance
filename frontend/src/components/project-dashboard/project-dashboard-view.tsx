@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { ProjectHeader } from "@/components/shell/project-header";
 import { OverviewSection } from "@/components/status-review/overview-section";
 import { RagStatusSection } from "@/components/status-review/rag-status-section";
+import { OpenNcSection } from "@/components/status-review/open-nc-section";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
 import { currentPeriod } from "@/lib/period-utils";
@@ -43,6 +44,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
         <>
           <OverviewSection scope="project" scopeId={projectId} periodId={periodId} />
           <RagStatusSection scope="project" scopeId={projectId} periodId={periodId} />
+          <OpenNcSection scope="project" scopeId={projectId} />
           <SubmitReportAction projectId={projectId} periodId={periodId} report={report} />
         </>
       )}

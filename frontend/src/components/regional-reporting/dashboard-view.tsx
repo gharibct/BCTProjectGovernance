@@ -9,6 +9,7 @@ import { SubmitReportAction } from "./submit-report-action";
 import { GeoAccountMatrixSection } from "@/components/status-review/geo-account-matrix-section";
 import { OverviewSection } from "@/components/status-review/overview-section";
 import { RagStatusSection } from "@/components/status-review/rag-status-section";
+import { OpenNcSection } from "@/components/status-review/open-nc-section";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useRegionalStatusReports, type RegionalScope } from "@/lib/api/regional-status";
 import { currentPeriod } from "@/lib/period-utils";
@@ -57,12 +58,14 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
           <GeoAccountMatrixSection geoId={scopeId} accented />
           <ExecutiveUpdateSection geoId={scopeId} periodId={periodId} />
           <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
+          <OpenNcSection scope={scope} scopeId={scopeId} />
           <SubmitReportAction scope={scope} scopeId={scopeId} periodId={periodId} report={report} />
         </>
       ) : (
         <>
           <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
           <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
+          <OpenNcSection scope={scope} scopeId={scopeId} />
           <SubmitReportAction scope={scope} scopeId={scopeId} periodId={periodId} report={report} />
         </>
       )}

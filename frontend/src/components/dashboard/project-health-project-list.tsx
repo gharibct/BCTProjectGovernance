@@ -55,6 +55,7 @@ export function ProjectHealthProjectList() {
       excelValue: (row) => formatGeoRegion(row.geo_name, row.region_name),
     },
     { key: "account_name", label: "Account" },
+    { key: "project_owned", label: "Ownership", render: (row) => row.project_owned ?? "—" },
     { key: "project_manager_name", label: "Project Manager" },
     { key: "start_date", label: "Start Date", render: (row) => formatDate(row.start_date) },
     { key: "end_date", label: "End Date", render: (row) => formatDate(row.end_date) },
@@ -79,6 +80,8 @@ export function ProjectHealthProjectList() {
           setSkip(0);
         }}
         showPeriod={false}
+        showRegion
+        showOwnership
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

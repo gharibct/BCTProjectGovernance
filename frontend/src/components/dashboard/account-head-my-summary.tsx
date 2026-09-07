@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useAccountHeadDashboardSummary } from "@/lib/api/account-head-dashboard";
 import { AccountHeadReportReviewQueue } from "./account-head-report-review-queue";
 import { AccountHeadPortfolioHealth } from "./account-head-portfolio-health";
+import { OpenNcList } from "./open-nc-list";
 
 // Account Head "My Summary" (design-reference/acchead-mysummary.jpg) — the
 // ACCOUNT_MANAGER role's counterpart to pm-my-summary.tsx: same real,
@@ -79,7 +80,7 @@ export function AccountHeadMySummary() {
         <p className="text-slate-400">Loading…</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-7">
             <StatCard label="Accounts" value={data.accounts_count} />
             <StatCard label="Active Projects" value={data.active_projects_count} />
             <StatCard
@@ -104,6 +105,12 @@ export function AccountHeadMySummary() {
                   <span className="text-blue-400">{data.open_actions_low}</span>
                 </span>
               }
+            />
+            <StatCard
+              label="Open NC"
+              value={data.open_ncs_count}
+              accent={data.open_ncs_count > 0 ? "amber" : undefined}
+              hint="Non-Conformances"
             />
           </div>
 
@@ -217,6 +224,8 @@ export function AccountHeadMySummary() {
               </section>
             </div>
           </div>
+
+          <OpenNcList rows={data.open_ncs} showAccount />
         </>
       )}
     </div>

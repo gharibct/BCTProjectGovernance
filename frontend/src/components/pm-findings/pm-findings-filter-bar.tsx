@@ -2,13 +2,15 @@
 
 import { NativeSelect } from "@/components/ui/native-select";
 import { useProjects } from "@/lib/api/projects";
-import { useSession } from "@/stores/session";
+import { useEffectiveRole, useSession } from "@/stores/session";
 import { FINDING_STATUS_OPTIONS, type PmFindingsFilter } from "@/lib/api/pm-findings";
 
 const DEFAULTS: PmFindingsFilter = { status: "Active" };
 
-// The list is already scoped server-side to the caller's own projects, so this
-// only needs Project / Status (the KPI tiles + attention chips drive the `bucket`).
+// The list is scoped server-side (pm_findings._pm_scope): ADMIN sees every
+// project's findings, every other role only their own. The Project picker
+// mirrors that scope so it can't offer — or hide — a project the grid wouldn't
+// show. (The KPI tiles + attention chips drive the `bucket`.)
 export function PmFindingsFilterBar({
   filters,
   onChange,
@@ -17,8 +19,10 @@ export function PmFindingsFilterBar({
   onChange: (next: PmFindingsFilter) => void;
 }) {
   const userId = useSession((s) => s.user?.id);
+  const role = useEffectiveRole();
   const { data: projects = [] } = useProjects();
-  const myProjects = projects.filter((p) => p.project_manager_id === userId);
+  const myProjects =
+    role === "ADMIN" ? projects : projects.filter((p) => p.project_manager_id === userId);
 
   const set = (patch: Partial<PmFindingsFilter>) => onChange({ ...filters, ...patch });
 
@@ -49,7 +53,7 @@ export function PmFindingsFilterBar({
           aria-label="Status"
           className="h-9 bg-white text-sm"
           value={filters.status ?? "All"}
-          onChange={(e) => set({ status: e.target.value === "All" ? undefined : e.target.value })}
+          onChange={(e) => set({ status: e.target.value })}
         >
           <option value="Active">Active</option>
           {FINDING_STATUS_OPTIONS.map((s) => (

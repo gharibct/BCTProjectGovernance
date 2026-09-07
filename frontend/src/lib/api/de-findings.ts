@@ -5,10 +5,13 @@ import {
   FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
   FINDING_STATUS_OPTIONS,
+  useDEFindingHistory,
   type DEAssessmentFinding,
   type DEAssessmentFindingPayload,
   type FindingCategory,
   type FindingClassification,
+  type FindingHistoryEntry,
+  type FindingHistoryEventType,
   type FindingStatus,
 } from "./de-assessment";
 
@@ -16,8 +19,15 @@ export {
   FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
   FINDING_STATUS_OPTIONS,
+  useDEFindingHistory,
 };
-export type { FindingCategory, FindingClassification, FindingStatus };
+export type {
+  FindingCategory,
+  FindingClassification,
+  FindingHistoryEntry,
+  FindingHistoryEventType,
+  FindingStatus,
+};
 
 // The KPI-tile / attention-chip quick filters. One at a time, AND-composed
 // with every other filter (see backend services/de_findings.py).
@@ -49,10 +59,12 @@ export type DeFindingRow = {
   description: string | null;
   assigned_to: string | null;
   action_taken: string | null;
+  action_taken_date: string | null;
   finding_date: string | null;
   due_date: string | null;
   status: FindingStatus;
   remarks: string | null;
+  closure_date: string | null;
   created_at: string;
   updated_at: string;
   project_label: string;
@@ -110,6 +122,8 @@ export function useDeFindingsKpis(params: Pick<DeFindingsFilter, "geoId" | "acco
 function invalidate(queryClient: ReturnType<typeof useQueryClient>, projectId: string) {
   queryClient.invalidateQueries({ queryKey: ["de-findings"] });
   queryClient.invalidateQueries({ queryKey: ["de-findings-kpis"] });
+  // The finding drawer's "Progress & History" timeline.
+  queryClient.invalidateQueries({ queryKey: ["de-finding-history"] });
   // Keep the project-scoped register (DE Assessment Workspace drawer) and the
   // DE dashboard finding counts in sync.
   queryClient.invalidateQueries({ queryKey: ["de-assessment-findings", projectId] });

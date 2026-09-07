@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
 import type { ActionPriority } from "./actions";
 import type { HealthRating } from "./projects";
+import type { OpenNcRow } from "./dashboard";
+
+export type { OpenNcRow };
 
 // Account Head "My Summary" (design-reference/acchead-mysummary.jpg) — the
 // ACCOUNT_MANAGER role's counterpart to pm-dashboard.ts's
@@ -70,11 +73,13 @@ export type AccountHeadDashboardSummary = {
   open_actions_high: number;
   open_actions_medium: number;
   open_actions_low: number;
+  open_ncs_count: number;
   report_review_queue: ReportReviewQueueRow[];
   account_portfolio_health: AccountPortfolioHealthRow[];
   attention_items: AttentionItem[];
   reporting_readiness: ReportingReadiness;
   open_actions: AccountHeadOpenActionRow[];
+  open_ncs: OpenNcRow[];
 };
 
 export function useAccountHeadDashboardSummary() {

@@ -42,15 +42,56 @@ def _fake_finding(**overrides):
         "description": "x",
         "assigned_to": None,
         "action_taken": None,
+        "action_taken_date": None,
         "finding_date": None,
         "due_date": None,
         "status": "Open",
         "remarks": None,
+        "closure_date": None,
         "created_at": now,
         "updated_at": now,
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
+
+
+# --- _conditions (pure) -----------------------------------------------------
+# The status sentinel handling + "a bucket owns the status dimension" rule that
+# keeps a KPI tile's count from disagreeing with an empty grid.
+
+from app.services.de_findings import DEFindingFilters, _conditions  # noqa: E402
+
+
+def _rendered(filters: DEFindingFilters) -> list[str]:
+    return [str(c) for c in _conditions(filters)]
+
+
+async def test_conditions_status_active_excludes_closed_and_cancelled():
+    rendered = _rendered(DEFindingFilters(status="Active"))
+    assert any("status NOT IN" in r for r in rendered)
+
+
+async def test_conditions_status_all_applies_no_status_filter():
+    assert not any("status" in r for r in _rendered(DEFindingFilters(status="All")))
+    assert not any("status" in r for r in _rendered(DEFindingFilters(status=None)))
+
+
+async def test_conditions_concrete_status_is_an_exact_match():
+    conditions = _conditions(DEFindingFilters(status="Closed"))
+    assert any(getattr(c, "right", None) is not None and c.right.value == "Closed" for c in conditions)
+
+
+async def test_conditions_bucket_owns_status_dimension():
+    # "Active" (the default) + the closed_this_period tile must NOT produce the
+    # contradictory "status NOT IN (Closed, Cancelled)" AND "status = Closed".
+    rendered = _rendered(DEFindingFilters(status="Active", bucket="closed_this_period"))
+    assert not any("NOT IN" in r for r in rendered)
+    assert any("status =" in r.replace("!=", "") for r in rendered)
+
+
+async def test_conditions_closed_this_period_bucket_matches_closed():
+    conditions = _conditions(DEFindingFilters(bucket="closed_this_period"))
+    assert any(getattr(c, "right", None) is not None and c.right.value == "Closed" for c in conditions)
 
 
 # --- GET /de-findings (list) --------------------------------------------------
@@ -249,3 +290,121 @@ async def test_update_404_when_finding_missing(client, override_auth):
         f"/api/v1/de-findings/{uuid4()}", json={"status": "Closed"}, headers=headers
     )
     assert response.status_code == 404
+
+
+# --- DE Findings Closure: closure_date + verification remarks + reopen ----------
+
+
+async def test_closing_without_a_date_defaults_closure_date_to_today(client, override_auth):
+    from datetime import date
+
+    finding_id = uuid4()
+    headers = override_auth(
+        RoleCode.DELIVERY_EXCELLENCE,
+        get_map={
+            (DEAssessmentFinding, finding_id): _fake_finding(id=finding_id, status="Awaiting Closure"),
+            (Project, _PROJECT_ID): _fake_project(),
+        },
+    )
+    response = await client.put(
+        f"/api/v1/de-findings/{finding_id}",
+        json={"status": "Closed", "remarks": "Verified in prod"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "Closed"
+    assert body["closure_date"] == date.today().isoformat()
+    assert body["remarks"] == "Verified in prod"
+
+
+async def test_closing_keeps_an_explicit_closure_date(client, override_auth):
+    finding_id = uuid4()
+    headers = override_auth(
+        RoleCode.DELIVERY_EXCELLENCE,
+        get_map={
+            (DEAssessmentFinding, finding_id): _fake_finding(id=finding_id, status="Awaiting Closure"),
+            (Project, _PROJECT_ID): _fake_project(),
+        },
+    )
+    response = await client.put(
+        f"/api/v1/de-findings/{finding_id}",
+        json={"status": "Closed", "closure_date": "2026-08-15", "remarks": "ok"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["closure_date"] == "2026-08-15"
+
+
+async def test_a_closed_finding_cannot_be_reopened(client, override_auth):
+    finding_id = uuid4()
+    headers = override_auth(
+        RoleCode.DELIVERY_EXCELLENCE,
+        get_map={
+            (DEAssessmentFinding, finding_id): _fake_finding(
+                id=finding_id, status="Closed", closure_date="2026-08-15", remarks="Verified"
+            ),
+            (Project, _PROJECT_ID): _fake_project(),
+        },
+    )
+    response = await client.put(
+        f"/api/v1/de-findings/{finding_id}",
+        json={"status": "Open"},
+        headers=headers,
+    )
+    assert response.status_code == 409
+
+
+async def test_reopening_from_awaiting_closure_goes_to_open_and_clears_closure_fields(
+    client, override_auth
+):
+    finding_id = uuid4()
+    headers = override_auth(
+        RoleCode.DELIVERY_EXCELLENCE,
+        get_map={
+            (DEAssessmentFinding, finding_id): _fake_finding(
+                id=finding_id, status="Awaiting Closure", closure_date="2026-08-15", remarks="draft"
+            ),
+            (Project, _PROJECT_ID): _fake_project(),
+        },
+    )
+    response = await client.put(
+        f"/api/v1/de-findings/{finding_id}",
+        json={"status": "Open"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "Open"
+    assert body["closure_date"] is None
+    assert body["remarks"] is None
+
+
+# --- GET /de-findings/{id}/history -----------------------------------------------
+
+
+async def test_finding_history_forbidden_for_non_de(client, override_auth):
+    finding_id = uuid4()
+    headers = override_auth(
+        RoleCode.TEAM_MEMBER,
+        get_map={(DEAssessmentFinding, finding_id): _fake_finding(id=finding_id)},
+    )
+    response = await client.get(f"/api/v1/de-findings/{finding_id}/history", headers=headers)
+    assert response.status_code == 403
+
+
+async def test_finding_history_404_when_finding_missing(client, override_auth):
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE)  # empty get_map
+    response = await client.get(f"/api/v1/de-findings/{uuid4()}/history", headers=headers)
+    assert response.status_code == 404
+
+
+async def test_finding_history_returns_a_list_for_de(client, override_auth):
+    finding_id = uuid4()
+    headers = override_auth(
+        RoleCode.DELIVERY_EXCELLENCE,
+        get_map={(DEAssessmentFinding, finding_id): _fake_finding(id=finding_id)},
+    )
+    response = await client.get(f"/api/v1/de-findings/{finding_id}/history", headers=headers)
+    assert response.status_code == 200
+    assert response.json() == []

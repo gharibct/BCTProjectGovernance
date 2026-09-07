@@ -12,15 +12,22 @@ import { usePageBanner } from "@/stores/page-banner";
 import {
   FINDING_CATEGORY_OPTIONS,
   FINDING_CLASSIFICATION_OPTIONS,
+  useDEFindingHistory,
   useUpdateDeFinding,
   type DeFindingRow,
   type FindingCategory,
-  type FindingClassification,
   type FindingStatus,
 } from "@/lib/api/de-findings";
+import { FindingHistoryTimeline } from "./finding-history-timeline";
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 type Transition = { label: string; next: FindingStatus; className?: string };
 
+// Plain (no extra capture) status moves. "Closed" and reopening are handled
+// separately below because closing captures a date + verification remarks.
 function transitionsFor(status: FindingStatus): Transition[] {
   switch (status) {
     case "Open":
@@ -33,13 +40,15 @@ function transitionsFor(status: FindingStatus): Transition[] {
         { label: "Mark Awaiting Closure", next: "Awaiting Closure" },
         { label: "Cancel Finding", next: "Cancelled" },
       ];
-    case "Awaiting Closure":
-      return [{ label: "Close Finding", next: "Closed", className: "bg-emerald-600 hover:bg-emerald-700" }];
     default:
       return [];
   }
 }
 
+// DE Findings Closure drawer — read-only view of the finding (edits to its
+// core fields live in the DE Assessment Workspace register), plus the status
+// transitions. An "Awaiting Closure" finding can be Closed (captures a Closure
+// Date + Verification Remarks) or Reopened back to Open. Closed is terminal.
 export function DeFindingsDetailView({
   row,
   canWrite,
@@ -50,46 +59,16 @@ export function DeFindingsDetailView({
   onClose: () => void;
 }) {
   const updateFinding = useUpdateDeFinding();
+  const { data: history = [] } = useDEFindingHistory(row.project_id, row.id);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
-  const [description, setDescription] = React.useState(() => row.description ?? "");
-  const [category, setCategory] = React.useState<FindingCategory | "">(
-    () => (row.category as FindingCategory) ?? ""
-  );
-  const [classification, setClassification] = React.useState<FindingClassification>(row.classification);
-  // A finding is always owned by the project's PM; there is no assignee picker.
-  // The finding's stored `assigned_to` is preserved as-is on save.
-  const assignedTo = row.assigned_to ?? "";
-  const [findingDate, setFindingDate] = React.useState(() => row.finding_date ?? "");
-  const [dueDate, setDueDate] = React.useState(() => row.due_date ?? "");
-  const [remarks, setRemarks] = React.useState(() => row.remarks ?? "");
+  const [closureDate, setClosureDate] = React.useState(today);
+  const [verificationRemarks, setVerificationRemarks] = React.useState("");
 
-  const save = () => {
+  const runTransition = (next: FindingStatus, extra?: { closure_date?: string; remarks?: string }) => {
     updateFinding.mutate(
-      {
-        id: row.id,
-        projectId: row.project_id,
-        payload: {
-          category: category || undefined,
-          classification,
-          description: description.trim() || undefined,
-          assigned_to: assignedTo || undefined,
-          finding_date: findingDate || undefined,
-          due_date: dueDate || undefined,
-          remarks: remarks.trim() || undefined,
-        },
-      },
-      {
-        onSuccess: () => showSuccess("Finding updated."),
-        onError: (err) => showError(err instanceof Error ? err.message : "Failed to update finding."),
-      }
-    );
-  };
-
-  const runTransition = (next: FindingStatus) => {
-    updateFinding.mutate(
-      { id: row.id, projectId: row.project_id, payload: { status: next } },
+      { id: row.id, projectId: row.project_id, payload: { status: next, ...extra } },
       {
         onSuccess: () => {
           showSuccess(`Finding marked ${next}.`);
@@ -99,6 +78,8 @@ export function DeFindingsDetailView({
       }
     );
   };
+
+  const isAwaitingClosure = row.status === "Awaiting Closure";
 
   return (
     <div className="flex flex-col gap-5 p-6">
@@ -112,50 +93,31 @@ export function DeFindingsDetailView({
       </div>
 
       <Field label="Finding" htmlFor="detail-finding-description">
-        <Textarea
-          id="detail-finding-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          disabled={!canWrite}
-        />
+        <Textarea id="detail-finding-description" value={row.description ?? ""} rows={3} disabled />
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Category" htmlFor="detail-finding-category">
-          <NativeSelect
-            id="detail-finding-category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as FindingCategory)}
-            disabled={!canWrite}
-          >
-            <option value="" disabled>
-              Select…
-            </option>
+          <NativeSelect id="detail-finding-category" value={row.category} disabled>
             {FINDING_CATEGORY_OPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
-            {category && !FINDING_CATEGORY_OPTIONS.includes(category as FindingCategory) ? (
-              <option value={category}>{category}</option>
+            {row.category && !FINDING_CATEGORY_OPTIONS.includes(row.category as FindingCategory) ? (
+              <option value={row.category}>{row.category}</option>
             ) : null}
           </NativeSelect>
         </Field>
         <Field label="Classification" htmlFor="detail-finding-classification">
-          <NativeSelect
-            id="detail-finding-classification"
-            value={classification}
-            onChange={(e) => setClassification(e.target.value as FindingClassification)}
-            disabled={!canWrite}
-          >
+          <NativeSelect id="detail-finding-classification" value={row.classification} disabled>
             {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
-            {!FINDING_CLASSIFICATION_OPTIONS.includes(classification) ? (
-              <option value={classification}>{classification}</option>
+            {!FINDING_CLASSIFICATION_OPTIONS.includes(row.classification) ? (
+              <option value={row.classification}>{row.classification}</option>
             ) : null}
           </NativeSelect>
         </Field>
@@ -163,44 +125,101 @@ export function DeFindingsDetailView({
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Finding Date" htmlFor="detail-finding-date">
-          <Input
-            id="detail-finding-date"
-            type="date"
-            value={findingDate}
-            onChange={(e) => setFindingDate(e.target.value)}
-            disabled={!canWrite}
-          />
+          <Input id="detail-finding-date" type="date" value={row.finding_date ?? ""} disabled />
         </Field>
         <Field label="Due Date" htmlFor="detail-finding-due-date">
-          <Input
-            id="detail-finding-due-date"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            disabled={!canWrite}
-          />
+          <Input id="detail-finding-due-date" type="date" value={row.due_date ?? ""} disabled />
         </Field>
       </div>
 
-      <Field label="Remarks" htmlFor="detail-finding-remarks">
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Action Taken Date" htmlFor="detail-finding-action-taken-date">
+          <Input
+            id="detail-finding-action-taken-date"
+            type="date"
+            value={row.action_taken_date ?? ""}
+            disabled
+          />
+        </Field>
+        {row.closure_date ? (
+          <Field label="Closure Date" htmlFor="detail-finding-closure-date">
+            <Input id="detail-finding-closure-date" type="date" value={row.closure_date} disabled />
+          </Field>
+        ) : null}
+      </div>
+
+      <Field label="Action Taken" htmlFor="detail-finding-action-taken">
         <Textarea
-          id="detail-finding-remarks"
-          value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
-          rows={4}
-          disabled={!canWrite}
+          id="detail-finding-action-taken"
+          value={row.action_taken ?? ""}
+          rows={3}
+          disabled
+          placeholder="Recorded by the PM"
         />
       </Field>
 
-      {canWrite ? (
-        <>
-          <Button onClick={save} disabled={updateFinding.isPending} className="gap-2 self-start">
-            {updateFinding.isPending ? <ButtonSpinner /> : null}
-            Save Changes
-          </Button>
+      <Field label="Verification Remarks" htmlFor="detail-finding-verification-remarks">
+        <Textarea
+          id="detail-finding-verification-remarks"
+          value={row.remarks ?? ""}
+          rows={3}
+          disabled
+          placeholder="Recorded by the DE at closure"
+        />
+      </Field>
+
+      {canWrite && (transitionsFor(row.status).length > 0 || isAwaitingClosure) ? (
+        <div className="flex flex-col gap-4 border-t border-slate-200 pt-5">
+          {isAwaitingClosure ? (
+            <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <span className="text-xs font-bold tracking-wide text-slate-500 uppercase">Close Finding</span>
+              <Field label="Closure Date" htmlFor="close-finding-date">
+                <Input
+                  id="close-finding-date"
+                  type="date"
+                  value={closureDate}
+                  onChange={(e) => setClosureDate(e.target.value)}
+                />
+              </Field>
+              <Field label="Verification Remarks" htmlFor="close-finding-remarks">
+                <Textarea
+                  id="close-finding-remarks"
+                  value={verificationRemarks}
+                  onChange={(e) => setVerificationRemarks(e.target.value)}
+                  rows={4}
+                  placeholder="What was verified before closing…"
+                />
+              </Field>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() =>
+                    runTransition("Closed", {
+                      closure_date: closureDate || undefined,
+                      remarks: verificationRemarks.trim() || undefined,
+                    })
+                  }
+                  disabled={updateFinding.isPending}
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {updateFinding.isPending ? <ButtonSpinner /> : null}
+                  Close Finding
+                </Button>
+                {/* Send it back to the PM — the action taken wasn't enough to close. */}
+                <Button
+                  onClick={() => runTransition("Open")}
+                  disabled={updateFinding.isPending}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  {updateFinding.isPending ? <ButtonSpinner /> : null}
+                  Reopen Finding
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           {transitionsFor(row.status).length > 0 ? (
-            <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-5">
+            <div className="flex flex-wrap gap-3">
               {transitionsFor(row.status).map((t) => (
                 <Button
                   key={t.next}
@@ -214,8 +233,10 @@ export function DeFindingsDetailView({
               ))}
             </div>
           ) : null}
-        </>
+        </div>
       ) : null}
+
+      <FindingHistoryTimeline entries={history} />
     </div>
   );
 }

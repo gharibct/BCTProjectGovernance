@@ -133,8 +133,12 @@ export type ProjectHealthDashboardSummary = {
 
 export type ProjectHealthDashboardFilters = {
   geoId?: string;
+  // Region + ownership are only wired through the Project Health project list
+  // screen's filter bar (showRegion / showOwnership); other screens leave them unset.
+  regionId?: string;
   accountId?: string;
   projectTypeId?: string;
+  projectOwned?: string;
   periodId?: string;
 };
 

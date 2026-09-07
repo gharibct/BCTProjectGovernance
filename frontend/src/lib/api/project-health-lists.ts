@@ -24,6 +24,7 @@ export type ProjectListRow = {
   region_name: string | null;
   account_name: string | null;
   project_manager_name: string | null;
+  project_owned: string | null;
   start_date: string | null;
   end_date: string | null;
   overall_health: string | null;
@@ -243,6 +244,10 @@ export type ProjectHealthListParams = ProjectHealthDashboardFilters & {
   skip?: number;
   limit?: number;
   search?: string;
+  // Findings screen only — narrow to one classification, and/or split on
+  // overdue (true) / not overdue (false); undefined = no narrowing.
+  classification?: string;
+  overdue?: boolean;
 };
 
 // Single source for the drill-down list endpoint paths — shared by the
@@ -291,10 +296,14 @@ export async function fetchAllProjectHealthRows<T>(
 function buildParams(params: ProjectHealthListParams): string {
   const q = new URLSearchParams();
   if (params.geoId) q.set("geo_id", params.geoId);
+  if (params.regionId) q.set("region_id", params.regionId);
   if (params.accountId) q.set("account_id", params.accountId);
   if (params.projectTypeId) q.set("project_type_id", params.projectTypeId);
+  if (params.projectOwned) q.set("project_owned", params.projectOwned);
   if (params.periodId) q.set("period_id", params.periodId);
   if (params.search) q.set("search", params.search);
+  if (params.classification) q.set("classification", params.classification);
+  if (params.overdue !== undefined) q.set("overdue", String(params.overdue));
   q.set("skip", String(params.skip ?? 0));
   q.set("limit", String(params.limit ?? 10));
   return q.toString();

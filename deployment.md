@@ -1,10 +1,12 @@
+**This is a fresh machine with a fresh Postgres instance — no existing data to preserve.**
+
 **Files you need to change on the new server**
 
 backend/.env (copy from .env.example, then edit):
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@192.168.1.175:5432/Project_Governance_01
+DATABASE_URL=postgresql+asyncpg://postgres:<password>@localhost:5432/project_governance
 API_KEY=<pick a real secret>
 CORS_ORIGINS=http://<new-server-ip-or-domain>:3000
-Keep the DB host as 192.168.1.175 (unchanged). Set CORS_ORIGINS to wherever the frontend will actually be reached from — otherwise the browser will get CORS errors.
+Point DATABASE_URL at the new box's own Postgres instance (localhost, once you've created the database there — see step 0 below), not at 192.168.1.175. Set CORS_ORIGINS to wherever the frontend will actually be reached from — otherwise the browser will get CORS errors.
 
 Auth (see the OneLogin SSO integration plan for the full picture):
 AUTH_TYPE=no_password | onelogin
@@ -30,6 +32,27 @@ requests server-side to the backend.
 
 Steps
 
+0. Database (new Postgres instance — nothing exists yet)
+- Install Postgres on the new machine if it isn't already, and create the database:
+  createdb -U postgres project_governance
+- Load the schema (run from the repo root so \ir's relative paths resolve):
+  psql -U postgres -d project_governance -f db/run_all.sql
+- Seed the minimum required to use the app — role codes the backend checks
+  by name, reporting periods the dropdowns need, and one Admin user so
+  someone can log in at all (AUTH_TYPE=no_password looks up an existing
+  users row by identifier — an empty users table means nobody can sign in):
+  psql -U postgres -d project_governance -f db/seed_deployment.sql
+  Edit the identifier/email/name in that file first if the seeded Admin
+  shouldn't be hari.g@bahwancybertek.com. Everything else — organizations,
+  geos, regions, project types, products, accounts — is deliberately left
+  out; add real values afterward via the app once logged in as Admin
+  (Admin screens, or the Master Data Excel import/export tool).
+- db/seed_dev.sql and the various db/add_*.sql files are NOT needed here:
+  seed_dev.sql is dev-only demo data (fictional accounts/projects, extra
+  demo logins), and the add_*.sql scripts are additive patches for an
+  already-deployed database — db/tables/19_de_assessments.sql already has
+  the final shape, so run_all.sql alone gives you the current schema.
+
 1. Backend
 cd backend
 python -m venv .venv
@@ -37,7 +60,6 @@ python -m venv .venv
 pip install -r requirements.txt
 # create/edit .env as above
 uvicorn app.main:app --host 0.0.0.0 --port 8000
-No migrations to run — the schema already exists on 192.168.1.175 and you're not touching it.
 
 2. Frontend
 cd frontend
@@ -48,7 +70,7 @@ npm run start -- -p 3000       # or set PORT env var
 
 3. Networking
 - Open inbound ports 8000 and 3000 on the new server's firewall.
-- On the DB server (192.168.1.175), confirm pg_hba.conf/firewall allows inbound Postgres connections (port 5432) from the new server's IP — if the DB previously only accepted connections from your old machine's IP, it'll need to allow the new one too.
+- Postgres is local to this box, so no inbound firewall rule is needed for it - just confirm it's listening on localhost:5432 (default) since the backend runs on the same machine.
 
 4. Keep it running
 Since these are bare uvicorn/next start processes, use a process manager so they survive reboots/logouts:

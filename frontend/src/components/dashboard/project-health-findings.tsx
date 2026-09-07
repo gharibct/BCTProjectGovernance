@@ -4,6 +4,8 @@ import * as React from "react";
 
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
+import { NativeSelect } from "@/components/ui/native-select";
+import { FINDING_CLASSIFICATION_OPTIONS } from "@/lib/api/de-assessment";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
 import {
   fetchAllProjectHealthRows,
@@ -20,12 +22,31 @@ const PAGE_SIZE = 10;
 
 type Row = FindingRow & { id: string };
 
+type DueStatus = "all" | "overdue" | "not_overdue";
+
+function formatDate(value: string | null): string {
+  return value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
+}
+
 export function ProjectHealthFindings() {
   const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
+  const [classification, setClassification] = React.useState<string>("");
+  const [dueStatus, setDueStatus] = React.useState<DueStatus>("all");
   const [skip, setSkip] = React.useState(0);
 
+  const overdue = dueStatus === "all" ? undefined : dueStatus === "overdue";
+  const listParams = {
+    ...filters,
+    classification: classification || undefined,
+    overdue,
+  };
+
   const { data: summary } = useProjectHealthDashboardSummary(filters);
-  const { data, isLoading, isError, error, refetch } = useProjectHealthFindings({ ...filters, skip, limit: PAGE_SIZE });
+  const { data, isLoading, isError, error, refetch } = useProjectHealthFindings({
+    ...listParams,
+    skip,
+    limit: PAGE_SIZE,
+  });
 
   const columns: RegisterColumn<Row>[] = [
     { key: "project_label", label: "Project" },
@@ -48,6 +69,7 @@ export function ProjectHealthFindings() {
       label: "Action Taken",
       render: (row) => <span className="line-clamp-2 max-w-xs text-slate-600">{row.action_taken || "—"}</span>,
     },
+    { key: "due_date", label: "Due Date", render: (row) => formatDate(row.due_date), excelValue: (row) => formatDate(row.due_date) },
     { key: "age_days", label: "Age", render: (row) => (row.age_days === null ? "—" : `${row.age_days} Days`) },
     { key: "status", label: "Status", badge: true },
   ];
@@ -69,7 +91,48 @@ export function ProjectHealthFindings() {
           setSkip(0);
         }}
         showPeriod={false}
-      />
+        extraFiltersActive={Boolean(classification) || dueStatus !== "all"}
+        onReset={() => {
+          setClassification("");
+          setDueStatus("all");
+          setSkip(0);
+        }}
+      >
+        <div className="w-48">
+          <NativeSelect
+            aria-label="Classification"
+            className="h-9 bg-white text-sm"
+            value={classification}
+            onChange={(e) => {
+              setClassification(e.target.value);
+              setSkip(0);
+            }}
+          >
+            <option value="">Classification [All]</option>
+            {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c === "NC" ? "NC (Non-Conformance)" : c}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+
+        <div className="w-44">
+          <NativeSelect
+            aria-label="Due status"
+            className="h-9 bg-white text-sm"
+            value={dueStatus}
+            onChange={(e) => {
+              setDueStatus(e.target.value as DueStatus);
+              setSkip(0);
+            }}
+          >
+            <option value="all">Due Status [All]</option>
+            <option value="overdue">Overdue</option>
+            <option value="not_overdue">Not Overdue</option>
+          </NativeSelect>
+        </div>
+      </ProjectHealthFilterBar>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Open Findings" value={summary?.findings.open_count ?? "—"} />
@@ -94,7 +157,7 @@ export function ProjectHealthFindings() {
             <ProjectHealthExportButton
               filename="project-health-findings"
               columns={columns}
-              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.findings, { ...filters })}
+              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.findings, { ...listParams })}
             />
           </div>
           <RegisterTable items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No findings found."} />
