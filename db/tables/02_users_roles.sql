@@ -1,5 +1,8 @@
 -- Users & Roles (UX requirements §4.14 Admin — Users & Roles).
--- Auth is LDAP-based (no local password store); MFA enrollment is tracked here.
+-- Auth is LDAP/OneLogin-based by default; `password_hash` holds a local scrypt
+-- hash for the optional AUTH_TYPE=password mode (null = no local password set,
+-- so that user can only sign in under a non-password auth mode). MFA enrollment
+-- is tracked here.
 
 CREATE TABLE roles (
     id UUID PRIMARY KEY,
@@ -19,6 +22,7 @@ CREATE TABLE users (
     email TEXT NOT NULL UNIQUE,
     role_id UUID NOT NULL REFERENCES roles(id),
     is_active BOOLEAN NOT NULL,
+    password_hash TEXT,
     mfa_enrolled BOOLEAN NOT NULL,
     mfa_enrolled_at TIMESTAMPTZ,
     last_login_at TIMESTAMPTZ,

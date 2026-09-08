@@ -381,4 +381,45 @@ CONSULTING:
     The Excel Measurement sheet has no Consulting section. Consulting's
     existing metrics (Effort Variation, SPI, CPI) are left unchanged and are
     not checked against any Excel reference.
-  metrics: []
+  metrics: 
+    - key: effort_variation_pct
+      label: Effort Variation
+      unit: "%"
+      mandatory: true
+      formula: "((Actual Effort - Planned Effort) / PlannedEffort) x 100"
+      operational_definition: >-
+        Percentage deviation of final or forecast actual effort from the
+        approved estimate. Positive values indicate overrun; negative values
+        indicate underrun.
+        Within -10% to +10%; investigate when absolute variation exceeds 10%.
+      benchmark_value: "10"
+      min_value: "-100"
+      max_value: ""
+
+    - key: schedule_performance_index
+      label: Schedule Performance Index (SPI)
+      unit: No Unit
+      mandatory: true
+      formula: "(Planned Effort (as on date) * Planned Completion %) / (Actual Effort (as on date) * Actual Completion %)"
+      operational_definition: >-
+        Schedule efficiency as of the reporting date. EV is budgeted effort
+        for work completed; PV is budgeted effort planned to be completed.
+        "Green: >= 0.95; Amber: 0.90-0.94; Red: < 0.90. Values > 1.00 indicate ahead of plan."
+      benchmark_value: "0.95"
+      min_value: "0"
+      max_value: ""
+
+    - key: cost_performance_index
+      label: Cost Performance Index (CPI)
+      unit: No Unit
+      mandatory: true
+      formula: "(Planned Effort (as on date) * Planned Completion %) / (Actual Effort (as on date))"
+      operational_definition: >-
+        Cost efficiency as of the reporting date. Where cost data is
+        unavailable, approved effort-hours may be used consistently as the
+        cost proxy.
+        "Green: >= 0.95; Amber: 0.90-0.94; Red: < 0.90. Values > 1.00 indicate favorable efficiency."
+      benchmark_value: "0.95"
+      min_value: "0"
+      max_value: ""
+

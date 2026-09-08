@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.db import get_db
+from app.core.security import verify_password
 from app.core.session import SESSION_COOKIE_NAME, create_session_token
 from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.users import LoginRequest, RoleRead, UserRead, UserSessionRead
@@ -56,20 +57,28 @@ async def auth_config() -> dict[str, str]:
     return {"auth_type": settings.auth_type}
 
 
-# No password check — dev-only fallback (see settings.auth_type). Disabled
-# once AUTH_TYPE=onelogin so the identifier-only path can't be used to bypass
-# real SSO.
+# Identifier + (optionally) local password login. Serves AUTH_TYPE=no_password
+# (dev-only identifier lookup) and AUTH_TYPE=password (identifier + scrypt-hashed
+# password). Disabled entirely once AUTH_TYPE=onelogin so neither path can be
+# used to bypass real SSO.
 @router.post("/login", response_model=UserSessionRead)
 async def login(body: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
-    if settings.auth_type != "no_password":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Password-less login is disabled.")
+    if settings.auth_type not in ("no_password", "password"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Password login is disabled.")
 
     identifier = body.identifier.strip().lower()
     stmt = select(User).where(
         (func.lower(User.ldap_username) == identifier) | (func.lower(User.email) == identifier)
     )
     user = (await db.execute(stmt)).scalar_one_or_none()
-    if user is None or not user.is_active:
+
+    if settings.auth_type == "password":
+        # One generic 401 for every failure mode — unknown identifier, inactive
+        # user, no local password on file, wrong password — so the response
+        # can't be used to enumerate accounts.
+        if user is None or not user.is_active or not verify_password(body.password, user.password_hash):
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
+    elif user is None or not user.is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No active user found for that identifier")
 
     _set_session_cookie(response, user.id)

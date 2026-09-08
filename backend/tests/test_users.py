@@ -10,10 +10,12 @@ FakeDB has no storage, so these assert wiring / param parsing / status codes,
 not filtered result data.
 """
 
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 
+from app.models.users import User
 from app.schemas.enums import RoleCode
 from tests.test_authorization import override_auth
 
@@ -116,3 +118,50 @@ async def test_get_user_not_found_returns_404_for_admin(client, override_auth):
     headers = override_auth(RoleCode.ADMIN)
     response = await client.get(f"/api/v1/users/{uuid4()}", headers=headers)
     assert response.status_code == 404
+
+
+# --- local password admin (AUTH_TYPE=password) ---------------------------
+
+
+async def test_set_password_rejects_non_admin(client, override_auth):
+    headers = override_auth(RoleCode.PROJECT_MANAGER)
+    response = await client.put(
+        f"/api/v1/users/{uuid4()}/password", json={"password": "longenough1"}, headers=headers
+    )
+    assert response.status_code == 403
+
+
+async def test_set_password_rejects_short_password(client, override_auth):
+    headers = override_auth(RoleCode.ADMIN)
+    response = await client.put(
+        f"/api/v1/users/{uuid4()}/password", json={"password": "short"}, headers=headers
+    )
+    assert response.status_code == 422
+
+
+async def test_set_password_unknown_user_is_404(client, override_auth):
+    headers = override_auth(RoleCode.ADMIN)
+    response = await client.put(
+        f"/api/v1/users/{uuid4()}/password", json={"password": "longenough1"}, headers=headers
+    )
+    assert response.status_code == 404
+
+
+async def test_set_password_hashes_and_stores(client, override_auth):
+    uid = uuid4()
+    user = SimpleNamespace(id=uid, password_hash=None)
+    headers = override_auth(RoleCode.ADMIN, get_map={(User, uid): user})
+    response = await client.put(
+        f"/api/v1/users/{uid}/password", json={"password": "longenough1"}, headers=headers
+    )
+    assert response.status_code == 204
+    assert user.password_hash and user.password_hash.startswith("scrypt$")
+
+
+async def test_clear_password_sets_hash_to_none(client, override_auth):
+    uid = uuid4()
+    user = SimpleNamespace(id=uid, password_hash="scrypt$32768$8$1$abc$def")
+    headers = override_auth(RoleCode.ADMIN, get_map={(User, uid): user})
+    response = await client.delete(f"/api/v1/users/{uid}/password", headers=headers)
+    assert response.status_code == 204
+    assert user.password_hash is None

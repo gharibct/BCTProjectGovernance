@@ -9,7 +9,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     document_storage_dir: str = "./storage/documents"
 
-    # "no_password" (dev-only identifier lookup) or "onelogin" (OIDC SSO).
+    # "no_password" (dev-only identifier lookup), "password" (identifier + a
+    # local scrypt-hashed password, see app/core/security.py), or "onelogin"
+    # (OIDC SSO).
     auth_type: str = "no_password"
     session_secret: str = "change-me-session-secret"
     session_ttl_minutes: int = 480

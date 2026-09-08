@@ -110,3 +110,26 @@ export function useSetUserGeos() {
     },
   });
 }
+
+// Local password admin (AUTH_TYPE=password). Set replaces the hash; clear
+// removes it so that user can no longer sign in with a password. Both 204.
+export function useSetUserPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, password }: { userId: string; password: string }) =>
+      api.put<void>(`/users/${userId}/password`, { password }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+export function useClearUserPassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.delete(`/users/${userId}/password`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}

@@ -4,6 +4,7 @@ import * as React from "react";
 import { Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Field, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
@@ -11,14 +12,19 @@ import { MultiSelectChecklist } from "@/components/forms/multi-select-checklist"
 import { usePageBanner } from "@/stores/page-banner";
 import { useAccounts, useGeos, useRoles, useUsers, type User } from "@/lib/api/reference-data";
 import {
+  useClearUserPassword,
   useCreateUser,
   useDeleteUser,
   useSetUserAccounts,
   useSetUserGeos,
+  useSetUserPassword,
   useUpdateUser,
   useUserAccounts,
   useUserGeos,
 } from "@/lib/api/users";
+
+// Keep in sync with backend PASSWORD_MIN_LENGTH (app/schemas/users.py).
+const PASSWORD_MIN_LENGTH = 8;
 
 function toValues(user: User): Record<string, string> {
   return {
@@ -46,6 +52,9 @@ export function CreateUserPanel() {
   const deleteUser = useDeleteUser();
   const setUserAccounts = useSetUserAccounts();
   const setUserGeos = useSetUserGeos();
+  const setUserPassword = useSetUserPassword();
+  const clearUserPassword = useClearUserPassword();
+  const [passwordInput, setPasswordInput] = React.useState("");
   const { data: editingAccountIds } = useUserAccounts(editingId);
   const { data: editingGeoIds } = useUserGeos(editingId);
   const showSuccess = usePageBanner((state) => state.showSuccess);
@@ -90,6 +99,7 @@ export function CreateUserPanel() {
     load(toValues(user));
     setAccountIds([]);
     setGeoIds([]);
+    setPasswordInput("");
   };
 
   const cancelEdit = () => {
@@ -97,6 +107,32 @@ export function CreateUserPanel() {
     reset();
     setAccountIds([]);
     setGeoIds([]);
+    setPasswordInput("");
+  };
+
+  const editingUser = editingId ? users.find((u) => u.id === editingId) : undefined;
+  const passwordBusy = setUserPassword.isPending || clearUserPassword.isPending;
+
+  const submitPassword = () => {
+    if (!editingId || passwordInput.length < PASSWORD_MIN_LENGTH) return;
+    setUserPassword.mutate(
+      { userId: editingId, password: passwordInput },
+      {
+        onSuccess: () => {
+          setPasswordInput("");
+          showSuccess("Password Set Successfully");
+        },
+        onError: (err) => showError(err instanceof Error ? err.message : "Failed to set password."),
+      },
+    );
+  };
+
+  const revokePassword = () => {
+    if (!editingId) return;
+    clearUserPassword.mutate(editingId, {
+      onSuccess: () => showSuccess("Password Removed"),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to remove password."),
+    });
   };
 
   const handleDelete = (user: User) => {
@@ -155,6 +191,11 @@ export function CreateUserPanel() {
               label: "Active",
               render: (item) => (item.is_active ? "Yes" : "No"),
             },
+            {
+              key: "password_set",
+              label: "Password",
+              render: (item) => (item.password_set ? "Set" : "—"),
+            },
           ]}
         />
       </SectionCard>
@@ -179,6 +220,50 @@ export function CreateUserPanel() {
             />
           </Field>
         </div>
+        {editingId ? (
+          <div className="mt-6 border-t border-slate-200 pt-6">
+            <Field
+              label="Local Password"
+              hint={
+                editingUser?.password_set
+                  ? "A password is set. Enter a new one to replace it (AUTH_TYPE=password only)."
+                  : `No password set. At least ${PASSWORD_MIN_LENGTH} characters (AUTH_TYPE=password only).`
+              }
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="New password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  className="h-11 max-w-xs"
+                />
+                <Button
+                  type="button"
+                  onClick={submitPassword}
+                  disabled={passwordBusy || passwordInput.length < PASSWORD_MIN_LENGTH}
+                  className="h-11 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
+                >
+                  {setUserPassword.isPending ? <ButtonSpinner /> : null}
+                  Set Password
+                </Button>
+                {editingUser?.password_set ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={revokePassword}
+                    disabled={passwordBusy}
+                    className="h-11 px-5 text-sm font-semibold"
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+            </Field>
+          </div>
+        ) : null}
+
         <div className="mt-6 flex justify-end gap-3">
           {editingId ? (
             <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>

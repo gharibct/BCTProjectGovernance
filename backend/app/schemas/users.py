@@ -1,9 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.schemas.enums import RoleCode
+
+# Minimum local-password length for AUTH_TYPE=password (Admin set-password and
+# the bootstrap script both enforce it).
+PASSWORD_MIN_LENGTH = 8
 
 
 class RoleRead(BaseModel):
@@ -44,6 +48,14 @@ class UserRead(UserBase):
     last_login_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    # Never expose the hash itself — only whether a local password is on file
+    # (drives the "Password set / not set" hint on Admin -> Users & Roles).
+    password_hash: str | None = Field(default=None, exclude=True, repr=False)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def password_set(self) -> bool:
+        return self.password_hash is not None
 
 
 class UserAccountsUpdate(BaseModel):
@@ -56,6 +68,11 @@ class UserGeosUpdate(BaseModel):
 
 class LoginRequest(BaseModel):
     identifier: str  # ldap_username or email, case-insensitive
+    password: str = ""  # required only when AUTH_TYPE=password
+
+
+class PasswordSet(BaseModel):
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH)
 
 
 class UserSessionRead(UserRead):

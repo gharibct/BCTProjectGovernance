@@ -15,7 +15,7 @@ export type RoleCode =
   | "PMO";
 
 // Matches backend Settings.auth_type (app/core/config.py).
-export type AuthType = "no_password" | "onelogin";
+export type AuthType = "no_password" | "password" | "onelogin";
 
 // Lets the login page know which login UI to render without a rebuild — see
 // GET /auth/config in backend/app/api/v1/endpoints/auth.py.
@@ -27,13 +27,14 @@ export function useAuthConfig() {
   });
 }
 
-// No password check — dev-only fallback path (auth_type="no_password"); the
-// identifier (ldap_username or email) just has to resolve to an active user
-// (see backend/app/api/v1/endpoints/auth.py). Disabled server-side once
-// auth_type="onelogin".
+// auth_type="no_password": the identifier (ldap_username or email) just has to
+// resolve to an active user, `password` is ignored. auth_type="password": the
+// identifier + a local password are both checked. Disabled server-side once
+// auth_type="onelogin". See backend/app/api/v1/endpoints/auth.py.
 export function useLogin() {
   return useMutation({
-    mutationFn: (identifier: string) => api.post<SessionUser>("/auth/login", { identifier }),
+    mutationFn: ({ identifier, password }: { identifier: string; password?: string }) =>
+      api.post<SessionUser>("/auth/login", { identifier, password: password ?? "" }),
   });
 }
 

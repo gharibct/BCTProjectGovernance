@@ -17,29 +17,45 @@ export function LoginForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const authConfig = useAuthConfig();
   const login = useLogin();
   const setSessionUser = useSession((s) => s.signIn);
 
-  // No password check — this prototype has no auth system yet (LDAP
-  // planned); the identifier just has to resolve to an active user (see
-  // backend/app/api/v1/endpoints/auth.py).
+  // auth_type="no_password": the identifier just has to resolve to an active
+  // user, the password box is ignored. auth_type="password": both are checked
+  // server-side (see backend/app/api/v1/endpoints/auth.py).
+  const passwordRequired = authConfig.data?.auth_type === "password";
+
   const signIn = () => {
     setError(null);
     if (!email.trim()) {
       setError("Enter your corporate email or LDAP username.");
       return;
     }
-    login.mutate(email.trim(), {
-      onSuccess: (user) => {
-        setSessionUser(user);
-        router.push(ROLE_LANDING_ROUTE[user.role.code]);
+    if (passwordRequired && !password) {
+      setError("Enter your password.");
+      return;
+    }
+    login.mutate(
+      { identifier: email.trim(), password },
+      {
+        onSuccess: (user) => {
+          setSessionUser(user);
+          router.push(ROLE_LANDING_ROUTE[user.role.code]);
+        },
+        onError: (err) => {
+          if (err instanceof ApiError && err.status === 401) {
+            setError(passwordRequired ? "Invalid email or password." : "Sign-in failed. Try again.");
+          } else if (err instanceof ApiError && err.status === 404) {
+            setError("No active user found for that identifier.");
+          } else {
+            setError("Sign-in failed. Try again.");
+          }
+        },
       },
-      onError: (err) => {
-        setError(err instanceof ApiError && err.status === 404 ? "No active user found for that identifier." : "Sign-in failed. Try again.");
-      },
-    });
+    );
   };
 
   if (authConfig.isPending) {
@@ -137,6 +153,8 @@ export function LoginForm() {
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="h-12 rounded-lg bg-slate-50 pr-12 pl-11 text-slate-900 placeholder:text-slate-400"
             />
             <button

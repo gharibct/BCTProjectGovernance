@@ -8,11 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import PaginationParams, pagination_params, require_role
 from app.api.v1.factory import build_crud_router
 from app.core.db import get_db
+from app.core.security import hash_password
 from app.crud.users import user_crud
 from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.common import Page
 from app.schemas.enums import RoleCode
 from app.schemas.users import (
+    PasswordSet,
     RoleRead,
     UserAccountsUpdate,
     UserCreate,
@@ -210,6 +212,28 @@ async def set_user_accounts(
         .all()
     )
     return list(result)
+
+
+@router.put("/users/{user_id}/password", status_code=status.HTTP_204_NO_CONTENT, tags=["Users"], dependencies=_admin_only)
+async def set_user_password(user_id: UUID, body: PasswordSet, db: AsyncSession = Depends(get_db)):
+    """Set (or replace) a user's local password for AUTH_TYPE=password. Admin
+    only; the plaintext is scrypt-hashed here and never stored or logged."""
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.password_hash = hash_password(body.password)
+    await db.flush()
+
+
+@router.delete("/users/{user_id}/password", status_code=status.HTTP_204_NO_CONTENT, tags=["Users"], dependencies=_admin_only)
+async def clear_user_password(user_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Remove a user's local password. They can no longer sign in under
+    AUTH_TYPE=password until a new one is set."""
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.password_hash = None
+    await db.flush()
 
 
 @router.put("/users/{user_id}/geos", response_model=list[UUID], tags=["Users"], dependencies=_admin_only)

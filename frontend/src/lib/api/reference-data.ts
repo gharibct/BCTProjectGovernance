@@ -48,6 +48,9 @@ export type User = {
   email: string;
   role_id: string;
   is_active: boolean;
+  // True when a local password is on file (AUTH_TYPE=password). Absent on
+  // endpoints that predate the field.
+  password_set?: boolean;
 };
 
 // Reference data lists are small and admin-maintained, so a generous
