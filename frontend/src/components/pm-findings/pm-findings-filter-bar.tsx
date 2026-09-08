@@ -1,16 +1,16 @@
 "use client";
 
 import { NativeSelect } from "@/components/ui/native-select";
-import { useProjects } from "@/lib/api/projects";
-import { useEffectiveRole, useSession } from "@/stores/session";
+import { ProjectPicker } from "@/components/forms/project-picker";
 import { FINDING_STATUS_OPTIONS, type PmFindingsFilter } from "@/lib/api/pm-findings";
 
 const DEFAULTS: PmFindingsFilter = { status: "Active" };
 
 // The list is scoped server-side (pm_findings._pm_scope): ADMIN sees every
-// project's findings, every other role only their own. The Project picker
-// mirrors that scope so it can't offer — or hide — a project the grid wouldn't
-// show. (The KPI tiles + attention chips drive the `bucket`.)
+// project's findings, every other role only their own. GET /projects applies
+// the same scope, so the ProjectPicker naturally offers only projects whose
+// findings the grid would show. (The KPI tiles + attention chips drive the
+// `bucket`.)
 export function PmFindingsFilterBar({
   filters,
   onChange,
@@ -18,12 +18,6 @@ export function PmFindingsFilterBar({
   filters: PmFindingsFilter;
   onChange: (next: PmFindingsFilter) => void;
 }) {
-  const userId = useSession((s) => s.user?.id);
-  const role = useEffectiveRole();
-  const { data: projects = [] } = useProjects();
-  const myProjects =
-    role === "ADMIN" ? projects : projects.filter((p) => p.project_manager_id === userId);
-
   const set = (patch: Partial<PmFindingsFilter>) => onChange({ ...filters, ...patch });
 
   const dirty = Boolean(filters.projectId || filters.bucket) || filters.status !== "Active";
@@ -32,20 +26,13 @@ export function PmFindingsFilterBar({
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <span className="text-xs font-bold tracking-wide text-slate-500 uppercase">Filters</span>
 
-      <div className="w-56">
-        <NativeSelect
-          aria-label="Project"
-          className="h-9 bg-white text-sm"
-          value={filters.projectId ?? ""}
-          onChange={(e) => set({ projectId: e.target.value || undefined })}
-        >
-          <option value="">Project [All]</option>
-          {myProjects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.project_code} · {p.project_name}
-            </option>
-          ))}
-        </NativeSelect>
+      <div className="w-80">
+        <ProjectPicker
+          label=""
+          placeholder="Project [All]"
+          value={filters.projectId ?? null}
+          onChange={(id) => set({ projectId: id ?? undefined })}
+        />
       </div>
 
       <div className="w-40">

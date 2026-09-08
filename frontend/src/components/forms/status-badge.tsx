@@ -20,6 +20,7 @@ const TONE_MAP: Record<string, string> = {
   "awaiting closure": "bg-amber-50 text-amber-700 ring-amber-200",
   identified: "bg-blue-50 text-[#1a6fc4] ring-blue-200",
   "not started": "bg-slate-100 text-slate-600 ring-slate-200",
+  "not submitted": "bg-red-50 text-red-700 ring-red-200",
   draft: "bg-slate-100 text-slate-600 ring-slate-200",
   "not processed": "bg-slate-100 text-slate-600 ring-slate-200",
   processing: "bg-blue-50 text-[#1a6fc4] ring-blue-200",

@@ -107,10 +107,10 @@ export function AccountHeadMySummary() {
               }
             />
             <StatCard
-              label="Open NC"
+              label="Open Alerts"
               value={data.open_ncs_count}
               accent={data.open_ncs_count > 0 ? "amber" : undefined}
-              hint="Non-Conformances"
+              hint="Alert findings"
             />
           </div>
 

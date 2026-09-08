@@ -46,6 +46,9 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     # instead (crud.base already calls db.refresh() after flush).
     planned_duration_days: Mapped[int | None] = mapped_column(server_default=FetchedValue())
     actual_duration_days: Mapped[int | None] = mapped_column(server_default=FetchedValue())
+    # Date this project started being tracked in the tool. NULL = fall back to
+    # coalesce(actual_start_date, planned_start_date) — see services/reporting_activity.py.
+    tool_effective_date: Mapped[date | None]
 
     # Multi-select on the Project Charter — zero or more SDLC phases the
     # project is currently in. Comma-joined in the TEXT column; list[str] in

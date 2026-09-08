@@ -6,9 +6,14 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.core.db import Base
+from app.models.projects import Project
+from app.models.reference_data import Account, Geo, ReportingPeriod
 from app.schemas.enums import ReportStatus, RoleCode
-from app.services.reporting_activity import _series
+from app.services.reporting_activity import _series, build_reporting_activity, build_weekly_reporting_activity
 from tests.test_authorization import override_auth
 
 _PROJECT_ID = uuid4()
@@ -148,3 +153,122 @@ async def test_regional_activity_weekly_only_shape(client, override_auth, path):
     body = response.json()
     assert set(body) == {"year", "weekly"}  # no "monthly"
     assert set(body["weekly"]) == {"items", "counts", "pct"}
+
+
+# --- tool_effective_date wiring (DB-backed) --------------------------------
+# An isolated, throwaway sqlite DB per test — never the app's configured
+# settings.database_url, which may point at a real shared Postgres server
+# (same pattern as tests/test_master_data_import.py's session_factory).
+
+
+@pytest.fixture
+async def session_factory(tmp_path):
+    db_path = tmp_path / "reporting_activity_test.db"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    yield factory
+    await engine.dispose()
+
+
+def _now():
+    return datetime.now(timezone.utc)
+
+
+async def _make_project(session, **overrides):
+    project = Project(
+        id=uuid4(),
+        project_code=f"P-{uuid4().hex[:8]}",
+        project_name="Test Project",
+        project_status="Draft",
+        created_at=_now(),
+        updated_at=_now(),
+        **overrides,
+    )
+    session.add(project)
+    await session.commit()
+    return project
+
+
+async def _make_period(session, period_type, start, end, code=None):
+    period = ReportingPeriod(
+        id=uuid4(),
+        period_type=period_type,
+        code=code or f"{period_type}-{uuid4().hex[:8]}",
+        label=f"{period_type} {start}",
+        start_date=start,
+        end_date=end,
+        is_active=True,
+        created_at=_now(),
+        updated_at=_now(),
+    )
+    session.add(period)
+    await session.commit()
+    return period
+
+
+@pytest.mark.asyncio
+async def test_build_reporting_activity_prefers_tool_effective_date_over_actual_start(session_factory):
+    async with session_factory() as session:
+        project = await _make_project(
+            session, actual_start_date=date(2026, 1, 1), tool_effective_date=date(2026, 8, 1)
+        )
+        await _make_period(session, "Weekly", date(2026, 7, 6), date(2026, 7, 12))  # before effective date -> n/a
+        await _make_period(session, "Weekly", date(2026, 8, 3), date(2026, 8, 9))  # on/after -> pending
+
+        result = await build_reporting_activity(session, project.id, 2026)
+
+        statuses = {item.start_date: item.status for item in result.weekly.items}
+        assert statuses[date(2026, 7, 6)] == "n/a"
+        assert statuses[date(2026, 8, 3)] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_build_reporting_activity_falls_back_to_actual_start_when_tool_effective_date_null(session_factory):
+    async with session_factory() as session:
+        project = await _make_project(session, actual_start_date=date(2026, 8, 1), tool_effective_date=None)
+        await _make_period(session, "Weekly", date(2026, 7, 6), date(2026, 7, 12))  # before actual start -> n/a
+        await _make_period(session, "Weekly", date(2026, 8, 3), date(2026, 8, 9))  # on/after -> pending
+
+        result = await build_reporting_activity(session, project.id, 2026)
+
+        statuses = {item.start_date: item.status for item in result.weekly.items}
+        assert statuses[date(2026, 7, 6)] == "n/a"
+        assert statuses[date(2026, 8, 3)] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_build_weekly_reporting_activity_respects_account_tool_effective_date(session_factory):
+    async with session_factory() as session:
+        account = Account(
+            id=uuid4(), name="Acme", is_active=True, tool_effective_date=date(2026, 8, 1),
+            created_at=_now(), updated_at=_now(),
+        )
+        session.add(account)
+        await session.commit()
+        await _make_period(session, "Weekly", date(2026, 7, 6), date(2026, 7, 12))  # before -> n/a
+        await _make_period(session, "Weekly", date(2026, 8, 3), date(2026, 8, 9))  # on/after -> pending
+
+        result = await build_weekly_reporting_activity(session, "account", account.id, 2026)
+
+        statuses = {item.start_date: item.status for item in result.weekly.items}
+        assert statuses[date(2026, 7, 6)] == "n/a"
+        assert statuses[date(2026, 8, 3)] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_build_weekly_reporting_activity_no_restriction_when_geo_effective_date_null(session_factory):
+    async with session_factory() as session:
+        geo = Geo(
+            id=uuid4(), code="APAC", name="Asia Pacific", is_active=True, tool_effective_date=None,
+            created_at=_now(), updated_at=_now(),
+        )
+        session.add(geo)
+        await session.commit()
+        await _make_period(session, "Weekly", date(2020, 1, 6), date(2020, 1, 12))
+
+        result = await build_weekly_reporting_activity(session, "geo", geo.id, 2020)
+
+        # No effective date set -> current/unrestricted behavior: an old period is still "pending", not "n/a".
+        assert result.weekly.items[0].status == "pending"

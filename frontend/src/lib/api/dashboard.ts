@@ -63,9 +63,9 @@ export type HighlightRow = {
   created_at: string;
 };
 
-// One open Non-Conformance (DE assessment finding classified "NC", still
-// open) — the row shape for the "Open NC" list section on the PM, Account
-// and CXO dashboards.
+// One open Alert (DE assessment finding classified "Alert", still open) — the
+// row shape for the "Open Alerts" list section on the PM, Account and CXO
+// dashboards.
 export type OpenNcRow = {
   finding_id: string;
   project_id: string;
@@ -124,7 +124,7 @@ export function useDashboardSummary(scope: DashboardScope, options?: { enabled?:
   });
 }
 
-// Standalone "Open NC" (open Non-Conformance findings) for one project /
+// Standalone "Open Alerts" (open Alert-classified findings) for one project /
 // account / geo — powers the KPI + list section on the per-entity Project,
 // Account and Geo dashboards and their Review screens. scope=account|geo
 // rolls up every project under that entity.

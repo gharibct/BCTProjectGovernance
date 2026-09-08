@@ -22,6 +22,9 @@ class Geo(Base, UUIDPrimaryKey, TimestampColumns):
     code: Mapped[str] = mapped_column(unique=True)  # APAC, MEA, US
     name: Mapped[str]
     is_active: Mapped[bool]
+    # Date this geo started being tracked in the tool. NULL = no restriction
+    # for reporting "owed" calculations — see services/dashboard.py.
+    tool_effective_date: Mapped[date | None]
 
 
 class Region(Base, UUIDPrimaryKey, TimestampColumns):
@@ -57,6 +60,9 @@ class Account(Base, UUIDPrimaryKey, TimestampColumns):
     geo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("geos.id"))
     description: Mapped[str | None]  # short summary about the customer
     is_active: Mapped[bool]
+    # Date this account started being tracked in the tool. NULL = no
+    # restriction for reporting "owed" calculations — see services/dashboard.py.
+    tool_effective_date: Mapped[date | None]
 
 
 class ReportingPeriod(Base, UUIDPrimaryKey, TimestampColumns):

@@ -246,7 +246,7 @@ Business Entities. Role codes are from `product-brain/00` §3.
 | Upstream Modules | MOD-PROJ, MOD-DEAL (assessor assignment) |
 | Downstream Modules | MOD-HEALTH (DE-Assessed health → overall project health), MOD-DASH, MOD-DI |
 | Integrations | — |
-| Major Business Entities | DEAssessment, DEAssessmentFinding, DEAssessmentAlert |
+| Major Business Entities | DEAssessment, DEAssessmentFinding |
 
 ### 2.12 MOD-DEAL — DE Allocation
 

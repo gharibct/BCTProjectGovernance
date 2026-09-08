@@ -26,7 +26,7 @@ import {
   type MetStatus,
 } from "@/lib/api/contractual";
 
-const MET_STATUSES: MetStatus[] = ["Met", "Not Met", "Breached"];
+const MET_STATUSES: MetStatus[] = ["Met", "Not Met"];
 
 // Project Reporting is actuals-only: the commitment definitions are fixed at
 // charter time (New Project → Contractual Compliance). This tab shows the
@@ -401,6 +401,12 @@ function CommitmentActualsDrawer({
             { key: "period_date", label: "Date", render: (r) => formatDate(r.period_date) },
             { key: "actual_value", label: "Actual", align: "right", render: (r) => r.actual_value ?? "—" },
             { key: "met_status", label: "Status", badge: true },
+            {
+              key: "penalty",
+              label: "Penalty",
+              render: () =>
+                commitment.penalty_applicable ? (commitment.penalty_value ?? "Yes") : "No",
+            },
             { key: "recorded_by", label: "Recorded By", render: (r) => userName(r.recorded_by) },
             { key: "created_at", label: "Recorded At", render: (r) => formatDateTime(r.created_at) },
           ]}

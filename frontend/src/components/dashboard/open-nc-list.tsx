@@ -3,10 +3,10 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { OpenNcRow } from "@/lib/api/dashboard";
 
-// "Open NC" list — open DE assessment findings classified as Non-Conformance,
-// shown as the last section on the PM, Account and CXO dashboards. On the
-// Account/CXO dashboards `showAccount` adds an Account column, since the list
-// there rolls up across every in-scope project.
+// "Open Alerts" list — open DE assessment findings classified as Alert, shown
+// as the last section on the PM, Account and CXO dashboards. On the Account/CXO
+// dashboards `showAccount` adds an Account column, since the list there rolls
+// up across every in-scope project.
 
 const STATUS_CLASS: Record<string, string> = {
   Open: "bg-red-50 text-red-700 ring-red-200",
@@ -39,14 +39,14 @@ export function OpenNcList({ rows, showAccount = false }: { rows: OpenNcRow[]; s
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 px-5 py-3.5">
-        <h2 className="font-bold text-slate-900">Open Non-Conformances (NC)</h2>
+        <h2 className="font-bold text-slate-900">Open Alerts</h2>
         <p className="mt-0.5 text-sm text-slate-400">
-          Open Delivery Excellence findings classified as Non-Conformance
+          Open Delivery Excellence findings classified as Alert
           {showAccount ? ", across every project in scope" : ""}.
         </p>
       </div>
       {rows.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-slate-400">No open non-conformances.</p>
+        <p className="px-5 py-4 text-sm text-slate-400">No open alerts.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">

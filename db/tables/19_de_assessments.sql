@@ -24,31 +24,15 @@ CREATE INDEX idx_de_assessments_project_id ON de_assessments(project_id, assessm
 
 CREATE TRIGGER trg_de_assessments_updated_at BEFORE UPDATE ON de_assessments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Raised automatically when de_assessed_project_health is not Green.
-CREATE TABLE de_assessment_alerts (
-    id UUID PRIMARY KEY,
-    alert_code TEXT NOT NULL UNIQUE,
-    assessment_id UUID NOT NULL REFERENCES de_assessments(id) ON DELETE CASCADE,
-    alert_category TEXT, -- Core Delivery, People, Operational, Customer, Financial, Compliance
-    brief_description TEXT NOT NULL,
-    detailed_description TEXT,
-    raised_by UUID REFERENCES users(id),
-    raised_on DATE NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE INDEX idx_de_assessment_alerts_assessment_id ON de_assessment_alerts(assessment_id);
-
 -- Findings are a project-level register, independent of any single assessment:
 -- a DE can raise, edit and close them across the project's whole life, with or
--- without a DE assessment on record. (Contrast de_assessment_alerts, which stay
--- tied to the assessment that auto-raised them.)
+-- without a DE assessment on record.
 CREATE TABLE de_assessment_findings (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     sequence_no INTEGER NOT NULL,
     category TEXT NOT NULL, -- the Project RAG 6-category taxonomy (Core Delivery, People, Operational, Customer, Financial, Compliance)
-    classification TEXT NOT NULL, -- Observation, Recommendation, NC (Non-Conformance)
+    classification TEXT NOT NULL, -- Observation, Recommendation, Alert
     description TEXT, -- the finding statement (DE Assessment Workspace)
     assigned_to UUID REFERENCES users(id),
     action_taken TEXT, -- what the PM did to address it (PM Findings screen)

@@ -7,7 +7,7 @@
 
 CREATE TABLE id_sequences (
     id UUID PRIMARY KEY,
-    entity_code TEXT NOT NULL,  -- PROJECT, RISK, ISSUE, DEPENDENCY, ASSUMPTION, OPPORTUNITY, DE_ALERT
+    entity_code TEXT NOT NULL,  -- PROJECT, RISK, ISSUE, DEPENDENCY, ASSUMPTION, OPPORTUNITY, ACTION
     period_key TEXT NOT NULL,   -- calendar year the sequence resets on, e.g. '2026'
     last_number INTEGER NOT NULL,
 

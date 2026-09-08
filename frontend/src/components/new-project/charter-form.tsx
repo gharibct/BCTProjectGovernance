@@ -120,6 +120,7 @@ function valuesFromProject(project: Project): ProjectPayload {
     actual_start_date: project.actual_start_date ?? undefined,
     planned_end_date: project.planned_end_date ?? undefined,
     actual_end_date: project.actual_end_date ?? undefined,
+    tool_effective_date: project.tool_effective_date ?? undefined,
     applicable_phase: project.applicable_phase ?? [],
     lifecycle_status: project.lifecycle_status ?? undefined,
   };
@@ -439,12 +440,18 @@ function ProjectDescriptionTab({
 
         <SectionCard icon={UserRound} title="Delivery Team">
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-            <Field label="Project Manager" htmlFor="project-manager" required ai={fieldAi("project_manager_id")}>
+            <Field
+              label="Project Manager"
+              htmlFor="project-manager"
+              required
+              ai={fieldAi("project_manager_id")}
+              hint="Assigned when the project creation request is approved — not editable here."
+            >
               <NativeSelect
                 id="project-manager"
                 value={values.project_manager_id ?? ""}
                 onChange={(e) => setAndClear("project_manager_id")(e.target.value)}
-                disabled={locked}
+                disabled
               >
                 <option value="" disabled>
                   Select…
@@ -602,6 +609,21 @@ function ScopeAndScheduleTab({
             <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
               {durationDays(values.planned_start_date ?? "", values.planned_end_date ?? "")}
             </div>
+          </Field>
+          <Field
+            label="Governance Tool Implementation Effective Date"
+            htmlFor="tool-effective-date"
+            ai={fieldAi("tool_effective_date")}
+            hint="When this project started being tracked in the tool — may differ from its actual start date (e.g. an older ongoing project onboarded later). Leave blank to use Planned/Actual Start Date."
+          >
+            <Input
+              id="tool-effective-date"
+              type="date"
+              value={values.tool_effective_date ?? ""}
+              onChange={(e) => setAndClear("tool_effective_date")(e.target.value)}
+              className={inputClass}
+              disabled={locked}
+            />
           </Field>
         </div>
       </SectionCard>

@@ -16,7 +16,7 @@ from app.api.deps import require_role
 from app.core.db import get_db
 from app.crud.projects import project_crud
 from app.models.projects import Project
-from app.models.reference_data import Account
+from app.models.reference_data import Account, Geo, ProjectType, Region
 from app.models.users import User
 from app.schemas.de_approval import DeAllocationBulkAssign, DeAllocationRow
 from app.schemas.enums import ProjectStatus, RoleCode
@@ -39,11 +39,12 @@ async def _user_name(db: AsyncSession, user_id: UUID | None) -> str | None:
     return user.full_name if user is not None else None
 
 
-async def _account_name(db: AsyncSession, account_id: UUID | None) -> str | None:
-    if account_id is None:
+async def _ref_name(db: AsyncSession, model: type, ref_id: UUID | None) -> str | None:
+    """Name of a reference-data row (Account / Geo / Region / ProjectType) by id."""
+    if ref_id is None:
         return None
-    account = await db.get(Account, account_id)
-    return account.name if account is not None else None
+    ref = await db.get(model, ref_id)
+    return ref.name if ref is not None else None
 
 
 async def _row(
@@ -52,6 +53,9 @@ async def _row(
     pm_name: str | None,
     account_name: str | None,
     de_name: str | None,
+    geo_name: str | None = None,
+    region_name: str | None = None,
+    project_type_name: str | None = None,
 ) -> DeAllocationRow:
     completeness = await compute_governance_completeness(db, project)
     return DeAllocationRow(
@@ -59,6 +63,10 @@ async def _row(
         project_code=project.project_code,
         project_name=project.project_name,
         account_name=account_name,
+        geo_name=geo_name,
+        region_name=region_name,
+        project_type_name=project_type_name,
+        project_owned=project.project_owned,
         project_manager_name=pm_name,
         project_status=project.project_status,
         lifecycle_status=project.lifecycle_status,
@@ -76,14 +84,20 @@ async def list_allocation_grid(db: AsyncSession = Depends(get_db)):
     pm = aliased(User)
     de = aliased(User)
     stmt = (
-        select(Project, pm.full_name, Account.name, de.full_name)
+        select(Project, pm.full_name, Account.name, de.full_name, Geo.name, Region.name, ProjectType.name)
         .outerjoin(pm, pm.id == Project.project_manager_id)
         .outerjoin(Account, Account.id == Project.account_id)
         .outerjoin(de, de.id == Project.delivery_excellence_id)
+        .outerjoin(Geo, Geo.id == Project.geo_id)
+        .outerjoin(Region, Region.id == Project.region_id)
+        .outerjoin(ProjectType, ProjectType.id == Project.project_type_id)
         .where(Project.project_status.in_(_ALLOCATABLE_STATUSES))
     )
     rows = (await db.execute(stmt)).all()
-    return [await _row(db, project, pm_name, acc_name, de_name) for project, pm_name, acc_name, de_name in rows]
+    return [
+        await _row(db, project, pm_name, acc_name, de_name, geo_name, region_name, project_type_name)
+        for project, pm_name, acc_name, de_name, geo_name, region_name, project_type_name in rows
+    ]
 
 
 @router.patch("/allocations", response_model=list[DeAllocationRow], dependencies=[Depends(_de)])
@@ -114,8 +128,11 @@ async def bulk_allocate(payload: DeAllocationBulkAssign, db: AsyncSession = Depe
                 db,
                 project,
                 await _user_name(db, project.project_manager_id),
-                await _account_name(db, project.account_id),
+                await _ref_name(db, Account, project.account_id),
                 await _user_name(db, project.delivery_excellence_id),
+                await _ref_name(db, Geo, project.geo_id),
+                await _ref_name(db, Region, project.region_id),
+                await _ref_name(db, ProjectType, project.project_type_id),
             )
         )
     return result

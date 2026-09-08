@@ -1,0 +1,484 @@
+<!DOCTYPE html><html class="h-full bg-surface" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Apex Form Console - Project Assignment</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700;800&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@100..900&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS with custom theme config -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-fixed-dim": "#6bd8cb",
+            "on-primary-fixed": "#00174b",
+            "secondary-fixed": "#dae2fd",
+            "inverse-surface": "#213145",
+            "surface-container-lowest": "#ffffff",
+            "surface-dim": "#cbdbf5",
+            "outline-variant": "#c3c6d7",
+            "inverse-primary": "#b4c5ff",
+            "surface": "#f8f9ff",
+            "error-container": "#ffdad6",
+            "primary": "#004ac6",
+            "on-secondary-fixed": "#131b2e",
+            "on-tertiary": "#ffffff",
+            "secondary": "#565e74",
+            "secondary-fixed-dim": "#bec6e0",
+            "on-surface": "#0b1c30",
+            "on-secondary-fixed-variant": "#3f465c",
+            "on-primary-container": "#eeefff",
+            "tertiary": "#006058",
+            "surface-variant": "#d3e4fe",
+            "on-tertiary-fixed-variant": "#005049",
+            "tertiary-fixed": "#89f5e7",
+            "on-error-container": "#93000a",
+            "primary-fixed": "#dbe1ff",
+            "on-secondary": "#ffffff",
+            "background": "#f8f9ff",
+            "on-surface-variant": "#434655",
+            "on-secondary-container": "#5c647a",
+            "surface-container": "#e5eeff",
+            "surface-container-high": "#dce9ff",
+            "on-primary-fixed-variant": "#003ea8",
+            "inverse-on-surface": "#eaf1ff",
+            "tertiary-container": "#007b71",
+            "outline": "#737686",
+            "on-background": "#0b1c30",
+            "on-primary": "#ffffff",
+            "surface-tint": "#0053db",
+            "on-error": "#ffffff",
+            "secondary-container": "#dae2fd",
+            "error": "#ba1a1a",
+            "surface-container-highest": "#d3e4fe",
+            "surface-bright": "#f8f9ff",
+            "primary-container": "#2563eb",
+            "surface-container-low": "#eff4ff",
+            "primary-fixed-dim": "#b4c5ff",
+            "on-tertiary-fixed": "#00201d",
+            "on-tertiary-container": "#b3fff3"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xl": "1.5rem",
+            "space-xs": "0.25rem",
+            "space-lg": "1.25rem",
+            "space-2xs": "0.125rem",
+            "space-md": "0.75rem",
+            "layout-sidebar-collapsed": "4rem",
+            "table-row-compact": "2rem",
+            "table-row-spacious": "3.25rem",
+            "layout-sidebar-expanded": "16rem",
+            "space-base": "1rem",
+            "space-2xl": "2rem",
+            "space-sm": "0.5rem",
+            "table-row-default": "2.5rem",
+            "space-3xl": "3rem"
+          },
+          "fontFamily": {
+            "display-lg": ["Hanken Grotesk"],
+            "label-sm": ["Inter"],
+            "headline-md": ["Hanken Grotesk"],
+            "headline-sm": ["Hanken Grotesk"],
+            "body-md": ["Inter"],
+            "label-md": ["Inter"],
+            "data-tabular": ["JetBrains Mono"],
+            "headline-lg": ["Hanken Grotesk"],
+            "body-lg": ["Inter"],
+            "body-sm": ["Inter"],
+            "code-sm": ["JetBrains Mono"],
+            "display-lg-mobile": ["Hanken Grotesk"]
+          },
+          "fontSize": {
+            "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.025em", "fontWeight": "700" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "data-tabular": ["13px", { "lineHeight": "18px", "letterSpacing": "-0.02em", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "display-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 20px;
+      line-height: 1;
+      display: inline-block;
+      text-transform: none;
+      letter-spacing: normal;
+      word-wrap: normal;
+      white-space: nowrap;
+      direction: ltr;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Custom subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c3c6d7;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body class="h-full font-body-md text-body-md text-on-surface bg-surface flex flex-col antialiased select-none pb-20">
+<!-- TOP APP BAR (Executed strictly from Shared Components JSON) -->
+<!-- header class="bg-surface dark:bg-inverse-surface border-b border-outline-variant dark:border-outline shadow-sm docked full-width top-0 sticky z-40 flex justify-between items-center w-full px-4 h-12 max-w-full">
+<div class="flex items-center gap-3">
+<button aria-label="Menu" class="text-primary dark:text-inverse-primary p-1 rounded-lg hover:bg-surface-container-high dark:hover:bg-inverse-surface active:scale-95 transition-transform duration-150 flex items-center justify-center" type="button">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<span class="text-headline-sm font-headline-sm font-bold text-primary dark:text-inverse-primary tracking-tight">Form Console</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-low border border-outline-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-label-sm text-label-sm text-secondary">CONNECTED</span>
+</div>
+<button aria-label="Tune" class="text-primary dark:text-inverse-primary p-1 rounded-lg hover:bg-surface-container-high dark:hover:bg-inverse-surface active:scale-95 transition-transform duration-150 flex items-center justify-center" type="button">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+</button>
+</div>
+</header -->
+<!-- SUBHEADER / CONTEXT TRACKER -->
+
+<!-- COMPONENT 1: FilteredComboBox [PROJECT] -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant p-4 shadow-sm space-y-3">
+<!-- Label Header -->
+<div class="flex items-center justify-between">
+<label class="font-label-md text-label-md font-semibold text-on-surface flex items-center gap-1">
+          Project <span class="text-error font-bold">*</span>
+</label>
+<span class="font-data-tabular text-label-sm text-primary font-medium" id="prj-cardinality-meta">
+          18 matching projects
+        </span>
+</div>
+<!-- Active Filter Pill Banner -->
+<div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-outline-variant" id="prj-active-filter-banner">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<span class="material-symbols-outlined text-tertiary text-[16px]" data-icon="filter_alt">filter_alt</span>
+<span class="font-label-sm text-label-sm text-on-surface truncate">Filtered: <strong>India</strong> • <strong>ABC Account</strong> • <strong>Active</strong></span>
+</div>
+<button class="font-label-sm text-label-sm text-error hover:underline flex items-center gap-0.5 ml-2 shrink-0" onclick="clearProjectFilter()" type="button">
+          Clear
+          <span class="material-symbols-outlined text-[14px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Combo Input Box Cluster -->
+<div class="relative">
+<div class="flex items-center gap-1.5">
+<!-- Main Trigger Box -->
+<button class="flex-1 h-10 px-3 rounded-lg border border-outline bg-surface-container-lowest text-left flex items-center justify-between shadow-sm focus:outline-none focus:ring-2 focus:ring-primary" id="prj-combo-trigger" onclick="toggleDropdown('prj-dropdown')" type="button">
+<span class="font-body-md text-body-md text-on-surface truncate font-medium">PRJ-2026-0013 - Cuetrans Implementation</span>
+<span class="material-symbols-outlined text-secondary ml-1" data-icon="expand_more">expand_more</span>
+</button>
+<!-- Dedicated Filter Popover Trigger Button with Badge Counter -->
+<button aria-label="Filter Projects" class="relative h-10 px-3 bg-secondary-container text-on-secondary-container hover:bg-surface-container-high rounded-lg border border-outline-variant flex items-center justify-center active:scale-95 transition-transform" onclick="openFilterModal()" type="button">
+<span class="material-symbols-outlined text-primary" data-icon="tune">tune</span>
+<!-- Badge Counter Indicator -->
+<span class="absolute -top-1.5 -right-1.5 bg-primary text-on-primary font-data-tabular text-[10px] h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center font-bold ring-2 ring-surface-container-lowest">
+              3
+            </span>
+</button>
+</div>
+<!-- Helper Note -->
+<p class="mt-1.5 font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-tertiary" data-icon="check_circle">check_circle</span>
+          Scoped from 1,500 global enterprise project records
+        </p>
+<!-- Expanded Dropdown State Demonstration -->
+<div class="mt-2 w-full bg-surface-container-lowest rounded-xl border border-outline shadow-md overflow-hidden z-20 transition-all" id="prj-dropdown">
+<!-- In-Dropdown Search Field -->
+<div class="p-2 border-b border-outline-variant bg-surface-container-low">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-2.5 text-secondary text-[18px]" data-icon="search">search</span>
+<input class="w-full h-8 pl-8 pr-2.5 bg-surface-container-lowest border border-outline-variant rounded text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary" placeholder="Search within 18 projects..." type="text">
+</div>
+</div>
+<!-- Items List -->
+<div class="divide-y divide-outline-variant max-h-56 overflow-y-auto">
+<!-- Item 1 (Selected State) -->
+<div class="p-2.5 bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors flex items-start justify-between">
+<div class="space-y-0.5">
+<div class="font-body-md text-body-md font-semibold text-primary flex items-center gap-1.5">
+                  PRJ-2026-0013 - Cuetrans Implementation
+                  <span class="material-symbols-outlined text-primary text-[16px]" data-icon="check">check</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-2">
+<span class="">ABC Account</span>
+<span class="">•</span>
+<span class="">India</span>
+<span class="">•</span>
+<span class="inline-flex items-center gap-1 text-[11px] text-tertiary font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Active
+                  </span>
+</div>
+</div>
+<span class="font-data-tabular text-[11px] text-secondary bg-surface-container-lowest px-1.5 py-0.5 rounded border border-outline-variant">T-1</span>
+</div>
+<!-- Item 2 -->
+<div class="p-2.5 hover:bg-surface-container cursor-pointer transition-colors space-y-0.5">
+<div class="font-body-md text-body-md font-semibold text-on-surface">
+                PRJ-2026-0042 - ERP Modernization
+              </div>
+<div class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-2">
+<span class="">XYZ Account</span>
+<span class="">•</span>
+<span class="">India</span>
+<span class="">•</span>
+<span class="inline-flex items-center gap-1 text-[11px] text-tertiary font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Active
+                </span>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="p-2.5 hover:bg-surface-container cursor-pointer transition-colors space-y-0.5">
+<div class="font-body-md text-body-md font-semibold text-on-surface">
+                PRJ-2026-0109 - Cloud Logistics Engine
+              </div>
+<div class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-2">
+<span class="">ABC Account</span>
+<span class="">•</span>
+<span class="">India</span>
+<span class="">•</span>
+<span class="inline-flex items-center gap-1 text-[11px] text-tertiary font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span> Active
+                </span>
+</div>
+</div>
+</div>
+<!-- Pagination & Infinite Scroll Meta -->
+<div class="px-3 py-2 bg-surface-container-low border-t border-outline-variant flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<span class="">Showing 1-10 of 18 records (Page 1 of 2)</span>
+<span class="font-medium text-primary flex items-center gap-0.5">
+              Scroll for more <span class="material-symbols-outlined text-[14px]" data-icon="arrow_downward">arrow_downward</span>
+</span>
+</div>
+</div>
+</div>
+</section>
+<!-- COMPONENT 2: Reusable instance for 'Assigned To' (User lookup) -->
+
+<!-- JSON Configuration Contract -->
+<div class="bg-surface-container-high rounded-lg p-3 border border-outline-variant space-y-1.5">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-bold block">Configuration Contract</span>
+<pre class="font-code-sm text-[11px] leading-relaxed text-on-surface-variant overflow-x-auto bg-surface-container-lowest p-2 rounded border border-outline-variant"><code>{
+  "label": "Project",
+  "dataSource": "/api/v2/projects/query",
+  "valueField": "projectId",
+  "displayFields": ["code", "name", "accountName", "geo"],
+  "filterDefinitions": ["geo", "account", "status", "type"],
+  "dependentFilters": {"account": ["geo"]},
+  "pageSize": 25,
+  "serverSide": true
+}</code></pre>
+</div>
+</div>
+</section>
+<!-- FORM FOOTER ACTIONS -->
+<div class="pt-2 flex items-center gap-3">
+<button class="flex-1 h-10 px-4 rounded-lg border border-outline text-on-surface font-label-md text-label-md bg-surface-container-lowest hover:bg-surface-container active:scale-95 transition-transform" type="button">
+        Save Draft
+      </button>
+<button class="flex-1 h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container active:scale-95 transition-transform shadow-sm font-semibold" type="button">
+        Confirm Assignment
+      </button>
+</div>
+</main>
+<!-- ADVANCED FILTER POPOVER / BOTTOM SHEET MODAL (Interactive demonstration) -->
+<div class="fixed inset-0 bg-on-surface/40 backdrop-blur-[2px] z-50 flex flex-col justify-end hidden transition-opacity duration-200" id="filter-modal-backdrop">
+<div class="bg-surface-container-lowest w-full max-h-[90vh] rounded-t-2xl border-t border-outline shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+<!-- Modal Header -->
+<div class="px-4 py-3.5 border-b border-outline-variant flex items-center justify-between bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="tune">tune</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">Filter Projects</h2>
+</div>
+<button class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container-high text-on-surface-variant" onclick="closeFilterModal()" type="button">
+<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
+</button>
+</div>
+<!-- Cascading Filter Controls Body -->
+<div class="p-4 overflow-y-auto space-y-4">
+<!-- Field 1: Geo (Cascading Root) -->
+<div class="space-y-1">
+<label class="font-label-md text-label-md text-on-surface font-medium flex items-center justify-between">
+<span class="">Geo Region</span>
+<span class="font-label-sm text-label-sm text-secondary">Primary constraint</span>
+</label>
+<div class="relative">
+<select class="w-full h-9 px-3 rounded-lg border border-outline bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-8">
+<option selected="">India</option>
+<option>Middle East (Oman / UAE)</option>
+<option>North America</option>
+<option>Europe APAC</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2 text-secondary pointer-events-none text-[20px]" data-icon="arrow_drop_down">arrow_drop_down</span>
+</div>
+</div>
+<!-- Field 2: Account (Dependent Cascading Node) -->
+<div class="space-y-1">
+<div class="flex items-center justify-between">
+<label class="font-label-md text-label-md text-on-surface font-medium">Account</label>
+<span class="font-label-sm text-label-sm text-primary flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[13px]" data-icon="link">link</span> Cascaded by Geo: India
+            </span>
+</div>
+<div class="relative">
+<select class="w-full h-9 px-3 rounded-lg border border-outline bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-8">
+<option selected="">ABC Account</option>
+<option>XYZ Account</option>
+<option>Bharat Enterprise Portal</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2 text-secondary pointer-events-none text-[20px]" data-icon="arrow_drop_down">arrow_drop_down</span>
+</div>
+</div>
+<!-- Field 3: Project Name / Code Search -->
+<div class="space-y-1">
+<label class="font-label-md text-label-md text-on-surface font-medium">Project Name / Code</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2.5 top-2 text-secondary text-[18px]" data-icon="tag">tag</span>
+<input class="w-full h-9 pl-8 pr-3 rounded-lg border border-outline bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="e.g. PRJ-2026 or Cuetrans" type="text" value="PRJ-2026">
+</div>
+</div>
+<!-- Split Row: Type & Status -->
+<div class="grid grid-cols-2 gap-3">
+<!-- Field 4: Project Type -->
+<div class="space-y-1">
+<label class="font-label-md text-label-md text-on-surface font-medium">Project Type</label>
+<div class="relative">
+<select class="w-full h-9 px-2.5 rounded-lg border border-outline bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-7 text-xs">
+<option selected="">All Types</option>
+<option>Implementation</option>
+<option>Modernization</option>
+<option>Maintenance</option>
+</select>
+<span class="material-symbols-outlined absolute right-1.5 top-2 text-secondary pointer-events-none text-[18px]" data-icon="arrow_drop_down">arrow_drop_down</span>
+</div>
+</div>
+<!-- Field 5: Status -->
+<div class="space-y-1">
+<label class="font-label-md text-label-md text-on-surface font-medium">Status</label>
+<div class="relative">
+<select class="w-full h-9 px-2.5 rounded-lg border border-outline bg-surface-container-lowest text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-7 text-xs">
+<option selected="">Active</option>
+<option>Draft</option>
+<option>On Hold</option>
+<option>Archived</option>
+</select>
+<span class="material-symbols-outlined absolute right-1.5 top-2 text-secondary pointer-events-none text-[18px]" data-icon="arrow_drop_down">arrow_drop_down</span>
+</div>
+</div>
+</div>
+<!-- Dynamic Results Counter Preview banner -->
+<div class="p-2.5 rounded-lg bg-surface-container flex items-center justify-between border border-outline-variant">
+<span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-[16px]" data-icon="analytics">analytics</span> Scoped Results
+          </span>
+<span class="font-data-tabular text-headline-sm text-primary font-bold">18 Records</span>
+</div>
+</div>
+<!-- Modal Action Buttons -->
+<div class="p-4 bg-surface-container-low border-t border-outline-variant flex items-center gap-3">
+<button class="flex-1 h-10 px-3 rounded-lg border border-outline text-on-surface font-label-md text-label-md bg-surface-container-lowest hover:bg-surface-container active:scale-95 transition-transform" onclick="closeFilterModal()" type="button">
+          Clear Filters
+        </button>
+<button class="flex-1 h-10 px-3 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container active:scale-95 transition-transform shadow-sm font-semibold flex items-center justify-center gap-1" onclick="closeFilterModal()" type="button">
+<span class="">Apply (18 Results)</span>
+</button>
+</div>
+</div>
+</div>
+<!-- BOTTOM NAVBAR (Mandatory Shared Component from JSON) -->
+<!-- Active state strictly mapped to 'Forms' tab for this Form Console screen -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface border-t border-outline-variant dark:border-outline shadow-sm docked full-width bottom-0 fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 py-1">
+<!-- Item 0: Forms (ACTIVE DESTINATION) -->
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary text-on-secondary-container dark:text-on-secondary rounded-lg px-3 py-1 active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-primary dark:text-inverse-primary" data-icon="assignment">assignment</span>
+<span class="text-label-sm font-label-sm font-bold">Forms</span>
+</a>
+<!-- Item 1: Projects (INACTIVE) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-3 py-1 hover:bg-surface-container dark:hover:bg-inverse-surface hover:text-on-surface dark:hover:text-inverse-on-surface active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="folder">folder</span>
+<span class="text-label-sm font-label-sm">Projects</span>
+</a>
+<!-- Item 2: Users (INACTIVE) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-3 py-1 hover:bg-surface-container dark:hover:bg-inverse-surface hover:text-on-surface dark:hover:text-inverse-on-surface active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="text-label-sm font-label-sm">Users</span>
+</a>
+<!-- Item 3: Audit (INACTIVE) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-surface-variant px-3 py-1 hover:bg-surface-container dark:hover:bg-inverse-surface hover:text-on-surface dark:hover:text-inverse-on-surface active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="text-label-sm font-label-sm">Audit</span>
+</a>
+</nav>
+<!-- Interactive Logic for ComboBox Toggles & Filter Modal -->
+<script>
+    function toggleDropdown(id) {
+      const el = document.getElementById(id);
+      if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    }
+
+    function openFilterModal() {
+      const modal = document.getElementById('filter-modal-backdrop');
+      modal.classList.remove('hidden');
+    }
+
+    function closeFilterModal() {
+      const modal = document.getElementById('filter-modal-backdrop');
+      modal.classList.add('hidden');
+    }
+
+    function clearProjectFilter() {
+      const banner = document.getElementById('prj-active-filter-banner');
+      const meta = document.getElementById('prj-cardinality-meta');
+      const triggerText = document.querySelector('#prj-combo-trigger span');
+      if (banner) {
+        banner.style.display = 'none';
+      }
+      if (meta) {
+        meta.textContent = '1,500 available projects';
+        meta.classList.remove('text-primary');
+        meta.classList.add('text-secondary');
+      }
+      if (triggerText) {
+        triggerText.textContent = '[ Select Project ]';
+        triggerText.classList.remove('font-medium');
+        triggerText.classList.add('text-outline');
+      }
+    }
+  </script>
+
+
+</body></html>

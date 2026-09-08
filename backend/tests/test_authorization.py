@@ -11,6 +11,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.deps import (
+    project_scope_conditions,
     require_account_geo_scope,
     require_account_scope,
     require_geo_scope,
@@ -232,6 +233,43 @@ async def test_require_account_geo_scope_rejects_when_account_in_other_geo():
     with pytest.raises(HTTPException) as exc:
         await dep(account_id=account_id, current_user=user, db=db)
     assert exc.value.status_code == 403
+
+
+async def test_project_scope_conditions_unrestricted_for_portfolio_roles():
+    user = make_user()
+    for role in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CXO):
+        conds = await project_scope_conditions(FakeDB(role), user)
+        assert conds == []
+
+
+async def test_project_scope_conditions_pm_limited_to_own_projects():
+    user = make_user()
+    conds = await project_scope_conditions(FakeDB(RoleCode.PROJECT_MANAGER), user)
+    assert len(conds) == 1
+    assert "project_manager_id" in str(conds[0])
+
+
+async def test_project_scope_conditions_account_manager_uses_owned_accounts():
+    user = make_user()
+    account_id = uuid4()
+    conds = await project_scope_conditions(
+        FakeDB(RoleCode.ACCOUNT_MANAGER, owned_account_ids=[account_id]), user
+    )
+    assert len(conds) == 1
+    assert "account_id" in str(conds[0])
+
+
+async def test_project_scope_conditions_blocks_role_with_no_scope():
+    user = make_user()
+    # Account Manager with no owned accounts, and a dashboard-only role, both
+    # resolve to a never-true condition rather than an unrestricted list.
+    for db in (
+        FakeDB(RoleCode.ACCOUNT_MANAGER, owned_account_ids=[]),
+        FakeDB(RoleCode.TEAM_MEMBER),
+    ):
+        conds = await project_scope_conditions(db, user)
+        assert len(conds) == 1
+        assert str(conds[0]) == "false"
 
 
 # --- End-to-end (through the real app, DB layer swapped for FakeDB via

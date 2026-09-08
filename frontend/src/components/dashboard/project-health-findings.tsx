@@ -111,7 +111,7 @@ export function ProjectHealthFindings() {
             <option value="">Classification [All]</option>
             {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
               <option key={c} value={c}>
-                {c === "NC" ? "NC (Non-Conformance)" : c}
+                {c}
               </option>
             ))}
           </NativeSelect>

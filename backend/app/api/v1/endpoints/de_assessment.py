@@ -7,25 +7,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_project_de_assessment_access
 from app.core.db import get_db
-from app.crud.de_assessment import de_assessment_alert_crud, de_assessment_crud, de_assessment_finding_crud
+from app.crud.de_assessment import de_assessment_crud, de_assessment_finding_crud
 from app.crud.projects import project_crud
-from app.models.de_assessment import DEAssessment, DEAssessmentAlert, DEAssessmentFinding
+from app.models.de_assessment import DEAssessment, DEAssessmentFinding
 from app.models.projects import Project
 from app.models.users import User
 from app.schemas.de_assessment import (
-    DEAssessmentAlertIn,
-    DEAssessmentAlertRead,
     DEAssessmentCreate,
     DEAssessmentFindingIn,
     DEAssessmentFindingRead,
     DEAssessmentFindingUpdate,
     DEAssessmentRead,
-    DEAssessmentReadWithDetails,
     DEAssessmentUpdate,
 )
 from app.schemas.de_findings import DEFindingHistoryRead
 from app.schemas.enums import DEAssessmentStatus, DEFindingHistoryEventType, RoleCode
-from app.services.code_generator import generate_code
+from app.services import notifications as notify_svc
 from app.services.de_findings import (
     FindingStatusError,
     apply_closure_side_effects,
@@ -55,18 +52,6 @@ def _finalize_assessment(project: Project, assessment: DEAssessment) -> None:
     )
 
 
-async def _load_with_details(db: AsyncSession, assessment: DEAssessment) -> DEAssessmentReadWithDetails:
-    alerts = (
-        (await db.execute(select(DEAssessmentAlert).where(DEAssessmentAlert.assessment_id == assessment.id)))
-        .scalars()
-        .all()
-    )
-    return DEAssessmentReadWithDetails(
-        **DEAssessmentRead.model_validate(assessment).model_dump(),
-        alerts=[DEAssessmentAlertRead.model_validate(a) for a in alerts],
-    )
-
-
 @router.get("", response_model=list[DEAssessmentRead])
 async def list_assessments(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await de_assessment_crud.list(
@@ -78,7 +63,7 @@ async def list_assessments(project_id: UUID, db: AsyncSession = Depends(get_db))
     return items
 
 
-@router.get("/latest", response_model=DEAssessmentReadWithDetails)
+@router.get("/latest", response_model=DEAssessmentRead)
 async def get_latest_assessment(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await de_assessment_crud.list(
         db,
@@ -88,19 +73,19 @@ async def get_latest_assessment(project_id: UUID, db: AsyncSession = Depends(get
     )
     if not items:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No DE assessments recorded for this project")
-    return await _load_with_details(db, items[0])
+    return items[0]
 
 
-@router.get("/{assessment_id}", response_model=DEAssessmentReadWithDetails)
+@router.get("/{assessment_id}", response_model=DEAssessmentRead)
 async def get_assessment(project_id: UUID, assessment_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await de_assessment_crud.get(db, assessment_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Assessment not found")
-    return await _load_with_details(db, obj)
+    return obj
 
 
 @router.post(
-    "", response_model=DEAssessmentReadWithDetails, status_code=status.HTTP_201_CREATED
+    "", response_model=DEAssessmentRead, status_code=status.HTTP_201_CREATED
 )
 async def create_assessment(
     project_id: UUID,
@@ -133,10 +118,10 @@ async def create_assessment(
         _finalize_assessment(project, assessment)
         await db.flush()
 
-    return await _load_with_details(db, assessment)
+    return assessment
 
 
-@router.patch("/{assessment_id}", response_model=DEAssessmentReadWithDetails)
+@router.patch("/{assessment_id}", response_model=DEAssessmentRead)
 async def update_assessment(
     project_id: UUID,
     assessment_id: UUID,
@@ -164,27 +149,7 @@ async def update_assessment(
             _finalize_assessment(project, assessment)
     await db.flush()
 
-    return await _load_with_details(db, assessment)
-
-
-@router.post(
-    "/{assessment_id}/alerts",
-    response_model=DEAssessmentAlertRead,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(_de_write)],
-)
-async def add_alert(project_id: UUID, assessment_id: UUID, payload: DEAssessmentAlertIn, db: AsyncSession = Depends(get_db)):
-    assessment = await de_assessment_crud.get(db, assessment_id)
-    if assessment is None or assessment.project_id != project_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Assessment not found")
-    alert_code = await generate_code(db, "DE_ALERT")
-    return await de_assessment_alert_crud.create(
-        db,
-        payload,
-        assessment_id=assessment_id,
-        alert_code=alert_code,
-        raised_on=payload.raised_on or assessment.assessment_date or date.today(),
-    )
+    return assessment
 
 
 # --- Findings: a project-level register, independent of any assessment ---
@@ -230,6 +195,20 @@ async def add_finding(
     await record_finding_history(
         db, obj.id, DEFindingHistoryEventType.CREATED, current_user.id, new_value=obj.status
     )
+    project = await project_crud.get(db, project_id)
+    if project is not None:
+        await notify_svc.notify(
+            db,
+            recipient_id=project.project_manager_id,
+            type="FINDING_RAISED",
+            title=f"New DE finding on {project.project_code}",
+            body=obj.description,
+            link="/pm-findings",
+            entity_type="finding",
+            entity_id=obj.id,
+            actor_id=current_user.id,
+            data={"project_code": project.project_code, "classification": obj.classification},
+        )
     return obj
 
 
@@ -265,4 +244,20 @@ async def update_finding(
     await db.flush()
 
     await record_status_change(db, updated.id, current_user.id, old_status, new_status)
+
+    if new_status != old_status:
+        project = await project_crud.get(db, project_id)
+        if project is not None:
+            await notify_svc.notify(
+                db,
+                recipient_id=project.project_manager_id,
+                type="FINDING_STATUS",
+                title=f"Finding on {project.project_code} is now {new_status}",
+                body=updated.description,
+                link="/pm-findings",
+                entity_type="finding",
+                entity_id=updated.id,
+                actor_id=current_user.id,
+                data={"project_code": project.project_code, "status": new_status},
+            )
     return updated

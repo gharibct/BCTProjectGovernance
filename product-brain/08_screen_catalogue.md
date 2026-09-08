@@ -108,7 +108,7 @@
 | SCR-MEAS-10 | `/project-reporting/[id]/measurement` | Form | MOD-MEAS | `PROJECT_MANAGER` | Measurement entry (Monthly), one tab per Project Type. |
 | SCR-CONTRACT-10 | `/project-reporting/[id]/contractual-compliance` | Form | MOD-CONTRACT | `PROJECT_MANAGER`/`PMO` | Commitments/Milestones + actuals (Monthly). |
 | SCR-RAID-10 | `/project-reporting/[id]/raido` | List/Form ★§3.3 | MOD-RAID | `PROJECT_MANAGER`/`TEAM_MEMBER` | Project RAIDO Register (Monthly review). |
-| SCR-DEA-10 | `/project-reporting/[id]/de-assessment` | Workbench ★§3.4 | MOD-DEA | `DELIVERY_EXCELLENCE` | DE Assessment + Findings + Alert register tabs. |
+| SCR-DEA-10 | `/project-reporting/[id]/de-assessment` | Workbench ★§3.4 | MOD-DEA | `DELIVERY_EXCELLENCE` | DE Assessment + Findings register tabs. |
 | SCR-AI-20 | `/project-reporting/[id]/ai-hub/document-processing` | Workbench | MOD-AI | `PROJECT_MANAGER` | AI Hub (reporting context). |
 
 ### 2.5 Account Reporting (`/account-reporting/[accountId]/*`) — rail: `account-nav`
@@ -259,8 +259,8 @@ in `product-brain/06` §12–15.)*
 
 ### 3.4 ★ SCR-DEA-10 / SCR-DEA-30 — DE Assessment
 
-**Tabs:** Assessment · Findings · Alerts. **Actions:** Create (`POST
-/projects/{id}/de-assessments`), Save (`PATCH`), Add Finding, Raise Alert, Submit.
+**Tabs:** Assessment · Findings. **Actions:** Create (`POST
+/projects/{id}/de-assessments`), Save (`PATCH`), Add Finding, Submit.
 
 | Field | Type | Mandatory | Source | Editable | Default | Validation | Business Rule |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -270,20 +270,16 @@ in `product-brain/06` §12–15.)*
 | PCI Score | number | Yes | user | status:Draft | — | numeric | BR-DEA-060 |
 | Remarks | textarea | No | user | status:Draft | — | — | — |
 | **Finding:** Sequence # | number | Yes | system | No | auto | — | — |
-| Finding Classification | select | Yes | `FindingClassification` | Yes | — | Observation/Recommendation or Governance/Performance/Security/Financial | — |
+| Finding Classification | select | Yes | `FindingClassification` | Yes | — | Observation / Recommendation / Alert | — |
 | Finding Description | textarea | Yes | user | Yes | — | non-empty | — |
 | Finding Severity | select | No | `RiskSeverity` | Yes | — | Low…Critical | — |
 | Assigned To | lookup | No | `ref:users` | Yes | — | — | — |
 | Action Taken / Finding Date / Due Date | textarea / date | No | user | Yes | — | — | — |
 | Finding Status | select | Yes | `FindingStatus` | Yes | `Open` | Open/In Progress/Awaiting Closure/Closed/Cancelled | §6.16 |
-| **Alert:** Alert ID | derived | — | system | No | `ALT-YYYY-NNNN` | — | BR-DEA-030 |
-| Alert Category | select | Yes (if raised) | `Category` (6) | Yes | — | ∈ enum | BR-DEA-020 |
-| Brief / Detailed Description | text / textarea | Yes / No | user | Yes | — | brief non-empty | — |
-| Raised By / On | derived | — | system | No | current user / today | — | — |
 
 **Status-dependent behaviour:** editable only while `Draft`; on Submit the rating pushes to
-the Charter (BR-DEA-040); an Alert is required when the rating ≠ Green (BR-DEA-020,
-Advisory). **Navigation:** from the DE work queue (SCR-DEA-20) or the reporting rail.
+the Charter (BR-DEA-040). **Navigation:** from the DE work queue (SCR-DEA-20) or the
+reporting rail.
 
 ### 3.5 ★ SCR-ACCT-20 / SCR-GEO-20 — Account / Geo Status Report
 

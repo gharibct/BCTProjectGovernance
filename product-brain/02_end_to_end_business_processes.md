@@ -227,8 +227,7 @@ flowchart TD
 | 1 | `DELIVERY_EXCELLENCE` | `POST /projects/{id}/de-assessments` — new dated assessment | `status` = `Draft` (default `Submitted` on some paths — verify); `assessment_date`, `next_assessment_due_date` set |
 | 2 | `DELIVERY_EXCELLENCE` | Set DE-Assessed Health (4-state RAG) and PCI score | Fields recorded |
 | 3 | `DELIVERY_EXCELLENCE` | Add Key Findings (`POST …/findings`): sequence #, Classification, description, severity, action taken, dates, status | Findings attached; each `Open` → … lifecycle per `product-brain/06` |
-| 4 | `SYSTEM` / `DELIVERY_EXCELLENCE` | If DE-Assessed Health ≠ `Green`, raise an Alert (`POST …/alerts`): category, brief + detailed description, raised by/on | Alert recorded `<!-- pending: BR-DEA-* -->` |
-| 5 | `DELIVERY_EXCELLENCE` | Submit the assessment | `status` = `Submitted`; latest assessment's rating flows read-only into the Project Charter and the overall project health (BP-06) |
+| 4 | `DELIVERY_EXCELLENCE` | Submit the assessment | `status` = `Submitted`; latest assessment's rating flows read-only into the Project Charter and the overall project health (BP-06) |
 
 ### Alternate Flows
 
@@ -241,24 +240,20 @@ flowchart TD
 
 | ID | Exception | System behaviour |
 | --- | --- | --- |
-| BP-04-E1 | Rating not Green but no Alert logged | `ASSUMPTION:` the user is nudged / an Alert is mandatory `<!-- pending: BR-DEA-* -->`. |
-| BP-04-E2 | Overdue vs. `next_assessment_due_date` | Surfaced as overdue on the DE dashboard and Data Integrity. |
+| BP-04-E1 | Overdue vs. `next_assessment_due_date` | Surfaced as overdue on the DE dashboard and Data Integrity. |
 
-**Business Rules referenced:** BR-DEA-* (Alert-if-not-Green, PCI capture, history retained) `<!-- pending -->`
+**Business Rules referenced:** BR-DEA-* (PCI capture, history retained) `<!-- pending -->`
 
 **Status Changes:** DE Assessment *(none)* → `Draft` → `Submitted`. DE Finding: `Open` → `In Progress` → `Awaiting Closure` → `Closed` (or `Cancelled`).
 **System Interactions:** MOD-HEALTH (overall project health uses DE-Assessed), MOD-DASH, MOD-DI.
-**Notifications:** N-DEA-ALERT, N-DEA-OVERDUE `<!-- pending -->`
-**Outputs:** a dated `Submitted` DE assessment with PCI score, findings, and any alert.
+**Notifications:** N-DEA-OVERDUE `<!-- pending -->`
+**Outputs:** a dated `Submitted` DE assessment with PCI score and findings.
 
 ```mermaid
 flowchart TD
     A[DE: new assessment - Draft] --> H[Set DE-Assessed Health + PCI]
     H --> F[Add Key Findings]
-    H --> G{Health = Green?}
-    G -- No --> AL[Raise Alert]
-    G -- Yes --> SUB
-    AL --> SUB[Submit -> Submitted]
+    H --> SUB[Submit -> Submitted]
     SUB --> CH[[Charter shows DE-Assessed Health; BP-06 rollup]]
 ```
 

@@ -88,8 +88,8 @@ class HighlightRow(BaseModel):
 
 
 class OpenNcRow(BaseModel):
-    """One open Non-Conformance — a DE assessment finding classified 'NC'
-    whose status is still open. Row shape for the "Open NC" list section
+    """One open Alert — a DE assessment finding classified 'Alert' whose
+    status is still open. Row shape for the "Open Alerts" list section
     added to the PM, Account and CXO dashboards; on the Account/CXO
     dashboards the list rolls up across every in-scope project."""
 
@@ -108,7 +108,7 @@ class OpenNcRow(BaseModel):
 
 
 class OpenNcListResponse(BaseModel):
-    """Standalone "Open NC" payload for a single project / account / geo —
+    """Standalone "Open Alerts" payload for a single project / account / geo —
     the per-entity Project, Account and Geo dashboards (both the reporting
     hub and the review screen) render this as a KPI count + list section."""
 
@@ -131,8 +131,8 @@ class DashboardSummary(BaseModel):
     project_matrix: list[HealthMatrixRow]
     account_highlights: list[HighlightRow]
     project_highlights: list[HighlightRow]
-    # Open Non-Conformances (NC-classified DE findings) rolled up across
-    # every in-scope project — KPI count plus the full list.
+    # Open Alerts (Alert-classified DE findings) rolled up across every
+    # in-scope project — KPI count plus the full list.
     open_ncs_count: int
     open_ncs: list[OpenNcRow]
 
@@ -272,7 +272,7 @@ class AccountHeadDashboardSummary(BaseModel):
     attention_items: list[AttentionItem]
     reporting_readiness: ReportingReadiness
     open_actions: list[AccountHeadOpenActionRow]
-    # Open Non-Conformances rolled up across every project in the account(s).
+    # Open Alerts rolled up across every project in the account(s).
     open_ncs: list[OpenNcRow]
 
 
@@ -338,6 +338,9 @@ class DEAssessmentWorkQueueRow(BaseModel):
     account_name: str | None
     geo_name: str | None = None
     region_name: str | None = None
+    project_type_name: str | None = None
+    # Ownership model — "Fully Owned" / "Co-Owned" / "Customer Driven" (schemas.enums.ProjectOwned).
+    project_owned: str | None = None
     pm_health: HealthRating | None
     de_health: HealthRating | None  # from the most recent assessment this month
     pci_score: Decimal | None
@@ -544,6 +547,22 @@ class DataIntegrityCardSummary(BaseModel):
     overall_compliance_pct: int
     projects_with_gaps_count: int
     critical_gaps_count: int
+
+
+# "Data Integrity / Report Submissions" section — per-scope report-submission
+# adherence: how many of the reports that were owed (entity x every started,
+# post-onboarding active reporting period) have actually been filed.
+class ReportSubmissionKpi(BaseModel):
+    submitted_count: int
+    expected_count: int
+    adherence_pct: int  # round(submitted / expected * 100); 0 when nothing owed
+
+
+class ReportSubmissionsSummary(BaseModel):
+    delivery_status_projects: ReportSubmissionKpi
+    metrics_projects: ReportSubmissionKpi
+    delivery_status_accounts: ReportSubmissionKpi
+    delivery_status_geos: ReportSubmissionKpi
 
 
 # Row shapes for the Project Health drill-down list screens (Project List,
@@ -783,6 +802,24 @@ class DataIntegrityRow(BaseModel):
     last_checked: date | None = None
 
 
+class ReportSubmissionDetailRow(BaseModel):
+    """One (entity, reporting period) pair that a report was owed for, behind
+    the "Data Integrity / Report Submissions" drill-down grid. Project-level
+    fields are null on account/geo rows and vice versa ("relevant fields only")."""
+
+    row_key: str  # stable client key: "<type>-<entity_id>-<period_id>"
+    report_type: str  # Delivery Status - Project | Metrics - Project | Delivery Status - Account | Delivery Status - Geo
+    geo_name: str | None = None
+    account_name: str | None = None
+    project_label: str | None = None
+    project_manager_name: str | None = None
+    account_head_name: str | None = None
+    geo_head_name: str | None = None
+    period_label: str
+    status: str  # "Submitted" | "Not Submitted"
+    submission_date: date | None = None
+
+
 class ProjectHealthDashboardSummary(BaseModel):
     portfolio: ProjectPortfolioSummary
     health: ProjectHealthCardSummary
@@ -799,5 +836,6 @@ class ProjectHealthDashboardSummary(BaseModel):
     findings: FindingsCardSummary
     de_assessments: DEAssessmentsCardSummary
     data_integrity: DataIntegrityCardSummary
+    report_submissions: ReportSubmissionsSummary
     period_id: UUID | None
     period_label: str | None

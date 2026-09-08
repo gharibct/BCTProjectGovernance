@@ -167,8 +167,6 @@ for UX; the server re-check is authoritative.
 | Rule ID | Business Rule | Trigger | Condition | System Action | Enforcement | Severity |
 | --- | --- | --- | --- | --- | --- | --- |
 | BR-DEA-010 | DE Assessment write is allowed to `PROJECT_MANAGER`, `DELIVERY_EXCELLENCE`, `ACCOUNT_MANAGER`, `GEO_HEAD` (in patch), `ADMIN`. | Any `.../de-assessments*` write | `require_project_access` roles incl. `DELIVERY_EXCELLENCE` | `403` otherwise | API (`_write_roles`) | Blocking |
-| BR-DEA-020 | An Alert is required when DE-Assessed Health ≠ `Green`. | Assessment save with rating ≠ Green and zero alerts | at least one Alert logged | Nudge the user / block submit | API/UI; **`ASSUMPTION:` mandatory-block TBD** | High → Advisory |
-| BR-DEA-030 | Each Alert gets a unique `ALT-YYYY-NNNN` code. | Alert create | always | `code_generator` issues a locked code | Service | Blocking |
 | BR-DEA-040 | A project retains full assessment history; the latest assessment's rating is pushed read-only to the Charter and into overall health. | Assessment submit | — | `_finalize_assessment` writes the cached rating on `projects` | API/Service | High |
 | BR-DEA-050 | DE Assessment status is `Draft` or `Submitted`; "Not Started" is the absence of any row, never stored. | Assessment lifecycle | — | Create default differs by path (`ASSUMPTION`) | Pydantic-schema | Medium |
 | BR-DEA-060 | PCI Score and DE-Assessed Health are captured per assessment; findings carry their own lifecycle. | Assessment / finding save | value types valid | Store; findings `Open → In Progress → Awaiting Closure → Closed` (or `Cancelled`) | Pydantic-schema | Low |
@@ -329,7 +327,7 @@ for UX; the server re-check is authoritative.
 - Rules with a **workflow effect** (BR-PROJ-060/070, BR-STATUS-020/030, BR-DEAP-010/030,
   BR-ACTION-030/040/050) are cited from and to `product-brain/06`.
 - **Advisory** rules (design intent not yet enforced server-side) — BR-PROJ-050/080/090,
-  BR-DEA-020, BR-RAID-060, BR-HEALTH-050, BR-MEAS-040, BR-CONTRACT-050, BR-TARGET-020,
+  BR-RAID-060, BR-HEALTH-050, BR-MEAS-040, BR-CONTRACT-050, BR-TARGET-020,
   BR-GEO-020, BR-REF-030, BR-INTG-020, BR-AUDIT-020 — each becomes a `GAD` line in
   `product-brain/23`.
 

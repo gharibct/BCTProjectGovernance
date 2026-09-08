@@ -16,6 +16,9 @@ const REPORT_STATUS_CLASS: Record<string, string> = {
   Draft: "bg-slate-100 text-slate-600 ring-slate-200",
   "Due Today": "bg-blue-50 text-blue-700 ring-blue-200",
   "Not Submitted": "bg-red-50 text-red-700 ring-red-200",
+  // Not yet onboarded into the tool for the nearest period (Governance Tool
+  // Implementation Effective Date is after it) — neutral, not urgent.
+  "Not Due": "bg-slate-100 text-slate-600 ring-slate-200",
 };
 
 function ReportStatusBadge({ status }: { status: string }) {

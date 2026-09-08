@@ -18,6 +18,9 @@ export type DEAssessmentWorkQueueRow = {
   account_name: string | null;
   geo_name: string | null;
   region_name: string | null;
+  project_type_name: string | null;
+  // Ownership model — "Fully Owned" | "Co-Owned" | "Customer Driven".
+  project_owned: string | null;
   pm_health: HealthRating | null;
   de_health: HealthRating | null;
   pci_score: string | null;

@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { FileText, Milestone } from "lucide-react";
 
-import { useCommitments, useMilestonePayments } from "@/lib/api/contractual";
+import { useCommitments, useLatestCommitmentActuals, useMilestonePayments } from "@/lib/api/contractual";
 import { SectionCard } from "@/components/forms/form-primitives";
 import { RegisterTable } from "@/components/forms/register-table";
 
@@ -11,6 +11,10 @@ export function ContractualView() {
   const { projectId } = useParams<{ projectId: string }>();
   const { data: commitments = [] } = useCommitments(projectId ?? null);
   const { data: milestones = [] } = useMilestonePayments(projectId ?? null);
+  const actualsByCommitment = useLatestCommitmentActuals(
+    projectId ?? null,
+    commitments.map((c) => c.id)
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -22,6 +26,12 @@ export function ContractualView() {
             { key: "commitment_name", label: "Commitment" },
             { key: "frequency", label: "Frequency" },
             { key: "target", label: "Target", align: "right" },
+            {
+              key: "actual_value",
+              label: "Actual",
+              align: "right",
+              render: (item) => actualsByCommitment[item.id]?.latest?.actual_value ?? "—",
+            },
             {
               key: "penalty_applicable",
               label: "Penalty",

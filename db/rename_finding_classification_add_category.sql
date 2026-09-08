@@ -3,7 +3,7 @@
 --   * classification -> category  (the Project RAG 6-category taxonomy:
 --     Core Delivery, People, Operational, Customer, Financial, Compliance)
 --   * a new, separate classification column with a small fixed set:
---     Observation, Recommendation, NC (Non-Conformance)
+--     Observation, Recommendation, Alert
 -- Also drops the unused severity column.
 -- Safe to run once against a live DB with existing data. Fresh installs get
 -- the final shape from tables/19_de_assessments.sql.
@@ -18,11 +18,11 @@ ALTER TABLE de_assessment_findings RENAME COLUMN classification TO category;
 ALTER TABLE de_assessment_findings ADD COLUMN classification TEXT;
 
 -- 3. Rows that were classified as the legacy Observation/Recommendation keep
---    that as their classification; everything else defaults to NC.
+--    that as their classification; everything else defaults to Alert.
 UPDATE de_assessment_findings
 SET classification = CASE
     WHEN category IN ('Observation', 'Recommendation') THEN category
-    ELSE 'NC'
+    ELSE 'Alert'
 END;
 
 -- 4. Normalise any category left holding a non-taxonomy value (the legacy

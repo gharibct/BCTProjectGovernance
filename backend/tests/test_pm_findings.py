@@ -21,7 +21,12 @@ _PROJECT_ID = uuid4()
 
 
 def _fake_project(**overrides):
-    defaults = {"id": _PROJECT_ID, "project_manager_id": uuid4()}
+    defaults = {
+        "id": _PROJECT_ID,
+        "project_manager_id": uuid4(),
+        "delivery_excellence_id": uuid4(),  # notification recipient on action-taken
+        "project_code": "PRJ-0001",
+    }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
 
@@ -33,7 +38,7 @@ def _fake_finding(**overrides):
         "project_id": _PROJECT_ID,
         "sequence_no": 1,
         "category": "Core Delivery",
-        "classification": "NC",
+        "classification": "Alert",
         "description": "x",
         "assigned_to": None,
         "action_taken": None,

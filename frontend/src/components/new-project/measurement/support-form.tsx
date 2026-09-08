@@ -33,57 +33,81 @@ export function fromSupportTarget(data: MetricTargetSupport | null): Record<stri
   };
 }
 
-export function SupportTab({ m, set }: MeasuresProps) {
+export function SupportTab({ m, set, reference, errors }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Support Metrics">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
             label="Incident MTTR — P1"
+            metricKey="incident_mttr_hours"
+            reference={reference}
             value={m.targetMttrP1 ?? ""}
             onChange={set("targetMttrP1")}
+            error={errors?.targetMttrP1}
             unit="Person-Hours / Incident"
           />
           <MetricTile
             label="Incident MTTR — P2"
+            metricKey="incident_mttr_hours"
+            reference={reference}
             value={m.targetMttrP2 ?? ""}
             onChange={set("targetMttrP2")}
+            error={errors?.targetMttrP2}
             unit="Person-Hours / Incident"
           />
           <MetricTile
             label="Incident MTTR — P3"
+            metricKey="incident_mttr_hours"
+            reference={reference}
             value={m.targetMttrP3 ?? ""}
             onChange={set("targetMttrP3")}
+            error={errors?.targetMttrP3}
             unit="Person-Hours / Incident"
           />
           <MetricTile
             label="Service Request MTTR"
+            metricKey="service_request_mttr_hours"
+            reference={reference}
             value={m.targetMttrSr ?? ""}
             onChange={set("targetMttrSr")}
+            error={errors?.targetMttrSr}
             unit="Person-Hours / SR"
           />
           <MetricTile
             label="User Clarification MTTR"
+            metricKey="user_clarification_mttr_hours"
+            reference={reference}
             value={m.targetMttrUc ?? ""}
             onChange={set("targetMttrUc")}
+            error={errors?.targetMttrUc}
             unit="Person-Hours / UC"
           />
           <MetricTile
             label="SLA Compliance — P1"
+            metricKey="incident_sla_compliance_pct"
+            reference={reference}
             value={m.targetSlaP1 ?? ""}
             onChange={set("targetSlaP1")}
+            error={errors?.targetSlaP1}
             unit="%"
           />
           <MetricTile
             label="SLA Compliance — P2"
+            metricKey="incident_sla_compliance_pct"
+            reference={reference}
             value={m.targetSlaP2 ?? ""}
             onChange={set("targetSlaP2")}
+            error={errors?.targetSlaP2}
             unit="%"
           />
           <MetricTile
             label="SLA Compliance — P3"
+            metricKey="incident_sla_compliance_pct"
+            reference={reference}
             value={m.targetSlaP3 ?? ""}
             onChange={set("targetSlaP3")}
+            error={errors?.targetSlaP3}
             unit="%"
           />
         </div>

@@ -43,7 +43,7 @@ export function fromStaffingTarget(data: MetricTargetStaffing | null): Record<st
   return seed;
 }
 
-export function StaffingTab({ m, set }: MeasuresProps) {
+export function StaffingTab({ m, set, reference, errors }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Professional Staffing Metrics">
@@ -52,29 +52,41 @@ export function StaffingTab({ m, set }: MeasuresProps) {
             <MetricTile
               key={`avg-resp-${p.key}`}
               label={`Avg Response Time — ${p.label}`}
+              metricKey="avg_response_time_hours"
+              reference={reference}
               value={m[`target-avg-resp-${p.key}`] ?? ""}
               onChange={set(`target-avg-resp-${p.key}`)}
+              error={errors?.[`target-avg-resp-${p.key}`]}
               unit="Person-Hours / Request"
             />
           ))}
           <MetricTile
             label="Profiles Qualifying for Submission"
+            metricKey="pct_profiles_qualifying"
+            reference={reference}
             value={m.targetProfilesQualifying ?? ""}
             onChange={set("targetProfilesQualifying")}
+            error={errors?.targetProfilesQualifying}
             unit="%"
           />
           <MetricTile
             label="Candidates Resulting in Joining"
+            metricKey="pct_candidates_joining"
+            reference={reference}
             value={m.targetCandidatesJoining ?? ""}
             onChange={set("targetCandidatesJoining")}
+            error={errors?.targetCandidatesJoining}
             unit="%"
           />
           {PRIORITIES.map((p) => (
             <MetricTile
               key={`lead-time-${p.key}`}
               label={`Lead Time — ${p.label}`}
+              metricKey="avg_lead_time_days"
+              reference={reference}
               value={m[`target-lead-time-${p.key}`] ?? ""}
               onChange={set(`target-lead-time-${p.key}`)}
+              error={errors?.[`target-lead-time-${p.key}`]}
               unit="Person-Days / Onboarding"
             />
           ))}

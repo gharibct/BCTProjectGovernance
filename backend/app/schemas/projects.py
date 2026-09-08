@@ -53,6 +53,7 @@ class ProjectBase(BaseModel):
     actual_start_date: date | None = None
     planned_end_date: date | None = None
     actual_end_date: date | None = None
+    tool_effective_date: date | None = None
 
     # Multi-select on the Project Charter (Maintain / Amend Project) — zero or
     # more SDLC phases. Stored comma-joined; see models/types.CommaSeparatedList.
@@ -103,6 +104,7 @@ class ProjectUpdate(BaseModel):
     actual_start_date: date | None = None
     planned_end_date: date | None = None
     actual_end_date: date | None = None
+    tool_effective_date: date | None = None
     # None = leave unchanged (PUT is exclude_unset); [] = clear all phases.
     applicable_phase: list[ApplicablePhase] | None = None
     # The approval-workflow state (project_status) is only ever moved by the

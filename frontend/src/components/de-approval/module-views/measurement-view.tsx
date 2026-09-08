@@ -1,19 +1,20 @@
 "use client";
 
+import * as React from "react";
 import type { ReactElement } from "react";
 import { useParams } from "next/navigation";
 import { Gauge } from "lucide-react";
 
 import { useProject } from "@/lib/api/projects";
-import { useProjectTypes } from "@/lib/api/reference-data";
+import { useProjectTypes, useReportingPeriods } from "@/lib/api/reference-data";
 import {
-  useLatestDevelopmentMeasurement,
-  useLatestSupportMeasurement,
-  useLatestStaffingMeasurement,
-  useLatestTestingMeasurement,
-  useLatestConsultingMeasurement,
-  useLatestCloudMaintenanceMeasurement,
-  useLatestCloudMigrationMeasurement,
+  useDevelopmentMeasurements,
+  useSupportMeasurements,
+  useStaffingMeasurements,
+  useTestingMeasurements,
+  useConsultingMeasurements,
+  useCloudMaintenanceMeasurements,
+  useCloudMigrationMeasurements,
 } from "@/lib/api/measurement";
 import {
   useDevelopmentTarget,
@@ -24,25 +25,65 @@ import {
   useCloudMaintenanceTarget,
   useCloudMigrationTarget,
 } from "@/lib/api/metric-targets";
+import { NativeSelect } from "@/components/ui/native-select";
 import { SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
 import { ReadOnlyValueGrid } from "./read-only-grid";
 
+type Row = Record<string, unknown>;
+
 function Snapshot({
   target,
-  snapshot,
+  snapshots,
+  periodKey,
 }: {
-  target: Record<string, unknown> | null | undefined;
-  snapshot: Record<string, unknown> | null | undefined;
+  target: Row | null | undefined;
+  // Every snapshot for this project, newest reporting-period first (API order).
+  snapshots: Row[];
+  // Period-based tabs key off a reporting_periods id; Cloud Migration is
+  // event-based and keys off its own as_of_date column.
+  periodKey: "period_id" | "as_of_date";
 }) {
+  const { data: periods = [] } = useReportingPeriods();
+  const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
+
+  const options = snapshots.map((s) => {
+    const value = String(s[periodKey] ?? "");
+    const label =
+      periodKey === "period_id"
+        ? periods.find((p) => p.id === value)?.label ?? value
+        : value;
+    return { value, label };
+  });
+
+  const activeKey = selectedKey ?? options[0]?.value ?? null;
+  const active = snapshots.find((s) => String(s[periodKey] ?? "") === activeKey) ?? null;
+
+  const combo =
+    options.length > 0 ? (
+      <NativeSelect
+        aria-label="Measurement period"
+        wrapperClassName="w-auto"
+        className="h-10 w-auto bg-white text-sm"
+        value={activeKey ?? ""}
+        onChange={(e) => setSelectedKey(e.target.value)}
+      >
+        {options.map((option, index) => (
+          <option key={option.value} value={option.value}>
+            {index === 0 ? `${option.label} (Latest)` : option.label}
+          </option>
+        ))}
+      </NativeSelect>
+    ) : undefined;
+
   return (
     <div className="flex flex-col gap-6">
       <SectionCard icon={Gauge} title="Metric Targets">
         {target ? <ReadOnlyValueGrid data={target} /> : <EmptyState>No metric targets set.</EmptyState>}
       </SectionCard>
-      <SectionCard icon={Gauge} title="Latest Measurement Snapshot">
-        {snapshot ? (
-          <ReadOnlyValueGrid data={snapshot} />
+      <SectionCard icon={Gauge} title="Measurement Snapshot" aside={combo}>
+        {active ? (
+          <ReadOnlyValueGrid data={active} />
         ) : (
           <EmptyState>No measurement snapshot recorded yet.</EmptyState>
         )}
@@ -52,34 +93,35 @@ function Snapshot({
 }
 
 function DevelopmentView({ projectId }: { projectId: string | null }) {
-  return <Snapshot target={useDevelopmentTarget(projectId).data} snapshot={useLatestDevelopmentMeasurement(projectId).data} />;
+  const { data: snapshots = [] } = useDevelopmentMeasurements(projectId);
+  return <Snapshot target={useDevelopmentTarget(projectId).data} snapshots={snapshots} periodKey="period_id" />;
 }
 function SupportView({ projectId }: { projectId: string | null }) {
-  return <Snapshot target={useSupportTarget(projectId).data} snapshot={useLatestSupportMeasurement(projectId).data} />;
+  const { data: snapshots = [] } = useSupportMeasurements(projectId);
+  return <Snapshot target={useSupportTarget(projectId).data} snapshots={snapshots} periodKey="period_id" />;
 }
 function StaffingView({ projectId }: { projectId: string | null }) {
-  return <Snapshot target={useStaffingTarget(projectId).data} snapshot={useLatestStaffingMeasurement(projectId).data} />;
+  const { data: snapshots = [] } = useStaffingMeasurements(projectId);
+  return <Snapshot target={useStaffingTarget(projectId).data} snapshots={snapshots} periodKey="period_id" />;
 }
 function TestingView({ projectId }: { projectId: string | null }) {
-  return <Snapshot target={useTestingTarget(projectId).data} snapshot={useLatestTestingMeasurement(projectId).data} />;
+  const { data: snapshots = [] } = useTestingMeasurements(projectId);
+  return <Snapshot target={useTestingTarget(projectId).data} snapshots={snapshots} periodKey="period_id" />;
 }
 function ConsultingView({ projectId }: { projectId: string | null }) {
-  return <Snapshot target={useConsultingTarget(projectId).data} snapshot={useLatestConsultingMeasurement(projectId).data} />;
+  const { data: snapshots = [] } = useConsultingMeasurements(projectId);
+  return <Snapshot target={useConsultingTarget(projectId).data} snapshots={snapshots} periodKey="period_id" />;
 }
 function CloudMaintenanceView({ projectId }: { projectId: string | null }) {
+  const { data: snapshots = [] } = useCloudMaintenanceMeasurements(projectId);
   return (
-    <Snapshot
-      target={useCloudMaintenanceTarget(projectId).data}
-      snapshot={useLatestCloudMaintenanceMeasurement(projectId).data}
-    />
+    <Snapshot target={useCloudMaintenanceTarget(projectId).data} snapshots={snapshots} periodKey="period_id" />
   );
 }
 function CloudMigrationView({ projectId }: { projectId: string | null }) {
+  const { data: snapshots = [] } = useCloudMigrationMeasurements(projectId);
   return (
-    <Snapshot
-      target={useCloudMigrationTarget(projectId).data}
-      snapshot={useLatestCloudMigrationMeasurement(projectId).data}
-    />
+    <Snapshot target={useCloudMigrationTarget(projectId).data} snapshots={snapshots} periodKey="as_of_date" />
   );
 }
 

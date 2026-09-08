@@ -1,8 +1,8 @@
 "use client";
 
 import { NativeSelect } from "@/components/ui/native-select";
+import { ProjectPicker } from "@/components/forms/project-picker";
 import { useAccounts, useGeos } from "@/lib/api/reference-data";
-import { useProjects } from "@/lib/api/projects";
 import {
   FINDING_CLASSIFICATION_OPTIONS,
   FINDING_STATUS_OPTIONS,
@@ -13,9 +13,8 @@ const DEFAULTS: DeFindingsFilter = { status: "Active" };
 
 // Portfolio-wide DE Findings filter bar — Geo / Account / Project /
 // Classification / Status. Modeled on project-health-filter-bar.tsx. The
-// Project <select> lists useProjects()'s first 200 (its hard cap) — acceptable
-// for the current portfolio. (Free-text search is supported by the API but
-// intentionally not surfaced here.)
+// Project field is a FilteredCombo (searchable, server-side) rather than a
+// flat <select>, so it scales past the useProjects() 200-row cap.
 export function DeFindingsFilterBar({
   filters,
   onChange,
@@ -25,7 +24,6 @@ export function DeFindingsFilterBar({
 }) {
   const { data: geos = [] } = useGeos();
   const { data: accounts = [] } = useAccounts();
-  const { data: projects = [] } = useProjects();
 
   const set = (patch: Partial<DeFindingsFilter>) => onChange({ ...filters, ...patch });
 
@@ -69,20 +67,13 @@ export function DeFindingsFilterBar({
         </NativeSelect>
       </div>
 
-      <div className="w-52">
-        <NativeSelect
-          aria-label="Project"
-          className="h-9 bg-white text-sm"
-          value={filters.projectId ?? ""}
-          onChange={(e) => set({ projectId: e.target.value || undefined })}
-        >
-          <option value="">Project [All]</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.project_code} · {p.project_name}
-            </option>
-          ))}
-        </NativeSelect>
+      <div className="w-80">
+        <ProjectPicker
+          label=""
+          placeholder="Project [All]"
+          value={filters.projectId ?? null}
+          onChange={(id) => set({ projectId: id ?? undefined })}
+        />
       </div>
 
       <div className="w-40">

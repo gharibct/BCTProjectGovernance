@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, Request, status
-from sqlalchemy import select, update
+from sqlalchemy import false, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
@@ -60,6 +60,40 @@ async def _owned_account_ids(db: AsyncSession, user: User) -> set[UUID]:
 async def _owned_geo_ids(db: AsyncSession, user: User) -> set[UUID]:
     rows = (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == user.id))).scalars().all()
     return set(rows)
+
+
+async def project_scope_conditions(db: AsyncSession, user: User) -> list:
+    """SQLAlchemy WHERE conditions restricting a `select(Project)` to what the
+    caller may see in a project LIST (GET /projects):
+
+    - ADMIN / DELIVERY_EXCELLENCE / PMO / CXO: no restriction (they need
+      cross-portfolio reads — the DE Projects browser, Project Health, the
+      account/geo dashboards).
+    - PROJECT_MANAGER: only projects they manage.
+    - ACCOUNT_MANAGER: only projects in their owned accounts.
+    - GEO_HEAD: only projects in their owned geo(s), directly or via the
+      project's account (mirrors require_project_access).
+    - anything else (e.g. TEAM_MEMBER): nothing.
+    """
+    role_code = await _role_code(db, user)
+    if role_code in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CXO):
+        return []
+    if role_code == RoleCode.PROJECT_MANAGER:
+        return [Project.project_manager_id == user.id]
+    if role_code == RoleCode.ACCOUNT_MANAGER:
+        account_ids = await _owned_account_ids(db, user)
+        return [Project.account_id.in_(account_ids)] if account_ids else [false()]
+    if role_code == RoleCode.GEO_HEAD:
+        geo_ids = await _owned_geo_ids(db, user)
+        if not geo_ids:
+            return [false()]
+        return [
+            or_(
+                Project.geo_id.in_(geo_ids),
+                Project.account_id.in_(select(Account.id).where(Account.geo_id.in_(geo_ids))),
+            )
+        ]
+    return [false()]
 
 
 _FORBIDDEN = HTTPException(status.HTTP_403_FORBIDDEN, detail="Not authorized for this action.")
@@ -177,37 +211,15 @@ def require_project_account_scope(*allowed_roles: RoleCode):
     return dependency
 
 
-def require_project_de_scope(*allowed_roles: RoleCode):
-    """Role check plus: the `project_id` path param's project must be allocated
-    to the caller (project.delivery_excellence_id == current_user.id), unless
-    the caller is ADMIN. Used by the DE Project Approval write routes so a DE
-    can only review/decide projects allocated to them."""
-
-    async def dependency(
-        project_id: UUID,
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db),
-    ) -> User:
-        role_code = await _role_code(db, current_user)
-        if role_code not in allowed_roles:
-            raise _FORBIDDEN
-        if role_code != RoleCode.ADMIN:
-            project = await db.get(Project, project_id)
-            if project is None or project.delivery_excellence_id != current_user.id:
-                raise _FORBIDDEN
-        return current_user
-
-    return dependency
-
-
 def require_project_de_assessment_access(*allowed_roles: RoleCode):
     """Role check plus: the `project_id` path param's project must have a DE
     allocated (project.delivery_excellence_id is not None).
 
-    Unlike `require_project_de_scope`, this does NOT require the caller to be
-    that DE — any user in an allowed role may assess any project that has been
-    allocated to Delivery Excellence (all DEs are treated equally). ADMIN
-    bypasses the allocation check. Used by the DE Assessment write routes."""
+    This does NOT require the caller to be that DE — any user in an allowed
+    role may act on any project that has been allocated to Delivery Excellence
+    (all DEs are treated equally, and every DE sees every DE project). ADMIN
+    bypasses the allocation check. Used by the DE Assessment and DE Approval
+    write routes."""
 
     async def dependency(
         project_id: UUID,

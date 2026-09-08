@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_project_access
 from app.core.db import get_db
 from app.crud.project_status import project_status_item_crud, project_status_report_crud
+from app.crud.projects import project_crud
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
 from app.models.reference_data import ReportingPeriod
 from app.schemas.enums import ProjectStatusCategory, ReportStatus, RoleCode
@@ -23,6 +24,7 @@ from app.schemas.project_status import (
 )
 from app.schemas.reporting_activity import ReportingActivityResponse
 from app.schemas.status_review import StatusReportReviewRequest
+from app.services import notifications as notify_svc
 from app.services.reporting_activity import build_reporting_activity
 
 # Weekly/Monthly history (UX §4.4 / §7 items 2-3): list (period-sorted) +
@@ -141,7 +143,24 @@ async def update_status_report(
     obj = await project_status_report_crud.get(db, report_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
-    return await project_status_report_crud.update(db, obj, payload)
+    was_submitted = obj.status == ReportStatus.SUBMITTED
+    updated = await project_status_report_crud.update(db, obj, payload)
+
+    if not was_submitted and updated.status == ReportStatus.SUBMITTED:
+        project = await project_crud.get(db, project_id)
+        if project is not None:
+            await notify_svc.notify(
+                db,
+                recipient_id=await notify_svc.account_head_id(db, project.account_id),
+                type="REPORT_SUBMITTED",
+                title=f"{project.project_code} submitted a status report",
+                body="Awaiting your review.",
+                link=f"/project-review/{project.id}",
+                entity_type="status_report",
+                entity_id=updated.id,
+                data={"project_code": project.project_code},
+            )
+    return updated
 
 
 # Review/sign-off (Project Review, for Account Heads): a Submitted report
@@ -167,6 +186,21 @@ async def review_status_report(
     obj.review_comment = payload.comment
     await db.flush()
     await db.refresh(obj)
+
+    project = await project_crud.get(db, project_id)
+    if project is not None:
+        await notify_svc.notify(
+            db,
+            recipient_id=project.project_manager_id,
+            type="REPORT_REVIEWED",
+            title=f"Your {project.project_code} status report was {str(payload.decision).lower()}",
+            body=(payload.comment or None),
+            link=f"/project-reporting/{project.id}/dashboard",
+            entity_type="status_report",
+            entity_id=obj.id,
+            actor_id=payload.reviewed_by,
+            data={"decision": str(payload.decision), "project_code": project.project_code},
+        )
     return obj
 
 

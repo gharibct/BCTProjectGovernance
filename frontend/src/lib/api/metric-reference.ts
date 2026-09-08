@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 
 import { api } from "./client";
 
-// Unit / Formula / Operational Definition / Benchmark Value shown in the
-// Measurement-tab "how this metric is calculated" popup. Static reference
-// data authored from the requirements workbook and served read-only from
-// GET /metric-reference (backend app/data/metric_reference.yaml). It only
-// ever changes on a redeploy, so it's cached for the whole session.
+// Unit / Formula / Operational Definition / Benchmark / min-max, per metric —
+// used by the Measurement-tab "(i)" popup, the target-benchmark prefill and the
+// Save-Targets range check. Served read-only from GET /metric-reference
+// (backend app/data/metric_reference.yaml). Uses the default React Query
+// caching (refetch on mount/focus) so an edit to the yaml shows up on the next
+// navigation rather than only after a hard refresh.
 
 export type MetricReferenceEntry = {
   key: string;
@@ -16,6 +17,10 @@ export type MetricReferenceEntry = {
   formula: string;
   operational_definition: string;
   benchmark_value: string;
+  // Allowed range for a metric target; "" (or non-numeric) means that side is
+  // unbounded. Enforced on Save Targets (measurement-tabs.tsx).
+  min_value: string;
+  max_value: string;
   mandatory: boolean | null;
 };
 
@@ -35,8 +40,6 @@ export function useMetricReference() {
   return useQuery({
     queryKey: ["metric-reference"],
     queryFn: () => api.get<MetricReferenceResponse>("/metric-reference"),
-    staleTime: Infinity,
-    gcTime: Infinity,
   });
 }
 

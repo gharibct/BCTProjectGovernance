@@ -15,6 +15,10 @@ CREATE TABLE geos (
     code TEXT NOT NULL UNIQUE, -- APAC, MEA, US
     name TEXT NOT NULL,
     is_active BOOLEAN NOT NULL,
+    -- Date this geo started being tracked in the tool. NULL = no restriction
+    -- (current behavior) for reporting "owed" calculations — see
+    -- services/reporting_activity.py and services/dashboard.py.
+    tool_effective_date DATE,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
@@ -66,6 +70,10 @@ CREATE TABLE accounts (
     geo_id UUID REFERENCES geos(id),
     description TEXT, -- short summary about the customer
     is_active BOOLEAN NOT NULL,
+    -- Date this account started being tracked in the tool. NULL = no
+    -- restriction (current behavior) for reporting "owed" calculations —
+    -- see services/reporting_activity.py and services/dashboard.py.
+    tool_effective_date DATE,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );

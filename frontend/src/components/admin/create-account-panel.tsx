@@ -18,6 +18,7 @@ function toValues(account: Account): Record<string, string> {
     geo_id: account.geo_id ?? "",
     description: account.description ?? "",
     is_active: account.is_active ? "Yes" : "No",
+    tool_effective_date: account.tool_effective_date ?? "",
   };
 }
 
@@ -27,6 +28,7 @@ function buildAccountPayload(values: Record<string, string>): AccountPayload {
     geo_id: values.geo_id || undefined,
     description: values.description || undefined,
     is_active: values.is_active !== "No",
+    tool_effective_date: values.tool_effective_date || undefined,
   };
 }
 
@@ -58,6 +60,12 @@ export function CreateAccountPanel() {
       label: "Description",
       kind: "textarea",
       hint: "Short summary about the customer.",
+    },
+    {
+      key: "tool_effective_date",
+      label: "Governance Tool Implementation Effective Date",
+      kind: "date",
+      hint: "When this account started being tracked in the tool. Leave blank for no restriction.",
     },
   ];
 
@@ -132,6 +140,11 @@ export function CreateAccountPanel() {
               key: "is_active",
               label: "Active",
               render: (item) => (item.is_active ? "Yes" : "No"),
+            },
+            {
+              key: "tool_effective_date",
+              label: "Tool Effective Date",
+              render: (item) => item.tool_effective_date || "—",
             },
           ]}
         />

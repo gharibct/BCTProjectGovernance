@@ -5,7 +5,7 @@ import type { HealthRating } from "./health-declarations";
 
 // What kind of finding it is. The finding's subject area is a separate
 // `category` field (the Project RAG 6-category taxonomy).
-export type FindingClassification = "Observation" | "Recommendation" | "NC";
+export type FindingClassification = "Observation" | "Recommendation" | "Alert";
 // The Project RAG 6-category taxonomy (see project-charter/health-declaration.tsx's CATEGORIES).
 export type FindingCategory =
   | "Core Delivery"
@@ -28,7 +28,7 @@ export type DEAssessmentStatus = "Draft" | "Submitted";
 export const FINDING_CLASSIFICATION_OPTIONS: FindingClassification[] = [
   "Observation",
   "Recommendation",
-  "NC",
+  "Alert",
 ];
 export const FINDING_CATEGORY_OPTIONS: FindingCategory[] = [
   "Core Delivery",
@@ -47,18 +47,6 @@ export const FINDING_STATUS_OPTIONS: FindingStatus[] = [
   "Closed",
   "Cancelled",
 ];
-
-export type DEAssessmentAlert = {
-  id: string;
-  alert_code: string;
-  assessment_id: string;
-  alert_category: string | null;
-  brief_description: string;
-  detailed_description: string | null;
-  raised_by: string | null;
-  raised_on: string;
-  created_at: string;
-};
 
 export type DEAssessmentFinding = {
   id: string;
@@ -91,13 +79,12 @@ export type DEAssessment = {
   assessed_by: string | null;
   created_at: string;
   updated_at: string;
-  alerts: DEAssessmentAlert[];
 };
 
-// Header only — Alerts and Findings are added afterward, one at a time, via
-// their own registers (useCreateDEAssessmentAlert/useCreateDEAssessmentFinding).
-// assessed_by is always set from the session server-side. status defaults to
-// "Submitted"; the Workspace passes "Draft" for Save Draft.
+// Header only — Findings are added afterward, one at a time, via their own
+// register (useCreateDEAssessmentFinding). assessed_by is always set from the
+// session server-side. status defaults to "Submitted"; the Workspace passes
+// "Draft" for Save Draft.
 export type DEAssessmentPayload = {
   assessment_date?: string;
   de_assessed_project_health: HealthRating;
@@ -112,13 +99,6 @@ export type DEAssessmentUpdatePayload = {
   pci_score?: string;
   remarks?: string;
   status?: DEAssessmentStatus;
-};
-
-export type DEAssessmentAlertPayload = {
-  alert_category?: string;
-  brief_description: string;
-  detailed_description?: string;
-  raised_on?: string;
 };
 
 export type DEAssessmentFindingPayload = {
@@ -226,17 +206,6 @@ export function useDEFindingHistory(projectId: string | null, findingId: string 
         `/projects/${projectId}/de-assessment-findings/${findingId}/history`,
       ),
     enabled: !!projectId && !!findingId,
-  });
-}
-
-export function useCreateDEAssessmentAlert(projectId: string | null, assessmentId: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: DEAssessmentAlertPayload) =>
-      api.post<DEAssessmentAlert>(`/projects/${projectId}/de-assessments/${assessmentId}/alerts`, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["de-assessment-latest", projectId] });
-    },
   });
 }
 

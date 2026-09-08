@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Bell, Briefcase, LayoutGrid, LogOut, Menu } from "lucide-react";
+import { Briefcase, LayoutGrid, LogOut, Menu } from "lucide-react";
 
 import type { RoleCode } from "@/lib/api/auth";
 import { useLogout } from "@/lib/api/auth";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/menu-config";
 import { useEffectiveRole, useSession } from "@/stores/session";
 import { NativeSelect } from "@/components/ui/native-select";
+import { NotificationsBell } from "@/components/shell/notifications-bell";
 
 function initials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
@@ -77,13 +78,7 @@ export function AppHeader() {
           </label>
         ) : null}
 
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="rounded-lg p-2 text-slate-700 hover:bg-slate-100"
-        >
-          <Bell className="size-5" />
-        </button>
+        {user ? <NotificationsBell /> : null}
         {user ? (
           <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-slate-800">

@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field, MandatoryBadge } from "@/components/forms/form-primitives";
+import { ProjectPicker } from "@/components/forms/project-picker";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useAccounts, useGeos, useUsers } from "@/lib/api/reference-data";
-import { useProjects } from "@/lib/api/projects";
+import { useProject } from "@/lib/api/projects";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   FINDING_CATEGORY_OPTIONS,
@@ -24,7 +25,6 @@ function today(): string {
 }
 
 export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
-  const { data: projects = [] } = useProjects();
   const { data: users = [] } = useUsers();
   const { data: accounts = [] } = useAccounts();
   const { data: geos = [] } = useGeos();
@@ -36,10 +36,6 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
   const [description, setDescription] = React.useState("");
   const [category, setCategory] = React.useState<FindingCategory | "">("");
   const [classification, setClassification] = React.useState<FindingClassification | "">("");
-  // A finding is always owned by the project's PM — there is no assignee
-  // picker. This tracks the picked project's PM so it is stored on the finding
-  // (the backend `assigned_to` column is retained even though it is not shown).
-  const [assignedTo, setAssignedTo] = React.useState("");
   const [findingDate, setFindingDate] = React.useState(today);
   const [dueDate, setDueDate] = React.useState("");
   const [remarks, setRemarks] = React.useState("");
@@ -48,9 +44,16 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
     description?: string;
     category?: string;
     classification?: string;
+    findingDate?: string;
+    dueDate?: string;
   }>({});
 
-  const project = projects.find((p) => p.id === projectId) ?? null;
+  // The picked project's details for the read-only info card below, fetched by
+  // id (the ProjectPicker only hands back the id). A finding is always owned by
+  // the project's PM (no assignee picker) — assigned_to is taken from here at
+  // submit; the backend column is retained even though it is not shown.
+  const { data: selectedProject } = useProject(projectId || null);
+  const project = selectedProject ?? null;
   const accountName = accounts.find((a) => a.id === project?.account_id)?.name ?? "—";
   const geoName = geos.find((g) => g.id === project?.geo_id)?.name ?? "—";
   const pmName = users.find((u) => u.id === project?.project_manager_id)?.full_name ?? "—";
@@ -61,10 +64,18 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
     if (!description.trim()) next.description = "Finding description is required.";
     if (!category) next.category = "Category is required.";
     if (!classification) next.classification = "Classification is required.";
+    if (!findingDate) next.findingDate = "Finding date is required.";
+    if (!dueDate) next.dueDate = "Due date is required.";
     if (Object.keys(next).length > 0) {
       setErrors(next);
       showError(
-        next.project ?? next.description ?? next.category ?? next.classification ?? "Please fix the highlighted fields."
+        next.project ??
+          next.description ??
+          next.category ??
+          next.classification ??
+          next.findingDate ??
+          next.dueDate ??
+          "Please fix the highlighted fields."
       );
       return;
     }
@@ -75,9 +86,9 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
         description: description.trim(),
         category: category as FindingCategory,
         classification: classification as FindingClassification,
-        assigned_to: assignedTo || undefined,
-        finding_date: findingDate || undefined,
-        due_date: dueDate || undefined,
+        assigned_to: project?.project_manager_id || undefined,
+        finding_date: findingDate,
+        due_date: dueDate,
         remarks: remarks.trim() || undefined,
         status: "Open",
       },
@@ -99,23 +110,15 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
       </div>
 
       <Field label="Project" htmlFor="finding-project" badge={<MandatoryBadge />} error={errors.project}>
-        <NativeSelect
+        <ProjectPicker
           id="finding-project"
-          value={projectId}
-          onChange={(e) => {
-            const id = e.target.value;
-            setProjectId(id);
+          label=""
+          value={projectId || null}
+          onChange={(id) => {
+            setProjectId(id ?? "");
             if (errors.project) setErrors((p) => ({ ...p, project: undefined }));
-            setAssignedTo(projects.find((p) => p.id === id)?.project_manager_id ?? "");
           }}
-        >
-          <option value="">Select a project…</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.project_code} · {p.project_name}
-            </option>
-          ))}
-        </NativeSelect>
+        />
       </Field>
 
       {project ? (
@@ -195,20 +198,36 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Finding Date" htmlFor="finding-date">
+        <Field
+          label="Finding Date"
+          htmlFor="finding-date"
+          badge={<MandatoryBadge />}
+          error={errors.findingDate}
+        >
           <Input
             id="finding-date"
             type="date"
             value={findingDate}
-            onChange={(e) => setFindingDate(e.target.value)}
+            onChange={(e) => {
+              setFindingDate(e.target.value);
+              if (errors.findingDate) setErrors((p) => ({ ...p, findingDate: undefined }));
+            }}
           />
         </Field>
-        <Field label="Due Date" htmlFor="finding-due-date">
+        <Field
+          label="Due Date"
+          htmlFor="finding-due-date"
+          badge={<MandatoryBadge />}
+          error={errors.dueDate}
+        >
           <Input
             id="finding-due-date"
             type="date"
             value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
+            onChange={(e) => {
+              setDueDate(e.target.value);
+              if (errors.dueDate) setErrors((p) => ({ ...p, dueDate: undefined }));
+            }}
           />
         </Field>
       </div>

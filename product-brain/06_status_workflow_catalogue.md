@@ -182,7 +182,6 @@ Same lifecycle as §4. Differences:
 | From | Action | To | Actor | Preconditions | Business Rules | System Actions | Notification | Reversible? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | *(no row)* | Create assessment | `Draft` | `DELIVERY_EXCELLENCE` / `PROJECT_MANAGER` / `ACCOUNT_MANAGER` / `GEO_HEAD` / `ADMIN` | project `Approved` | BR-DEA-010, BR-DEA-050 | Set `assessment_date`, `next_assessment_due_date` | — | No |
-| `Draft` | Add / raise Alert | `Draft` | as above | health ≠ `Green` for an alert | BR-DEA-020, BR-DEA-030 | Generate `ALT-YYYY-NNNN` | N-DEA-ALERT `<!-- pending -->` | Yes (delete alert) |
 | `Draft` | Submit | `Submitted` | as above | required fields set | BR-DEA-040 | `_finalize_assessment` pushes the rating to the Charter + overall health | — | No |
 | `Submitted` | *(next period)* | new `Draft` row | `DELIVERY_EXCELLENCE` | cadence due | BR-DEA-040 | New dated row; prior retained | N-DEA-OVERDUE if late `<!-- pending -->` | — |
 

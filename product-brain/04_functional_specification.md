@@ -229,17 +229,16 @@ flowchart LR
   - `FC-DEA-010` Create a dated assessment (`.../de-assessments`); set `assessment_date`, `next_assessment_due_date`.
   - `FC-DEA-020` Record DE-Assessed Health and PCI score.
   - `FC-DEA-030` Manage Key Findings (`.../findings`): sequence #, Classification, description, severity, assigned to, action taken, dates, status.
-  - `FC-DEA-040` Raise an Alert (`.../alerts`) when the rating ≠ `Green`: category, brief/detailed description, raised by/on.
   - `FC-DEA-050` Submit; latest rating flows read-only to the Charter and into overall project health.
   - `FC-DEA-060` Browse assessment history (list + `/latest`).
 - **Main Process:** BP-04.
-- **Inputs:** health rating, PCI, findings, alert; assessment/next-due dates.
-- **Outputs:** `DEAssessment`, `DEAssessmentFinding`, `DEAssessmentAlert` (alert code unique).
-- **Business Rules:** BR-DEA-* (Alert mandatory when not Green; history retained; latest feeds Charter). `<!-- pending -->`
+- **Inputs:** health rating, PCI, findings; assessment/next-due dates.
+- **Outputs:** `DEAssessment`, `DEAssessmentFinding`.
+- **Business Rules:** BR-DEA-* (history retained; latest feeds Charter). `<!-- pending -->`
 - **Validations:** rating enum; numeric PCI; finding status enum.
 - **Status Behaviour:** DE Assessment `Draft` → `Submitted` ("Not Started" = no row). Finding `Open` → `In Progress` → `Awaiting Closure` → `Closed` (or `Cancelled`).
-- **Exceptions:** not Green with no alert → nudge / block (`ASSUMPTION`); overdue vs. `next_assessment_due_date` → flagged.
-- **Notifications:** N-DEA-ALERT; N-DEA-OVERDUE. `<!-- pending -->`
+- **Exceptions:** overdue vs. `next_assessment_due_date` → flagged.
+- **Notifications:** N-DEA-OVERDUE. `<!-- pending -->`
 - **Integration Points:** none.
 - **Reports:** Project Health Assessments / Findings grids; DE "My Summary".
 - **Dependencies:** MOD-PROJ, MOD-DEAL; downstream MOD-HEALTH, MOD-DASH, MOD-DI.

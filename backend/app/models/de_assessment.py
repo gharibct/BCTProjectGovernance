@@ -22,19 +22,6 @@ class DEAssessment(Base, UUIDPrimaryKey, TimestampColumns):
     assessed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
 
-class DEAssessmentAlert(Base, UUIDPrimaryKey):
-    __tablename__ = "de_assessment_alerts"
-
-    alert_code: Mapped[str] = mapped_column(unique=True)
-    assessment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("de_assessments.id", ondelete="CASCADE"))
-    alert_category: Mapped[str | None]
-    brief_description: Mapped[str]
-    detailed_description: Mapped[str | None]
-    raised_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
-    raised_on: Mapped[date]
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-
-
 class DEAssessmentFinding(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "de_assessment_findings"
 
@@ -43,7 +30,7 @@ class DEAssessmentFinding(Base, UUIDPrimaryKey, TimestampColumns):
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     sequence_no: Mapped[int]
     category: Mapped[str]  # the Project RAG 6-category taxonomy
-    classification: Mapped[str]  # Observation, Recommendation, NC (Non-Conformance)
+    classification: Mapped[str]  # Observation, Recommendation, Alert
     description: Mapped[str | None]  # the finding statement
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     action_taken: Mapped[str | None]  # what the PM did (PM Findings "Action Taken")

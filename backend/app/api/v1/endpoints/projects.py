@@ -2,13 +2,14 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     PaginationParams,
     get_current_user,
     pagination_params,
+    project_scope_conditions,
     require_project_access,
     require_role,
 )
@@ -30,6 +31,7 @@ from app.schemas.projects import (
     ProjectResourceUpdate,
     ProjectUpdate,
 )
+from app.services import notifications as notify_svc
 from app.services.amendment import active_amendment, initiate_amendment
 from app.services.approval_readiness import compute_approval_readiness
 from app.services.code_generator import generate_code
@@ -43,11 +45,11 @@ def _is_amendable(obj: Project) -> bool:
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
-# Project creation/maintenance is the Project Manager's flow. Via the top-bar
-# Work Context an Account/Geo Head can also do PM work — but only on projects in
-# their own accounts/geo, which require_project_access enforces off {project_id}.
-# Create has no project_id yet, so it stays a role-only gate.
-_pm_create = [Depends(require_role(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+# Direct project creation is now an internal/Admin path only: the user-facing
+# "Create Project" flow goes through /project-creation-requests (Account/Geo Head
+# submits, Delivery Excellence approves, which then creates the Draft project
+# server-side). Project maintenance stays the PM's flow, gated per-project below.
+_pm_create = [Depends(require_role(RoleCode.ADMIN))]
 _pm_write = [
     Depends(
         require_project_access(
@@ -60,25 +62,42 @@ _pm_write = [
 @router.get("", response_model=Page[ProjectRead])
 async def list_projects(
     exclude_status: list[ProjectStatus] | None = Query(None),
+    geo_id: UUID | None = Query(None),
+    account_id: UUID | None = Query(None),
+    # Case-insensitive substring match on project_name OR project_code — backs
+    # the FilteredCombo project picker's "name like %…%" search.
+    search: str | None = Query(None),
     pagination: PaginationParams = Depends(pagination_params),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if not exclude_status:
+    # Scope the list to what the caller may see (PM -> own projects, Account/Geo
+    # Head -> their patch, DE/Admin/PMO/CXO -> everything).
+    conditions = list(await project_scope_conditions(db, current_user))
+    if exclude_status:
+        # e.g. ?exclude_status=Draft — the DE "Projects" browser hides Draft projects.
+        conditions.append(Project.project_status.notin_([s.value for s in exclude_status]))
+    if geo_id is not None:
+        conditions.append(Project.geo_id == geo_id)
+    if account_id is not None:
+        conditions.append(Project.account_id == account_id)
+    if search and search.strip():
+        like = f"%{search.strip()}%"
+        conditions.append(or_(Project.project_name.ilike(like), Project.project_code.ilike(like)))
+
+    if not conditions:
         items, total = await project_crud.list(
             db, skip=pagination.skip, limit=pagination.limit, order_by=Project.updated_at.desc()
         )
         return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
-    # e.g. ?exclude_status=Draft — the DE "Projects" browser hides Draft projects.
-    vals = [s.value for s in exclude_status]
-    where = Project.project_status.notin_(vals)
     total = (
-        await db.execute(select(func.count()).select_from(Project).where(where))
+        await db.execute(select(func.count()).select_from(Project).where(*conditions))
     ).scalar_one()
     items = (
         await db.execute(
             select(Project)
-            .where(where)
+            .where(*conditions)
             .order_by(Project.updated_at.desc())
             .offset(pagination.skip)
             .limit(pagination.limit)
@@ -186,6 +205,18 @@ async def send_to_approval(project_id: UUID, db: AsyncSession = Depends(get_db))
             amendment.submitted_at = datetime.now(UTC)
     await db.flush()
     await db.refresh(obj)
+
+    await notify_svc.notify(
+        db,
+        recipient_id=obj.delivery_excellence_id,
+        type="DE_APPROVAL_QUEUED",
+        title=f"Project {obj.project_code} is ready for governance review",
+        body=obj.project_name,
+        link=f"/de-approval/{obj.id}",
+        entity_type="project",
+        entity_id=obj.id,
+        data={"project_code": obj.project_code},
+    )
     return obj
 
 

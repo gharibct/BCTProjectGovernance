@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ClipboardCheck,
   Eye,
+  FilePlus2,
   FileSearch,
   FolderOpen,
   Globe,
@@ -223,13 +224,17 @@ export function AppSidebar() {
     return new Set(user?.account_ids ?? []);
   }, [isAdmin, realRole, user, accounts, patchGeoIds]);
   const patchProjects = React.useMemo(() => {
-    if (isAdmin || realRole === "PROJECT_MANAGER") return projects;
+    if (isAdmin) return projects;
+    // A PM only sees the projects allocated to them (Provide Project Details /
+    // Amend Project Details / Report Project Status / Project Dashboard all
+    // derive from this list). The server enforces the same scope on GET /projects.
+    if (realRole === "PROJECT_MANAGER") return projects.filter((p) => p.project_manager_id === user?.id);
     return projects.filter(
       (p) =>
         (!!p.account_id && !!patchAccountIds && patchAccountIds.has(p.account_id)) ||
         (!!p.geo_id && patchGeoIds.has(p.geo_id))
     );
-  }, [projects, isAdmin, realRole, patchAccountIds, patchGeoIds]);
+  }, [projects, isAdmin, realRole, user, patchAccountIds, patchGeoIds]);
 
   const maintainProjects = patchProjects.filter((p) => !isApproved(p.project_status));
   const reportingProjects = patchProjects.filter((p) => isApproved(p.project_status));
@@ -348,6 +353,14 @@ export function AppSidebar() {
             active={pathname === "/dashboard/delivery-excellence"}
           />
         ) : null}
+        {has("de-project-requests") ? (
+          <SimpleLink
+            href="/de-project-requests"
+            icon={FilePlus2}
+            label="Project Creation Approval"
+            active={pathname.startsWith("/de-project-requests")}
+          />
+        ) : null}
         {has("de-allocation") ? (
           <SimpleLink
             href="/de-allocation"
@@ -360,7 +373,7 @@ export function AppSidebar() {
           <SimpleLink
             href="/de-approval"
             icon={ShieldCheck}
-            label="DE Approval"
+            label="Project Details Approval"
             active={pathname.startsWith("/de-approval")}
           />
         ) : null}
@@ -610,6 +623,15 @@ export function AppSidebar() {
             icon={Plug}
             label="Accounts"
             active={pathname.startsWith("/admin/accounts")}
+          />
+        ) : null}
+
+        {has("admin-integrations") ? (
+          <SimpleLink
+            href="/admin/geos"
+            icon={Globe}
+            label="Geos"
+            active={pathname.startsWith("/admin/geos")}
           />
         ) : null}
 

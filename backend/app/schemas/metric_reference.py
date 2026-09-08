@@ -12,6 +12,10 @@ class MetricReferenceEntry(BaseModel):
     formula: str
     operational_definition: str
     benchmark_value: str
+    # Allowed range for a metric *target* (see metric_target.py). Quoted strings
+    # like benchmark_value; "" (or unparseable) means that side is unbounded.
+    min_value: str = ""
+    max_value: str = ""
     mandatory: bool | None = None
 
 

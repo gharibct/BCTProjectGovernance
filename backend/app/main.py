@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -8,7 +11,29 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.security import verify_api_key
 
-app = FastAPI(title="Project Governance Tool API", version="1.0.0")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # The daily notification scans run from an in-process APScheduler. Tests use
+    # httpx.ASGITransport, which never fires the lifespan, so this stays off
+    # under pytest regardless of settings.enable_scheduler.
+    scheduler = None
+    if settings.enable_scheduler:
+        from app.core.scheduler import build_scheduler
+
+        scheduler = build_scheduler()
+        scheduler.start()
+        logger.info("notification scheduler started")
+    try:
+        yield
+    finally:
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="Project Governance Tool API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

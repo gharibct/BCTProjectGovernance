@@ -268,23 +268,6 @@ def _milestone_test_rows() -> list[AiRowSuggestionIn]:
     ]
 
 
-def _de_assessment_alert_test_rows() -> list[AiRowSuggestionIn]:
-    return [
-        AiRowSuggestionIn(
-            values={
-                "alert_category": "Compliance",
-                "brief_description": "Vendor access review overdue",
-                "raised_on": "2026-08-05",
-                "detailed_description": "Security audit flagged an open vendor access review item, unresolved past due date.",
-            },
-            confidence=0.72,
-            source_document="Risk_Register.xlsx",
-            source_location="Sheet1!C12",
-            evidence="Security audit flagged an open vendor access review item, unresolved past due date.",
-        ),
-    ]
-
-
 def _de_assessment_finding_test_rows() -> list[AiRowSuggestionIn]:
     return [
         AiRowSuggestionIn(
@@ -312,7 +295,6 @@ _TEST_ROW_BUILDERS = {
     "opportunities": _opportunity_test_rows,
     "commitments": _commitment_test_rows,
     "milestones": _milestone_test_rows,
-    "de_assessment_alerts": _de_assessment_alert_test_rows,
     "de_assessment_findings": _de_assessment_finding_test_rows,
 }
 

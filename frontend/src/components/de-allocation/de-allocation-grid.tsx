@@ -21,6 +21,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { StatusBadge } from "@/components/forms/status-badge";
+import {
+  ProjectAttrFilters,
+  matchesProjectAttrs,
+  projectAttrFiltersActive,
+  type ProjectAttrValue,
+} from "@/components/forms/project-attr-filters";
 import { ButtonSpinner } from "@/components/forms/form-primitives";
 import { StatCard } from "@/components/de-assessment-workspace/shared";
 
@@ -54,7 +60,7 @@ export function DeAllocationGrid() {
   );
 
   const [search, setSearch] = React.useState("");
-  const [accountFilter, setAccountFilter] = React.useState("All");
+  const [attr, setAttr] = React.useState<ProjectAttrValue>({});
   // Default view is the work-to-do list: projects still awaiting a DE assessor.
   const [statusFilter, setStatusFilter] = React.useState("Unallocated");
 
@@ -65,14 +71,9 @@ export function DeAllocationGrid() {
 
   const bulkAllocate = useBulkAllocateDe();
 
-  const accountNames = React.useMemo(
-    () => Array.from(new Set(rows.map((r) => r.account_name).filter((n): n is string => !!n))).sort(),
-    [rows],
-  );
-
   const filteredRows = rows.filter((row) => {
     if (search && !`${row.project_code} ${row.project_name}`.toLowerCase().includes(search.toLowerCase())) return false;
-    if (accountFilter !== "All" && row.account_name !== accountFilter) return false;
+    if (!matchesProjectAttrs(row, attr)) return false;
 
     const isAllocated = !!row.delivery_excellence_id;
     if (statusFilter === "Allocated") {
@@ -183,21 +184,7 @@ export function DeAllocationGrid() {
                     className="h-9 pl-8"
                   />
                 </div>
-                <div className="w-44 shrink-0">
-                  <NativeSelect
-                    aria-label="Account filter"
-                    className="h-9 text-sm"
-                    value={accountFilter}
-                    onChange={(e) => setAccountFilter(e.target.value)}
-                  >
-                    <option value="All">Account [All]</option>
-                    {accountNames.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
+                <ProjectAttrFilters rows={rows} value={attr} onChange={setAttr} />
                 <div className="w-52 shrink-0">
                   <NativeSelect
                     aria-label="Allocation status filter"
@@ -212,6 +199,15 @@ export function DeAllocationGrid() {
                     ))}
                   </NativeSelect>
                 </div>
+                {projectAttrFiltersActive(attr) ? (
+                  <button
+                    type="button"
+                    onClick={() => setAttr({})}
+                    className="text-sm font-semibold text-[#1a6fc4] hover:underline"
+                  >
+                    Reset
+                  </button>
+                ) : null}
               </div>
             </div>
 

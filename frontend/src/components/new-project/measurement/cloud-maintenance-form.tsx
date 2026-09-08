@@ -24,21 +24,27 @@ export function fromCloudMaintenanceTarget(data: MetricTargetCloudMaintenance | 
   };
 }
 
-export function CloudMaintenanceTab({ m, set }: MeasuresProps) {
+export function CloudMaintenanceTab({ m, set, reference, errors }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Cloud Maintenance Metrics">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <MetricTile
             label="Service Availability"
+            metricKey="service_availability_pct"
+            reference={reference}
             value={m.targetServiceAvailability ?? ""}
             onChange={set("targetServiceAvailability")}
+            error={errors?.targetServiceAvailability}
             unit="%"
           />
           <MetricTile
             label="Application Availability"
+            metricKey="application_availability_pct"
+            reference={reference}
             value={m.targetAppAvailability ?? ""}
             onChange={set("targetAppAvailability")}
+            error={errors?.targetAppAvailability}
             unit="%"
           />
         </div>

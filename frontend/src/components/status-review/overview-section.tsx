@@ -119,7 +119,7 @@ export function OverviewSection({
           }
         />
         <SnapshotStat
-          label="Open NC"
+          label="Open Alerts"
           value={
             openNcCount === null ? (
               "—"

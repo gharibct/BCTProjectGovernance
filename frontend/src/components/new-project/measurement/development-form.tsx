@@ -46,57 +46,81 @@ export function fromDevelopmentTarget(data: MetricTargetDevelopment | null): Rec
   };
 }
 
-export function DevelopmentTab({ m, set }: MeasuresProps) {
+export function DevelopmentTab({ m, set, reference, errors }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Development Metrics">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
             label="Productivity"
+            metricKey="productivity"
+            reference={reference}
             value={m.targetProductivity ?? ""}
             onChange={set("targetProductivity")}
+            error={errors?.targetProductivity}
             unit="Size Units / Person-Hour"
           />
           <MetricTile
             label="Effort Variation"
+            metricKey="effort_variation_pct"
+            reference={reference}
             value={m.targetEffortVariation ?? ""}
             onChange={set("targetEffortVariation")}
+            error={errors?.targetEffortVariation}
             unit="%"
           />
           <MetricTile
             label="Schedule Performance Index"
+            metricKey="schedule_performance_index"
+            reference={reference}
             value={m.targetSpi ?? ""}
             onChange={set("targetSpi")}
+            error={errors?.targetSpi}
             unit="Index (Actual/Planned % Complete)"
           />
           <MetricTile
             label="Cost Performance Index"
+            metricKey="cost_performance_index"
+            reference={reference}
             value={m.targetCpi ?? ""}
             onChange={set("targetCpi")}
+            error={errors?.targetCpi}
             unit="Index"
           />
           <MetricTile
             label="Defect Leakage (Int vs Ext)"
+            metricKey="defect_leakage_pct"
+            reference={reference}
             value={m.targetDefectLeakage ?? ""}
             onChange={set("targetDefectLeakage")}
+            error={errors?.targetDefectLeakage}
             unit="%"
           />
           <MetricTile
             label="Test Execution Coverage"
+            metricKey="test_execution_coverage_pct"
+            reference={reference}
             value={m.targetExecCoverage ?? ""}
             onChange={set("targetExecCoverage")}
+            error={errors?.targetExecCoverage}
             unit="%"
           />
           <MetricTile
             label="Test Pass Rate"
+            metricKey="test_pass_rate_pct"
+            reference={reference}
             value={m.targetPassRate ?? ""}
             onChange={set("targetPassRate")}
+            error={errors?.targetPassRate}
             unit="%"
           />
           <MetricTile
             label="Code Coverage"
+            metricKey="code_coverage_pct"
+            reference={reference}
             value={m.targetCodeCoverage ?? ""}
             onChange={set("targetCodeCoverage")}
+            error={errors?.targetCodeCoverage}
             unit="%"
           />
         </div>

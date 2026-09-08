@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { ApiError } from "@/lib/api/client";
 import { effectiveProjectStatus, useDeProjects } from "@/lib/api/projects";
-import { useAccounts, useGeos, useRegions, useUsers } from "@/lib/api/reference-data";
+import { useAccounts, useGeos, useProjectTypes, useRegions, useUsers } from "@/lib/api/reference-data";
 import { formatGeoRegion } from "@/lib/api/project-health-lists";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -24,6 +24,10 @@ const STATUS_OPTIONS: string[] = [
   "Open Only for Billing",
 ];
 
+// Ownership model values — mirrors backend schemas.enums.ProjectOwned and the
+// Project Charter's "Project Owned" dropdown.
+const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
+
 // Read-only browser of every non-Draft project, for the Delivery Excellence
 // role. Draft projects are excluded server-side (useDeProjects). Names are
 // joined client-side from the reference-data hooks.
@@ -32,6 +36,7 @@ export function DeProjectsList() {
   const { data: accounts = [] } = useAccounts();
   const { data: geos = [] } = useGeos();
   const { data: regions = [] } = useRegions();
+  const { data: projectTypes = [] } = useProjectTypes();
   const { data: users = [] } = useUsers();
 
   const accountName = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? "—";
@@ -40,20 +45,24 @@ export function DeProjectsList() {
   const userName = (id: string | null) => users.find((u) => u.id === id)?.full_name ?? "—";
 
   const [search, setSearch] = React.useState("");
-  const [geoFilter, setGeoFilter] = React.useState("All");
+  const [geoId, setGeoId] = React.useState("");
+  const [regionId, setRegionId] = React.useState("");
+  const [accountId, setAccountId] = React.useState("");
+  const [projectTypeId, setProjectTypeId] = React.useState("");
+  const [ownership, setOwnership] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("All");
 
-  const geoNames = React.useMemo(
-    () =>
-      Array.from(new Set(projects.map((p) => geoName(p.geo_id)).filter((n): n is string => !!n))).sort(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [projects, geos]
-  );
+  // Cascade the Region list off the selected Geo, matching ProjectHealthFilterBar.
+  const regionOptions = geoId ? regions.filter((r) => r.geo_id === geoId) : regions;
 
   const rows = projects.filter((p) => {
     const q = search.trim().toLowerCase();
     if (q && !`${p.project_name} ${p.project_code}`.toLowerCase().includes(q)) return false;
-    if (geoFilter !== "All" && geoName(p.geo_id) !== geoFilter) return false;
+    if (geoId && p.geo_id !== geoId) return false;
+    if (regionId && p.region_id !== regionId) return false;
+    if (accountId && p.account_id !== accountId) return false;
+    if (projectTypeId && p.project_type_id !== projectTypeId) return false;
+    if (ownership && p.project_owned !== ownership) return false;
     if (statusFilter !== "All" && effectiveProjectStatus(p) !== statusFilter) return false;
     return true;
   });
@@ -93,13 +102,76 @@ export function DeProjectsList() {
               <NativeSelect
                 aria-label="Geo filter"
                 className="h-9 text-sm"
-                value={geoFilter}
-                onChange={(e) => setGeoFilter(e.target.value)}
+                value={geoId}
+                onChange={(e) => {
+                  setGeoId(e.target.value);
+                  setRegionId("");
+                }}
               >
-                <option value="All">Geo [All]</option>
-                {geoNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
+                <option value="">Geo [All]</option>
+                {geos.map((geo) => (
+                  <option key={geo.id} value={geo.id}>
+                    {geo.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="w-44 shrink-0">
+              <NativeSelect
+                aria-label="Region filter"
+                className="h-9 text-sm"
+                value={regionId}
+                onChange={(e) => setRegionId(e.target.value)}
+              >
+                <option value="">Region [All]</option>
+                {regionOptions.map((region) => (
+                  <option key={region.id} value={region.id}>
+                    {region.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="w-48 shrink-0">
+              <NativeSelect
+                aria-label="Account filter"
+                className="h-9 text-sm"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+              >
+                <option value="">Account [All]</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="w-44 shrink-0">
+              <NativeSelect
+                aria-label="Project Type filter"
+                className="h-9 text-sm"
+                value={projectTypeId}
+                onChange={(e) => setProjectTypeId(e.target.value)}
+              >
+                <option value="">Project Type [All]</option>
+                {projectTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="w-44 shrink-0">
+              <NativeSelect
+                aria-label="Ownership filter"
+                className="h-9 text-sm"
+                value={ownership}
+                onChange={(e) => setOwnership(e.target.value)}
+              >
+                <option value="">Ownership [All]</option>
+                {PROJECT_OWNED_OPTIONS.map((owned) => (
+                  <option key={owned} value={owned}>
+                    {owned}
                   </option>
                 ))}
               </NativeSelect>

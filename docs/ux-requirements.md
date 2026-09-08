@@ -40,7 +40,7 @@ Dashboard.
 | **CEO / CDO / GEO Head / Delivery Manager** | Read-mostly, cross-project/cross-account: Dashboard, project & account health, contractual commitments. (Source lists these as one combined access group — confirm during review whether they need distinct permissions, e.g. Delivery Manager approving escalations vs. CEO purely viewing.) |
 | **Project Manager** | Full read/write on their own project(s): Charter, Status, all 5 RAID logs, Measurement entry. Submits project for DE Assessment. |
 | **Project Team Member** | Update RAID items assigned to them; view their project's Status and Charter (read-only). |
-| **Delivery Excellence (DE)** | Fills out the DE Assessment Form (PCI score, findings, alerts) for any project; cross-project read access for audit purposes. |
+| **Delivery Excellence (DE)** | Fills out the DE Assessment Form (PCI score, findings) for any project; cross-project read access for audit purposes. |
 | **PMO** | Owns Contractual Compliance and Milestone Payment tracking; runs the Data Integrity checklist across all projects; cross-project read access. |
 
 ## 3. Screen inventory
@@ -97,7 +97,7 @@ Dashboard.
   - Delayed Projects (count)
   - Open Risks (count)
   - Open Issues (count)
-  - Pending Approvals (count — e.g. opportunities awaiting approval, DE alerts open)
+  - Pending Approvals (count — e.g. opportunities awaiting approval)
   - Project Health — a 360° view per project for delivery review (Red/Potential Red/
     Amber/Green, drill-in to Project Charter)
   - Account Health — rolled up across all projects for an account
@@ -384,13 +384,10 @@ Opportunity logs for consistency with Risk. **Please confirm whether to add thes
   project, and (c) a **Next Assessment Due Date** to drive reminders — mirroring the
   Project Status history pattern. **Please confirm whether to add these.**
 - **Fields/elements:** Assessment Date (⚠ proposed addition), DE Assessed Project Health
-  (Red / Potential Red / Amber / Green). If not Green, an Alert is raised: Alert ID
-  (auto), Alert Category (Core Delivery / People / Operational / Customer / Financial /
-  Compliance), Alert Brief Description, Detailed Description, Raised By, Raised On. Also:
-  PCI Score (numeric). Key Findings table: sequence #, Classification (Observation /
-  Recommendation), Action Taken, Date, Status (Open / Closed / On Hold / Deferred),
-  Remarks.
-- **Actions:** submit assessment (creates a new dated record), raise alert, add finding,
+  (Red / Potential Red / Amber / Green). Also: PCI Score (numeric). Key Findings table:
+  sequence #, Classification (Observation / Recommendation / Alert), Action Taken, Date,
+  Status (Open / Closed / On Hold / Deferred), Remarks.
+- **Actions:** submit assessment (creates a new dated record), add finding,
   update finding status, browse assessment history.
 - **States:** assessment in progress, submitted; findings open vs. closed.
 - **Links to:** Project Charter's "DE Assessed Project Health" (shows latest assessment's

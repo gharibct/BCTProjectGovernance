@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     frontend_base_url: str = "http://localhost:3000"
 
+    # Background notification scans (overdue assessments / report defaulters /
+    # actions due). The APScheduler job runs from main.py's lifespan, which
+    # httpx.ASGITransport does not fire — so this is effectively off under pytest.
+    enable_scheduler: bool = True
+    notification_scan_hour: int = 7  # local server hour for the daily run
+
     # Only required when auth_type=onelogin.
     onelogin_client_id: str = ""
     onelogin_client_secret: str = ""

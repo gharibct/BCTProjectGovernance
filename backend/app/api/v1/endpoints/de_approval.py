@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.api.deps import get_current_user, require_project_de_scope, require_role
+from app.api.deps import get_current_user, require_project_de_assessment_access, require_role
 from app.core.db import get_db
 from app.crud.projects import project_crud
 from app.models.de_project_review import DeProjectModuleReview
@@ -35,13 +35,17 @@ from app.schemas.enums import (
     ProjectStatus,
     RoleCode,
 )
+from app.services import notifications as notify_svc
 from app.services.amendment import active_amendment
 from app.services.governance_completeness import compute_governance_completeness
 
 router = APIRouter(prefix="/de-approval", tags=["DE Approval"])
 
 _de = require_role(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
-_de_scope = require_project_de_scope(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
+# Any DE (not only the allocated one) may open / review / decide a project, as
+# long as it has been allocated to Delivery Excellence — all DE data is shared
+# across every DE.
+_de_scope = require_project_de_assessment_access(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
 
 
 async def _module_reviews(db: AsyncSession, project_id: UUID) -> dict[str, DeProjectModuleReview]:
@@ -91,14 +95,14 @@ async def _build_detail(db: AsyncSession, project: Project) -> DeReviewDetail:
     )
 
 
-@router.get("/queue", response_model=DeApprovalQueueResponse)
+@router.get("/queue", response_model=DeApprovalQueueResponse, dependencies=[Depends(_de)])
 async def approval_queue(
     period_id: UUID | None = None,  # display filter only — echoed, not applied
-    current_user: User = Depends(_de),
     db: AsyncSession = Depends(get_db),
 ):
-    # Scoped to the signed-in DE's allocations, the same session-derived
-    # convention as GET /dashboard/de-summary.
+    # Every DE sees every DE project — the queue is scoped only to projects that
+    # have been allocated to Delivery Excellence, not to the signed-in DE's own
+    # allocations. Same convention as GET /dashboard/de-summary.
     pm = aliased(User)
     stmt = (
         select(Project, pm.full_name, Account.name, Geo.name, Region.name, ProjectType.name)
@@ -107,7 +111,7 @@ async def approval_queue(
         .outerjoin(Geo, Geo.id == Project.geo_id)
         .outerjoin(Region, Region.id == Project.region_id)
         .outerjoin(ProjectType, ProjectType.id == Project.project_type_id)
-        .where(Project.delivery_excellence_id == current_user.id)
+        .where(Project.delivery_excellence_id.is_not(None))
     )
     records = (await db.execute(stmt)).all()
 
@@ -138,6 +142,7 @@ async def approval_queue(
                 geo_name=geo_name,
                 region_name=region_name,
                 project_type_name=project_type_name,
+                project_owned=project.project_owned,
                 project_manager_name=pm_name,
                 completion_pct=completeness.completion_pct,
                 gaps_count=completeness.gaps_count,
@@ -257,4 +262,18 @@ async def submit_decision(
 
     await db.flush()
     await db.refresh(project)
+
+    verb = "approved" if payload.decision == "Approve" else "returned"
+    await notify_svc.notify(
+        db,
+        recipient_id=project.project_manager_id,
+        type="DE_DECISION",
+        title=f"Project {project.project_code} was {verb}",
+        body=(payload.remarks or None),
+        link=f"/new-project/{project.id}/send-to-approval",
+        entity_type="project",
+        entity_id=project.id,
+        actor_id=payload.reviewed_by,
+        data={"decision": payload.decision, "project_code": project.project_code},
+    )
     return await _build_detail(db, project)

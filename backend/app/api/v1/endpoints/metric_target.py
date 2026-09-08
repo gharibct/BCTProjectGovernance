@@ -47,12 +47,92 @@ from app.schemas.metric_target import (
     MetricTargetTestingIn,
     MetricTargetTestingRead,
 )
+from app.services.metric_reference import metric_range_errors
 
 router = APIRouter()
 
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
 _pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+
+
+# --- Config range validation ---------------------------------------------------
+#
+# metric_reference.yaml carries a min_value / max_value per metric; a saved
+# target must fall within it (blank bound = that side is unbounded). The join
+# from `*In` payload field -> yaml metric key lives only here (mirrors the
+# `metricKey=` props on the frontend MetricTiles). Consulting has no yaml
+# metrics, so it isn't listed.
+
+# prefix -> (metric_reference.yaml project-type code, {payload field: metric key})
+_TARGET_METRIC_KEYS: dict[str, tuple[str, dict[str, str]]] = {
+    "development": (
+        "DEVELOPMENT",
+        {
+            "target_productivity": "productivity",
+            "target_effort_variation_pct": "effort_variation_pct",
+            "target_schedule_performance_index": "schedule_performance_index",
+            "target_cost_performance_index": "cost_performance_index",
+            "target_defect_leakage_pct": "defect_leakage_pct",
+            "target_code_coverage_pct": "code_coverage_pct",
+            "target_test_execution_coverage_pct": "test_execution_coverage_pct",
+            "target_test_pass_rate_pct": "test_pass_rate_pct",
+        },
+    ),
+    "support": (
+        "SUPPORT",
+        {
+            "target_incident_mttr_p1_hours": "incident_mttr_hours",
+            "target_incident_mttr_p2_hours": "incident_mttr_hours",
+            "target_incident_mttr_p3_hours": "incident_mttr_hours",
+            "target_service_request_mttr_hours": "service_request_mttr_hours",
+            "target_user_clarification_mttr_hours": "user_clarification_mttr_hours",
+            "target_incident_sla_compliance_p1_pct": "incident_sla_compliance_pct",
+            "target_incident_sla_compliance_p2_pct": "incident_sla_compliance_pct",
+            "target_incident_sla_compliance_p3_pct": "incident_sla_compliance_pct",
+        },
+    ),
+    "testing": (
+        "TESTING",
+        {
+            "target_test_execution_coverage_pct": "test_execution_coverage_pct",
+            "target_test_pass_rate_pct": "test_pass_rate_pct",
+            "target_automation_coverage_pct": "automation_coverage_pct",
+            "target_test_design_productivity": "test_design_productivity",
+            "target_test_execution_productivity": "test_execution_productivity",
+        },
+    ),
+    "cloud-maintenance": (
+        "CLOUD_MAINTENANCE",
+        {
+            "target_service_availability_pct": "service_availability_pct",
+            "target_application_availability_pct": "application_availability_pct",
+        },
+    ),
+    "cloud-migration": (
+        "CLOUD_MIGRATION",
+        {
+            "target_applications_migrated_pct": "applications_migrated_pct",
+            "target_migration_success_rate_pct": "migration_success_rate_pct",
+            "target_migration_downtime_hours": "migration_downtime_hours",
+        },
+    ),
+}
+
+_STAFFING_REF_CODE = "PROFESSIONAL_STAFFING"
+_STAFFING_PARENT_KEYS = {
+    "target_pct_profiles_qualifying": "pct_profiles_qualifying",
+    "target_pct_candidates_joining": "pct_candidates_joining",
+}
+_STAFFING_PRIORITY_KEYS = {
+    "target_avg_response_time_hours": "avg_response_time_hours",
+    "target_avg_lead_time_days": "avg_lead_time_days",
+}
+
+
+def _reject_out_of_range(errors: list[str]) -> None:
+    if errors:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=" ".join(errors))
 
 
 # --- Generic factory for the 5 single-row targets ---
@@ -84,6 +164,10 @@ def build_metric_target_router(cfg: MetricTargetConfig) -> APIRouter:
 
     @sub.put("", response_model=cfg.read_schema, dependencies=_pm_write)
     async def upsert_target(project_id: UUID, payload: cfg.in_schema, db: AsyncSession = Depends(get_db)):
+        mapping = _TARGET_METRIC_KEYS.get(cfg.prefix)
+        if mapping is not None:
+            ref_code, field_keys = mapping
+            _reject_out_of_range(metric_range_errors(ref_code, field_keys, payload.model_dump()))
         now = datetime.now(UTC)
         obj = await _get(db, project_id)
         if obj is None:
@@ -208,6 +292,16 @@ async def get_staffing_target(project_id: UUID, db: AsyncSession = Depends(get_d
 
 @staffing_router.put("", response_model=MetricTargetStaffingRead, dependencies=_pm_write)
 async def upsert_staffing_target(project_id: UUID, payload: MetricTargetStaffingIn, db: AsyncSession = Depends(get_db)):
+    errors = metric_range_errors(_STAFFING_REF_CODE, _STAFFING_PARENT_KEYS, payload.model_dump())
+    for priority_in in payload.priority_targets:
+        errors += metric_range_errors(
+            _STAFFING_REF_CODE,
+            _STAFFING_PRIORITY_KEYS,
+            priority_in.model_dump(),
+            label_suffix=f" ({priority_in.priority})",
+        )
+    _reject_out_of_range(errors)
+
     now = datetime.now(UTC)
     target = await _get_staffing_target(db, project_id)
     if target is None:
@@ -250,6 +344,14 @@ async def upsert_staffing_priority_target(
     payload: MetricTargetStaffingPriorityIn,
     db: AsyncSession = Depends(get_db),
 ):
+    _reject_out_of_range(
+        metric_range_errors(
+            _STAFFING_REF_CODE,
+            _STAFFING_PRIORITY_KEYS,
+            payload.model_dump(),
+            label_suffix=f" ({priority})",
+        )
+    )
     target = await _get_staffing_target(db, project_id)
     if target is None:
         raise HTTPException(

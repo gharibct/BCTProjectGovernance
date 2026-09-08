@@ -89,7 +89,13 @@ export type DeFindingsKpis = {
   period_label: string | null;
 };
 
-export type DeFindingCreatePayload = { project_id: string } & DEAssessmentFindingPayload;
+// finding_date/due_date are mandatory on this screen (unlike the DE
+// Assessment Workspace's create, which still allows them optional) — hence
+// the override here rather than tightening the shared DEAssessmentFindingPayload.
+export type DeFindingCreatePayload = { project_id: string; finding_date: string; due_date: string } & Omit<
+  DEAssessmentFindingPayload,
+  "finding_date" | "due_date"
+>;
 
 function buildParams(p: DeFindingsFilter & { skip?: number; limit?: number }): string {
   const q = new URLSearchParams();

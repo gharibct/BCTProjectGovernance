@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project_status import ProjectStatusReport
 from app.models.projects import Project
-from app.models.reference_data import ReportingPeriod
+from app.models.reference_data import Account, Geo, ReportingPeriod
 from app.models.regional_status import AccountStatusReport, GeoStatusReport
 from app.schemas.enums import ReportStatus
 from app.schemas.reporting_activity import (
@@ -137,9 +137,11 @@ async def build_reporting_activity(
 ) -> ReportingActivityResponse:
     project_start = (
         await db.execute(
-            select(func.coalesce(Project.actual_start_date, Project.planned_start_date)).where(
-                Project.id == project_id
-            )
+            select(
+                func.coalesce(
+                    Project.tool_effective_date, Project.actual_start_date, Project.planned_start_date
+                )
+            ).where(Project.id == project_id)
         )
     ).scalar_one_or_none()
     project_end = (
@@ -186,12 +188,21 @@ async def build_reporting_activity(
 async def build_weekly_reporting_activity(
     db: AsyncSession, scope: str, scope_id: UUID, year: int
 ) -> WeeklyReportingActivityResponse:
-    """Account / Geo Status Reporting — Weekly only, no scope start/end date
-    (accounts and geos have no lifecycle), so the window closes at today."""
+    """Account / Geo Status Reporting — Weekly only, no scope end date
+    (accounts and geos have no lifecycle), so the window closes at today.
+    scope_start comes from the account's/geo's tool_effective_date — NULL
+    there means no restriction, same as before this field existed."""
     report_model, fk_column = {
         "account": (AccountStatusReport, AccountStatusReport.account_id),
         "geo": (GeoStatusReport, GeoStatusReport.geo_id),
     }[scope]
+    scope_model = {"account": Account, "geo": Geo}[scope]
+
+    scope_start = (
+        await db.execute(
+            select(scope_model.tool_effective_date).where(scope_model.id == scope_id)
+        )
+    ).scalar_one_or_none()
 
     periods = await _periods_in_year(db, year, ("Weekly",))
     period_ids = [p.id for p in periods]
@@ -212,5 +223,5 @@ async def build_weekly_reporting_activity(
 
     return WeeklyReportingActivityResponse(
         year=year,
-        weekly=_series(periods, by_period, None, date.today()),
+        weekly=_series(periods, by_period, scope_start, date.today()),
     )

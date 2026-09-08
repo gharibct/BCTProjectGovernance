@@ -11,7 +11,7 @@ import { PageBanner } from "@/components/shell/page-banner";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
-import { useReportingActivity, useStatusReports } from "@/lib/api/project-status";
+import { submissionStatusLabel, useReportingActivity, useStatusReports } from "@/lib/api/project-status";
 import {
   comboPeriods,
   currentActivityPeriodId,
@@ -105,16 +105,8 @@ export function ReportingHub() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <ReportingActivityGrid
-          title="Weekly Reporting Activity"
-          items={weekly.items}
-          variant="weekly"
-        />
-        <ReportingActivityGrid
-          title="Monthly Reporting Activity"
-          items={monthly.items}
-          variant="monthly"
-        />
+        <ReportingActivityGrid items={weekly.items} variant="weekly" />
+        <ReportingActivityGrid items={monthly.items} variant="monthly" />
       </div>
 
       <section>
@@ -143,9 +135,9 @@ export function ReportingHub() {
                   const period = periods.find((p) => p.id === report.period_id);
                   const typeLabel =
                     period?.period_type === "Weekly"
-                      ? "Weekly Delivery Status"
+                      ? "Delivery Status Report"
                       : period?.period_type === "Monthly"
-                        ? "Monthly Metrics"
+                        ? "Metrics Report"
                         : (period?.period_type ?? "—");
                   return (
                     <tr
@@ -169,7 +161,7 @@ export function ReportingHub() {
                       </td>
                       <td className="px-3 py-3.5 text-slate-700">{formatDate(report.created_at)}</td>
                       <td className="px-3 py-3.5">
-                        <StatusBadge value={report.status} />
+                        <StatusBadge value={submissionStatusLabel(report.status)} />
                       </td>
                       <td className="px-3 py-3.5 text-slate-700">{formatDate(report.updated_at)}</td>
                       <td className="px-6 py-3.5 text-right">

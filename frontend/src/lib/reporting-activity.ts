@@ -44,6 +44,23 @@ export const ACTIVITY_STATUS_LABEL: Record<PeriodActivityStatus, string> = {
   "n/a": "Not due",
 };
 
+// The activity heatmap (unlike the progress ring's On Time/Late/Pending
+// breakdown) shows only whether a period's report was ever filed, so
+// on-time/late both read as Submitted and pending reads as Not Submitted;
+// n/a (nothing was owed) stays its own neutral bucket rather than either.
+export type ActivityDisplayStatus = "submitted" | "not-submitted" | "n/a";
+
+export const ACTIVITY_DISPLAY_LABEL: Record<ActivityDisplayStatus, string> = {
+  submitted: "Submitted",
+  "not-submitted": "Not Submitted",
+  "n/a": "Not due",
+};
+
+export function activityDisplayStatus(status: PeriodActivityStatus): ActivityDisplayStatus {
+  if (status === "n/a") return "n/a";
+  return status === "pending" ? "not-submitted" : "submitted";
+}
+
 // The Week/Month Selection combos only offer periods that are (a) in the
 // reporting window (status !== "n/a" — after the scope start, not past its
 // end) and (b) fully ended, newest first, capped at COMBO_PERIOD_LIMIT back.

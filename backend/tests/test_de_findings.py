@@ -26,6 +26,8 @@ def _fake_project(**overrides):
     defaults = {
         "id": _PROJECT_ID,
         "delivery_excellence_id": uuid4(),  # a DE is allocated — write gate needs one
+        "project_manager_id": uuid4(),  # notification recipient
+        "project_code": "PRJ-0001",
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
@@ -38,7 +40,7 @@ def _fake_finding(**overrides):
         "project_id": _PROJECT_ID,
         "sequence_no": 1,
         "category": "Core Delivery",
-        "classification": "NC",
+        "classification": "Alert",
         "description": "x",
         "assigned_to": None,
         "action_taken": None,
@@ -185,8 +187,9 @@ async def test_create_with_project_in_body_as_de(client, override_auth):
         json={
             "project_id": str(_PROJECT_ID),
             "category": "Core Delivery",
-            "classification": "NC",
+            "classification": "Alert",
             "description": "Monthly governance evidence incomplete",
+            "finding_date": "2026-08-01",
             "due_date": "2026-08-15",
         },
         headers=headers,
@@ -196,7 +199,7 @@ async def test_create_with_project_in_body_as_de(client, override_auth):
     assert body["project_id"] == str(_PROJECT_ID)
     assert body["sequence_no"] == 1
     assert body["category"] == "Core Delivery"
-    assert body["classification"] == "NC"
+    assert body["classification"] == "Alert"
     assert body["overdue"] is True  # past due_date, status Open
 
 
@@ -207,7 +210,7 @@ async def test_create_forbidden_for_non_de(client, override_auth):
     )
     response = await client.post(
         "/api/v1/de-findings",
-        json={"project_id": str(_PROJECT_ID), "category": "Core Delivery", "classification": "NC"},
+        json={"project_id": str(_PROJECT_ID), "category": "Core Delivery", "classification": "Alert"},
         headers=headers,
     )
     assert response.status_code == 403
@@ -220,7 +223,13 @@ async def test_create_forbidden_when_project_has_no_de(client, override_auth):
     )
     response = await client.post(
         "/api/v1/de-findings",
-        json={"project_id": str(_PROJECT_ID), "category": "Core Delivery", "classification": "NC"},
+        json={
+            "project_id": str(_PROJECT_ID),
+            "category": "Core Delivery",
+            "classification": "Alert",
+            "finding_date": "2026-08-01",
+            "due_date": "2026-08-15",
+        },
         headers=headers,
     )
     assert response.status_code == 403
@@ -230,7 +239,13 @@ async def test_create_404_when_project_missing(client, override_auth):
     headers = override_auth(RoleCode.DELIVERY_EXCELLENCE)  # empty get_map
     response = await client.post(
         "/api/v1/de-findings",
-        json={"project_id": str(_PROJECT_ID), "category": "Core Delivery", "classification": "NC"},
+        json={
+            "project_id": str(_PROJECT_ID),
+            "category": "Core Delivery",
+            "classification": "Alert",
+            "finding_date": "2026-08-01",
+            "due_date": "2026-08-15",
+        },
         headers=headers,
     )
     assert response.status_code == 404

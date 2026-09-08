@@ -97,7 +97,6 @@ ENUM_COLUMNS: dict[str, dict[str, type[e.StrEnum]]] = {
     "contractual_commitment_actuals": {"met_status": e.MetStatus},
     "milestone_payment_actuals": {"status": e.MilestonePaymentStatus},
     "de_assessments": {"de_assessed_project_health": e.HealthRating},
-    "de_assessment_alerts": {"alert_category": e.Category},
     "de_assessment_findings": {
         "category": e.Category,
         "classification": e.FindingClassification,

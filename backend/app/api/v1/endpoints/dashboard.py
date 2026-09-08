@@ -36,6 +36,7 @@ from app.schemas.dashboard import (
     ProjectListRow,
     RagRow,
     RaidoSummary,
+    ReportSubmissionDetailRow,
     RiskRow,
 )
 from app.schemas.enums import HealthRating, RoleCode
@@ -88,8 +89,8 @@ async def get_dashboard_summary(
     )
 
 
-# Standalone "Open NC" section for a single project / account / geo — used by
-# the per-entity Project / Account / Geo dashboards (reporting hub) and the
+# Standalone "Open Alerts" section for a single project / account / geo — used
+# by the per-entity Project / Account / Geo dashboards (reporting hub) and the
 # matching Review screens. `scope=account|geo` rolls up every project under
 # that account/geo, mirroring how the summary endpoints already scope.
 @router.get("/open-ncs", response_model=OpenNcListResponse)
@@ -314,22 +315,22 @@ async def get_geo_head_dashboard_summary(
     )
 
 
-# Delivery Excellence "My Summary" (design-reference/de-mysummary.jpg) —
-# delivery_excellence_id comes from the session, like project_manager_id does
-# for get_my_dashboard_summary above. A DE assessment is independent of PM
-# reporting and of weekly/monthly reporting periods: everything below is
-# measured against the current calendar month (a project must be assessed at
-# least once per month, and may be assessed any number of times).
+# Delivery Excellence dashboard (design-reference/de-mysummary.jpg). DE data is
+# shared across every DE — this is NOT scoped to the signed-in DE's own
+# allocations, only to projects that have been allocated to Delivery Excellence
+# (de_allocated). A DE assessment is independent of PM reporting and of
+# weekly/monthly reporting periods: everything below is measured against the
+# current calendar month (a project must be assessed at least once per month,
+# and may be assessed any number of times).
 @router.get(
     "/de-summary",
     response_model=DEDashboardSummary,
     dependencies=[Depends(require_role(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN))],
 )
 async def get_de_dashboard_summary(
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(delivery_excellence_id=current_user.id)
+    filters = DashboardFilters(de_allocated=True)
     month = dashboard_service.current_month_window()
 
     work_queue = await dashboard_service.de_assessment_work_queue(db, filters, month)
@@ -399,13 +400,20 @@ async def get_pmo_dashboard_summary(db: AsyncSession = Depends(get_db)):
 
 
 # Project Health dashboard (design-reference/Project-Health.html) — a new,
-# additional org-wide portfolio page for PMO/Admin/CXO (not a replacement of
-# their existing landing summaries above), with a real Geo/Account/Project
-# Type/Period filter bar unlike pmo-summary's fully unfiltered scope.
+# additional org-wide portfolio page for PMO/Admin/CXO/Delivery Excellence
+# (not a replacement of their existing landing summaries above), with a real
+# Geo/Account/Project Type/Period filter bar unlike pmo-summary's fully
+# unfiltered scope.
 @router.get(
     "/project-health",
     response_model=ProjectHealthDashboardSummary,
-    dependencies=[Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO))],
+    dependencies=[
+        Depends(
+            require_role(
+                RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE
+            )
+        )
+    ],
 )
 async def get_project_health_dashboard(
     geo_id: UUID | None = Query(default=None),
@@ -451,12 +459,15 @@ async def get_project_health_dashboard(
         findings=await dashboard_service.findings_card_summary(db, filters, period),
         de_assessments=await dashboard_service.de_assessments_card_summary(db, filters, project_ids, period),
         data_integrity=await dashboard_service.data_integrity_card_summary(db, filters, project_ids),
+        report_submissions=await dashboard_service.report_submissions_summary(db, filters, projects),
         period_id=period.id if period else None,
         period_label=period.label if period else None,
     )
 
 
-_project_health_role = [Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO))]
+_project_health_role = [
+    Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE))
+]
 
 
 # Project Health drill-down list screens (design-reference/project-health-screens.md)
@@ -723,5 +734,37 @@ async def get_project_health_data_integrity(
     project_ids = [p.project_id for p in projects]
     items, total = await dashboard_service.list_data_integrity_for_health(
         db, filters, project_ids, skip=pagination.skip, limit=pagination.limit
+    )
+    return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+
+
+@router.get(
+    "/project-health/report-submissions",
+    response_model=Page[ReportSubmissionDetailRow],
+    dependencies=_project_health_role,
+)
+async def get_project_health_report_submissions(
+    geo_id: UUID | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    project_type_id: UUID | None = Query(default=None),
+    # KPI-scoped sub screens (frontend REPORT_SUBMISSION_STREAMS) narrow to one
+    # stream and, by default, to the "who hasn't filed" rows: report_type is one
+    # of the four ReportSubmissionDetailRow.report_type strings; pending=True
+    # keeps only Not Submitted, pending=False only Submitted, unset keeps both.
+    report_type: str | None = Query(default=None),
+    pending: bool | None = Query(default=None),
+    pagination: PaginationParams = Depends(pagination_params),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    projects = await dashboard_service.project_health_rows(db, filters)
+    items, total = await dashboard_service.list_report_submissions_for_health(
+        db,
+        filters,
+        projects,
+        skip=pagination.skip,
+        limit=pagination.limit,
+        report_type=report_type,
+        pending=pending,
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)

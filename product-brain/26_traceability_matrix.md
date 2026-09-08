@@ -73,8 +73,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | T-30 | FC-DEA-010/020 Create + rate | BR-DEA-010, BR-DEA-050 | DE Assessment *(none)* → `Draft` | SCR-DEA-30 ★§3.4 | API-DEA-20 | `de_assessments` | TS-DEA-* |
 | T-31 | FC-DEA-030 Findings | BR-DEA-060 | Finding `Open` → … → `Closed`/`Cancelled` | SCR-DEA-10/30 | API-DEA-40 | `de_assessment_findings` | TS-WF-* , TS-DEA-* |
-| T-32 | FC-DEA-040 Alert if not Green | BR-DEA-020, BR-DEA-030 | *(alert raised)* | SCR-DEA-10/30 | API-DEA-50 | `SVC-CODE-GENERATOR` / `de_assessment_alerts` | TS-BR-DEA-10 |
-| T-33 | FC-DEA-050 Submit → Charter | BR-DEA-040 | DE Assessment `Draft` → `Submitted`; `projects.de_assessed_project_health` refreshed | SCR-DEA-30 | API-DEA-30 | `SVC-HEALTH-ROLLUP` (`compute_overall_project_health`) / `projects` | TS-ROLLUP-GM-10, TS-HEALTH-* |
+| T-33 | FC-DEA-050 Submit → Charter | BR-DEA-040 | DE Assessment `Draft` → `Submitted`; `projects.de_assessed_project_health` refreshed | SCR-DEA-30 | API-DEA-30 | `SVC-HEALTH-ROLLUP` (`compute_overall_project_health`) / `projects` | TS-ROLLUP-GM-10, TS-HEALTH-*, TS-BR-DEA-10 |
 
 ### BP-05 — Reporting / Review Cascade (Project → Account → Geo → CXO)
 
@@ -133,7 +132,7 @@
 | --- | --- | --- | --- | --- | --- |
 | X-01 | Every request authenticated + keyed | BR-SEC-010, BR-SEC-020 | all `API-*` | `verify_api_key`, `get_current_user` | **TS-BR-SEC-10**, TS-SEC-* |
 | X-02 | Role + scope on every write | BR-SEC-030..080 | all write `API-*` | `require_*` factories | **TS-RBAC-*** (`test_authorization.py`) |
-| X-03 | Human-readable codes unique | BR-PROJ-020, BR-RAID-010, BR-DEA-030, BR-ACTION-010 | create endpoints | `SVC-CODE-GENERATOR` / `id_sequences` | TS-* (per area) + a concurrency test |
+| X-03 | Human-readable codes unique | BR-PROJ-020, BR-RAID-010, BR-ACTION-010 | create endpoints | `SVC-CODE-GENERATOR` / `id_sequences` | TS-* (per area) + a concurrency test |
 | X-04 | Dashboards scoped + live | BR-DASH-010, BR-DASH-020, BR-DASH-030 | `API-DASH-*` | `SVC-DASHBOARD-AGGREGATION` | TS-DASH-* |
 | X-05 | Audit on write | BR-AUDIT-010, BR-AUDIT-020 | project-scoped writes | `touch_project_on_write` / `user_activity_log` | TS-AUDIT-* |
 | X-06 | Reference data ADMIN-only | BR-REF-010/020, BR-USER-010, BR-INTG-010 | `API-REF-*`, `API-USER-*`, `API-INTG-*` | `build_crud_router` | TS-REF-*, TS-USER-* |
@@ -152,7 +151,7 @@ transition, every `SCR-*` action, every `API-*` endpoint, and every `NFR-*` must
 | --- | --- | --- | --- |
 | `BP-01..10` | `02` | **10 / 10** | all have ≥ 1 row |
 | `FC-<MOD>-*` | `04` | core capabilities of the 15 full modules covered | condensed-module `FC-*` (AUTH, REF, USER, TARGET, DEAL, DI, AI, INTG, AUDIT) covered via cross-cutting rows X-01..06 and BP-09/10 |
-| `BR-<MOD>-*` | `05` | all `Blocking`/`High` referenced | **Advisory** rules (BR-PROJ-050/080/090, BR-DEA-020, BR-RAID-060, BR-HEALTH-050, BR-MEAS-040, BR-CONTRACT-050, BR-TARGET-020, BR-GEO-020, BR-REF-030, BR-INTG-020, BR-AUDIT-020) are referenced but their `TS-*` are `xfail` until enforced (GAD links in `05` §26) |
+| `BR-<MOD>-*` | `05` | all `Blocking`/`High` referenced | **Advisory** rules (BR-PROJ-050/080/090, BR-RAID-060, BR-HEALTH-050, BR-MEAS-040, BR-CONTRACT-050, BR-TARGET-020, BR-GEO-020, BR-REF-030, BR-INTG-020, BR-AUDIT-020) are referenced but their `TS-*` are `xfail` until enforced (GAD links in `05` §26) |
 | `06` transitions | `06` | Project, `de_review_status`, all 3 reports, DE Assessment, DE Module Review, Rollup Item, Action, RAID×5, DE Finding, AI×3, Backup/Restore | **anchor** `TS-WF-*` per §5 of `25`; per-transition tests are the build-out task |
 | `SCR-*` | `08` | the action-bearing screens (Charter, Status, RAID, Health, DE Assessment, DE Approval, Account/Geo reporting, Review, Executive Update, Action, Dashboards) | read-only `SCR-DASH-101..114` covered by TS-DASH-*; `SCR-AUTH-*` by TS-SEC-* |
 | `API-*` | `17` | every domain has ≥ 1 row | per-endpoint × role × status matrix is `TS-RBAC-*` / `TS-WF-*` (defined by pattern, not enumerated here) |

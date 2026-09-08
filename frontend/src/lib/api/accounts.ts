@@ -8,6 +8,7 @@ export type AccountPayload = {
   geo_id?: string;
   description?: string;
   is_active?: boolean;
+  tool_effective_date?: string;
 };
 
 export function useCreateAccount() {

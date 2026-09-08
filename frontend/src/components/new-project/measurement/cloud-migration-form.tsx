@@ -26,27 +26,36 @@ export function fromCloudMigrationTarget(data: MetricTargetCloudMigration | null
   };
 }
 
-export function CloudMigrationTab({ m, set }: MeasuresProps) {
+export function CloudMigrationTab({ m, set, reference, errors }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Cloud Migration Metrics">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <MetricTile
             label="Applications Migrated"
+            metricKey="applications_migrated_pct"
+            reference={reference}
             value={m.targetAppsMigrated ?? ""}
             onChange={set("targetAppsMigrated")}
+            error={errors?.targetAppsMigrated}
             unit="%"
           />
           <MetricTile
             label="Migration Success Rate"
+            metricKey="migration_success_rate_pct"
+            reference={reference}
             value={m.targetSuccessRate ?? ""}
             onChange={set("targetSuccessRate")}
+            error={errors?.targetSuccessRate}
             unit="%"
           />
           <MetricTile
             label="Migration Downtime"
+            metricKey="migration_downtime_hours"
+            reference={reference}
             value={m.targetDowntime ?? ""}
             onChange={set("targetDowntime")}
+            error={errors?.targetDowntime}
             unit="Hours"
           />
         </div>

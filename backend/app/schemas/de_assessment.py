@@ -17,27 +17,6 @@ from app.schemas.enums import (
 _FINDING_CLOSED_STATUSES = {FindingStatus.CLOSED, FindingStatus.CANCELLED}
 
 
-class DEAssessmentAlertIn(BaseModel):
-    alert_category: Category | None = None
-    brief_description: str
-    detailed_description: str | None = None
-    raised_by: UUID | None = None
-    raised_on: date | None = None
-
-
-class DEAssessmentAlertRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: UUID
-    alert_code: str
-    assessment_id: UUID
-    alert_category: Category | None = None
-    brief_description: str
-    detailed_description: str | None = None
-    raised_by: UUID | None = None
-    raised_on: date
-    created_at: datetime
-
-
 class DEAssessmentFindingIn(BaseModel):
     # sequence_no is assigned server-side when omitted (max existing + 1).
     sequence_no: int | None = None
@@ -100,8 +79,8 @@ class DEAssessmentFindingRead(BaseModel):
 
 
 class DEAssessmentCreate(BaseModel):
-    """Header only — Alerts and Findings are added afterward, one at a time,
-    via their own registers (POST .../alerts, POST .../findings).
+    """Header only — Findings are added afterward, one at a time, via their own
+    register (POST .../findings).
 
     `assessed_by` is always taken from the session, never the payload. status
     defaults to Submitted so the charter DE Assessment form (which only ever
@@ -141,9 +120,3 @@ class DEAssessmentRead(BaseModel):
     assessed_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
-
-
-class DEAssessmentReadWithDetails(DEAssessmentRead):
-    alerts: list[DEAssessmentAlertRead] = []
-    # Findings are no longer nested here — they're a project-level register,
-    # fetched via GET /projects/{project_id}/de-assessment-findings.

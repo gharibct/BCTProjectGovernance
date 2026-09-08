@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Lock, ShieldCheck } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
 import { Button } from "@/components/ui/button";
@@ -15,25 +14,16 @@ import {
   RATING_TO_API,
   type HealthRating as UiHealthRating,
 } from "../health-declaration";
-import {
-  useCreateDEAssessment,
-  useLatestDEAssessment,
-  type DEAssessmentPayload,
-} from "@/lib/api/de-assessment";
+import { useCreateDEAssessment, type DEAssessmentPayload } from "@/lib/api/de-assessment";
 
-import { AlertRegisterTab } from "./alert-register-tab";
 import { FindingsRegisterTab } from "./findings-register-tab";
 
-// Alert and Findings are each their own register (register grid + "New
-// <Item>" entry form), matching the Contractual Compliance tab pattern —
-// each row saves immediately, no separate "save the tab" step. Alerts are
-// logged against the latest assessment; Findings are a project-level
+// Findings are their own register (register grid + "New Finding" entry form),
+// matching the Contractual Compliance tab pattern — each row saves
+// immediately, no separate "save the tab" step. Findings are a project-level
 // register, independent of any assessment.
-const TABS = [{ label: "Alert Register" }, { label: "Findings Register" }] as const;
-
 export function DeAssessmentForm() {
   const projectId = useNewProjectId();
-  const { data: latest } = useLatestDEAssessment(projectId);
   const createAssessment = useCreateDEAssessment(projectId);
 
   const [health, setHealth] = React.useState<UiHealthRating>("green");
@@ -41,31 +31,6 @@ export function DeAssessmentForm() {
   const [pciScoreError, setPciScoreError] = React.useState<string | null>(null);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
-  const showWarning = usePageBanner((state) => state.showWarning);
-  const dismiss = usePageBanner((state) => state.dismiss);
-
-  const [tab, setTab] = React.useState<(typeof TABS)[number]["label"]>("Alert Register");
-
-  // Flagship "warning" banner: a real, pre-existing condition (previously a
-  // static box buried inside the Alert Register tab, invisible while
-  // Findings was active) — now visible below the page header regardless of
-  // which tab is selected, and clears itself once an alert is raised.
-  const needsAlertWarning =
-    !!latest && latest.de_assessed_project_health !== "Green" && latest.alerts.length === 0;
-  const warningShownRef = React.useRef(false);
-  React.useEffect(() => {
-    if (needsAlertWarning && latest) {
-      showWarning(
-        `This assessment is rated ${latest.de_assessed_project_health} — raise at least one alert below.`,
-        { label: "Review Alerts", onClick: () => setTab("Alert Register") }
-      );
-      warningShownRef.current = true;
-    } else if (warningShownRef.current) {
-      dismiss();
-      warningShownRef.current = false;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsAlertWarning]);
 
   const submitHeader = () => {
     if (!projectId) return;
@@ -131,39 +96,18 @@ export function DeAssessmentForm() {
       </SectionCard>
 
       <div className="mt-8">
-        <div role="tablist" className="flex gap-8 border-b border-slate-200">
-          {TABS.map((t) => (
-            <button
-              key={t.label}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.label}
-              onClick={() => setTab(t.label)}
-              className={cn(
-                "-mb-px border-b-2 pb-3 text-sm font-semibold whitespace-nowrap transition-colors",
-                tab === t.label
-                  ? "border-[#1a4a7a] text-[#1a4a7a]"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
+        <h2 className="border-b border-slate-200 pb-3 text-sm font-semibold text-[#1a4a7a]">
+          Findings Register
+        </h2>
         <div className="mt-8">
-          {tab === "Alert Register" ? (
-            <AlertRegisterTab projectId={projectId} assessment={latest} />
-          ) : (
-            <FindingsRegisterTab projectId={projectId} />
-          )}
+          <FindingsRegisterTab projectId={projectId} />
         </div>
       </div>
 
       <p className="mt-10 flex items-center gap-2 text-sm text-slate-500">
         <Lock className="size-4" />
-        One assessment per cycle — Alerts and Findings are logged against the
-        latest assessment, row by row.
+        One assessment per cycle — Findings are logged against the latest
+        assessment, row by row.
       </p>
     </div>
   );

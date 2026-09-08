@@ -47,7 +47,7 @@
 | Measurement | ENT-MEAS-DEV (+ ENT-MEAS-DEV-DEFECT *child*), ENT-MEAS-SUPPORT, ENT-MEAS-STAFFING (+ ENT-MEAS-STAFFING-PRI *child*), ENT-MEAS-TESTING, ENT-MEAS-CONSULTING, ENT-MEAS-CLOUDMAINT, ENT-MEAS-CLOUDMIG |
 | Metric targets | ENT-METRICTARGET *(family, per type + staffing-priority child)* |
 | Contractual | ENT-COMMITMENT, ENT-COMMITMENTACTUAL, ENT-MILESTONE, ENT-MILESTONEACTUAL |
-| Delivery Excellence | ENT-DEASSESSMENT, ENT-DEFINDING, ENT-DEALERT, ENT-DEMODULEREVIEW |
+| Delivery Excellence | ENT-DEASSESSMENT, ENT-DEFINDING, ENT-DEMODULEREVIEW |
 | Governance & rollup | *(rollup is not a separate entity — see §rollup note)* |
 | Executive | ENT-EXECUPDATE |
 | Action tracking | ENT-ACTION, ENT-ACTIONHISTORY *(child)* |
@@ -203,13 +203,10 @@ Purpose: the actual against a milestone. · Key: `id`; `milestone_id`. · Attrib
 ## 11. Delivery Excellence
 
 ### ENT-DEASSESSMENT — DE Assessment
-Purpose: a dated per-project DE assessment. · Key: `id`. · Attributes: `assessment_date`, `de_assessed_project_health` (`HealthRating`), `pci_score`, `remarks`, `status` (`DEAssessmentStatus`), `next_assessment_due_date`, `assessed_by`. · Relationships: `N–1` ENT-PROJECT; `1–N` ENT-DEFINDING, ENT-DEALERT. · Owning module: MOD-DEA. · Lifecycle: `product-brain/06` §7. · Retention: permanent history.
+Purpose: a dated per-project DE assessment. · Key: `id`. · Attributes: `assessment_date`, `de_assessed_project_health` (`HealthRating`), `pci_score`, `remarks`, `status` (`DEAssessmentStatus`), `next_assessment_due_date`, `assessed_by`. · Relationships: `N–1` ENT-PROJECT; `1–N` ENT-DEFINDING. · Owning module: MOD-DEA. · Lifecycle: `product-brain/06` §7. · Retention: permanent history.
 
 ### ENT-DEFINDING — DE Assessment Finding
 Purpose: a Key Finding within an assessment. · Key: `id`; `sequence_no`. · Attributes: `classification` (`FindingClassification`), `description`, `severity`, `assigned_to`, `action_taken`, `finding_date`, `due_date`, `status` (`FindingStatus`), remarks. · Relationships: `N–1` ENT-DEASSESSMENT. · Owning module: MOD-DEA. · Lifecycle: `06` §16. · Retention: permanent.
-
-### ENT-DEALERT — DE Assessment Alert
-Purpose: raised when DE-Assessed Health ≠ `Green`. · Key: `id`; **business key `alert_code` (`ALT-YYYY-NNNN`) unique**. · Attributes: `alert_category` (`Category`), `brief_description`, `detailed_description`, `raised_by`, `raised_on`. · Relationships: `N–1` ENT-DEASSESSMENT. · Owning module: MOD-DEA. · Lifecycle: no status. · Retention: permanent.
 
 ### ENT-DEMODULEREVIEW — DE Project Module Review
 Purpose: one row per governance module per project, holding the DE verdict during approval. · Key: `id`; (`project_id`, `module_key`). · Attributes: `module_key` (`GovernanceModuleKey`), `review_action` (`DeModuleReviewAction`), `remarks`, `updated_by`. · Relationships: `N–1` ENT-PROJECT. · Owning module: MOD-DEAP. · Lifecycle: `06` §8. · Retention: with the project.
@@ -302,7 +299,6 @@ erDiagram
     MILESTONE_PAYMENT ||--|| MILESTONE_ACTUAL : "paid as"
     PROJECT ||--o{ DE_ASSESSMENT : "assessed by DE"
     DE_ASSESSMENT ||--o{ DE_FINDING : "raises"
-    DE_ASSESSMENT ||--o{ DE_ALERT : "raises if not Green"
     PROJECT ||--o{ DE_MODULE_REVIEW : "governance verdicts"
 
     PROJECT_STATUS_ITEM }o--|| ACCOUNT_STATUS_ITEM : "rolled up to"

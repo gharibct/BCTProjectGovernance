@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { api, ApiError } from "./client";
+import { api, ApiError, type Page } from "./client";
 
 export type SdlcStage =
   | "URD"
@@ -21,6 +21,21 @@ export type StaffingPriorityCode = "Critical" | "High" | "Medium" | "Low";
 // normal state). Save always POSTs; the backend upserts on
 // (project_id, period_id), so re-saving the selected period updates that
 // row in place rather than creating a duplicate.
+
+// The list route (no "/latest" suffix) returns every snapshot for the
+// project, ordered newest reporting-period first. The read-only DE Projects
+// measurement view uses this to let a reviewer page back through periods.
+// Note: for Development/Staffing the list route returns the plain Read
+// schema (no defects_by_stage / priority_metrics) — only "/latest" and
+// "/{id}" carry the nested rows.
+function useMeasurementList<T>(projectId: string | null, prefix: string, key: string) {
+  return useQuery({
+    queryKey: [key, projectId],
+    queryFn: () => api.get<Page<T>>(`/projects/${projectId}/measurements/${prefix}?limit=200`),
+    select: (page) => page.items,
+    enabled: !!projectId,
+  });
+}
 
 // --- Development (bespoke: per-SDLC-stage defect rows) ---
 
@@ -95,6 +110,10 @@ export function useLatestDevelopmentMeasurement(projectId: string | null) {
     },
     enabled: !!projectId,
   });
+}
+
+export function useDevelopmentMeasurements(projectId: string | null) {
+  return useMeasurementList<MeasurementDevelopmentRead>(projectId, "development", "measurement-development-list");
 }
 
 export function useCreateDevelopmentMeasurement(projectId: string | null) {
@@ -179,6 +198,10 @@ export function useLatestSupportMeasurement(projectId: string | null) {
   });
 }
 
+export function useSupportMeasurements(projectId: string | null) {
+  return useMeasurementList<MeasurementSupportRead>(projectId, "support", "measurement-support-list");
+}
+
 export function useCreateSupportMeasurement(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -251,6 +274,10 @@ export function useLatestStaffingMeasurement(projectId: string | null) {
   });
 }
 
+export function useStaffingMeasurements(projectId: string | null) {
+  return useMeasurementList<MeasurementStaffingRead>(projectId, "staffing", "measurement-staffing-list");
+}
+
 export function useCreateStaffingMeasurement(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -312,6 +339,10 @@ export function useLatestTestingMeasurement(projectId: string | null) {
   });
 }
 
+export function useTestingMeasurements(projectId: string | null) {
+  return useMeasurementList<MeasurementTestingRead>(projectId, "testing", "measurement-testing-list");
+}
+
 export function useCreateTestingMeasurement(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -369,6 +400,10 @@ export function useLatestConsultingMeasurement(projectId: string | null) {
   });
 }
 
+export function useConsultingMeasurements(projectId: string | null) {
+  return useMeasurementList<MeasurementConsultingRead>(projectId, "consulting", "measurement-consulting-list");
+}
+
 export function useCreateConsultingMeasurement(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -419,6 +454,14 @@ export function useLatestCloudMaintenanceMeasurement(projectId: string | null) {
     },
     enabled: !!projectId,
   });
+}
+
+export function useCloudMaintenanceMeasurements(projectId: string | null) {
+  return useMeasurementList<MeasurementCloudMaintenanceRead>(
+    projectId,
+    "cloud-maintenance",
+    "measurement-cloud-maintenance-list"
+  );
 }
 
 export function useCreateCloudMaintenanceMeasurement(projectId: string | null) {
@@ -478,6 +521,14 @@ export function useLatestCloudMigrationMeasurement(projectId: string | null) {
     },
     enabled: !!projectId,
   });
+}
+
+export function useCloudMigrationMeasurements(projectId: string | null) {
+  return useMeasurementList<MeasurementCloudMigrationRead>(
+    projectId,
+    "cloud-migration",
+    "measurement-cloud-migration-list"
+  );
 }
 
 export function useCreateCloudMigrationMeasurement(projectId: string | null) {

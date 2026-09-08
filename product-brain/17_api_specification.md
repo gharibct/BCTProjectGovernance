@@ -175,11 +175,10 @@ Writes: `_write_roles` = `require_project_access(PM, DELIVERY_EXCELLENCE, AM, GH
 
 | API ID | Method · Path | Purpose | BR / status |
 | --- | --- | --- | --- |
-| API-DEA-10 | `GET /projects/{id}/de-assessments` · `GET …/latest` · `GET …/{aid}` | List / latest / one (with findings + alerts) | — |
+| API-DEA-10 | `GET /projects/{id}/de-assessments` · `GET …/latest` · `GET …/{aid}` | List / latest / one | — |
 | API-DEA-20 | `POST /projects/{id}/de-assessments` | Create → `Draft` | BR-DEA-050; `06` §7 |
 | API-DEA-30 | `PATCH /projects/{id}/de-assessments/{aid}` | Set health / PCI; **Submit** | BR-DEA-040; `Draft`→`Submitted` → `_finalize_assessment` writes cached health on `projects` |
 | API-DEA-40 | `POST /projects/{id}/de-assessments/{aid}/findings` · `PUT …/findings/{fid}` | Findings CRUD | BR-DEA-060; `06` §16 |
-| API-DEA-50 | `POST /projects/{id}/de-assessments/{aid}/alerts` | Raise Alert (health ≠ Green) → `ALT-*` | BR-DEA-020/030 |
 
 ## 13. DE Allocation & Governance Approval (`API-DEAL-*`, `API-DEAP-*`)
 

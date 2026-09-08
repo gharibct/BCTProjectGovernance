@@ -1,5 +1,21 @@
 **This is a fresh machine with a fresh Postgres instance — no existing data to preserve.**
 
+**Packaging**
+
+Use `git clone` with sparse-checkout — no manual archive needed, since the repo already has the current state pushed. A plain clone would also drag along internal planning/docs content that has nothing to do with running the app (`product-brain/`, `design-reference/`, `docs/`, `sample/`, root `scripts/`, `.claude/`, the various `*_REVIEW.md`/`*_FIX_PLAN.md` files, requirement `.xlsx` files, `vapt-prompt.txt`, etc.) — only `backend/`, `frontend/`, `db/`, and this file are actually needed. Sparse-checkout still clones full history (so `git pull` keeps working for updates), it just only materializes the paths you list:
+
+Commit and push any local changes first (e.g. this file), then on the new machine:
+```
+git clone --no-checkout -b GeoAccountDev https://github.com/gharibct/BCTProjectGovernance.git
+cd BCTProjectGovernance
+git sparse-checkout init --cone
+git sparse-checkout set backend frontend db deployment.md
+git checkout GeoAccountDev
+```
+(`origin` on this machine points at that same repo — `origin1` is a second remote, `https://github.com/ghariharasudhan/ProjectGovernance.git`, kept in sync but not the one to clone from.)
+
+`.venv`, `node_modules`, `.next`, `dev.db`, `storage/`, and both `.env`/`.env.local` files are all git-ignored on top of that, so the checkout naturally excludes them too — `backend/.env` and `frontend/.env.local` get created fresh on the new machine per the steps below.
+
 **Files you need to change on the new server**
 
 backend/.env (copy from .env.example, then edit):

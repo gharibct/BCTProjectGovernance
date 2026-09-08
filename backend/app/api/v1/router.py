@@ -24,7 +24,9 @@ from app.api.v1.endpoints import (
     measurement,
     metric_reference,
     metric_target,
+    notifications,
     pm_findings,
+    project_creation_requests,
     project_status,
     projects,
     raid,
@@ -41,6 +43,7 @@ api_router.include_router(reference_data.router)
 api_router.include_router(metric_reference.router)
 api_router.include_router(users.router)
 api_router.include_router(projects.router)
+api_router.include_router(project_creation_requests.router)
 api_router.include_router(ai_suggestions.router)
 api_router.include_router(ai_row_suggestions.router)
 api_router.include_router(documents.router)
@@ -77,3 +80,4 @@ api_router.include_router(account_health_rollup.router)
 api_router.include_router(geo_rollup.router)
 api_router.include_router(executive_updates.router)
 api_router.include_router(actions.router)
+api_router.include_router(notifications.router)

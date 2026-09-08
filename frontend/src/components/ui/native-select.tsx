@@ -5,12 +5,16 @@ import { cn } from "@/lib/utils"
 
 function NativeSelect({
   className,
+  wrapperClassName,
   chevronClassName,
   children,
   ...props
-}: React.ComponentProps<"select"> & { chevronClassName?: string }) {
+}: React.ComponentProps<"select"> & {
+  wrapperClassName?: string
+  chevronClassName?: string
+}) {
   return (
-    <div className="relative w-full">
+    <div className={cn("relative w-full", wrapperClassName)}>
       <select
         data-slot="native-select"
         className={cn(

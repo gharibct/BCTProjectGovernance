@@ -111,6 +111,22 @@ export type DataIntegrityCardSummary = {
   critical_gaps_count: number;
 };
 
+// "Data Integrity / Report Submissions" section — submission adherence per
+// scope: reports filed vs reports owed (entity × every started, post-onboarding
+// active reporting period).
+export type ReportSubmissionKpi = {
+  submitted_count: number;
+  expected_count: number;
+  adherence_pct: number;
+};
+
+export type ReportSubmissionsSummary = {
+  delivery_status_projects: ReportSubmissionKpi;
+  metrics_projects: ReportSubmissionKpi;
+  delivery_status_accounts: ReportSubmissionKpi;
+  delivery_status_geos: ReportSubmissionKpi;
+};
+
 export type ProjectHealthDashboardSummary = {
   portfolio: ProjectPortfolioSummary;
   health: ProjectHealthCardSummary;
@@ -127,6 +143,7 @@ export type ProjectHealthDashboardSummary = {
   findings: FindingsCardSummary;
   de_assessments: DEAssessmentsCardSummary;
   data_integrity: DataIntegrityCardSummary;
+  report_submissions: ReportSubmissionsSummary;
   period_id: string | null;
   period_label: string | null;
 };

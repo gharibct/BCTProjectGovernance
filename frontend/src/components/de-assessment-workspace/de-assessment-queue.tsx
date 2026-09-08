@@ -7,8 +7,13 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/client";
 import { useDeDashboardSummary, type DEAssessmentWorkQueueRow } from "@/lib/api/de-dashboard";
 import { formatGeoRegion } from "@/lib/api/project-health-lists";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
+import {
+  ProjectAttrFilters,
+  matchesProjectAttrs,
+  projectAttrFiltersActive,
+  type ProjectAttrValue,
+} from "@/components/forms/project-attr-filters";
 import { HealthDot, StatCard } from "./shared";
 
 // DE Assessment queue (design-reference/de-assessments/01_de_assessment_project_queue).
@@ -28,17 +33,13 @@ export function DeAssessmentQueue() {
   const { data, isLoading, isError, error, refetch } = useDeDashboardSummary();
 
   const [search, setSearch] = React.useState("");
-  const [geoFilter, setGeoFilter] = React.useState("All");
+  const [attr, setAttr] = React.useState<ProjectAttrValue>({});
 
   const rows = React.useMemo(() => data?.work_queue ?? [], [data]);
-  const geoNames = React.useMemo(
-    () => Array.from(new Set(rows.map((r) => r.geo_name).filter((n): n is string => !!n))).sort(),
-    [rows]
-  );
 
   const filteredRows = rows.filter((row) => {
     if (search && !row.project_name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (geoFilter !== "All" && row.geo_name !== geoFilter) return false;
+    if (!matchesProjectAttrs(row, attr)) return false;
     return true;
   });
 
@@ -87,7 +88,7 @@ export function DeAssessmentQueue() {
             />
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
             <Input
               aria-label="Search Project"
               placeholder="Search Project…"
@@ -95,21 +96,16 @@ export function DeAssessmentQueue() {
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 min-w-[240px] flex-1"
             />
-            <div className="w-40 shrink-0">
-              <NativeSelect
-                aria-label="Geo filter"
-                className="h-9 text-sm"
-                value={geoFilter}
-                onChange={(e) => setGeoFilter(e.target.value)}
+            <ProjectAttrFilters rows={rows} value={attr} onChange={setAttr} />
+            {projectAttrFiltersActive(attr) ? (
+              <button
+                type="button"
+                onClick={() => setAttr({})}
+                className="text-sm font-semibold text-[#1a6fc4] hover:underline"
               >
-                <option value="All">Geo [All]</option>
-                {geoNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
+                Reset
+              </button>
+            ) : null}
           </div>
 
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

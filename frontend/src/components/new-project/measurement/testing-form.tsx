@@ -27,39 +27,54 @@ export function fromTestingTarget(data: MetricTargetTesting | null): Record<stri
   };
 }
 
-export function TestingTab({ m, set }: MeasuresProps) {
+export function TestingTab({ m, set, reference, errors }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Testing Metrics">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           <MetricTile
             label="Test Execution Coverage"
+            metricKey="test_execution_coverage_pct"
+            reference={reference}
             value={m.targetExecCoverage ?? ""}
             onChange={set("targetExecCoverage")}
+            error={errors?.targetExecCoverage}
             unit="%"
           />
           <MetricTile
             label="Test Pass Rate"
+            metricKey="test_pass_rate_pct"
+            reference={reference}
             value={m.targetPassRate ?? ""}
             onChange={set("targetPassRate")}
+            error={errors?.targetPassRate}
             unit="%"
           />
           <MetricTile
             label="Automation Coverage"
+            metricKey="automation_coverage_pct"
+            reference={reference}
             value={m.targetAutomationCoverage ?? ""}
             onChange={set("targetAutomationCoverage")}
+            error={errors?.targetAutomationCoverage}
             unit="%"
           />
           <MetricTile
             label="Test Design Productivity"
+            metricKey="test_design_productivity"
+            reference={reference}
             value={m.targetDesignProductivity ?? ""}
             onChange={set("targetDesignProductivity")}
+            error={errors?.targetDesignProductivity}
             unit="Test Cases / Person-Day"
           />
           <MetricTile
             label="Test Execution Productivity"
+            metricKey="test_execution_productivity"
+            reference={reference}
             value={m.targetExecProductivity ?? ""}
             onChange={set("targetExecProductivity")}
+            error={errors?.targetExecProductivity}
             unit="Test Cases / Person-Day"
           />
         </div>

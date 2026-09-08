@@ -31,6 +31,7 @@ class GeoBase(BaseModel):
     code: str
     name: str
     is_active: bool = True
+    tool_effective_date: date | None = None
 
 
 class GeoCreate(GeoBase):
@@ -41,6 +42,7 @@ class GeoUpdate(BaseModel):
     code: str | None = None
     name: str | None = None
     is_active: bool | None = None
+    tool_effective_date: date | None = None
 
 
 class GeoRead(GeoBase):
@@ -120,6 +122,7 @@ class AccountBase(BaseModel):
     geo_id: UUID | None = None
     description: str | None = None
     is_active: bool = True
+    tool_effective_date: date | None = None
 
 
 class AccountCreate(AccountBase):
@@ -131,6 +134,7 @@ class AccountUpdate(BaseModel):
     geo_id: UUID | None = None
     description: str | None = None
     is_active: bool | None = None
+    tool_effective_date: date | None = None
 
 
 class AccountRead(AccountBase):

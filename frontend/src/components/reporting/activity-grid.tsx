@@ -2,18 +2,18 @@
 
 import { cn } from "@/lib/utils";
 import {
-  ACTIVITY_STATUS_LABEL,
+  ACTIVITY_DISPLAY_LABEL,
+  activityDisplayStatus,
   monthOfItem,
+  type ActivityDisplayStatus,
   type PeriodActivityItem,
-  type PeriodActivityStatus,
 } from "@/lib/reporting-activity";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const CELL_CLASS: Record<PeriodActivityStatus, string> = {
-  "on-time": "bg-emerald-500",
-  late: "bg-red-500",
-  pending: "bg-slate-300",
+const CELL_CLASS: Record<ActivityDisplayStatus, string> = {
+  submitted: "bg-emerald-500",
+  "not-submitted": "bg-red-400",
   // Before project start or still in the future — a plain outline box, no fill.
   "n/a": "border border-slate-200",
 };
@@ -21,9 +21,9 @@ const CELL_CLASS: Record<PeriodActivityStatus, string> = {
 function Legend() {
   return (
     <div className="mt-4 flex items-center justify-end gap-3 text-xs text-slate-500">
-      {(["n/a", "pending", "on-time", "late"] as PeriodActivityStatus[]).map((status) => (
+      {(["n/a", "not-submitted", "submitted"] as ActivityDisplayStatus[]).map((status) => (
         <span key={status} className="flex items-center gap-1.5">
-          {ACTIVITY_STATUS_LABEL[status]}
+          {ACTIVITY_DISPLAY_LABEL[status]}
           <span className={cn("size-3 rounded-sm", CELL_CLASS[status])} />
         </span>
       ))}
@@ -36,7 +36,7 @@ export function ReportingActivityGrid({
   items,
   variant,
 }: {
-  title: string;
+  title?: string;
   items: PeriodActivityItem[];
   variant: "weekly" | "monthly";
 }) {
@@ -49,7 +49,7 @@ export function ReportingActivityGrid({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-4 font-bold text-slate-900">{title}</h3>
+      {title ? <h3 className="mb-4 font-bold text-slate-900">{title}</h3> : null}
 
       {items.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-400">No reporting periods for this year.</p>
@@ -62,8 +62,8 @@ export function ReportingActivityGrid({
                 {weeks.map((item) => (
                   <div
                     key={item.period_id}
-                    className={cn("size-3.5 rounded-[3px]", CELL_CLASS[item.status])}
-                    title={`${item.label} — ${ACTIVITY_STATUS_LABEL[item.status]}`}
+                    className={cn("size-3.5 rounded-[3px]", CELL_CLASS[activityDisplayStatus(item.status)])}
+                    title={`${item.label} — ${ACTIVITY_DISPLAY_LABEL[activityDisplayStatus(item.status)]}`}
                   />
                 ))}
               </div>
@@ -76,8 +76,8 @@ export function ReportingActivityGrid({
             <div key={item.period_id} className="flex flex-col items-center gap-1">
               <span className="text-xs text-slate-400">{MONTHS[monthOfItem(item)]}</span>
               <div
-                className={cn("aspect-square w-full rounded-[4px]", CELL_CLASS[item.status])}
-                title={`${item.label} — ${ACTIVITY_STATUS_LABEL[item.status]}`}
+                className={cn("aspect-square w-full rounded-[4px]", CELL_CLASS[activityDisplayStatus(item.status)])}
+                title={`${item.label} — ${ACTIVITY_DISPLAY_LABEL[activityDisplayStatus(item.status)]}`}
               />
             </div>
           ))}

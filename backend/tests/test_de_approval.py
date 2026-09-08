@@ -101,6 +101,7 @@ async def test_queue_row_carries_geo_region_and_project_type():
         geo_name="APAC",
         region_name="India",
         project_type_name="Development",
+        project_owned="Co-Owned",
         project_manager_name="S. Connor",
         completion_pct=80,
         gaps_count=1,
@@ -113,6 +114,7 @@ async def test_queue_row_carries_geo_region_and_project_type():
     assert dumped["geo_name"] == "APAC"
     assert dumped["region_name"] == "India"
     assert dumped["project_type_name"] == "Development"
+    assert dumped["project_owned"] == "Co-Owned"
 
 
 # --- decision ---------------------------------------------------------------

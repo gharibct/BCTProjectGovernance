@@ -17,7 +17,7 @@
 --                         of the target project's status)
 --   current_period_id  — every other screen (project_status, measurement_*,
 --                         de_assessment_profile, the RAID logs, commitments,
---                         milestones, de_assessment_alerts/findings) reads its
+--                         milestones, de_assessment_findings) reads its
 --                         period straight from the screen's own URL
 --                         (?period=...) with no default, so visit those
 --                         screens with ?period=<current_period_id> appended
@@ -267,15 +267,6 @@ VALUES
   (gen_random_uuid(), :'project_id'::uuid, 'milestones', :'current_period_id'::uuid,
    '{"milestone_name":"Contract Signing Advance","expected_date_of_payment":"2026-09-05","expected_payment_value":"50000"}'::jsonb,
    NULL, NULL, 0.55, 'Purchase_Order.pdf', 'Page 1', 'An advance of $50,000 is payable within 5 business days of contract signing.', 'pending', now(), now());
-
--- de_assessment_alerts
-DELETE FROM ai_row_suggestions WHERE project_id = :'project_id'::uuid AND screen = 'de_assessment_alerts' AND period_id = :'current_period_id'::uuid AND status = 'pending';
-INSERT INTO ai_row_suggestions
-  (id, project_id, screen, period_id, row_values, match_key, matched_entity_id, confidence, source_document, source_location, evidence, status, created_at, updated_at)
-VALUES
-  (gen_random_uuid(), :'project_id'::uuid, 'de_assessment_alerts', :'current_period_id'::uuid,
-   '{"alert_category":"Compliance","brief_description":"Vendor access review overdue","raised_on":"2026-08-05","detailed_description":"Security audit flagged an open vendor access review item, unresolved past due date."}'::jsonb,
-   NULL, NULL, 0.72, 'Risk_Register.xlsx', 'Sheet1!C12', 'Security audit flagged an open vendor access review item, unresolved past due date.', 'pending', now(), now());
 
 -- de_assessment_findings
 DELETE FROM ai_row_suggestions WHERE project_id = :'project_id'::uuid AND screen = 'de_assessment_findings' AND period_id = :'current_period_id'::uuid AND status = 'pending';

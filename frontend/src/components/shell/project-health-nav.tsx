@@ -70,6 +70,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "Actions", href: "/project-health/actions" },
       { label: "Data Integrity", href: "/project-health/data-integrity" },
+      { label: "Report Submissions", href: "/project-health/report-submissions" },
     ],
   },
 ];

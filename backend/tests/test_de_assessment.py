@@ -18,6 +18,8 @@ def _fake_project(**overrides):
     defaults = {
         "id": _PROJECT_ID,
         "delivery_excellence_id": uuid4(),  # a DE is allocated — write gate needs one
+        "project_manager_id": uuid4(),  # notification recipient
+        "project_code": "PRJ-0001",
         "delivery_declared_overall_health": "Green",
         "de_assessed_project_health": "Green",
         "overall_project_health": "Green",
@@ -228,7 +230,7 @@ async def test_add_finding_assigns_sequence_no_and_new_fields(client, override_a
         f"/api/v1/projects/{_PROJECT_ID}/de-assessment-findings",
         json={
             "category": "Core Delivery",
-            "classification": "NC",
+            "classification": "Alert",
             "description": "RAID log incomplete",
             "due_date": "2026-08-15",
         },
@@ -239,7 +241,7 @@ async def test_add_finding_assigns_sequence_no_and_new_fields(client, override_a
     assert body["project_id"] == str(_PROJECT_ID)
     assert body["sequence_no"] == 1
     assert body["category"] == "Core Delivery"
-    assert body["classification"] == "NC"
+    assert body["classification"] == "Alert"
     assert body["overdue"] is True  # due_date in the past, status Open
 
 
@@ -250,7 +252,7 @@ async def test_update_finding_status_transition(client, override_auth):
         project_id=_PROJECT_ID,
         sequence_no=1,
         category="Core Delivery",
-        classification="NC",
+        classification="Alert",
         description="x",
         assigned_to=None,
         action_taken=None,

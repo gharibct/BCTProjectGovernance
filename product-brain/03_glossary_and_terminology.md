@@ -65,7 +65,7 @@
 | **Governance completeness** | A score computed for DE Governance Approval: each governance module is Complete / Incomplete, with an overall percentage over the mandatory subset and a gap count. | DE Governance Approval, Governance module |
 | **Governance module** | One of the project areas DE reviews during approval (Status, RAIDO, Health, Measurement, Contractual). Each gets a `Not Reviewed` / `Reviewed` / `Gap Identified` verdict. | DE Governance Approval |
 | **Head Count / FTE** | Computed resourcing figures on the Charter, derived from the Resource Allocation list. | Resource Allocation |
-| **Health category** | One of the six shared categories a health declaration and a DE alert are classified by: Core Delivery, People, Operational, Customer, Financial, Compliance. | Delivery-Declared Health |
+| **Health category** | One of the six shared categories a health declaration and a DE finding are classified by: Core Delivery, People, Operational, Customer, Financial, Compliance. | Delivery-Declared Health |
 | **Health Declaration** | A dated record holding a RAG rating per health category for a period, at project, account, or geo level. History is retained, never overwritten. | Health Item, Declaration |
 | **Health Item** | One line item of a Health Declaration — a single category's rating for a period — in the newer itemised register (`project_health_items` / `account_health_items`). The older single-rating-per-category model coexists during migration. | Health Declaration |
 | **Key Metrics** | Numeric fields captured on a status report (e.g. Revenue, Onsite FTE, Offshore FTE, Projects Count) that are summed up the tier chain during rollup. | Rollup, Status Report |

@@ -10,8 +10,9 @@ import { useDeDashboardSummary } from "@/lib/api/de-dashboard";
 import { DeAssessmentWorkQueue } from "./de-assessment-work-queue";
 
 // Delivery Excellence "My Summary" (design-reference/de-mysummary.jpg) — the
-// DELIVERY_EXCELLENCE role's counterpart to account-head-my-summary.tsx,
-// scoped to projects where the signed-in user is Project.delivery_excellence_id.
+// DELIVERY_EXCELLENCE role's counterpart to account-head-my-summary.tsx. DE
+// data is shared across every DE, so this is NOT per-user: it covers every
+// project allocated to Delivery Excellence, not just the signed-in DE's.
 // A DE assessment is independent of reporting periods — everything here is for
 // the current calendar month (see backend's current_month_window).
 

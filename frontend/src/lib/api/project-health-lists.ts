@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api, type Page } from "./client";
-import type { ProjectHealthDashboardFilters } from "./project-health-dashboard";
+import type { ProjectHealthDashboardFilters, ReportSubmissionsSummary } from "./project-health-dashboard";
 
 // Row data behind the Project Health dashboard's drill-down list screens
 // (Project List, RAG, Risks, Issues — design-reference/project-health-screens.md).
@@ -240,6 +240,20 @@ export type DataIntegrityRow = {
   last_checked: string | null;
 };
 
+export type ReportSubmissionDetailRow = {
+  row_key: string;
+  report_type: string;
+  geo_name: string | null;
+  account_name: string | null;
+  project_label: string | null;
+  project_manager_name: string | null;
+  account_head_name: string | null;
+  geo_head_name: string | null;
+  period_label: string;
+  status: string; // "Submitted" | "Not Submitted"
+  submission_date: string | null;
+};
+
 export type ProjectHealthListParams = ProjectHealthDashboardFilters & {
   skip?: number;
   limit?: number;
@@ -248,6 +262,11 @@ export type ProjectHealthListParams = ProjectHealthDashboardFilters & {
   // overdue (true) / not overdue (false); undefined = no narrowing.
   classification?: string;
   overdue?: boolean;
+  // Report Submissions KPI-scoped sub screens only — narrow to one stream
+  // (a ReportSubmissionDetailRow.report_type value) and/or to pending
+  // (true = Not Submitted only) / filed (false = Submitted only); undefined = both.
+  reportType?: string;
+  pending?: boolean;
 };
 
 // Single source for the drill-down list endpoint paths — shared by the
@@ -269,7 +288,48 @@ export const PROJECT_HEALTH_LIST_PATHS = {
   findings: "/dashboard/project-health/findings",
   actions: "/dashboard/project-health/actions",
   dataIntegrity: "/dashboard/project-health/data-integrity",
+  reportSubmissions: "/dashboard/project-health/report-submissions",
 } as const;
+
+// The four KPI-scoped Report Submissions sub screens — each drilled into from
+// its own card in the Project Health dashboard's "Report Submissions" section.
+// `reportType` matches the backend ReportSubmissionDetailRow.report_type string;
+// `summaryKey` picks this stream's adherence KPI out of ReportSubmissionsSummary.
+export type ReportSubmissionStreamKey =
+  | "delivery-status-projects"
+  | "metrics-projects"
+  | "delivery-status-account"
+  | "delivery-status-geo";
+
+export const REPORT_SUBMISSION_STREAMS: Record<
+  ReportSubmissionStreamKey,
+  { heading: string; reportType: string; summaryKey: keyof ReportSubmissionsSummary; route: string }
+> = {
+  "delivery-status-projects": {
+    heading: "Delivery Status (Projects) — Submission Reporting",
+    reportType: "Delivery Status - Project",
+    summaryKey: "delivery_status_projects",
+    route: "/project-health/report-submissions/delivery-status-projects",
+  },
+  "metrics-projects": {
+    heading: "Metrics (Projects) — Submission Reporting",
+    reportType: "Metrics - Project",
+    summaryKey: "metrics_projects",
+    route: "/project-health/report-submissions/metrics-projects",
+  },
+  "delivery-status-account": {
+    heading: "Delivery Status (Account) — Submission Reporting",
+    reportType: "Delivery Status - Account",
+    summaryKey: "delivery_status_accounts",
+    route: "/project-health/report-submissions/delivery-status-account",
+  },
+  "delivery-status-geo": {
+    heading: "Delivery Status (Geo) — Submission Reporting",
+    reportType: "Delivery Status - Geo",
+    summaryKey: "delivery_status_geos",
+    route: "/project-health/report-submissions/delivery-status-geo",
+  },
+};
 
 // Backend caps the page limit at 200 (pagination_params, le=200), so the
 // export walks the endpoint page by page until it has the full result set.
@@ -304,6 +364,8 @@ function buildParams(params: ProjectHealthListParams): string {
   if (params.search) q.set("search", params.search);
   if (params.classification) q.set("classification", params.classification);
   if (params.overdue !== undefined) q.set("overdue", String(params.overdue));
+  if (params.reportType) q.set("report_type", params.reportType);
+  if (params.pending !== undefined) q.set("pending", String(params.pending));
   q.set("skip", String(params.skip ?? 0));
   q.set("limit", String(params.limit ?? 10));
   return q.toString();
@@ -426,5 +488,14 @@ export function useProjectHealthDataIntegrity(params: ProjectHealthListParams) {
   return useQuery({
     queryKey: ["dashboard-project-health-data-integrity", params],
     queryFn: () => api.get<Page<DataIntegrityRow>>(`${PROJECT_HEALTH_LIST_PATHS.dataIntegrity}?${query}`),
+  });
+}
+
+export function useProjectHealthReportSubmissions(params: ProjectHealthListParams) {
+  const query = buildParams(params);
+  return useQuery({
+    queryKey: ["dashboard-project-health-report-submissions", params],
+    queryFn: () =>
+      api.get<Page<ReportSubmissionDetailRow>>(`${PROJECT_HEALTH_LIST_PATHS.reportSubmissions}?${query}`),
   });
 }

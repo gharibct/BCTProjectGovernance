@@ -6,6 +6,15 @@ import type { ReportingActivitySeries } from "@/lib/reporting-activity";
 
 export type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected";
 
+// Reporting Hub (Project/Account/Geo) history tables show only whether a
+// period's report was filed, not the full review lifecycle — Draft/Rejected
+// both mean the PM/account/geo owner still needs to act, so both read as Not
+// Submitted. Mirrors the Submitted/Approved collapse already used for the
+// dashboard "due" and "report status" indicators (backend/app/services/dashboard.py).
+export function submissionStatusLabel(status: ReportStatus): "Submitted" | "Not Submitted" {
+  return status === "Submitted" || status === "Approved" ? "Submitted" : "Not Submitted";
+}
+
 export type ProjectStatusReport = {
   id: string;
   project_id: string;

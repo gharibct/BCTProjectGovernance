@@ -73,6 +73,8 @@ export type DeApprovalQueueRow = {
   geo_name: string | null;
   region_name: string | null;
   project_type_name: string | null;
+  // Ownership model — "Fully Owned" | "Co-Owned" | "Customer Driven".
+  project_owned: string | null;
   project_manager_name: string | null;
   completion_pct: number;
   gaps_count: number;

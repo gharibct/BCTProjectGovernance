@@ -26,27 +26,36 @@ export function fromConsultingTarget(data: MetricTargetConsulting | null): Recor
   };
 }
 
-export function ConsultingTab({ m, set }: MeasuresProps) {
+export function ConsultingTab({ m, set, reference, errors }: MeasuresProps) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ChartColumn} title="Target Consulting Metrics">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <MetricTile
             label="Effort Variation"
+            metricKey="effort_variation_pct"
+            reference={reference}
             value={m.targetEffortVariation ?? ""}
             onChange={set("targetEffortVariation")}
+            error={errors?.targetEffortVariation}
             unit="%"
           />
           <MetricTile
             label="Schedule Performance Index"
+            metricKey="schedule_performance_index"
+            reference={reference}
             value={m.targetSpi ?? ""}
             onChange={set("targetSpi")}
+            error={errors?.targetSpi}
             unit="Index (Actual/Planned % Complete)"
           />
           <MetricTile
             label="Cost Performance Index"
+            metricKey="cost_performance_index"
+            reference={reference}
             value={m.targetCpi ?? ""}
             onChange={set("targetCpi")}
+            error={errors?.targetCpi}
             unit="Index (Planned/Actual Cost)"
           />
         </div>

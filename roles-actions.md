@@ -14,7 +14,6 @@ Any PM can edit any project (role-only, no per-PM assignment).
 - **Health Declarations / RAG items**: create/update/delete
 - **DE Assessment**: create assessment, set Assessed Health + PCI score, Submit
 - **Findings Register**: add findings (Classification, Action Taken, Date, Status, Remarks)
-- **Alert Register**: add alerts (auto-nudged if health ≠ Green with zero alerts logged)
 - **Contractual Compliance**: create/update/delete Commitments and Milestone Payments, log actuals
 - **Measurement**: fill the one form matching the project's type; set metric targets
 - **AI Hub / Documents**: upload, process, view AI output, delete; apply/ignore AI suggestions
@@ -58,7 +57,7 @@ Lightest write footprint — top of the review chain, unscoped.
 Confirmed intent (user, 2026-08-23): DE is meant to **create Findings and rate a project's monthly reviews** (DE Assessment: Assessed Health + PCI score). As implemented today, none of that is wired up:
 
 - Menu gives DE only a dashboard-only stub (mock data), no path to DE Assessment
-- Backend: `DELIVERY_EXCELLENCE` isn't in any write/approve gate anywhere — DE Assessment/Findings/Alerts writes are currently PM/Admin-only
+- Backend: `DELIVERY_EXCELLENCE` isn't in any write/approve gate anywhere — DE Assessment/Findings writes are currently PM/Admin-only
 - So DE's real job (logging findings, submitting monthly ratings) has no functioning path in the app yet — a prerequisite fix, separate from dashboard visual design, but doesn't block designing the dashboard's *content* now around what DE should be doing.
 
 ## 6. Admin
@@ -81,9 +80,9 @@ Superset of everything, plus:
 
 The action's own **assignee can always transition it** (start/complete/close/cancel/comment) regardless of role or level. Anyone who can reach the entity's page can view its actions. Lifecycle: `OPEN → IN_PROGRESS → COMPLETED → CLOSED`, or → `CANCELLED`.
 
-## Findings Register / Alert Register (cross-cutting)
+## Findings Register (cross-cutting)
 
-Both are tabs inside DE Assessment (`project-reporting/[projectId]/de-assessment`) — written today only by PM/Admin (see DE gap above), readable by anyone who can reach that project's data.
+A tab inside DE Assessment (`project-reporting/[projectId]/de-assessment`) — written today only by PM/Admin (see DE gap above), readable by anyone who can reach that project's data.
 
 ## Other gaps worth knowing
 

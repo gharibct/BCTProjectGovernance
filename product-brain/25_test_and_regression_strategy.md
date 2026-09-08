@@ -132,7 +132,7 @@ Every `BR-*` in `product-brain/05` gets ≥ 1 test tagged with its ID. Priority:
 | TS-BR-ROLLUP-10 | BR-ROLLUP-010 | second Pull of a `Pulled` item → `409` |
 | TS-BR-REVIEW-10 | BR-REVIEW-020 | the project's PM gets `403` reviewing that project's report |
 | TS-BR-PROJ-10 | BR-PROJ-060 | `Draft` → `Pending Approval` only when sent |
-| TS-BR-DEA-10 | BR-DEA-020 | health ≠ Green with no alert → nudge / block *(currently Advisory — test asserts current behaviour + is marked `xfail` for the target)* |
+| TS-BR-DEA-10 | BR-DEA-040 | on Submit, the latest assessment's rating is pushed read-only to the Charter + overall health |
 | TS-BR-AI-10 | BR-AI-010 | applying a suggestion writes nothing to a business table until the user saves/creates |
 | TS-BR-SEC-10 | BR-SEC-020 | request with no / invalid `pg_session` → `401` |
 

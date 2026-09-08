@@ -7,8 +7,13 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/client";
 import { useDeApprovalQueue, type DeApprovalQueueRow } from "@/lib/api/de-approval";
 import { effectiveProjectStatus } from "@/lib/api/projects";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
+import {
+  ProjectAttrFilters,
+  matchesProjectAttrs,
+  projectAttrFiltersActive,
+  type ProjectAttrValue,
+} from "@/components/forms/project-attr-filters";
 import { StatCard } from "@/components/de-assessment-workspace/shared";
 
 // DE Project Approval queue (design-reference/de-approval) — the DE-owned
@@ -35,24 +40,20 @@ export function DeApprovalQueue() {
   const { data, isLoading, isError, error, refetch } = useDeApprovalQueue(null);
 
   const [search, setSearch] = React.useState("");
-  const [geoFilter, setGeoFilter] = React.useState("All");
+  const [attr, setAttr] = React.useState<ProjectAttrValue>({});
 
   const rows = React.useMemo(() => data?.rows ?? [], [data]);
-  const geoNames = React.useMemo(
-    () => Array.from(new Set(rows.map((r) => r.geo_name).filter((n): n is string => !!n))).sort(),
-    [rows],
-  );
 
   const filteredRows = rows.filter((row) => {
     if (search && !`${row.project_code} ${row.project_name}`.toLowerCase().includes(search.toLowerCase())) return false;
-    if (geoFilter !== "All" && row.geo_name !== geoFilter) return false;
+    if (!matchesProjectAttrs(row, attr)) return false;
     return true;
   });
 
   return (
     <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="border-b border-slate-200 pb-5">
-        <h1 className="text-4xl font-bold tracking-tight text-slate-900">DE Project Approval</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-slate-900">Project Details Approval</h1>
         <p className="mt-1 text-sm text-slate-500">Review and approve project governance completeness</p>
       </header>
 
@@ -85,7 +86,7 @@ export function DeApprovalQueue() {
             />
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
             <Input
               aria-label="Search projects"
               placeholder="Search projects…"
@@ -93,21 +94,16 @@ export function DeApprovalQueue() {
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 min-w-[240px] flex-1"
             />
-            <div className="w-40 shrink-0">
-              <NativeSelect
-                aria-label="Geo filter"
-                className="h-9 text-sm"
-                value={geoFilter}
-                onChange={(e) => setGeoFilter(e.target.value)}
+            <ProjectAttrFilters rows={rows} value={attr} onChange={setAttr} />
+            {projectAttrFiltersActive(attr) ? (
+              <button
+                type="button"
+                onClick={() => setAttr({})}
+                className="text-sm font-semibold text-[#1a6fc4] hover:underline"
               >
-                <option value="All">Geo [All]</option>
-                {geoNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
+                Reset
+              </button>
+            ) : null}
           </div>
 
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">

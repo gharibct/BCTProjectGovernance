@@ -51,6 +51,11 @@ class DeAllocationRow(BaseModel):
     project_code: str
     project_name: str
     account_name: str | None = None
+    geo_name: str | None = None
+    region_name: str | None = None
+    project_type_name: str | None = None
+    # Ownership model — "Fully Owned" / "Co-Owned" / "Customer Driven" (schemas.enums.ProjectOwned).
+    project_owned: str | None = None
     project_manager_name: str | None = None
     project_status: ProjectStatus
     lifecycle_status: ProjectLifecycleStatus | None = None
@@ -87,6 +92,8 @@ class DeApprovalQueueRow(BaseModel):
     geo_name: str | None = None
     region_name: str | None = None
     project_type_name: str | None = None
+    # Ownership model — "Fully Owned" / "Co-Owned" / "Customer Driven" (schemas.enums.ProjectOwned).
+    project_owned: str | None = None
     project_manager_name: str | None = None
     completion_pct: int
     gaps_count: int

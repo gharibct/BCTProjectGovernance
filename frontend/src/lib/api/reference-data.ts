@@ -4,7 +4,13 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { api, type Page } from "./client";
 
 export type Organization = { id: string; code: string; name: string; is_active: boolean };
-export type Geo = { id: string; code: string; name: string; is_active: boolean };
+export type Geo = {
+  id: string;
+  code: string;
+  name: string;
+  is_active: boolean;
+  tool_effective_date: string | null;
+};
 export type Region = { id: string; geo_id: string; code: string; name: string; is_active: boolean };
 export type ProjectType = {
   id: string;
@@ -20,6 +26,7 @@ export type Account = {
   geo_id: string | null;
   description: string | null;
   is_active: boolean;
+  tool_effective_date: string | null;
 };
 
 export type PeriodType = "Weekly" | "Monthly" | "Baseline";
@@ -146,6 +153,26 @@ export function useUsersByIds(ids: readonly (string | null | undefined)[]) {
     enabled: sorted.length > 0,
     staleTime: 5 * 60_000,
   });
+}
+
+// Imperative equivalents of useUserSearch / useUsersByIds for the FilteredCombo
+// person pickers (see components/forms/employee-picker.tsx), which need plain
+// promises for fetchOptions / resolveSelected rather than hooks. Mirrors
+// fetchProjectOptions / fetchProjectById in lib/api/projects.ts.
+export async function fetchUserOptions(args: {
+  search: string;
+  roleCode?: string;
+  limit: number;
+}): Promise<Page<User>> {
+  const params = new URLSearchParams({ limit: String(args.limit), is_active: "true" });
+  if (args.search.trim()) params.set("search", args.search.trim());
+  if (args.roleCode) params.set("role_code", args.roleCode);
+  return api.get<Page<User>>(`/users?${params.toString()}`);
+}
+
+export async function fetchUserById(id: string): Promise<User | undefined> {
+  const page = await api.get<Page<User>>(`/users?ids=${encodeURIComponent(id)}`);
+  return page.items[0];
 }
 
 export function useReportingPeriods() {

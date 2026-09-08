@@ -34,6 +34,7 @@ from app.schemas.de_findings import (
     DEFindingsKpis,
 )
 from app.schemas.enums import DEFindingHistoryEventType, RoleCode
+from app.services import notifications as notify_svc
 from app.services.de_findings import (
     DEFindingFilters,
     FindingStatusError,
@@ -106,6 +107,18 @@ async def create_finding(
     await record_finding_history(
         db, obj.id, DEFindingHistoryEventType.CREATED, ctx.user.id, new_value=obj.status
     )
+    await notify_svc.notify(
+        db,
+        recipient_id=project.project_manager_id,
+        type="FINDING_RAISED",
+        title=f"New DE finding on {project.project_code}",
+        body=obj.description,
+        link="/pm-findings",
+        entity_type="finding",
+        entity_id=obj.id,
+        actor_id=ctx.user.id,
+        data={"project_code": project.project_code, "classification": obj.classification},
+    )
     return obj
 
 
@@ -137,6 +150,20 @@ async def update_finding(
     await db.flush()
 
     await record_status_change(db, updated.id, ctx.user.id, old_status, new_status)
+
+    if new_status != old_status and project is not None:
+        await notify_svc.notify(
+            db,
+            recipient_id=project.project_manager_id,
+            type="FINDING_STATUS",
+            title=f"Finding on {project.project_code} is now {new_status}",
+            body=updated.description,
+            link="/pm-findings",
+            entity_type="finding",
+            entity_id=updated.id,
+            actor_id=ctx.user.id,
+            data={"project_code": project.project_code, "status": new_status},
+        )
     return updated
 
 

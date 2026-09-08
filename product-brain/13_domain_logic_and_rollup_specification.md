@@ -149,11 +149,11 @@
 | --- | --- |
 | Source | `app/services/code_generator.py` |
 | Purpose | Issue a unique, sequential, human-readable code for a new record. |
-| Callers | project create, RAID(O) create, DE alert create, Action create. |
-| Inputs | `generate_code(db, entity_code)` — `entity_code` ∈ `PROJECT`, `RISK`, `ISSUE`, `DEPENDENCY`, `ASSUMPTION`, `OPPORTUNITY`, `DE_ALERT` (and `ACTION`). |
-| Outputs | `"{PREFIX}-{period_key}-{last_number:04d}"` — e.g. `PRJ-2026-0042`, `RSK-2026-0001`, `ALT-2026-0007`. Prefixes: `PROJECT→PRJ`, `RISK→RSK`, `ISSUE→ISS`, `DEPENDENCY→DEP`, `ASSUMPTION→ASM`, `OPPORTUNITY→OPP`, `DE_ALERT→ALT`, `ACTION→ACT`. |
+| Callers | project create, RAID(O) create, Action create. |
+| Inputs | `generate_code(db, entity_code)` — `entity_code` ∈ `PROJECT`, `RISK`, `ISSUE`, `DEPENDENCY`, `ASSUMPTION`, `OPPORTUNITY` (and `ACTION`). |
+| Outputs | `"{PREFIX}-{period_key}-{last_number:04d}"` — e.g. `PRJ-2026-0042`, `RSK-2026-0001`, `ACT-2026-0007`. Prefixes: `PROJECT→PRJ`, `RISK→RSK`, `ISSUE→ISS`, `DEPENDENCY→DEP`, `ASSUMPTION→ASM`, `OPPORTUNITY→OPP`, `ACTION→ACT`. |
 | Logic | `SELECT … FROM id_sequences WHERE (entity_code, period_key) FOR UPDATE` → increment `last_number` → format. `period_key` = the calendar year, so sequences reset annually. Runs inside the caller's transaction, so concurrent creates serialise on the sequence row. |
-| Rules enforced | BR-PROJ-020, BR-RAID-010, BR-DEA-030, BR-ACTION-010. |
+| Rules enforced | BR-PROJ-020, BR-RAID-010, BR-ACTION-010. |
 | Status transitions | none. |
 | Error modes | if no `id_sequences` row exists for `(entity_code, period_key)` it must be created first (seed / lazy insert). |
 | Remarks | The only place row-level locking is used. |

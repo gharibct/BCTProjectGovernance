@@ -33,6 +33,7 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   onEdit,
   onDelete,
   onRowClick,
+  headerClassName,
 }: {
   items: T[];
   columns: RegisterColumn<T>[];
@@ -40,6 +41,9 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
   onRowClick?: (item: T) => void;
+  // Override the default slate header tint so a view with several stacked
+  // grey controls (tabs, filters) can give the grid header its own colour.
+  headerClassName?: string;
 }) {
   const showActions = !!(onEdit || onDelete);
   const [pendingDelete, setPendingDelete] = React.useState<T | null>(null);
@@ -48,7 +52,12 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-bold tracking-wide text-slate-600 uppercase">
+          <tr
+            className={cn(
+              "border-b border-slate-200 bg-slate-50 text-left text-xs font-bold tracking-wide text-slate-600 uppercase",
+              headerClassName
+            )}
+          >
             {columns.map((c) => (
               <th
                 key={c.key}

@@ -36,6 +36,7 @@ from app.models.raid import (
     RiskLog,
 )
 from app.schemas.enums import ProjectStatus
+from app.services import notifications as notify_svc
 
 # project_id-keyed tables captured verbatim on Initiate Amendment. The projects
 # row and the staffing-priority child table are handled separately below.
@@ -142,4 +143,17 @@ async def initiate_amendment(db: AsyncSession, project: Project, actor_id: UUID 
     project.de_reviewed_at = None
 
     await db.flush()
+
+    await notify_svc.notify_many(
+        db,
+        [project.project_manager_id, project.delivery_excellence_id],
+        type="AMENDMENT_INITIATED",
+        title=f"Amendment initiated for {project.project_code}",
+        body=project.project_name,
+        link=f"/amend-project/{project.id}",
+        entity_type="amendment",
+        entity_id=amendment.id,
+        actor_id=actor_id,
+        data={"project_code": project.project_code},
+    )
     return amendment

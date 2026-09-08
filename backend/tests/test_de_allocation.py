@@ -97,7 +97,7 @@ async def test_bulk_allocate_rejects_non_de(client, override_auth):
 
 
 async def test_bulk_allocate_sets_de_and_timestamp(client, override_auth):
-    project = _fake_project(project_status="Pending Approval")
+    project = _fake_project(project_status="Pending Approval", project_owned="Fully Owned")
     headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map={(Project, _PROJECT_ID): project})
     response = await client.patch(
         "/api/v1/de-allocation/allocations",
@@ -107,6 +107,10 @@ async def test_bulk_allocate_sets_de_and_timestamp(client, override_auth):
     assert response.status_code == 200
     assert project.delivery_excellence_id == _DE_ID
     assert project.de_allocated_at is not None
+    # Allocation rows carry the project-attribute fields the grid filters on.
+    row = response.json()[0]
+    assert row["project_owned"] == "Fully Owned"
+    assert {"geo_name", "region_name", "project_type_name"} <= row.keys()
 
 
 async def test_bulk_allocate_allows_reallocating_approved_project(client, override_auth):

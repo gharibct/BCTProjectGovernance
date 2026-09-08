@@ -28,6 +28,7 @@ from app.schemas.common import Page
 from app.schemas.de_assessment import DEAssessmentFindingRead
 from app.schemas.de_findings import DEFindingListRow, DEFindingsKpis, PmFindingActionTaken
 from app.schemas.enums import DEFindingHistoryEventType, FindingStatus, RoleCode
+from app.services import notifications as notify_svc
 from app.services.de_findings import (
     DEFindingFilters,
     de_findings_kpis,
@@ -116,4 +117,18 @@ async def action_taken(
         new_value=obj.status,
         comment=payload.action_taken,
     )
+
+    if project is not None:
+        await notify_svc.notify(
+            db,
+            recipient_id=project.delivery_excellence_id,
+            type="FINDING_STATUS",
+            title=f"Finding on {project.project_code} is awaiting closure",
+            body=payload.action_taken,
+            link="/de-findings",
+            entity_type="finding",
+            entity_id=obj.id,
+            actor_id=ctx.user.id,
+            data={"project_code": project.project_code, "status": obj.status},
+        )
     return obj

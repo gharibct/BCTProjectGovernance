@@ -6,10 +6,10 @@ import { useParams } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { PageBanner } from "@/components/shell/page-banner";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-data";
+import { submissionStatusLabel } from "@/lib/api/project-status";
 import {
   useRegionalReportingActivity,
   useRegionalStatusReports,
@@ -21,18 +21,18 @@ import { ReportingActivityGrid } from "@/components/reporting/activity-grid";
 
 const SCOPE_CONFIG: Record<
   RegionalScope,
-  { paramKey: string; reportTitle: string; typePill: string; fallbackName: string }
+  { paramKey: string; reportTitle: string; headerTitle: string; fallbackName: string }
 > = {
   account: {
     paramKey: "accountId",
-    reportTitle: "Account Status Reporting",
-    typePill: "Account Status",
+    reportTitle: "Delivery Status Reporting",
+    headerTitle: "Delivery Status Reporting - Account",
     fallbackName: "Account Reporting",
   },
   geo: {
     paramKey: "geoId",
-    reportTitle: "Geo Status Reporting",
-    typePill: "Geo Status",
+    reportTitle: "Delivery Status Reporting",
+    headerTitle: "Delivery Status Reporting - Geo",
     fallbackName: "Geo Reporting",
   },
 };
@@ -75,7 +75,7 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <div>
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">{name} - Reporting Summary</h1>
-        <p className="mt-2 max-w-3xl text-slate-500">{config.reportTitle}</p>
+        <p className="mt-2 max-w-3xl text-slate-500">{config.headerTitle}</p>
       </div>
 
       <PageBanner />
@@ -95,11 +95,7 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
           actionHref={periodHref(weekId)}
           actionLabel={`Open ${config.reportTitle}`}
         />
-        <ReportingActivityGrid
-          title="Weekly Reporting Activity"
-          items={weekly.items}
-          variant="weekly"
-        />
+        <ReportingActivityGrid items={weekly.items} variant="weekly" />
       </div>
 
       <section>
@@ -109,7 +105,6 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
             <thead className="bg-slate-50">
               <tr className="text-xs tracking-wide text-slate-500 uppercase">
                 <th className="px-6 py-3 font-bold">Reporting Period</th>
-                <th className="px-3 py-3 font-bold">Type</th>
                 <th className="px-3 py-3 font-bold">Created On</th>
                 <th className="px-3 py-3 font-bold">Status</th>
                 <th className="px-3 py-3 font-bold">Last Updated</th>
@@ -119,17 +114,13 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
             <tbody>
               {reports.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-6 text-center text-slate-400">
+                  <td colSpan={5} className="px-6 py-6 text-center text-slate-400">
                     No reports submitted yet.
                   </td>
                 </tr>
               ) : (
                 reports.map((report) => {
                   const period = periods.find((p) => p.id === report.period_id);
-                  const typeLabel =
-                    period?.period_type === "Weekly"
-                      ? config.typePill
-                      : (period?.period_type ?? "—");
                   return (
                     <tr
                       key={report.id}
@@ -138,21 +129,9 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
                       <td className="px-6 py-3.5 font-bold text-slate-900">
                         {period?.label ?? "—"}
                       </td>
-                      <td className="px-3 py-3.5">
-                        <span
-                          className={cn(
-                            "rounded px-2.5 py-1 text-xs font-semibold",
-                            period?.period_type === "Weekly"
-                              ? "bg-slate-100 text-slate-600"
-                              : "bg-blue-50 text-[#1a6fc4]"
-                          )}
-                        >
-                          {typeLabel}
-                        </span>
-                      </td>
                       <td className="px-3 py-3.5 text-slate-700">{formatDate(report.created_at)}</td>
                       <td className="px-3 py-3.5">
-                        <StatusBadge value={report.status} />
+                        <StatusBadge value={submissionStatusLabel(report.status)} />
                       </td>
                       <td className="px-3 py-3.5 text-slate-700">{formatDate(report.updated_at)}</td>
                       <td className="px-6 py-3.5 text-right">

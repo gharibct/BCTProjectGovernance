@@ -65,6 +65,7 @@ export type Project = {
   actual_start_date: string | null;
   planned_end_date: string | null;
   actual_end_date: string | null;
+  tool_effective_date: string | null;
   applicable_phase: ApplicablePhase[];
   project_status: ProjectStatus;
   lifecycle_status: ProjectLifecycleStatus | null;
@@ -114,6 +115,7 @@ export type ProjectPayload = Partial<{
   actual_start_date: string;
   planned_end_date: string;
   actual_end_date: string;
+  tool_effective_date: string;
   applicable_phase: ApplicablePhase[];
   // Approval-workflow transitions go through their own endpoints, never this
   // payload — the charter form only sets the lifecycle state.
@@ -144,6 +146,29 @@ export function useProject(projectId: string | null) {
     queryFn: () => api.get<Project>(`/projects/${projectId}`),
     enabled: !!projectId,
   });
+}
+
+// --- Server-side project lookup for the FilteredCombo project picker ---
+// GET /projects supports geo_id / account_id / search (name-or-code ILIKE)
+// alongside pagination, so the picker fetches only the rows that match the
+// applied filters + the typed search instead of loading the whole list.
+
+export type ProjectOptionFilters = { geo_id?: string; account_id?: string };
+
+export async function fetchProjectOptions(args: {
+  search: string;
+  filters: ProjectOptionFilters;
+  limit: number;
+}): Promise<Page<Project>> {
+  const params = new URLSearchParams({ limit: String(args.limit) });
+  if (args.search.trim()) params.set("search", args.search.trim());
+  if (args.filters.geo_id) params.set("geo_id", args.filters.geo_id);
+  if (args.filters.account_id) params.set("account_id", args.filters.account_id);
+  return api.get<Page<Project>>(`/projects?${params.toString()}`);
+}
+
+export function fetchProjectById(id: string): Promise<Project> {
+  return api.get<Project>(`/projects/${id}`);
 }
 
 export function useCreateProject() {
@@ -271,35 +296,6 @@ export function useDeleteOracleId(projectId: string | null) {
     mutationFn: (oracleIdId: string) => api.delete(`/projects/${projectId}/oracle-ids/${oracleIdId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-oracle-ids", projectId] });
-    },
-  });
-}
-
-// Creates the project and maps every pending Oracle Project ID onto it in
-// one client-side operation, so New Project Creation can require at least
-// one Oracle mapping before the project exists at all (no projectId is
-// available yet to instantiate useAddOracleId with).
-export function useCreateProjectWithOracleIds() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      payload,
-      oracleProjectIds,
-    }: {
-      payload: ProjectPayload;
-      oracleProjectIds: string[];
-    }) => {
-      const project = await api.post<Project>("/projects", payload);
-      for (const oracleProjectId of oracleProjectIds) {
-        await api.post<ProjectOracleId>(`/projects/${project.id}/oracle-ids`, {
-          oracle_project_id: oracleProjectId,
-        });
-      }
-      return project;
-    },
-    onSuccess: (project) => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      queryClient.invalidateQueries({ queryKey: ["project-oracle-ids", project.id] });
     },
   });
 }

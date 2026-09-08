@@ -32,6 +32,10 @@ EXCLUDED_TABLES: frozenset[str] = frozenset(
         # value snapshot, written only by the amendment service — not master data.
         "project_amendments",
         "project_amendment_snapshots",
+        # New Project Creation flow: a short-lived workflow request (Account/Geo
+        # Head submits, DE approves -> real project, or rejects -> row deleted).
+        "project_creation_requests",
+        "project_creation_request_oracle_ids",
     }
 )
 
@@ -103,7 +107,6 @@ CODE_GENERATOR_ENTITY: dict[str, str] = {
     "dependency_log": "DEPENDENCY",
     "assumption_log": "ASSUMPTION",
     "opportunity_log": "OPPORTUNITY",
-    "de_assessment_alerts": "DE_ALERT",
 }
 
 ALWAYS_EXCLUDED_COLUMNS: frozenset[str] = frozenset({"id", "created_at", "updated_at"})

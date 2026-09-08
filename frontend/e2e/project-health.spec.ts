@@ -40,6 +40,43 @@ test.describe("Project Health", () => {
   }
 });
 
+// Report Submissions — the 4 KPI-scoped sub screens drilled into from the
+// dashboard's "Report Submissions" cards. Each has its own route + heading and
+// defaults its status filter to Pending.
+test.describe("/project-health/report-submissions sub screens", () => {
+  test.use({ storageState: "e2e/.auth/admin.json" });
+
+  const SUB_SCREENS: Array<{ path: string; heading: string }> = [
+    {
+      path: "/project-health/report-submissions/delivery-status-projects",
+      heading: "Delivery Status (Projects) — Submission Reporting",
+    },
+    {
+      path: "/project-health/report-submissions/metrics-projects",
+      heading: "Metrics (Projects) — Submission Reporting",
+    },
+    {
+      path: "/project-health/report-submissions/delivery-status-account",
+      heading: "Delivery Status (Account) — Submission Reporting",
+    },
+    {
+      path: "/project-health/report-submissions/delivery-status-geo",
+      heading: "Delivery Status (Geo) — Submission Reporting",
+    },
+  ];
+
+  for (const { path, heading } of SUB_SCREENS) {
+    test(`${path} renders with its scoped heading and no console errors`, async ({ page }) => {
+      const errors = trackConsoleErrors(page);
+      const response = await page.goto(path);
+      expect(response?.status() ?? 0).toBeLessThan(400);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(heading);
+      await expect(page.getByLabel("Submission status")).toHaveValue("pending");
+      expect(errors).toEqual([]);
+    });
+  }
+});
+
 // Project Listing screen specifics — the Ownership column + the Region and
 // Ownership filters (this is the change this spec was originally added for).
 test.describe("/project-health/project-list", () => {

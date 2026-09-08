@@ -120,11 +120,11 @@ export function DashboardView({
             />
             <KpiCard label="Open Risks" value={data.open_risks} hint="Open or monitoring" />
             <KpiCard label="Open Issues" value={data.open_issues} hint="Not yet resolved" />
-            <KpiCard label="Pending Approvals" value={data.pending_approvals} hint="Opportunities + DE alerts" />
+            <KpiCard label="Pending Approvals" value={data.pending_approvals} hint="Opportunities" />
             <KpiCard
-              label="Open NC"
+              label="Open Alerts"
               value={data.open_ncs_count}
-              hint="Non-Conformances (findings)"
+              hint="Alert findings"
               valueClass={data.open_ncs_count > 0 ? "text-amber-600" : undefined}
             />
           </div>

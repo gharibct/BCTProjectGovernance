@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Link2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { AutoBadge, ButtonSpinner, SectionCard, Segmented } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
 import { usePageBanner } from "@/stores/page-banner";
 import {
@@ -15,6 +16,11 @@ import {
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
+import {
+  RAIDO_STATUS_FILTER_OPTIONS,
+  filterRaidoByStatus,
+  type RaidoStatusFilter,
+} from "@/lib/raido-status";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useUsers } from "@/lib/api/reference-data";
 import {
@@ -114,6 +120,8 @@ export function DependencyLog() {
   const periodId = useSearchParams().get("period");
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useDependencies(projectId);
+  const [statusFilter, setStatusFilter] = useState<RaidoStatusFilter>("open");
+  const visibleItems = filterRaidoByStatus(items, "dependencies", "dependency_status", statusFilter);
   const createDependency = useCreateDependency(projectId);
   const updateDependency = useUpdateDependency(projectId);
   const deleteDependency = useDeleteDependency(projectId);
@@ -180,7 +188,16 @@ export function DependencyLog() {
       <SectionCard
         icon={Link2}
         title="Dependency Register"
-        aside={<AutoBadge label={`${items.length} logged`} />}
+        aside={
+          <div className="flex items-center gap-3">
+            <Segmented
+              options={RAIDO_STATUS_FILTER_OPTIONS}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+            <AutoBadge label={`${visibleItems.length} of ${items.length}`} />
+          </div>
+        }
       >
         <RegisterImportToolbar
           defs={fields}
@@ -189,8 +206,10 @@ export function DependencyLog() {
           createMutation={createDependency}
         />
         <RegisterTable
-          items={items}
-          emptyLabel="No dependencies logged yet."
+          items={visibleItems}
+          emptyLabel={
+            items.length === 0 ? "No dependencies logged yet." : "No dependencies match this filter."
+          }
           onEdit={startEdit}
           onDelete={handleDelete}
           columns={[

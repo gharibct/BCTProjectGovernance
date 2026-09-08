@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
 import { useProject } from "@/lib/api/projects";
+import { useMetricReferenceLookup, type MetricReferenceLookup } from "@/lib/api/metric-reference";
 import { useProjectTypes } from "@/lib/api/reference-data";
 import {
   useCloudMaintenanceTarget,
@@ -30,10 +31,118 @@ import { CloudMaintenanceTab, fromCloudMaintenanceTarget, toCloudMaintenancePayl
 import { CloudMigrationTab, fromCloudMigrationTarget, toCloudMigrationPayload } from "./cloud-migration-form";
 import { ConsultingTab, fromConsultingTarget, toConsultingPayload } from "./consulting-form";
 import { DevelopmentTab, fromDevelopmentTarget, toDevelopmentPayload } from "./development-form";
-import { useMeasures } from "./shared";
+import { numericBenchmark, useMeasures } from "./shared";
 import { StaffingTab, fromStaffingTarget, toStaffingPayload } from "./staffing-form";
 import { SupportTab, fromSupportTarget, toSupportPayload } from "./support-form";
 import { TestingTab, fromTestingTarget, toTestingPayload } from "./testing-form";
+
+// Target form-field name -> metric_reference.yaml key, per project type code
+// (mirrors the `metricKey=` props on each tab's MetricTiles). Drives both the
+// config-benchmark prefill of empty fields and the config min/max check on Save.
+// Consulting has no yaml metrics, so its entries never resolve.
+const METRIC_FIELDS: Record<string, Record<string, string>> = {
+  DEVELOPMENT: {
+    targetProductivity: "productivity",
+    targetEffortVariation: "effort_variation_pct",
+    targetSpi: "schedule_performance_index",
+    targetCpi: "cost_performance_index",
+    targetDefectLeakage: "defect_leakage_pct",
+    targetExecCoverage: "test_execution_coverage_pct",
+    targetPassRate: "test_pass_rate_pct",
+    targetCodeCoverage: "code_coverage_pct",
+  },
+  SUPPORT: {
+    targetMttrP1: "incident_mttr_hours",
+    targetMttrP2: "incident_mttr_hours",
+    targetMttrP3: "incident_mttr_hours",
+    targetMttrSr: "service_request_mttr_hours",
+    targetMttrUc: "user_clarification_mttr_hours",
+    targetSlaP1: "incident_sla_compliance_pct",
+    targetSlaP2: "incident_sla_compliance_pct",
+    targetSlaP3: "incident_sla_compliance_pct",
+  },
+  PROFESSIONAL_STAFFING: {
+    "target-avg-resp-p1": "avg_response_time_hours",
+    "target-avg-resp-p2": "avg_response_time_hours",
+    "target-avg-resp-p3": "avg_response_time_hours",
+    "target-avg-resp-p4": "avg_response_time_hours",
+    targetProfilesQualifying: "pct_profiles_qualifying",
+    targetCandidatesJoining: "pct_candidates_joining",
+    "target-lead-time-p1": "avg_lead_time_days",
+    "target-lead-time-p2": "avg_lead_time_days",
+    "target-lead-time-p3": "avg_lead_time_days",
+    "target-lead-time-p4": "avg_lead_time_days",
+  },
+  TESTING: {
+    targetExecCoverage: "test_execution_coverage_pct",
+    targetPassRate: "test_pass_rate_pct",
+    targetAutomationCoverage: "automation_coverage_pct",
+    targetDesignProductivity: "test_design_productivity",
+    targetExecProductivity: "test_execution_productivity",
+  },
+  CLOUD_MAINTENANCE: {
+    targetServiceAvailability: "service_availability_pct",
+    targetAppAvailability: "application_availability_pct",
+  },
+  CLOUD_MIGRATION: {
+    targetAppsMigrated: "applications_migrated_pct",
+    targetSuccessRate: "migration_success_rate_pct",
+    targetDowntime: "migration_downtime_hours",
+  },
+  CONSULTING: {
+    targetEffortVariation: "effort_variation_pct",
+    targetSpi: "schedule_performance_index",
+    targetCpi: "cost_performance_index",
+  },
+};
+
+// Fills any empty target field that has a plain-number config benchmark with
+// that benchmark, so an untouched field defaults to the recommended value and
+// is saved as the target unless the user changes it. Returns `seed` unchanged
+// while the (static, session-cached) reference data is still loading.
+function applyBenchmarkDefaults(
+  seed: Record<string, string>,
+  fieldMap: Record<string, string>,
+  reference: MetricReferenceLookup | undefined,
+): Record<string, string> {
+  const out = { ...seed };
+  if (!reference) return out;
+  for (const [field, metricKey] of Object.entries(fieldMap)) {
+    if (out[field]?.trim()) continue;
+    const benchmark = numericBenchmark(reference[metricKey]?.benchmark_value);
+    if (benchmark !== null) out[field] = benchmark;
+  }
+  return out;
+}
+
+// Per-field message for any entered target outside its config [min, max]
+// (inclusive). A blank/non-numeric bound means that side is unbounded.
+function validateTargetRanges(
+  m: Record<string, string>,
+  fieldMap: Record<string, string>,
+  reference: MetricReferenceLookup | undefined,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!reference) return errors;
+  for (const [field, metricKey] of Object.entries(fieldMap)) {
+    const raw = m[field]?.trim();
+    if (!raw) continue;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    const entry = reference[metricKey];
+    if (!entry) continue;
+    const minStr = numericBenchmark(entry.min_value);
+    const maxStr = numericBenchmark(entry.max_value);
+    const min = minStr === null ? null : Number(minStr);
+    const max = maxStr === null ? null : Number(maxStr);
+    if (min !== null && value < min) {
+      errors[field] = max !== null ? `Must be between ${min} and ${max}` : `Must be at least ${min}`;
+    } else if (max !== null && value > max) {
+      errors[field] = min !== null ? `Must be between ${min} and ${max}` : `Must be at most ${max}`;
+    }
+  }
+  return errors;
+}
 
 // One measurement form per Project Type (see db/seed_dev.sql project_types)
 // — a project only ever shows the single tab matching its own type, not a
@@ -157,21 +266,48 @@ export function MeasurementTabs() {
   const { data: projectTypes } = useProjectTypes();
   const projectTypeCode = projectTypes?.find((t) => t.id === project?.project_type_id)?.code;
   const activeTab = TABS.find((t) => t.code === projectTypeCode);
+  const reference = useMetricReferenceLookup(projectTypeCode ?? "");
+  const showError = usePageBanner((state) => state.showError);
 
   const target = useActiveTarget(projectId, projectTypeCode);
   const { m, set, setAll } = useMeasures();
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
 
-  // Seeds the form from the saved target once per project/type, so it
-  // doesn't clobber in-progress edits on every re-render or background
-  // refetch (the refetch after a save echoes back the same values anyway).
+  // Editing a field clears its own out-of-range message.
+  const setField = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    set(key)(e);
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleSave = () => {
+    const errs = validateTargetRanges(m, METRIC_FIELDS[projectTypeCode ?? ""] ?? {}, reference);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showError("Some targets are outside the allowed range — fix the highlighted fields.");
+      return;
+    }
+    target.submit(m);
+  };
+
+  // Seeds the form from the saved target (plus config benchmark defaults for
+  // empty fields) once per project/type, so it doesn't clobber in-progress
+  // edits on every re-render or background refetch (the refetch after a save
+  // echoes back the same values anyway). Re-seeds once when the reference data
+  // arrives so the benchmark defaults land even if that query resolves after
+  // the target — a rare sub-second window in which a typed value can be lost.
   const seededKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!projectId || !projectTypeCode || !target.isLoaded) return;
-    const seedKey = `${projectId}:${projectTypeCode}`;
+    const seedKey = `${projectId}:${projectTypeCode}:${reference !== undefined}`;
     if (seededKeyRef.current === seedKey) return;
-    setAll(target.seed);
+    setAll(applyBenchmarkDefaults(target.seed, METRIC_FIELDS[projectTypeCode] ?? {}, reference));
     seededKeyRef.current = seedKey;
-  }, [projectId, projectTypeCode, target.isLoaded, target.seed, setAll]);
+  }, [projectId, projectTypeCode, target.isLoaded, target.seed, reference, setAll]);
 
   if (!activeTab) {
     return (
@@ -196,7 +332,7 @@ export function MeasurementTabs() {
       </div>
 
       <div className="mt-8">
-        <Active m={m} set={set} />
+        <Active m={m} set={setField} reference={reference} errors={fieldErrors} />
       </div>
 
       <div className="mt-10 flex flex-wrap items-start justify-between gap-4">
@@ -207,7 +343,7 @@ export function MeasurementTabs() {
         </p>
         <div className="flex shrink-0 gap-3">
           <Button
-            onClick={() => target.submit(m)}
+            onClick={handleSave}
             disabled={!projectId || target.isSaving}
             className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >

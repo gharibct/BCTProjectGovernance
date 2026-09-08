@@ -77,7 +77,7 @@ export function GovernanceReviewWorkspace() {
           {error instanceof ApiError ? String(error.detail ?? error.message) : "Something went wrong."}
         </p>
         <Link href="/de-approval" className="mt-3 inline-block font-semibold text-red-700 underline">
-          Back to DE Project Approval
+          Back to Project Details Approval
         </Link>
       </div>
     );
@@ -126,7 +126,7 @@ export function GovernanceReviewWorkspace() {
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
         >
           <ArrowLeft className="size-4" />
-          Back to DE Project Approval
+          Back to Project Details Approval
         </Link>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
           Project Governance Review — {detail.project_name}

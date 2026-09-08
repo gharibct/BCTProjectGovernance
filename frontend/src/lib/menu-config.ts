@@ -23,6 +23,7 @@ export type MenuEntryId =
   | "de-projects"
   | "de-allocation"
   | "de-approval"
+  | "de-project-requests"
   | "pmo-dashboard"
   | "account-reporting"
   | "geo-reporting"
@@ -35,7 +36,9 @@ export type MenuEntryId =
 const PROJECT_MANAGER_MENU: MenuEntryId[] = [
   "project-manager-dashboard",
   "project-review",
-  "new-project",
+  // "new-project" (Create Project) moved to Account Head / Geo Head — a project
+  // now starts as a creation request they submit and Delivery Excellence
+  // approves. The PM picks it up from "Provide Project Details" once approved.
   "maintain-project",
   "project-reporting",
   "view-amend-projects",
@@ -50,18 +53,26 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
   TEAM_MEMBER: DASHBOARD_ONLY_MENU,
   DELIVERY_EXCELLENCE: [
     "delivery-excellence-dashboard",
+    "de-project-requests",
     "de-allocation",
     "de-approval",
     "de-assessment",
     "de-findings",
     "de-projects",
+    "project-health",
   ],
   // No PMO login exists yet — this is wired the same way as every other
   // role's My Summary, ready for when a PMO user can sign in (see
   // pmo-my-summary.tsx).
   PMO: ["pmo-dashboard", "project-health"],
-  ACCOUNT_MANAGER: ["account-manager-dashboard", "account-review", "account-reporting", "project-review"],
-  GEO_HEAD: ["geo-head-dashboard", "geo-review", "geo-reporting", "account-review"],
+  ACCOUNT_MANAGER: [
+    "account-manager-dashboard",
+    "new-project",
+    "account-review",
+    "account-reporting",
+    "project-review",
+  ],
+  GEO_HEAD: ["geo-head-dashboard", "new-project", "geo-review", "geo-reporting", "account-review"],
   CXO: ["cxo-dashboard", "project-health", "geo-review"],
   ADMIN: [
     "admin-dashboard",
@@ -72,6 +83,7 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
     "project-manager-dashboard",
     "pm-findings",
     "delivery-excellence-dashboard",
+    "de-project-requests",
     "de-allocation",
     "de-approval",
     "de-assessment",

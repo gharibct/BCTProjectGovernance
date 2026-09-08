@@ -33,7 +33,19 @@ from app.schemas.actions import (
     ActionUpdate,
 )
 from app.schemas.enums import ActionHistoryEventType, ActionLevel, ActionStatus, RoleCode
+from app.services import notifications as notify_svc
 from app.services.code_generator import generate_code
+
+# Deep-link to the entity whose Action Tracker holds an action.
+_ACTION_LINK = {
+    ActionLevel.PROJECT: "/project-review/{id}",
+    ActionLevel.ACCOUNT: "/account-review/{id}",
+    ActionLevel.GEO: "/geo-review/{id}",
+}
+
+
+def _action_link(level: ActionLevel, level_value: str) -> str:
+    return _ACTION_LINK.get(level, "/project-review/{id}").format(id=level_value)
 
 _TRANSITION_DENIED = "Only the action's owner or an authorized manager can do this."
 
@@ -217,6 +229,18 @@ def build_action_router(cfg: ActionLevelConfig) -> APIRouter:
             raised_at=datetime.now(UTC),
         )
         await _add_history(db, obj.id, ActionHistoryEventType.CREATED, current_user)
+        await notify_svc.notify(
+            db,
+            recipient_id=obj.action_by_id,
+            type="ACTION_ASSIGNED",
+            title=f"You were assigned action {obj.action_code}",
+            body=f"{obj.title} — due {obj.due_date.isoformat()}",
+            link=_action_link(cfg.level, str(entity_id)),
+            entity_type="action",
+            entity_id=obj.id,
+            actor_id=current_user.id,
+            data={"action_code": obj.action_code},
+        )
         return obj
 
     @router.put("/{action_id}", response_model=ActionRead, dependencies=[Depends(cfg.write_dependency)])
@@ -240,6 +264,18 @@ def build_action_router(cfg: ActionLevelConfig) -> APIRouter:
                 current_user,
                 old_value=str(old_owner),
                 new_value=str(obj.action_by_id),
+            )
+            await notify_svc.notify(
+                db,
+                recipient_id=obj.action_by_id,
+                type="ACTION_ASSIGNED",
+                title=f"Action {obj.action_code} was reassigned to you",
+                body=f"{obj.title} — due {obj.due_date.isoformat()}",
+                link=_action_link(cfg.level, str(entity_id)),
+                entity_type="action",
+                entity_id=obj.id,
+                actor_id=current_user.id,
+                data={"action_code": obj.action_code},
             )
         if payload.due_date is not None and payload.due_date != old_due_date:
             await _add_history(
@@ -285,6 +321,18 @@ def build_action_router(cfg: ActionLevelConfig) -> APIRouter:
         await db.refresh(obj)
         await _add_history(
             db, obj.id, ActionHistoryEventType.STATUS_CHANGE, current_user, old_value=old_status, new_value=to_status
+        )
+        await notify_svc.notify(
+            db,
+            recipient_id=obj.action_by_id,
+            type="ACTION_STATUS",
+            title=f"Action {obj.action_code} is now {to_status}",
+            body=obj.title,
+            link=_action_link(cfg.level, str(entity_id)),
+            entity_type="action",
+            entity_id=obj.id,
+            actor_id=current_user.id,
+            data={"action_code": obj.action_code, "status": str(to_status)},
         )
         return obj
 

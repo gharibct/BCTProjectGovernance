@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Database, IdCard, Trash2 } from "lucide-react";
+import { Database, IdCard, Trash2, UserRound } from "lucide-react";
 
 import {
   AutoBadge,
@@ -12,29 +12,36 @@ import {
   SectionCard,
 } from "@/components/forms/form-primitives";
 import { RegisterTable } from "@/components/forms/register-table";
+import { EmployeePicker } from "@/components/forms/employee-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageBanner } from "@/stores/page-banner";
-import { useCreateProjectWithOracleIds } from "@/lib/api/projects";
+import { useEffectiveRole } from "@/stores/session";
+import { ROLE_LANDING_ROUTE } from "@/lib/menu-config";
+import { useCreateProjectCreationRequest } from "@/lib/api/project-creation-requests";
 
 const inputClass = "h-11";
 
 type PendingOracleId = { id: string; oracle_project_id: string };
 
-// The mandatory entry point for creating a project: Project Name plus at
-// least one Oracle Project mapping, collected here (client-side only, since
-// there is no project id yet to attach real project_oracle_ids rows to) and
-// submitted together. charter-form.tsx's ProjectProfileForm is intentionally
-// left untouched — once this succeeds, it redirects straight into that
-// existing post-creation flow.
+// Create Project (Account Head / Geo Head). Collects only what the pre-approval
+// step needs — Project Name, Project Manager, and at least one Oracle Project
+// mapping — and submits it as a creation REQUEST. No project exists yet: the
+// allocated Delivery Excellence approves the request from "Project Creation
+// Requests", which is what actually creates the Draft project and hands it to
+// the PM under "Provide Project Details".
 export function ProjectCreationForm() {
   const router = useRouter();
-  const createProjectWithOracleIds = useCreateProjectWithOracleIds();
+  const createRequest = useCreateProjectCreationRequest();
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
+  const effectiveRole = useEffectiveRole();
 
   const [projectName, setProjectName] = React.useState("");
   const [projectNameError, setProjectNameError] = React.useState<string | null>(null);
+
+  const [projectManagerId, setProjectManagerId] = React.useState<string | null>(null);
+  const [projectManagerError, setProjectManagerError] = React.useState<string | null>(null);
 
   const [oracleInput, setOracleInput] = React.useState("");
   const [oracleInputError, setOracleInputError] = React.useState<string | null>(null);
@@ -61,34 +68,43 @@ export function ProjectCreationForm() {
     setPendingOracleIds((prev) => prev.filter((entry) => entry.id !== item.id));
   };
 
-  const handleCreate = async () => {
+  const handleSubmit = async () => {
     let blocked = false;
     if (!projectName.trim()) {
-      setProjectNameError("Project Name is required before you can create the project.");
+      setProjectNameError("Project Name is required.");
       blocked = true;
     } else {
       setProjectNameError(null);
     }
+    if (!projectManagerId) {
+      setProjectManagerError("Select the Project Manager for this project.");
+      blocked = true;
+    } else {
+      setProjectManagerError(null);
+    }
     if (pendingOracleIds.length === 0) {
-      setOracleListError("Add at least one Oracle Project before creating.");
+      setOracleListError("Add at least one Oracle Project before submitting.");
       blocked = true;
     } else {
       setOracleListError(null);
     }
     if (blocked) {
-      showError("Project Name and at least one Oracle Project are required before you can create the project.");
+      showError("Project Name, Project Manager and at least one Oracle Project are required.");
       return;
     }
 
     try {
-      const created = await createProjectWithOracleIds.mutateAsync({
-        payload: { project_name: projectName.trim() },
-        oracleProjectIds: pendingOracleIds.map((item) => item.oracle_project_id),
+      await createRequest.mutateAsync({
+        project_name: projectName.trim(),
+        project_manager_id: projectManagerId,
+        oracle_project_ids: pendingOracleIds.map((item) => item.oracle_project_id),
       });
-      showSuccess("Project Created Successfully", { persistThroughNavigation: true });
-      router.push(`/new-project/${created.id}/project-charter`);
+      showSuccess("Project creation request submitted for DE approval.", {
+        persistThroughNavigation: true,
+      });
+      router.push(effectiveRole ? ROLE_LANDING_ROUTE[effectiveRole] : "/dashboard");
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to create project.");
+      showError(err instanceof Error ? err.message : "Failed to submit the project creation request.");
     }
   };
 
@@ -110,6 +126,27 @@ export function ProjectCreationForm() {
               if (projectNameError) setProjectNameError(null);
             }}
             className={inputClass}
+          />
+        </Field>
+      </SectionCard>
+
+      <SectionCard icon={UserRound} title="Project Manager">
+        <Field
+          label="Project Manager"
+          htmlFor="project-manager"
+          badge={<MandatoryBadge />}
+          error={projectManagerError ?? undefined}
+        >
+          <EmployeePicker
+            id="project-manager"
+            roleCode="PROJECT_MANAGER"
+            value={projectManagerId}
+            onChange={(id) => {
+              setProjectManagerId(id);
+              if (projectManagerError) setProjectManagerError(null);
+            }}
+            placeholder="Search Project Managers…"
+            searchPlaceholder="Search Project Managers…"
           />
         </Field>
       </SectionCard>
@@ -176,11 +213,11 @@ export function ProjectCreationForm() {
       <div className="flex justify-end">
         <Button
           className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          disabled={createProjectWithOracleIds.isPending}
-          onClick={handleCreate}
+          disabled={createRequest.isPending}
+          onClick={handleSubmit}
         >
-          {createProjectWithOracleIds.isPending ? <ButtonSpinner /> : null}
-          Create Project
+          {createRequest.isPending ? <ButtonSpinner /> : null}
+          Submit for Approval
         </Button>
       </div>
     </div>

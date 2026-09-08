@@ -21,7 +21,6 @@ _PREFIXES = {
     "DEPENDENCY": "DEP",
     "ASSUMPTION": "ASM",
     "OPPORTUNITY": "OPP",
-    "DE_ALERT": "ALT",
     "ACTION": "ACT",
 }
 

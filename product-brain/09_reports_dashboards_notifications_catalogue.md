@@ -55,7 +55,7 @@
 | Projects by Type | breakdown across the 7 engagement types | Project List filtered |
 | Delayed Projects | count where Actual End > Planned End (or overdue reporting) | Project List filtered |
 | Open Risks / Open Issues | counts from the RAID registers | Risks / Issues grids |
-| Pending Approvals | `Submitted` reports awaiting this user's review + Opportunities awaiting approval + open DE alerts | Review screens |
+| Pending Approvals | `Submitted` reports awaiting this user's review + Opportunities awaiting approval | Review screens |
 | Contractual Commitment status | Met / Not Met / Not Recorded summary | Commitments grid |
 | Milestones Linked to Payment | upcoming / overdue summary | Payment Milestones grid |
 | Project Health | 360° per-project RAG (Red / Potential Red / Amber / Green) | Project Charter |
@@ -141,9 +141,7 @@ Contractual, DE Assessment, Action panel, or Data Integrity).
 | N-REVIEW-PENDING | A tier's report awaits the next tier's review | next-tier reviewer (`ACCOUNT_MANAGER` / `GEO_HEAD` / `CXO`) | In-App (derived) | "{n} reports awaiting your review." | In-App (derived) via "Pending Approvals" KPI |
 | N-REVIEW-DECISION | Review `Approved` / `Rejected` | the report's author | In-App / Email | "Your {tier} status for {period} was {approved / rejected}: {comment}." | **Planned** |
 | N-REVIEW-DEFAULTER | Monthly review datasets (Measurement / Contractual / RAIDO) not updated | `PROJECT_MANAGER`, escalate up | In-App (derived) / Email | "Monthly review incomplete for {project}: {missing modules}." | **Planned** |
-| N-DEA-ALERT | DE Assessment saved/submitted with health ≠ `Green` and an Alert raised | `PROJECT_MANAGER`, `ACCOUNT_MANAGER` | In-App / Email | "DE assessed {project} as {rating}: {alert brief}." | **Planned** (Alert record exists; no send) |
 | N-DEA-OVERDUE | Assessment past `next_assessment_due_date` | allocated `DELIVERY_EXCELLENCE` | In-App (derived) | "{n} assessments overdue." | In-App (derived) via DE dashboard |
-| N-DEA-NUDGE | Health ≠ `Green` recorded with **zero** alerts logged | the DE / PM on screen | In-App (inline) | "This rating is not Green — log an Alert." | Implemented as an on-screen nudge (BR-DEA-020) |
 | N-RAID-ESCALATED | A RAID(O) item's Escalation flag set | escalation target (PM / Delivery Manager / Steering Committee) | In-App / Email | "{register} {id} escalated to {level}." | **Planned** |
 | N-RAID-REVIEW-DUE | RAID item past `Next Review Date` (Risk today) | `PROJECT_MANAGER` | In-App (derived) | "{n} risks due for monthly review." | In-App (derived) via "Review Due" KPI on the Assumptions/RAG grids |
 | N-CONTRACT-BREACH | Commitment actual computes `Not Met` | `PMO`, `PROJECT_MANAGER` | In-App / Email | "Commitment {name} on {project} is Not Met (penalty {applicable?})." | **Planned** |

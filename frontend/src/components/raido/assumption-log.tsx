@@ -1,10 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { HelpCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { AutoBadge, ButtonSpinner, SectionCard, Segmented } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
 import { usePageBanner } from "@/stores/page-banner";
 import {
@@ -15,6 +16,11 @@ import {
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
+import {
+  RAIDO_STATUS_FILTER_OPTIONS,
+  filterRaidoByStatus,
+  type RaidoStatusFilter,
+} from "@/lib/raido-status";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useUsers } from "@/lib/api/reference-data";
 import {
@@ -90,6 +96,8 @@ export function AssumptionLog() {
   const periodId = useSearchParams().get("period");
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useAssumptions(projectId);
+  const [statusFilter, setStatusFilter] = useState<RaidoStatusFilter>("open");
+  const visibleItems = filterRaidoByStatus(items, "assumptions", "current_status", statusFilter);
   const createAssumption = useCreateAssumption(projectId);
   const updateAssumption = useUpdateAssumption(projectId);
   const deleteAssumption = useDeleteAssumption(projectId);
@@ -160,7 +168,16 @@ export function AssumptionLog() {
       <SectionCard
         icon={HelpCircle}
         title="Assumption Register"
-        aside={<AutoBadge label={`${items.length} logged`} />}
+        aside={
+          <div className="flex items-center gap-3">
+            <Segmented
+              options={RAIDO_STATUS_FILTER_OPTIONS}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+            <AutoBadge label={`${visibleItems.length} of ${items.length}`} />
+          </div>
+        }
       >
         <RegisterImportToolbar
           defs={fields}
@@ -169,8 +186,8 @@ export function AssumptionLog() {
           createMutation={createAssumption}
         />
         <RegisterTable
-          items={items}
-          emptyLabel="No assumptions logged yet."
+          items={visibleItems}
+          emptyLabel={items.length === 0 ? "No assumptions logged yet." : "No assumptions match this filter."}
           onEdit={startEdit}
           onDelete={handleDelete}
           columns={[

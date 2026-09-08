@@ -24,7 +24,7 @@ from app.models.contractual import (
     MilestonePaymentActual,
 )
 from app.models.data_integrity import DataIntegrityChecklistItem
-from app.models.de_assessment import DEAssessment, DEAssessmentAlert, DEAssessmentFinding
+from app.models.de_assessment import DEAssessment, DEAssessmentFinding
 from app.models.executive_updates import ExecutiveUpdate
 from app.models.geo_health_declarations import GeoHealthDeclaration
 from app.models.health_declarations import HealthDeclaration
@@ -49,7 +49,7 @@ from app.models.projects import Project
 from app.models.raid import AssumptionLog, DependencyLog, IssueLog, OpportunityLog, RiskLog
 from app.models.reference_data import Account, Geo, ProjectType, Region, ReportingPeriod
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusReport
-from app.models.users import User, UserAccount
+from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.dashboard import (
     AccountHealthRow,
     AccountPortfolioHealthRow,
@@ -106,6 +106,9 @@ from app.schemas.dashboard import (
     ReportingReadiness,
     ReportReviewQueueRow,
     ReportsDueSummary,
+    ReportSubmissionDetailRow,
+    ReportSubmissionKpi,
+    ReportSubmissionsSummary,
     RiskCardSummary,
     RiskRow,
 )
@@ -125,6 +128,7 @@ from app.schemas.enums import (
     OpportunityStatus,
     ProjectLifecycleStatus,
     ReportStatus,
+    RoleCode,
     RiskSeverity,
     RiskStatus,
     ValidationStatus,
@@ -139,7 +143,7 @@ class DashboardFilters:
     region_id: UUID | None = None
     account_id: UUID | None = None
     # Single-project scope — used by the per-entity Project Dashboard / Project
-    # Review "Open NC" section (see dashboard.py's get_open_ncs).
+    # Review "Open Alerts" section (see dashboard.py's get_open_ncs).
     project_id: UUID | None = None
     project_type_id: UUID | None = None
     # Ownership model filter — matches Project.project_owned ("Fully Owned",
@@ -156,9 +160,11 @@ class DashboardFilters:
     # the signed-in user's id server-side, never a client-supplied query
     # param (see dashboard.py's get_my_dashboard_summary).
     project_manager_id: UUID | None = None
-    # Delivery Excellence "My Summary" scoping (design-reference/de-mysummary.jpg)
-    # — same server-side-only convention as project_manager_id above.
-    delivery_excellence_id: UUID | None = None
+    # Delivery Excellence dashboard scoping (design-reference/de-mysummary.jpg).
+    # DE data is shared across every DE, so this is not per-user: when set, it
+    # limits to projects that have *any* DE allocated
+    # (Project.delivery_excellence_id IS NOT NULL).
+    de_allocated: bool | None = None
 
 
 def _project_conditions(filters: DashboardFilters) -> list:
@@ -183,8 +189,8 @@ def _project_conditions(filters: DashboardFilters) -> list:
         conditions.append(Project.overall_project_health == filters.health_status)
     if filters.project_manager_id is not None:
         conditions.append(Project.project_manager_id == filters.project_manager_id)
-    if filters.delivery_excellence_id is not None:
-        conditions.append(Project.delivery_excellence_id == filters.delivery_excellence_id)
+    if filters.de_allocated:
+        conditions.append(Project.delivery_excellence_id.is_not(None))
     return conditions
 
 
@@ -260,34 +266,10 @@ async def _pending_opportunities_count(db: AsyncSession, project_ids) -> int:
 
 
 async def count_pending_approvals(db: AsyncSession, filters: DashboardFilters) -> int:
-    """Opportunities awaiting approval + DE alerts on a project's most recent
-    assessment where health still isn't Green (no explicit alert status field
-    in the source schema, so 'open' is inferred as 'not yet superseded by a
-    later Green assessment')."""
+    """Opportunities awaiting approval, scoped to the matching projects."""
 
     project_ids = await _matching_project_ids(db, filters)
-    pending_opportunities = await _pending_opportunities_count(db, project_ids)
-
-    latest_assessment_dates = (
-        select(DEAssessment.project_id, func.max(DEAssessment.assessment_date).label("latest_date"))
-        .where(DEAssessment.project_id.in_(project_ids))
-        .group_by(DEAssessment.project_id)
-        .subquery()
-    )
-    open_alerts_stmt = (
-        select(func.count())
-        .select_from(DEAssessmentAlert)
-        .join(DEAssessment, DEAssessment.id == DEAssessmentAlert.assessment_id)
-        .join(
-            latest_assessment_dates,
-            (DEAssessment.project_id == latest_assessment_dates.c.project_id)
-            & (DEAssessment.assessment_date == latest_assessment_dates.c.latest_date),
-        )
-        .where(DEAssessment.de_assessed_project_health != HealthRating.GREEN)
-    )
-    open_alerts = (await db.execute(open_alerts_stmt)).scalar_one()
-
-    return pending_opportunities + open_alerts
+    return await _pending_opportunities_count(db, project_ids)
 
 
 async def project_health_rows(db: AsyncSession, filters: DashboardFilters) -> list[ProjectHealthRow]:
@@ -617,7 +599,9 @@ async def _reports_due_rows(
             await db.execute(
                 select(
                     Project.id,
-                    func.coalesce(Project.actual_start_date, Project.planned_start_date),
+                    func.coalesce(
+                        Project.tool_effective_date, Project.actual_start_date, Project.planned_start_date
+                    ),
                 ).where(Project.id.in_(project_ids))
             )
         ).all()
@@ -663,6 +647,508 @@ async def reports_due_summary(db: AsyncSession, filters: DashboardFilters, proje
     return ReportsDueSummary(due_count=len(rows), overdue_count=overdue)
 
 
+# --- "Data Integrity / Report Submissions" section -------------------------
+#
+# Per-scope submission adherence: of every report that was OWED (entity x each
+# active reporting period that has started and that the entity was onboarded
+# on/before), how many have actually been filed. Same "owed" rule as
+# _reports_due_rows / account_rag_card_summary. Projects owe Weekly + Monthly;
+# accounts and geos owe Weekly only (services/reporting_activity.py).
+
+_SUBMITTED_REPORT_STATUSES = (ReportStatus.SUBMITTED, ReportStatus.APPROVED)
+
+
+def _submission_kpi(submitted: int, expected: int) -> ReportSubmissionKpi:
+    return ReportSubmissionKpi(
+        submitted_count=submitted,
+        expected_count=expected,
+        adherence_pct=round(submitted / expected * 100) if expected else 0,
+    )
+
+
+async def _report_submission_periods(
+    db: AsyncSession,
+) -> tuple[list[ReportingPeriod], list[ReportingPeriod]]:
+    """(periods projects owe, periods accounts/geos owe) — Weekly + Monthly for
+    projects, Weekly only for account/geo status reports. Excludes the Baseline
+    sentinel period."""
+    periods = await _active_reporting_periods(db)
+    project_periods = [p for p in periods if p.period_type in ("Weekly", "Monthly")]
+    weekly_periods = [p for p in periods if p.period_type == "Weekly"]
+    return project_periods, weekly_periods
+
+
+def _owed_pairs(
+    entity_ids: list[UUID],
+    start_by_entity: dict[UUID, date | None],
+    periods: list[ReportingPeriod],
+    today: date,
+) -> list[tuple[UUID, UUID]]:
+    pairs: list[tuple[UUID, UUID]] = []
+    for entity_id in entity_ids:
+        start = start_by_entity.get(entity_id)
+        for period in periods:
+            if period.start_date > today:
+                continue  # not started — nothing owed yet
+            if start is not None and period.start_date < start:
+                continue  # period predates onboarding — nothing was owed
+            pairs.append((entity_id, period.id))
+    return pairs
+
+
+async def report_submissions_summary(
+    db: AsyncSession, filters: DashboardFilters, projects: list[ProjectHealthRow]
+) -> ReportSubmissionsSummary:
+    project_periods, weekly_periods = await _report_submission_periods(db)
+    today = date.today()
+    empty = _submission_kpi(0, 0)
+
+    # --- Projects: Delivery Status + Metrics (same owed set) ---
+    project_ids = [p.project_id for p in projects]
+    delivery_projects = metrics_projects = empty
+    if project_ids and project_periods:
+        start_by_project: dict[UUID, date | None] = dict(
+            (
+                await db.execute(
+                    select(
+                        Project.id,
+                        func.coalesce(
+                            Project.tool_effective_date,
+                            Project.actual_start_date,
+                            Project.planned_start_date,
+                        ),
+                    ).where(Project.id.in_(project_ids))
+                )
+            ).all()
+        )
+        owed = _owed_pairs(project_ids, start_by_project, project_periods, today)
+        period_ids = [p.id for p in project_periods]
+
+        status_reports = (
+            await db.execute(
+                select(ProjectStatusReport.project_id, ProjectStatusReport.period_id).where(
+                    ProjectStatusReport.project_id.in_(project_ids),
+                    ProjectStatusReport.period_id.in_(period_ids),
+                    ProjectStatusReport.status.in_(_SUBMITTED_REPORT_STATUSES),
+                )
+            )
+        ).all()
+        filed_status = {(pid, per_id) for pid, per_id in status_reports}
+        delivery_projects = _submission_kpi(
+            sum(1 for pair in owed if pair in filed_status), len(owed)
+        )
+
+        # A period is "metrics-reported" for a project if any period-keyed
+        # measurement table has a row for it — same set as
+        # _projects_with_measurement_for_period, gathered across every owed period.
+        filed_metrics: set[tuple[UUID, UUID]] = set()
+        for table in (
+            MeasurementDevelopment,
+            MeasurementSupport,
+            MeasurementStaffing,
+            MeasurementTesting,
+            MeasurementCloudMaintenance,
+        ):
+            rows = (
+                await db.execute(
+                    select(table.project_id, table.period_id).where(
+                        table.project_id.in_(project_ids), table.period_id.in_(period_ids)
+                    )
+                )
+            ).all()
+            filed_metrics.update((pid, per_id) for pid, per_id in rows)
+        # Cloud Migration is event-based (as_of_date, no period_id) — attribute
+        # each row to whichever owed period contains its date.
+        migration_rows = (
+            await db.execute(
+                select(MeasurementCloudMigration.project_id, MeasurementCloudMigration.as_of_date).where(
+                    MeasurementCloudMigration.project_id.in_(project_ids)
+                )
+            )
+        ).all()
+        for pid, as_of in migration_rows:
+            if as_of is None:
+                continue
+            for period in project_periods:
+                if period.start_date <= as_of <= period.end_date:
+                    filed_metrics.add((pid, period.id))
+        metrics_projects = _submission_kpi(
+            sum(1 for pair in owed if pair in filed_metrics), len(owed)
+        )
+
+    # --- Accounts: Delivery Status (Weekly) ---
+    accounts = await account_health_rows(db, filters)
+    delivery_accounts = empty
+    if accounts and weekly_periods:
+        account_ids = [a.account_id for a in accounts]
+        start_by_account: dict[UUID, date | None] = dict(
+            (
+                await db.execute(
+                    select(Account.id, Account.tool_effective_date).where(Account.id.in_(account_ids))
+                )
+            ).all()
+        )
+        owed_acc = _owed_pairs(account_ids, start_by_account, weekly_periods, today)
+        acc_reports = (
+            await db.execute(
+                select(AccountStatusReport.account_id, AccountStatusReport.period_id).where(
+                    AccountStatusReport.account_id.in_(account_ids),
+                    AccountStatusReport.period_id.in_([p.id for p in weekly_periods]),
+                    AccountStatusReport.status.in_(_SUBMITTED_REPORT_STATUSES),
+                )
+            )
+        ).all()
+        filed_acc = {(aid, per_id) for aid, per_id in acc_reports}
+        delivery_accounts = _submission_kpi(
+            sum(1 for pair in owed_acc if pair in filed_acc), len(owed_acc)
+        )
+
+    # --- Geos: Delivery Status (Weekly) ---
+    if filters.geo_id is not None:
+        geo_ids = [filters.geo_id]
+    elif filters.geo_ids is not None:
+        geo_ids = list(filters.geo_ids)
+    else:
+        geo_ids = list((await db.execute(select(Geo.id))).scalars().all())
+    delivery_geos = empty
+    if geo_ids and weekly_periods:
+        start_by_geo: dict[UUID, date | None] = dict(
+            (
+                await db.execute(
+                    select(Geo.id, Geo.tool_effective_date).where(Geo.id.in_(geo_ids))
+                )
+            ).all()
+        )
+        owed_geo = _owed_pairs(geo_ids, start_by_geo, weekly_periods, today)
+        geo_reports = (
+            await db.execute(
+                select(GeoStatusReport.geo_id, GeoStatusReport.period_id).where(
+                    GeoStatusReport.geo_id.in_(geo_ids),
+                    GeoStatusReport.period_id.in_([p.id for p in weekly_periods]),
+                    GeoStatusReport.status.in_(_SUBMITTED_REPORT_STATUSES),
+                )
+            )
+        ).all()
+        filed_geo = {(gid, per_id) for gid, per_id in geo_reports}
+        delivery_geos = _submission_kpi(
+            sum(1 for pair in owed_geo if pair in filed_geo), len(owed_geo)
+        )
+
+    return ReportSubmissionsSummary(
+        delivery_status_projects=delivery_projects,
+        metrics_projects=metrics_projects,
+        delivery_status_accounts=delivery_accounts,
+        delivery_status_geos=delivery_geos,
+    )
+
+
+async def _head_names_by_scope(db: AsyncSession, role_code: RoleCode, link_model: type, scope_fk) -> dict[UUID, str]:
+    """scope_id -> that scope's Head name (earliest-created user in `role_code`
+    mapped to it via user_accounts / user_geos) — same reduction as
+    users.py::get_account_head / get_geo_head, done in bulk."""
+    role_id = (await db.execute(select(Role.id).where(Role.code == role_code))).scalar_one_or_none()
+    if role_id is None:
+        return {}
+    rows = (
+        await db.execute(
+            select(scope_fk, User.full_name)
+            .join(User, User.id == link_model.user_id)
+            .where(User.role_id == role_id)
+            .order_by(User.created_at)
+        )
+    ).all()
+    out: dict[UUID, str] = {}
+    for scope_id, name in rows:
+        out.setdefault(scope_id, name)  # first (earliest-created) wins
+    return out
+
+
+# Detailed grid behind the "Data Integrity / Report Submissions" section — one
+# row per owed (entity, reporting period) pair across all four report types,
+# each marked Submitted / Not Submitted. Same owed-pair rule and filter scope
+# as report_submissions_summary.
+async def list_report_submissions_for_health(
+    db: AsyncSession,
+    filters: DashboardFilters,
+    projects: list[ProjectHealthRow],
+    skip: int,
+    limit: int,
+    report_type: str | None = None,
+    pending: bool | None = None,
+) -> tuple[list[ReportSubmissionDetailRow], int]:
+    """`report_type` narrows to one of the four ReportSubmissionDetailRow.report_type
+    streams (the KPI-scoped sub screens); `pending=True` keeps only Not Submitted
+    rows, `pending=False` only Submitted, `None` keeps both. Both are applied
+    before paging so `total` reflects the filtered set."""
+    project_periods, weekly_periods = await _report_submission_periods(db)
+    want_dsp = report_type in (None, "Delivery Status - Project")
+    want_mp = report_type in (None, "Metrics - Project")
+    want_dsa = report_type in (None, "Delivery Status - Account")
+    want_dsg = report_type in (None, "Delivery Status - Geo")
+    label_by_period: dict[UUID, str] = {
+        p.id: p.label for p in (*project_periods, *weekly_periods)
+    }
+    today = date.today()
+
+    account_head_by_id = await _head_names_by_scope(
+        db, RoleCode.ACCOUNT_MANAGER, UserAccount, UserAccount.account_id
+    )
+    geo_head_by_id = await _head_names_by_scope(db, RoleCode.GEO_HEAD, UserGeo, UserGeo.geo_id)
+
+    rows: list[ReportSubmissionDetailRow] = []
+
+    # --- Projects: Delivery Status + Metrics ---
+    project_ids = [p.project_id for p in projects]
+    if project_ids and project_periods and (want_dsp or want_mp):
+        meta_rows = (
+            await db.execute(
+                select(
+                    Project.id,
+                    Project.project_code,
+                    Project.project_name,
+                    Project.geo_id,
+                    Project.account_id,
+                    Geo.name,
+                    Account.name,
+                    User.full_name,
+                    func.coalesce(
+                        Project.tool_effective_date,
+                        Project.actual_start_date,
+                        Project.planned_start_date,
+                    ),
+                )
+                .outerjoin(Geo, Geo.id == Project.geo_id)
+                .outerjoin(Account, Account.id == Project.account_id)
+                .outerjoin(User, User.id == Project.project_manager_id)
+                .where(Project.id.in_(project_ids))
+            )
+        ).all()
+        meta = {r[0]: r for r in meta_rows}
+        start_by_project = {r[0]: r[8] for r in meta_rows}
+        owed = _owed_pairs(project_ids, start_by_project, project_periods, today)
+        period_ids = [p.id for p in project_periods]
+
+        status_dates: dict[tuple[UUID, UUID], date] = {}
+        for pid, per_id, updated in (
+            await db.execute(
+                select(
+                    ProjectStatusReport.project_id,
+                    ProjectStatusReport.period_id,
+                    ProjectStatusReport.updated_at,
+                ).where(
+                    ProjectStatusReport.project_id.in_(project_ids),
+                    ProjectStatusReport.period_id.in_(period_ids),
+                    ProjectStatusReport.status.in_(_SUBMITTED_REPORT_STATUSES),
+                )
+            )
+        ).all():
+            status_dates[(pid, per_id)] = updated.date()
+
+        metric_dates: dict[tuple[UUID, UUID], date] = {}
+
+        def _note_metric(pid: UUID, per_id: UUID, when: datetime | None) -> None:
+            if when is None:
+                return
+            d = when.date()
+            cur = metric_dates.get((pid, per_id))
+            if cur is None or d > cur:
+                metric_dates[(pid, per_id)] = d
+
+        for table in (
+            MeasurementDevelopment,
+            MeasurementSupport,
+            MeasurementStaffing,
+            MeasurementTesting,
+            MeasurementCloudMaintenance,
+        ):
+            for pid, per_id, created in (
+                await db.execute(
+                    select(table.project_id, table.period_id, table.created_at).where(
+                        table.project_id.in_(project_ids), table.period_id.in_(period_ids)
+                    )
+                )
+            ).all():
+                _note_metric(pid, per_id, created)
+        for pid, as_of, created in (
+            await db.execute(
+                select(
+                    MeasurementCloudMigration.project_id,
+                    MeasurementCloudMigration.as_of_date,
+                    MeasurementCloudMigration.created_at,
+                ).where(MeasurementCloudMigration.project_id.in_(project_ids))
+            )
+        ).all():
+            if as_of is None:
+                continue
+            for period in project_periods:
+                if period.start_date <= as_of <= period.end_date:
+                    _note_metric(pid, period.id, created)
+
+        for pid, per_id in owed:
+            m = meta.get(pid)
+            code, name = (m[1], m[2]) if m else ("", "")
+            geo_id, account_id = (m[3], m[4]) if m else (None, None)
+            geo_name, account_name, pm_name = (m[5], m[6], m[7]) if m else (None, None, None)
+            base = dict(
+                geo_name=geo_name,
+                account_name=account_name,
+                project_label=f"{code} · {name}".strip(" ·"),
+                project_manager_name=pm_name,
+                account_head_name=account_head_by_id.get(account_id),
+                geo_head_name=geo_head_by_id.get(geo_id),
+                period_label=label_by_period.get(per_id, ""),
+            )
+            if want_dsp:
+                ds_date = status_dates.get((pid, per_id))
+                rows.append(
+                    ReportSubmissionDetailRow(
+                        row_key=f"dsp-{pid}-{per_id}",
+                        report_type="Delivery Status - Project",
+                        status="Submitted" if ds_date else "Not Submitted",
+                        submission_date=ds_date,
+                        **base,
+                    )
+                )
+            if want_mp:
+                m_date = metric_dates.get((pid, per_id))
+                rows.append(
+                    ReportSubmissionDetailRow(
+                        row_key=f"mp-{pid}-{per_id}",
+                        report_type="Metrics - Project",
+                        status="Submitted" if m_date else "Not Submitted",
+                        submission_date=m_date,
+                        **base,
+                    )
+                )
+
+    # --- Accounts: Delivery Status (Weekly) ---
+    accounts = await account_health_rows(db, filters) if want_dsa else []
+    if accounts and weekly_periods:
+        account_ids = [a.account_id for a in accounts]
+        acc_meta = dict(
+            (
+                aid,
+                (aname, geo_id, geo_name, start),
+            )
+            for aid, aname, geo_id, geo_name, start in (
+                await db.execute(
+                    select(
+                        Account.id,
+                        Account.name,
+                        Account.geo_id,
+                        Geo.name,
+                        Account.tool_effective_date,
+                    )
+                    .outerjoin(Geo, Geo.id == Account.geo_id)
+                    .where(Account.id.in_(account_ids))
+                )
+            ).all()
+        )
+        start_by_account = {aid: v[3] for aid, v in acc_meta.items()}
+        owed_acc = _owed_pairs(account_ids, start_by_account, weekly_periods, today)
+        acc_dates: dict[tuple[UUID, UUID], date] = {}
+        for aid, per_id, updated in (
+            await db.execute(
+                select(
+                    AccountStatusReport.account_id,
+                    AccountStatusReport.period_id,
+                    AccountStatusReport.updated_at,
+                ).where(
+                    AccountStatusReport.account_id.in_(account_ids),
+                    AccountStatusReport.period_id.in_([p.id for p in weekly_periods]),
+                    AccountStatusReport.status.in_(_SUBMITTED_REPORT_STATUSES),
+                )
+            )
+        ).all():
+            acc_dates[(aid, per_id)] = updated.date()
+
+        for aid, per_id in owed_acc:
+            aname, geo_id, geo_name, _ = acc_meta.get(aid, (None, None, None, None))
+            d = acc_dates.get((aid, per_id))
+            rows.append(
+                ReportSubmissionDetailRow(
+                    row_key=f"dsa-{aid}-{per_id}",
+                    report_type="Delivery Status - Account",
+                    geo_name=geo_name,
+                    account_name=aname,
+                    account_head_name=account_head_by_id.get(aid),
+                    geo_head_name=geo_head_by_id.get(geo_id),
+                    period_label=label_by_period.get(per_id, ""),
+                    status="Submitted" if d else "Not Submitted",
+                    submission_date=d,
+                )
+            )
+
+    # --- Geos: Delivery Status (Weekly) ---
+    if not want_dsg:
+        geo_ids = []
+    elif filters.geo_id is not None:
+        geo_ids = [filters.geo_id]
+    elif filters.geo_ids is not None:
+        geo_ids = list(filters.geo_ids)
+    else:
+        geo_ids = list((await db.execute(select(Geo.id))).scalars().all())
+    if geo_ids and weekly_periods:
+        geo_meta = dict(
+            (gid, (gname, start))
+            for gid, gname, start in (
+                await db.execute(
+                    select(Geo.id, Geo.name, Geo.tool_effective_date).where(Geo.id.in_(geo_ids))
+                )
+            ).all()
+        )
+        start_by_geo = {gid: v[1] for gid, v in geo_meta.items()}
+        owed_geo = _owed_pairs(geo_ids, start_by_geo, weekly_periods, today)
+        geo_dates: dict[tuple[UUID, UUID], date] = {}
+        for gid, per_id, updated in (
+            await db.execute(
+                select(
+                    GeoStatusReport.geo_id,
+                    GeoStatusReport.period_id,
+                    GeoStatusReport.updated_at,
+                ).where(
+                    GeoStatusReport.geo_id.in_(geo_ids),
+                    GeoStatusReport.period_id.in_([p.id for p in weekly_periods]),
+                    GeoStatusReport.status.in_(_SUBMITTED_REPORT_STATUSES),
+                )
+            )
+        ).all():
+            geo_dates[(gid, per_id)] = updated.date()
+
+        for gid, per_id in owed_geo:
+            gname = geo_meta.get(gid, (None, None))[0]
+            d = geo_dates.get((gid, per_id))
+            rows.append(
+                ReportSubmissionDetailRow(
+                    row_key=f"dsg-{gid}-{per_id}",
+                    report_type="Delivery Status - Geo",
+                    geo_name=gname,
+                    geo_head_name=geo_head_by_id.get(gid),
+                    period_label=label_by_period.get(per_id, ""),
+                    status="Submitted" if d else "Not Submitted",
+                    submission_date=d,
+                )
+            )
+
+    if pending is not None:
+        want_status = "Not Submitted" if pending else "Submitted"
+        rows = [r for r in rows if r.status == want_status]
+
+    # Not-submitted first, then by scope names / period — the "who hasn't filed"
+    # rows the section exists for surface at the top.
+    rows.sort(
+        key=lambda r: (
+            r.status == "Submitted",
+            r.report_type,
+            r.geo_name or "",
+            r.account_name or "",
+            r.project_label or "",
+            r.period_label,
+        )
+    )
+    return rows[skip : skip + limit], len(rows)
+
+
 # One status label per project for the "My Projects Health" Report Status
 # column — reduced from the nearest (soonest-ending, i.e. most urgent) active
 # period's report, since a project can have more than one active period
@@ -687,15 +1173,30 @@ async def project_report_status(
         )
     ).scalars().all()
     by_project = {r.project_id: r for r in reports}
+    start_by_project: dict[UUID, date | None] = dict(
+        (
+            await db.execute(
+                select(
+                    Project.id,
+                    func.coalesce(
+                        Project.tool_effective_date, Project.actual_start_date, Project.planned_start_date
+                    ),
+                ).where(Project.id.in_(project_ids))
+            )
+        ).all()
+    )
 
     today = date.today()
     statuses: dict[UUID, str] = {}
     for project in projects:
         report = by_project.get(project.project_id)
+        project_start = start_by_project.get(project.project_id)
         if report is not None and report.status == ReportStatus.DRAFT:
             statuses[project.project_id] = "Draft"
         elif report is not None and report.status in (ReportStatus.SUBMITTED, ReportStatus.APPROVED):
             statuses[project.project_id] = "Submitted"
+        elif project_start is not None and nearest_period.start_date < project_start:
+            statuses[project.project_id] = "Not Due"  # not yet onboarded into the tool for this period
         elif nearest_period.end_date == today:
             statuses[project.project_id] = "Due Today"
         else:
@@ -868,9 +1369,19 @@ async def account_rag_card_summary(db: AsyncSession, filters: DashboardFilters) 
             )
         ).scalars().all()
         filed = {(r.account_id, r.period_id) for r in reports if r.status in ("Submitted", "Approved")}
+        start_by_account: dict[UUID, date | None] = dict(
+            (
+                await db.execute(
+                    select(Account.id, Account.tool_effective_date).where(Account.id.in_(account_ids))
+                )
+            ).all()
+        )
         today = date.today()
         for account in accounts:
+            account_start = start_by_account.get(account.account_id)
             for period in periods:
+                if account_start is not None and period.start_date < account_start:
+                    continue  # period begins before the account was onboarded — no report was owed
                 if (account.account_id, period.id) not in filed and period.end_date < today:
                     overdue += 1
 
@@ -1009,9 +1520,26 @@ async def reporting_readiness(
         )
     ).scalars().all()
     by_project = {r.project_id: r for r in reports}
+    start_by_project: dict[UUID, date | None] = dict(
+        (
+            await db.execute(
+                select(
+                    Project.id,
+                    func.coalesce(
+                        Project.tool_effective_date, Project.actual_start_date, Project.planned_start_date
+                    ),
+                ).where(Project.id.in_(project_ids))
+            )
+        ).all()
+    )
 
     approved = awaiting = rejected = not_submitted = 0
+    in_scope_total = 0
     for project in projects:
+        project_start = start_by_project.get(project.project_id)
+        if project_start is not None and nearest_period.start_date < project_start:
+            continue  # not yet onboarded into the tool for this period — excluded entirely
+        in_scope_total += 1
         report = by_project.get(project.project_id)
         if report is None or report.status == ReportStatus.DRAFT:
             not_submitted += 1
@@ -1024,7 +1552,7 @@ async def reporting_readiness(
 
     return ReportingReadiness(
         ready_count=approved,
-        total_count=total,
+        total_count=in_scope_total,
         approved_count=approved,
         awaiting_review_count=awaiting,
         not_submitted_count=not_submitted,
@@ -1202,11 +1730,23 @@ async def geo_report_due(db: AsyncSession, geo_ids: list[UUID]) -> bool:
     if not periods:
         return False
     nearest_period = min(periods, key=lambda p: p.end_date)
+
+    start_by_geo: dict[UUID, date | None] = dict(
+        (await db.execute(select(Geo.id, Geo.tool_effective_date).where(Geo.id.in_(geo_ids)))).all()
+    )
+    in_scope_geo_ids = [
+        geo_id
+        for geo_id in geo_ids
+        if start_by_geo.get(geo_id) is None or nearest_period.start_date >= start_by_geo[geo_id]
+    ]
+    if not in_scope_geo_ids:
+        return False
+
     submitted_geo_ids = set(
         (
             await db.execute(
                 select(GeoStatusReport.geo_id).where(
-                    GeoStatusReport.geo_id.in_(geo_ids),
+                    GeoStatusReport.geo_id.in_(in_scope_geo_ids),
                     GeoStatusReport.period_id == nearest_period.id,
                     GeoStatusReport.status == ReportStatus.SUBMITTED,
                 )
@@ -1215,7 +1755,7 @@ async def geo_report_due(db: AsyncSession, geo_ids: list[UUID]) -> bool:
         .scalars()
         .all()
     )
-    return any(geo_id not in submitted_geo_ids for geo_id in geo_ids)
+    return any(geo_id not in submitted_geo_ids for geo_id in in_scope_geo_ids)
 
 
 # Cross-geo "My Actions" — like account_head_open_actions but spans a third
@@ -1419,11 +1959,15 @@ async def de_assessment_work_queue(
     db: AsyncSession, filters: DashboardFilters, period: MonthWindow
 ) -> list[DEAssessmentWorkQueueRow]:
     conditions = _project_conditions(filters)
-    stmt = select(Project, User.full_name, Account.name, Geo.name, Region.name).outerjoin(
+    stmt = select(
+        Project, User.full_name, Account.name, Geo.name, Region.name, ProjectType.name
+    ).outerjoin(
         User, User.id == Project.project_manager_id
     ).outerjoin(Account, Account.id == Project.account_id).outerjoin(
         Geo, Geo.id == Project.geo_id
-    ).outerjoin(Region, Region.id == Project.region_id)
+    ).outerjoin(Region, Region.id == Project.region_id).outerjoin(
+        ProjectType, ProjectType.id == Project.project_type_id
+    )
     if conditions:
         stmt = stmt.where(*conditions)
     rows = (await db.execute(stmt)).all()
@@ -1475,7 +2019,7 @@ async def de_assessment_work_queue(
         open_findings_count[project_id] = count
 
     work_queue = []
-    for project, pm_name, account_name, geo_name, region_name in rows:
+    for project, pm_name, account_name, geo_name, region_name, project_type_name in rows:
         this_month = sorted(
             month_by_project.get(project.id, []), key=lambda a: a.assessment_date, reverse=True
         )
@@ -1497,6 +2041,8 @@ async def de_assessment_work_queue(
                 account_name=account_name,
                 geo_name=geo_name,
                 region_name=region_name,
+                project_type_name=project_type_name,
+                project_owned=project.project_owned,
                 pm_health=project.delivery_declared_overall_health,
                 de_health=latest.de_assessed_project_health if latest is not None else None,
                 pci_score=latest.pci_score if latest is not None else None,
@@ -1548,11 +2094,11 @@ async def count_open_findings(db: AsyncSession, filters: DashboardFilters) -> in
     return (await db.execute(stmt)).scalar_one()
 
 
-# Open Non-Conformances — the subset of open findings classified "NC"
-# (Non-Conformance), as opposed to Observation / Recommendation. Backs the
-# "Open NC" KPI + list section on the PM, Account and CXO dashboards; scope
-# comes from _matching_project_ids, so the same pair works for a single PM's
-# projects and for an account-/geo-wide rollup.
+# Open Alerts — the subset of open findings classified "Alert", as opposed to
+# Observation / Recommendation. Backs the "Open Alerts" KPI + list section on
+# the PM, Account and CXO dashboards; scope comes from _matching_project_ids,
+# so the same pair works for a single PM's projects and for an
+# account-/geo-wide rollup.
 async def count_open_ncs(db: AsyncSession, filters: DashboardFilters) -> int:
     project_ids = await _matching_project_ids(db, filters)
     stmt = (
@@ -1560,7 +2106,7 @@ async def count_open_ncs(db: AsyncSession, filters: DashboardFilters) -> int:
         .select_from(DEAssessmentFinding)
         .where(
             DEAssessmentFinding.project_id.in_(project_ids),
-            DEAssessmentFinding.classification == FindingClassification.NC.value,
+            DEAssessmentFinding.classification == FindingClassification.ALERT.value,
             DEAssessmentFinding.status.in_([s.value for s in _FINDING_OPEN_STATES]),
         )
     )
@@ -1592,7 +2138,7 @@ async def list_open_ncs(db: AsyncSession, filters: DashboardFilters) -> list[Ope
         .outerjoin(User, User.id == DEAssessmentFinding.assigned_to)
         .where(
             DEAssessmentFinding.project_id.in_(project_ids),
-            DEAssessmentFinding.classification == FindingClassification.NC.value,
+            DEAssessmentFinding.classification == FindingClassification.ALERT.value,
             DEAssessmentFinding.status.in_([s.value for s in _FINDING_OPEN_STATES]),
         )
         .order_by(DEAssessmentFinding.finding_date.desc())
@@ -1656,7 +2202,7 @@ def de_findings_summary(
         if f.status == FindingStatus.CLOSED and period.start_date <= f.updated_at.date() <= period.end_date
     ]
 
-    # Grouped by the finding's classification (Observation / Recommendation / NC).
+    # Grouped by the finding's classification (Observation / Recommendation / Alert).
     by_classification: dict[str, int] = defaultdict(int)
     for f in open_findings:
         by_classification[f.classification] += 1
@@ -1837,15 +2383,31 @@ async def _project_reporting_bucket(
         )
     ).scalars().all()
     by_project = {r.project_id: r for r in reports}
+    start_by_project: dict[UUID, date | None] = dict(
+        (
+            await db.execute(
+                select(
+                    Project.id,
+                    func.coalesce(
+                        Project.tool_effective_date, Project.actual_start_date, Project.planned_start_date
+                    ),
+                ).where(Project.id.in_(project_ids))
+            )
+        ).all()
+    )
 
     result: dict[UUID, tuple[str, date]] = {}
     for project in projects:
         report = by_project.get(project.project_id)
+        project_start = start_by_project.get(project.project_id)
+        not_yet_onboarded = project_start is not None and nearest_period.start_date < project_start
         if report is not None and report.status == ReportStatus.REJECTED:
             result[project.project_id] = ("Rework", report.updated_at.date())
         elif report is not None and report.status in (ReportStatus.SUBMITTED, ReportStatus.APPROVED):
             on_time = report.updated_at.date() <= nearest_period.end_date
             result[project.project_id] = ("On Time" if on_time else "Late", nearest_period.end_date)
+        elif not_yet_onboarded:
+            result[project.project_id] = ("On Time", nearest_period.end_date)  # not due yet — nothing was ever owed
         elif nearest_period.end_date < today:
             result[project.project_id] = ("Missing", nearest_period.end_date)
         else:

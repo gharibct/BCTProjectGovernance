@@ -12,6 +12,11 @@ export type DeAllocationRow = {
   project_code: string;
   project_name: string;
   account_name: string | null;
+  geo_name: string | null;
+  region_name: string | null;
+  project_type_name: string | null;
+  // Ownership model — "Fully Owned" | "Co-Owned" | "Customer Driven".
+  project_owned: string | null;
   project_manager_name: string | null;
   project_status: ProjectStatus;
   lifecycle_status: ProjectLifecycleStatus | null;

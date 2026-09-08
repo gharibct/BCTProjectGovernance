@@ -196,6 +196,10 @@ async def test_metric_reference_endpoint_shape(client, override_auth):
     assert dev["effort_variation_pct"]["operational_definition"]
     assert dev["effort_variation_pct"]["benchmark_value"]
     assert dev["cost_performance_index"]["unit"] == "No Unit"
+    # Target range bounds — "" means that side is unbounded.
+    assert dev["test_pass_rate_pct"]["min_value"] == "0"
+    assert dev["test_pass_rate_pct"]["max_value"] == "100"
+    assert dev["effort_variation_pct"]["max_value"] == ""
     # Units containing "#" must be YAML-quoted, or they get truncated at the
     # "#" as a comment.
     sup = {m["key"]: m for m in body["SUPPORT"]["metrics"]}

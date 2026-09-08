@@ -38,6 +38,12 @@ CREATE TABLE projects (
         CASE WHEN actual_start_date IS NOT NULL AND actual_end_date IS NOT NULL
              THEN (actual_end_date - actual_start_date) END
     ) STORED,
+    -- Date this project started being tracked in the tool (may differ from its
+    -- actual/planned start, e.g. an older ongoing project onboarded later).
+    -- NULL = fall back to coalesce(actual_start_date, planned_start_date) for
+    -- reporting "owed" calculations — see services/reporting_activity.py and
+    -- services/dashboard.py.
+    tool_effective_date DATE,
 
     -- Treatment / Health
     applicable_phase TEXT, -- multi-select, comma-joined: Discovery / POC / Assessment / Consulting, Requirement, Design, CUT, Build & Deployment, Testing, UAT Support, Warranty, Support, Migration

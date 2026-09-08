@@ -95,7 +95,7 @@ class ProjectLifecycleStatus(StrEnum):
 
 
 class Category(StrEnum):
-    """Shared 6-category taxonomy: Risk Category, DE Assessment Alert Category."""
+    """Shared 6-category taxonomy: Risk Category, DE Finding Category."""
 
     CORE_DELIVERY = "Core Delivery"
     PEOPLE = "People"
@@ -321,7 +321,7 @@ class FindingClassification(StrEnum):
     # separate `category` field (the Category 6-value Project RAG taxonomy).
     OBSERVATION = "Observation"
     RECOMMENDATION = "Recommendation"
-    NC = "NC"  # Non-Conformance
+    ALERT = "Alert"
 
 
 class FindingStatus(StrEnum):

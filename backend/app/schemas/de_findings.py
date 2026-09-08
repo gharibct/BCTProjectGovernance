@@ -63,9 +63,15 @@ class DEFindingsKpis(BaseModel):
 class DEFindingCreate(DEAssessmentFindingIn):
     """Create payload for POST /de-findings — the project is chosen in the
     drawer, so it rides in the body (the project-scoped route takes it from the
-    path). `sequence_no` is inherited but ignored (assigned server-side)."""
+    path). `sequence_no` is inherited but ignored (assigned server-side).
+
+    finding_date/due_date are mandatory here (unlike the DE Assessment
+    Workspace's project-scoped create, which still allows them optional) —
+    the /de-findings screen requires both up front."""
 
     project_id: UUID
+    finding_date: date
+    due_date: date
 
 
 class DEFindingHistoryCreate(BaseModel):

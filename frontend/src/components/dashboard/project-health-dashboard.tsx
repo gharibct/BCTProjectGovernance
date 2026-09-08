@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   BarChart3,
   Bug,
+  ClipboardCheck,
   Database,
   FolderOpen,
   GitBranch,
@@ -22,6 +23,7 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { REPORT_SUBMISSION_STREAMS } from "@/lib/api/project-health-lists";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BigStat, Card, SubStat } from "./project-health-kpi";
 
@@ -102,6 +104,45 @@ function RagCell({
       <p className="text-[9px] font-semibold tracking-wide uppercase">{label}</p>
       <p className={cn("text-sm font-bold", valueClassName)}>{value}</p>
     </div>
+  );
+}
+
+// Adherence % tone — mirrors the RAG palette used across this page.
+function adherenceTone(pct: number): string {
+  if (pct >= 90) return "text-emerald-600";
+  if (pct >= 75) return "text-amber-600";
+  return "text-red-600";
+}
+
+function ReportSubmissionCard({
+  title,
+  kpi,
+  href,
+}: {
+  title: string;
+  kpi: { submitted_count: number; expected_count: number; adherence_pct: number };
+  href: string;
+}) {
+  const missing = Math.max(kpi.expected_count - kpi.submitted_count, 0);
+  return (
+    <Card
+      title={title}
+      icon={ClipboardCheck}
+      iconClassName="text-slate-500"
+      href={href}
+      footerLabel="View Pending Submissions"
+    >
+      <BigStat
+        value={`${kpi.adherence_pct}%`}
+        label="Adherence"
+        valueClass={adherenceTone(kpi.adherence_pct)}
+      />
+      <div className="flex flex-col gap-1">
+        <SubStat label="Submitted" value={kpi.submitted_count} />
+        <SubStat label="Expected" value={kpi.expected_count} />
+        <SubStat label="Missing" value={missing} valueClass={missing > 0 ? "text-red-600" : undefined} />
+      </div>
+    </Card>
   );
 }
 
@@ -409,6 +450,40 @@ export function ProjectHealthDashboard() {
               </div>
             </Card>
           </div>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <SectionHeader
+              title="Data Integrity / Report Submissions"
+              icon={ClipboardCheck}
+              className="border-slate-200 bg-slate-50 text-slate-600"
+            />
+            <p className="text-xs text-slate-400">
+              Reports filed vs. reports owed (each in-scope project / account / geo × every started
+              reporting period since it was onboarded) — surfaces who has not submitted.
+            </p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <ReportSubmissionCard
+                title="Delivery Status — Projects"
+                kpi={data.report_submissions.delivery_status_projects}
+                href={REPORT_SUBMISSION_STREAMS["delivery-status-projects"].route}
+              />
+              <ReportSubmissionCard
+                title="Metrics — Projects"
+                kpi={data.report_submissions.metrics_projects}
+                href={REPORT_SUBMISSION_STREAMS["metrics-projects"].route}
+              />
+              <ReportSubmissionCard
+                title="Delivery Status — Account"
+                kpi={data.report_submissions.delivery_status_accounts}
+                href={REPORT_SUBMISSION_STREAMS["delivery-status-account"].route}
+              />
+              <ReportSubmissionCard
+                title="Delivery Status — Geo"
+                kpi={data.report_submissions.delivery_status_geos}
+                href={REPORT_SUBMISSION_STREAMS["delivery-status-geo"].route}
+              />
+            </div>
           </section>
         </>
       )}

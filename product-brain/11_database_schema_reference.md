@@ -113,7 +113,7 @@ columns, `set_updated_at` trigger `T`, `ENT-*` from `product-brain/10`).
 | 16 | `measurement_cloud_migration` | Cloud Migration metrics | `id` | `project_id (CASCADE)`, `period_id` | `T`. `ENT-MEAS-CLOUDMIG`. |
 | 17 | `contractual_commitments` (+ `contractual_commitment_actuals`) | SLA commitments + period actuals | `id`; actual keyed by `(commitment_id, period_date)` | `commitment.project_id (CASCADE)`; `actual.commitment_id (CASCADE)`, `recorded_by` | `T` on commitments. `met_status` derived. `ENT-COMMITMENT(-ACTUAL)`. |
 | 18 | `milestone_payments` (+ `milestone_payment_actuals`) | Payment milestones + actual | `id` | `milestone.project_id (CASCADE)`; `actual.milestone_id` | `T`. `status` (Paid On Time / Delayed / Yet To Be Paid) derived. `ENT-MILESTONE(-ACTUAL)`. |
-| 19 | `de_assessments`, `de_assessment_alerts`, `de_assessment_findings` | DE assessment + alerts + findings | `id`; `de_assessment_alerts.alert_code` (`ALT-*`) unique | `project_id (CASCADE)`; alerts/findings → `assessment_id (CASCADE)`; `assessed_by`, `raised_by`, `assigned_to → users` | `T` on assessments + findings. Extended by `add_de_assessment_workspace_fields.sql`. `ENT-DEASSESSMENT/DEALERT/DEFINDING`. |
+| 19 | `de_assessments`, `de_assessment_findings` | DE assessment + findings | `id` | `project_id (CASCADE)`; findings → `assessment_id (CASCADE)`; `assessed_by`, `assigned_to → users` | `T` on assessments + findings. Extended by `add_de_assessment_workspace_fields.sql`. `ENT-DEASSESSMENT/DEFINDING`. |
 | 20 | `data_integrity_checklist_items` | Freshness-check catalog | `id` | — | `item_name`, `module_name`, `expected_cadence`, `is_active`. No FK to source data — mapped by `module_name` in the service. `ENT-DICHECKITEM`. |
 | 21 | `integration_connections`, `backup_restore_log` | Integration registry + backup log | `id`; `integration_name` unique | `updated_by`, `triggered_by → users` | `T` on connections. `config` JSON. `ENT-INTEGRATION/BACKUPLOG`. |
 | 22 | `user_activity_log` | Audit / activity log | `id` | `user_id → users` | Append-only. `details` JSON, `ip_address` INET. `ENT-ACTIVITYLOG`. |
@@ -173,8 +173,8 @@ This is a `RISK` (§7).
 
 - One row per `(entity_code, period_key)` — `period_key` is the calendar year, so codes
   reset annually (`PRJ-2026-0042`, `RSK-2026-0001`).
-- `entity_code` ∈ `PROJECT`, `RISK`, `ISSUE`, `DEPENDENCY`, `ASSUMPTION`, `OPPORTUNITY`,
-  `DE_ALERT` (`ACTION` uses the same mechanism — `ACT-*`).
+- `entity_code` ∈ `PROJECT`, `RISK`, `ISSUE`, `DEPENDENCY`, `ASSUMPTION`, `OPPORTUNITY`
+  (`ACTION` uses the same mechanism — `ACT-*`).
 - `services/code_generator.py` runs `SELECT … FOR UPDATE` on the sequence row, increments
   `last_number`, and formats the code — **inside the same transaction** as the record being
   numbered, so concurrent creates serialise on that row (BR-PROJ-020, BR-RAID-010).
