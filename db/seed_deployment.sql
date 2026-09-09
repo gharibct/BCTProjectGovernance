@@ -1,25 +1,7 @@
--- Minimal bootstrap for a fresh deployment database (new machine, new
--- Postgres instance, no existing data). Run once after db/run_all.sql,
--- against that same database.
---
--- Seeds only what's structurally required before anyone can use the app:
---   - roles: RBAC role codes the backend checks by code (see app/api/deps.py
---     and the per-role menu/permission logic) — the app can't authorize
---     anyone without these rows existing.
---   - reporting_periods: Weekly/Monthly periods drive the period dropdowns
---     on Measurement/Project Status/DE Assessment; Baseline is the sentinel
---     period for each new project's one-time initial Self Assessment.
---   - one Admin user: AUTH_TYPE=no_password logs in by looking up an
---     existing users row by ldap_username/email (see auth.py's /login) —
---     without at least one user, nobody can sign in at all. Admin's sidebar
---     is the union of every other role's, so this account can then create
---     everything else.
---
--- Deliberately NOT seeded here (unlike db/seed_dev.sql, which this was
--- trimmed from): organizations, geos, regions, project types, products,
--- accounts, and any other demo users. Add real values for those through the
--- app once logged in as Admin (Admin screens or the Master Data Excel
--- import/export tool — see backend/scripts/import_master_data.py).
+-- Local dev seed data for reference lookups (roles, organizations, geos,
+-- project types, accounts, a handful of users) so the New Project charter's
+-- dropdowns have something to select. Not part of run_all.sql — run
+-- separately against a dev database only.
 
 INSERT INTO roles (id, code, name, description) VALUES
     (gen_random_uuid(), 'ADMIN', 'Admin', 'Full system administration'),
@@ -31,16 +13,82 @@ INSERT INTO roles (id, code, name, description) VALUES
     (gen_random_uuid(), 'DELIVERY_EXCELLENCE', 'Delivery Excellence', 'DE assessments and governance'),
     (gen_random_uuid(), 'PMO', 'PMO', 'Project Management Office');
 
--- One initial Admin login. Change the identifier/email/name below before
--- running against a real deployment if this shouldn't be the first admin.
-INSERT INTO users (id, ldap_username, full_name, email, role_id, is_active, mfa_enrolled, created_at, updated_at) VALUES
-    (gen_random_uuid(), 'hari.g', 'Hari Hara Sudhan.G', 'hari.g@bahwancybertek.com',
-     (SELECT id FROM roles WHERE code = 'ADMIN'), true, false, now(), now());
+INSERT INTO organizations (id, code, name, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), 'BCTPL', 'BCT Private Limited', true, now(), now()),
+    (gen_random_uuid(), 'BCTC', 'BCT Consulting', true, now(), now());
+    --(gen_random_uuid(), 'FT', 'FinTech Unit', true, now(), now());
 
--- Reporting Period lookup (see db/tables/01_reference_data.sql) — all
--- ISO weeks/months of 2026 so Measurement and Project Status have periods to
--- report against. Extend the year bounds below (or re-run with a later
--- range) as calendar years roll over.
+INSERT INTO geos (id, code, name, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), 'APAC', 'Asia Pacific', true, now(), now()),
+    (gen_random_uuid(), 'MEA', 'Middle East & Africa', true, now(), now()),
+    (gen_random_uuid(), 'US', 'United States', true, now(), now());
+
+INSERT INTO regions (id, geo_id, code, name, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'BRUNEI', 'Brunei', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'SINGAPORE', 'Singapore', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'INDIA', 'India', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'US'), 'US', 'United States', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'UAE', 'United Arab Emirates', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'QATAR', 'Qatar', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'UK', 'United Kingdom', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'OMAN', 'Oman', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'SAUDI', 'Saudi Arabia', true, now(), now());
+
+INSERT INTO project_types (id, code, name, description, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), 'DEVELOPMENT', 'Development', NULL, true, now(), now()),
+    (gen_random_uuid(), 'PROFESSIONAL_STAFFING', 'Professional Staffing', NULL, true, now(), now()),
+    (gen_random_uuid(), 'SUPPORT', 'Support', NULL, true, now(), now()),
+    (gen_random_uuid(), 'TESTING', 'Testing', NULL, true, now(), now()),
+    (gen_random_uuid(), 'CLOUD_MAINTENANCE', 'Cloud Maintenance', NULL, true, now(), now()),
+    (gen_random_uuid(), 'CLOUD_MIGRATION', 'Cloud Migration', NULL, true, now(), now()),
+    (gen_random_uuid(), 'CONSULTING', 'Consulting', NULL, true, now(), now());
+
+-- Dev-only sample values — no real product catalog was supplied, so these
+-- just exercise the Project Profile "Product" dropdown locally. Admin
+-- adds the real list via POST /api/v1/products.
+INSERT INTO products (id, code, name, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), 'CueTrans', 'CueTrans', true, now(), now()),
+    (gen_random_uuid(), 'Retina', 'Retina', true, now(), now()),
+    (gen_random_uuid(), 'FuelTrans', 'FuelTrans', true, now(), now());
+
+INSERT INTO accounts (id, name, geo_id, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), 'Gulf National Bank', (SELECT id FROM geos WHERE code = 'MEA'), true, now(), now()),
+    (gen_random_uuid(), 'Pacific Retail Group', (SELECT id FROM geos WHERE code = 'APAC'), true, now(), now()),
+    (gen_random_uuid(), 'Liberty Insurance Co', (SELECT id FROM geos WHERE code = 'US'), true, now(), now());
+
+INSERT INTO users (id, ldap_username, full_name, email, role_id, is_active, mfa_enrolled, created_at, updated_at) VALUES
+    -- Admin role so this login (the primary dev/test account) sees every
+    -- menu — Admin's sidebar is the union of every other role's (see
+    -- frontend/src/lib/menu-config.ts).
+    (gen_random_uuid(), 'hari.g', 'Hari G', 'hari.g@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ADMIN'), true, false, now(), now());
+	/*
+    (gen_random_uuid(), 'daniel.osei', 'Daniel Osei', 'daniel.osei@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'DELIVERY_EXCELLENCE'), true, false, now(), now()),
+    (gen_random_uuid(), 'admin.user', 'Admin User', 'admin.user@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ADMIN'), true, false, now(), now()),
+    -- Role-shorthand demo logins (identifier doubles as ldap_username/email
+    -- prefix) so testing each new role's menu/dashboard doesn't require
+    -- remembering a person's name.
+    (gen_random_uuid(), 'pm', 'Project Manager', 'pm@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'PROJECT_MANAGER'), true, false, now(), now()),
+    (gen_random_uuid(), 'cxo', 'CXO', 'cxo@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'CXO'), true, false, now(), now()),
+    (gen_random_uuid(), 'acchead', 'Account Manager', 'acchead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ACCOUNT_MANAGER'), true, false, now(), now()),
+    (gen_random_uuid(), 'geohead', 'Geo Head', 'geohead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'GEO_HEAD'), true, false, now(), now());
+	*/
+-- Which geo(s)/account(s) each Geo Head / Account Manager owns — many-to-many
+-- (see db/tables/33_user_scope_assignments.sql), drives their dashboard
+-- pre-filtering.
+/*
+INSERT INTO user_accounts (id, user_id, account_id, created_at) VALUES
+    (gen_random_uuid(), (SELECT id FROM users WHERE ldap_username = 'acchead'),
+     (SELECT id FROM accounts WHERE name = 'Gulf National Bank'), now()),
+    (gen_random_uuid(), (SELECT id FROM users WHERE ldap_username = 'acchead'),
+     (SELECT id FROM accounts WHERE name = 'Liberty Insurance Co'), now());
+
+INSERT INTO user_geos (id, user_id, geo_id, created_at) VALUES
+    (gen_random_uuid(), (SELECT id FROM users WHERE ldap_username = 'geohead'),
+     (SELECT id FROM geos WHERE code = 'APAC'), now());
+*/
+-- Reporting Period lookup (see 01_reference_data.sql) — all ISO weeks/months
+-- of 2026 so Measurement and Project Status have periods to report against.
+-- Bump the year bounds below when seeding a fresh dev DB in a later year.
 INSERT INTO reporting_periods (id, period_type, code, label, start_date, end_date, is_active, created_at, updated_at)
 SELECT gen_random_uuid(), 'Weekly',
        to_char(d, 'IYYY') || '-W' || to_char(d, 'IW'),

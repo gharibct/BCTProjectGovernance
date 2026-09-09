@@ -116,21 +116,40 @@ export function useUsers() {
   });
 }
 
-export type UserSearchOpts = { roleCode?: string; activeOnly?: boolean };
+// Who may be picked as a Project Manager / Account Head. A Geo Head or Account
+// Head sometimes acts as PM, and a Geo Head sometimes acts as Account Head, so
+// the candidate directory for those allocations spans several roles (mirrors
+// the top-bar "Work as" combo — see menu-config.ts WORK_CONTEXTS).
+export const PM_CANDIDATE_ROLES = ["PROJECT_MANAGER", "ACCOUNT_MANAGER", "GEO_HEAD"] as const;
+export const ACCOUNT_HEAD_CANDIDATE_ROLES = ["ACCOUNT_MANAGER", "GEO_HEAD"] as const;
+
+// `roleCode` (one) or `roleCodes` (any-of) — a user matches if their role is in
+// the set. Backend takes a repeatable `role_code` query param.
+export type UserSearchOpts = {
+  roleCode?: string;
+  roleCodes?: readonly string[];
+  activeOnly?: boolean;
+};
+
+function roleCodeList(opts: Pick<UserSearchOpts, "roleCode" | "roleCodes">): string[] {
+  if (opts.roleCodes?.length) return [...opts.roleCodes];
+  return opts.roleCode ? [opts.roleCode] : [];
+}
 
 // Server-side typeahead for the resource picker. Empty term => first 20
 // alphabetical. Always enabled; `keepPreviousData` keeps the old list visible
 // (no flicker) while a new term's request is in flight.
 export function useUserSearch(term: string, opts: UserSearchOpts = {}) {
-  const { roleCode, activeOnly = true } = opts;
+  const { activeOnly = true } = opts;
+  const codes = roleCodeList(opts);
   const q = term.trim();
   return useQuery({
-    queryKey: ["users", "search", q, roleCode ?? null, activeOnly],
+    queryKey: ["users", "search", q, codes.join(",") || null, activeOnly],
     queryFn: () => {
       const params = new URLSearchParams({ limit: "20" });
       if (q) params.set("search", q);
       if (activeOnly) params.set("is_active", "true");
-      if (roleCode) params.set("role_code", roleCode);
+      for (const c of codes) params.append("role_code", c);
       return api.get<Page<User>>(`/users?${params.toString()}`);
     },
     select: (page) => page.items,
@@ -165,11 +184,12 @@ export function useUsersByIds(ids: readonly (string | null | undefined)[]) {
 export async function fetchUserOptions(args: {
   search: string;
   roleCode?: string;
+  roleCodes?: readonly string[];
   limit: number;
 }): Promise<Page<User>> {
   const params = new URLSearchParams({ limit: String(args.limit), is_active: "true" });
   if (args.search.trim()) params.set("search", args.search.trim());
-  if (args.roleCode) params.set("role_code", args.roleCode);
+  for (const c of roleCodeList(args)) params.append("role_code", c);
   return api.get<Page<User>>(`/users?${params.toString()}`);
 }
 

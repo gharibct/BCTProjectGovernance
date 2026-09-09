@@ -4,13 +4,15 @@ import * as React from "react";
 import { Building2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
+import { ResourcePicker } from "@/components/forms/resource-picker";
 import { usePageBanner } from "@/stores/page-banner";
-import { useAccounts, useGeos, type Account } from "@/lib/api/reference-data";
+import { ACCOUNT_HEAD_CANDIDATE_ROLES, useAccounts, useGeos, type Account } from "@/lib/api/reference-data";
 import { useCreateAccount, useDeleteAccount, useUpdateAccount, type AccountPayload } from "@/lib/api/accounts";
+import { useAccountHead, useSetAccountHead } from "@/lib/api/users";
 
 function toValues(account: Account): Record<string, string> {
   return {
@@ -38,11 +40,24 @@ export function CreateAccountPanel() {
 
   const { values, set, reset, load } = useEntryValues();
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  // Account Head — optional single owner, persisted via the account-head
+  // endpoint (a user_accounts link), not part of AccountPayload.
+  const [accountHeadId, setAccountHeadId] = React.useState<string | null>(null);
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
+  const setAccountHead = useSetAccountHead();
+  const { data: editingHead } = useAccountHead(editingId);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
+
+  // Seed the picker once the current head arrives for this editingId (setState
+  // during render, guarded by `syncedFor` — same pattern as create-user-panel).
+  const [syncedHeadFor, setSyncedHeadFor] = React.useState<string | null>(null);
+  if (editingId && editingId !== syncedHeadFor && editingHead !== undefined) {
+    setSyncedHeadFor(editingId);
+    setAccountHeadId(editingHead?.id ?? null);
+  }
 
   const geoName = (id: string | null) => geos.find((g) => g.id === id)?.name ?? "—";
 
@@ -72,11 +87,15 @@ export function CreateAccountPanel() {
   const startEdit = (account: Account) => {
     setEditingId(account.id);
     load(toValues(account));
+    setAccountHeadId(null);
+    setSyncedHeadFor(null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     reset();
+    setAccountHeadId(null);
+    setSyncedHeadFor(null);
   };
 
   const handleDelete = (account: Account) => {
@@ -96,11 +115,16 @@ export function CreateAccountPanel() {
     try {
       if (editingId) {
         await updateAccount.mutateAsync({ id: editingId, payload });
+        await setAccountHead.mutateAsync({ accountId: editingId, userId: accountHeadId });
         cancelEdit();
         showSuccess("Account Updated Successfully");
       } else {
-        await createAccount.mutateAsync(payload);
+        const created = await createAccount.mutateAsync(payload);
+        if (accountHeadId) {
+          await setAccountHead.mutateAsync({ accountId: created.id, userId: accountHeadId });
+        }
         reset();
+        setAccountHeadId(null);
         showSuccess("Account Created Successfully");
       }
     } catch (err) {
@@ -108,7 +132,7 @@ export function CreateAccountPanel() {
     }
   }
 
-  const busy = createAccount.isPending || updateAccount.isPending;
+  const busy = createAccount.isPending || updateAccount.isPending || setAccountHead.isPending;
 
   return (
     <div className="flex flex-col gap-8">
@@ -152,6 +176,19 @@ export function CreateAccountPanel() {
 
       <SectionCard icon={Building2} title={editingId ? "Edit Account" : "New Account"}>
         <EntryFields defs={fields} values={values} set={set} />
+        <div className="mt-6 max-w-md">
+          <Field
+            label="Account Head"
+            hint="Optional. An Account Head or Geo Head who owns this account. Can be changed later on Reassign Owners."
+          >
+            <ResourcePicker
+              value={accountHeadId}
+              onChange={setAccountHeadId}
+              roleCodes={ACCOUNT_HEAD_CANDIDATE_ROLES}
+              placeholder="Select Account Head…"
+            />
+          </Field>
+        </div>
         <div className="mt-6 flex justify-end gap-3">
           {editingId ? (
             <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>

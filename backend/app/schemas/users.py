@@ -66,6 +66,14 @@ class UserGeosUpdate(BaseModel):
     geo_ids: list[UUID] = []
 
 
+class EntityHeadUpdate(BaseModel):
+    """Set (or clear, with null) the single Account Head / Geo Head for an
+    account / geo from the Admin creation screens. Single-owner: the write
+    replaces any existing head link. See PUT /accounts/{id}/account-head."""
+
+    user_id: UUID | None = None
+
+
 class LoginRequest(BaseModel):
     identifier: str  # ldap_username or email, case-insensitive
     password: str = ""  # required only when AUTH_TYPE=password

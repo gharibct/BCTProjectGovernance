@@ -82,6 +82,33 @@ export function useAccountHead(accountId: string | null) {
   });
 }
 
+// Single-owner Account Head / Geo Head assignment from the Admin creation
+// screens. `userId = null` clears the head. Replaces any existing head link
+// (see backend PUT /accounts/{id}/account-head).
+export function useSetAccountHead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, userId }: { accountId: string; userId: string | null }) =>
+      api.put<User | null>(`/accounts/${accountId}/account-head`, { user_id: userId }),
+    onSuccess: (_data, { accountId }) => {
+      queryClient.invalidateQueries({ queryKey: ["account-head", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account-head"] });
+    },
+  });
+}
+
+export function useSetGeoHead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ geoId, userId }: { geoId: string; userId: string | null }) =>
+      api.put<User | null>(`/geos/${geoId}/geo-head`, { user_id: userId }),
+    onSuccess: (_data, { geoId }) => {
+      queryClient.invalidateQueries({ queryKey: ["geo-head", geoId] });
+      queryClient.invalidateQueries({ queryKey: ["geo-head"] });
+    },
+  });
+}
+
 export function useSetUserAccounts() {
   const queryClient = useQueryClient();
   return useMutation({

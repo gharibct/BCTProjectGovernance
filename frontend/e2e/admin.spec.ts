@@ -95,3 +95,48 @@ test.describe("/admin/accounts", () => {
     await expect(page.getByRole("row", { name: new RegExp(accountName) })).toHaveCount(0);
   });
 });
+
+test.describe("/admin/regions", () => {
+  test("renders with no console errors", async ({ page }) => {
+    const errors = trackConsoleErrors(page);
+    const response = await page.goto("/admin/regions");
+    expect(response?.status() ?? 0).toBeLessThan(400);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("create, edit, and delete a region", async ({ page }) => {
+    await page.goto("/admin/regions");
+
+    const regionName = `E2E Region ${Date.now()}`;
+    const updatedName = `${regionName} (Updated)`;
+
+    // --- Create --- (index 0 is the disabled "Select…" placeholder)
+    await page.getByLabel("Geo").selectOption({ index: 1 });
+    await page.getByLabel("Region Code").fill(`E2E-${Date.now()}`);
+    await page.getByLabel("Region Name").fill(regionName);
+    await page.getByRole("button", { name: "Add Region" }).click();
+
+    const row = page.getByRole("row", { name: new RegExp(regionName) });
+    await expect(row).toBeVisible();
+
+    // --- Edit ---
+    await row.getByRole("button", { name: "Edit row" }).click();
+    await expect(page.getByRole("heading", { name: "Edit Region" })).toBeVisible();
+    await page.getByLabel("Region Name").fill(updatedName);
+    await page.getByRole("button", { name: "Save Changes" }).click();
+
+    await expect(page.getByRole("row", { name: new RegExp(updatedName) })).toBeVisible();
+
+    // --- Delete ---
+    await page
+      .getByRole("row", { name: new RegExp(updatedName) })
+      .getByRole("button", { name: "Delete row" })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("Delete this row?")).toBeVisible();
+    await dialog.getByRole("button", { name: "Delete" }).click();
+
+    await expect(page.getByRole("row", { name: new RegExp(updatedName) })).toHaveCount(0);
+  });
+});

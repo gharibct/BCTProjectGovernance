@@ -17,7 +17,10 @@ import { useUserSearch, useUsersByIds } from "@/lib/api/reference-data";
 export type ResourcePickerProps = {
   value: string | null;
   onChange: (id: string | null) => void;
+  /** Restrict the directory to one role. */
   roleCode?: string;
+  /** Restrict to any-of these roles (takes precedence over `roleCode`). */
+  roleCodes?: readonly string[];
   activeOnly?: boolean;
   placeholder?: string;
   disabled?: boolean;
@@ -38,6 +41,7 @@ export function ResourcePicker({
   value,
   onChange,
   roleCode,
+  roleCodes,
   activeOnly = true,
   placeholder = "Search people…",
   disabled = false,
@@ -53,6 +57,7 @@ export function ResourcePicker({
   const debounced = useDebouncedValue(term, 250);
   const { data: results = [], isFetching } = useUserSearch(open ? debounced : "", {
     roleCode,
+    roleCodes,
     activeOnly,
   });
 

@@ -14,18 +14,25 @@ const ROLES = [
     slug: "admin",
     identifier: "hari.g",
     landing: "/dashboard/admin",
+    // Admin keeps only its own screens — PM / Account Head / Geo Head / DE / CXO
+    // work is reached via the top-bar "Work as" combo (see menu-config.ts).
     expectMenu: [
       "Admin Dashboard",
-      "New Project",
-      "Maintain Project",
-      "Report Project",
       "System Health",
       "Users & Roles",
       "Accounts",
+      "Geos",
+      "Regions",
+      "Reassign Owners",
+    ],
+    avoidMenu: [
+      "New Project",
+      "Maintain Project",
+      "Report Project",
       "Account Reporting",
       "Geo Reporting",
-    ],
-    avoidMenu: [] as string[],
+      "DE Assessment",
+    ] as string[],
   },
   {
     slug: "project-manager",
@@ -63,14 +70,20 @@ const ROLES = [
     slug: "account-manager",
     identifier: "acchead",
     landing: "/dashboard/account-manager",
-    expectMenu: ["My Summary", "Account Dashboard", "Account Reporting", "Project Dashboard"],
+    expectMenu: [
+      "My Summary",
+      "Account Dashboard",
+      "Account Reporting",
+      "Project Dashboard",
+      "Reassign Owners",
+    ],
     avoidMenu: ["Admin Dashboard", "New Project", "Geo Reporting", "Geo Dashboard", "Maintain Project"],
   },
   {
     slug: "geo-head",
     identifier: "geohead",
     landing: "/dashboard/geo-head",
-    expectMenu: ["My Summary", "Geo Dashboard", "Geo Reporting", "Account Dashboard"],
+    expectMenu: ["My Summary", "Geo Dashboard", "Geo Reporting", "Account Dashboard", "Reassign Owners"],
     avoidMenu: ["Admin Dashboard", "New Project", "Account Reporting", "Project Dashboard", "Maintain Project"],
   },
 ] as const;

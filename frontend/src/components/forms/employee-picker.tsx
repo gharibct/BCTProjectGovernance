@@ -20,6 +20,7 @@ export function EmployeePicker({
   value,
   onChange,
   roleCode,
+  roleCodes,
   label,
   placeholder = "Search people…",
   searchPlaceholder = "Search people…",
@@ -32,6 +33,8 @@ export function EmployeePicker({
   onChange: (id: string | null) => void;
   /** Restrict the directory to one role, e.g. "PROJECT_MANAGER". */
   roleCode?: string;
+  /** Restrict to any-of these roles (takes precedence over `roleCode`). */
+  roleCodes?: readonly string[];
   label?: string;
   placeholder?: string;
   searchPlaceholder?: string;
@@ -52,9 +55,9 @@ export function EmployeePicker({
       placeholder={placeholder}
       searchPlaceholder={searchPlaceholder}
       searchLabel="Name / keyword"
-      queryKey={["users", "filtered-combo", roleCode ?? "all"]}
+      queryKey={["users", "filtered-combo", roleCodes?.join(",") ?? roleCode ?? "all"]}
       fetchOptions={async ({ search, limit }) => {
-        const page = await fetchUserOptions({ search, roleCode, limit });
+        const page = await fetchUserOptions({ search, roleCode, roleCodes, limit });
         return { items: page.items.map(toItem), total: page.total };
       }}
       resolveSelected={async (selectedId) => {

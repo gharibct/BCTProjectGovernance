@@ -8,19 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Field, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
-import { MultiSelectChecklist } from "@/components/forms/multi-select-checklist";
 import { usePageBanner } from "@/stores/page-banner";
-import { useAccounts, useGeos, useRoles, useUsers, type User } from "@/lib/api/reference-data";
+import { useRoles, useUsers, type User } from "@/lib/api/reference-data";
 import {
   useClearUserPassword,
   useCreateUser,
   useDeleteUser,
-  useSetUserAccounts,
-  useSetUserGeos,
   useSetUserPassword,
   useUpdateUser,
-  useUserAccounts,
-  useUserGeos,
 } from "@/lib/api/users";
 
 // Keep in sync with backend PASSWORD_MIN_LENGTH (app/schemas/users.py).
@@ -39,41 +34,18 @@ function toValues(user: User): Record<string, string> {
 export function CreateUserPanel() {
   const { data: users = [] } = useUsers();
   const { data: roles = [] } = useRoles();
-  const { data: accounts = [] } = useAccounts();
-  const { data: geos = [] } = useGeos();
 
   const { values, set, reset, load } = useEntryValues();
-  const [accountIds, setAccountIds] = React.useState<string[]>([]);
-  const [geoIds, setGeoIds] = React.useState<string[]>([]);
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
-  const setUserAccounts = useSetUserAccounts();
-  const setUserGeos = useSetUserGeos();
   const setUserPassword = useSetUserPassword();
   const clearUserPassword = useClearUserPassword();
   const [passwordInput, setPasswordInput] = React.useState("");
-  const { data: editingAccountIds } = useUserAccounts(editingId);
-  const { data: editingGeoIds } = useUserGeos(editingId);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
-
-  // The user's current scope loads asynchronously (a separate fetch from the
-  // user row itself) — seed the checklists once it arrives for this editingId,
-  // same render-time-sync pattern as regional-reporting/status-tabs.tsx's
-  // `syncedFor` guard (setState during render, not in an effect).
-  const [syncedAccountsFor, setSyncedAccountsFor] = React.useState<string | null>(null);
-  if (editingId && editingId !== syncedAccountsFor && editingAccountIds) {
-    setSyncedAccountsFor(editingId);
-    setAccountIds(editingAccountIds);
-  }
-  const [syncedGeosFor, setSyncedGeosFor] = React.useState<string | null>(null);
-  if (editingId && editingId !== syncedGeosFor && editingGeoIds) {
-    setSyncedGeosFor(editingId);
-    setGeoIds(editingGeoIds);
-  }
 
   const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? "—";
 
@@ -91,22 +63,17 @@ export function CreateUserPanel() {
     { key: "is_active", label: "Active", kind: "select", options: ["Yes", "No"] },
   ];
 
-  const busy =
-    createUser.isPending || updateUser.isPending || setUserAccounts.isPending || setUserGeos.isPending;
+  const busy = createUser.isPending || updateUser.isPending;
 
   const startEdit = (user: User) => {
     setEditingId(user.id);
     load(toValues(user));
-    setAccountIds([]);
-    setGeoIds([]);
     setPasswordInput("");
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     reset();
-    setAccountIds([]);
-    setGeoIds([]);
     setPasswordInput("");
   };
 
@@ -158,12 +125,11 @@ export function CreateUserPanel() {
     };
 
     try {
-      const userId = editingId
-        ? (await updateUser.mutateAsync({ id: editingId, payload })).id
-        : (await createUser.mutateAsync(payload)).id;
-
-      await setUserAccounts.mutateAsync({ userId, accountIds });
-      await setUserGeos.mutateAsync({ userId, geoIds });
+      if (editingId) {
+        await updateUser.mutateAsync({ id: editingId, payload });
+      } else {
+        await createUser.mutateAsync(payload);
+      }
 
       const wasEditing = !!editingId;
       cancelEdit();
@@ -202,24 +168,9 @@ export function CreateUserPanel() {
 
       <SectionCard icon={Users} title={editingId ? "Edit User" : "New User"}>
         <EntryFields defs={fields} values={values} set={set} />
-        <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Accounts" hint="Accounts this user can see (Account Manager scope).">
-            <MultiSelectChecklist
-              options={accounts.map((a) => ({ value: a.id, label: a.name }))}
-              value={accountIds}
-              onChange={setAccountIds}
-              emptyLabel="No accounts exist yet."
-            />
-          </Field>
-          <Field label="Geos" hint="Geos this user can see (Geo Head scope).">
-            <MultiSelectChecklist
-              options={geos.map((g) => ({ value: g.id, label: g.name }))}
-              value={geoIds}
-              onChange={setGeoIds}
-              emptyLabel="No geos exist yet."
-            />
-          </Field>
-        </div>
+        {/* Account / Geo mapping moved out of here: an Account Head is set on
+            Admin → Accounts, a Geo Head on Admin → Geos, and any owner can be
+            changed later on Reassign Owners. */}
         {editingId ? (
           <div className="mt-6 border-t border-slate-200 pt-6">
             <Field

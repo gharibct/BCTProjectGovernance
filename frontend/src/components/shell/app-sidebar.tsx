@@ -16,9 +16,11 @@ import {
   Globe,
   HeartPulse,
   LayoutGrid,
+  Map as MapIcon,
   Plug,
   Plus,
   ShieldCheck,
+  UserCog,
   Users,
   Wrench,
 } from "lucide-react";
@@ -635,6 +637,15 @@ export function AppSidebar() {
           />
         ) : null}
 
+        {has("admin-regions") ? (
+          <SimpleLink
+            href="/admin/regions"
+            icon={MapIcon}
+            label="Regions"
+            active={pathname.startsWith("/admin/regions")}
+          />
+        ) : null}
+
         {has("project-review") && (isAccountManager || isProjectManager) ? projectDashboardGroup : null}
 
         {has("pm-findings") ? (
@@ -643,6 +654,17 @@ export function AppSidebar() {
             icon={FileSearch}
             label="DE Findings"
             active={pathname.startsWith("/pm-findings")}
+          />
+        ) : null}
+
+        {/* Reassign Owners sits last for every role that has it (Geo Head,
+            Account Head, DE, Admin) — see menu-config.ts. */}
+        {has("reassignment") ? (
+          <SimpleLink
+            href="/reassignment"
+            icon={UserCog}
+            label="Reassign Owners"
+            active={pathname.startsWith("/reassignment")}
           />
         ) : null}
       </nav>

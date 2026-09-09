@@ -19,6 +19,7 @@ import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole } from "@/stores/session";
 import { ROLE_LANDING_ROUTE } from "@/lib/menu-config";
 import { useCreateProjectCreationRequest } from "@/lib/api/project-creation-requests";
+import { PM_CANDIDATE_ROLES } from "@/lib/api/reference-data";
 
 const inputClass = "h-11";
 
@@ -139,7 +140,7 @@ export function ProjectCreationForm() {
         >
           <EmployeePicker
             id="project-manager"
-            roleCode="PROJECT_MANAGER"
+            roleCodes={PM_CANDIDATE_ROLES}
             value={projectManagerId}
             onChange={(id) => {
               setProjectManagerId(id);

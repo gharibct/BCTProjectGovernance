@@ -4,13 +4,15 @@ import * as React from "react";
 import { Globe } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
+import { ResourcePicker } from "@/components/forms/resource-picker";
 import { usePageBanner } from "@/stores/page-banner";
 import { useGeos, type Geo } from "@/lib/api/reference-data";
 import { useCreateGeo, useDeleteGeo, useUpdateGeo, type GeoPayload } from "@/lib/api/geos";
+import { useGeoHead, useSetGeoHead } from "@/lib/api/users";
 
 function toValues(geo: Geo): Record<string, string> {
   return {
@@ -35,11 +37,24 @@ export function CreateGeoPanel() {
 
   const { values, set, reset, load } = useEntryValues();
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  // Geo Head — optional single owner, persisted via the geo-head endpoint
+  // (a user_geos link), not part of GeoPayload.
+  const [geoHeadId, setGeoHeadId] = React.useState<string | null>(null);
   const createGeo = useCreateGeo();
   const updateGeo = useUpdateGeo();
   const deleteGeo = useDeleteGeo();
+  const setGeoHead = useSetGeoHead();
+  const { data: editingHead } = useGeoHead(editingId);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
+
+  // Seed the picker once the current head arrives for this editingId (setState
+  // during render, guarded by `syncedFor` — same pattern as create-user-panel).
+  const [syncedHeadFor, setSyncedHeadFor] = React.useState<string | null>(null);
+  if (editingId && editingId !== syncedHeadFor && editingHead !== undefined) {
+    setSyncedHeadFor(editingId);
+    setGeoHeadId(editingHead?.id ?? null);
+  }
 
   const fields: FieldDef[] = [
     { key: "code", label: "Geo Code", kind: "text", mandatory: true },
@@ -56,11 +71,15 @@ export function CreateGeoPanel() {
   const startEdit = (geo: Geo) => {
     setEditingId(geo.id);
     load(toValues(geo));
+    setGeoHeadId(null);
+    setSyncedHeadFor(null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     reset();
+    setGeoHeadId(null);
+    setSyncedHeadFor(null);
   };
 
   const handleDelete = (geo: Geo) => {
@@ -80,11 +99,16 @@ export function CreateGeoPanel() {
     try {
       if (editingId) {
         await updateGeo.mutateAsync({ id: editingId, payload });
+        await setGeoHead.mutateAsync({ geoId: editingId, userId: geoHeadId });
         cancelEdit();
         showSuccess("Geo Updated Successfully");
       } else {
-        await createGeo.mutateAsync(payload);
+        const created = await createGeo.mutateAsync(payload);
+        if (geoHeadId) {
+          await setGeoHead.mutateAsync({ geoId: created.id, userId: geoHeadId });
+        }
         reset();
+        setGeoHeadId(null);
         showSuccess("Geo Created Successfully");
       }
     } catch (err) {
@@ -92,7 +116,7 @@ export function CreateGeoPanel() {
     }
   }
 
-  const busy = createGeo.isPending || updateGeo.isPending;
+  const busy = createGeo.isPending || updateGeo.isPending || setGeoHead.isPending;
 
   return (
     <div className="flex flex-col gap-8">
@@ -127,6 +151,19 @@ export function CreateGeoPanel() {
 
       <SectionCard icon={Globe} title={editingId ? "Edit Geo" : "New Geo"}>
         <EntryFields defs={fields} values={values} set={set} />
+        <div className="mt-6 max-w-md">
+          <Field
+            label="Geo Head"
+            hint="Optional. The Geo Head who owns this geo. Can be changed later on Reassign Owners."
+          >
+            <ResourcePicker
+              value={geoHeadId}
+              onChange={setGeoHeadId}
+              roleCode="GEO_HEAD"
+              placeholder="Select Geo Head…"
+            />
+          </Field>
+        </div>
         <div className="mt-6 flex justify-end gap-3">
           {editingId ? (
             <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>

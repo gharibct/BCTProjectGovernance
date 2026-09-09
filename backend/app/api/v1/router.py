@@ -30,6 +30,7 @@ from app.api.v1.endpoints import (
     project_status,
     projects,
     raid,
+    reassignment,
     reference_data,
     regional_status,
     users,
@@ -62,6 +63,7 @@ api_router.include_router(de_findings.router)
 api_router.include_router(pm_findings.router)
 api_router.include_router(de_allocation.router)
 api_router.include_router(de_approval.router)
+api_router.include_router(reassignment.router)
 api_router.include_router(data_integrity.router)
 api_router.include_router(integrations.router)
 api_router.include_router(audit.router)
