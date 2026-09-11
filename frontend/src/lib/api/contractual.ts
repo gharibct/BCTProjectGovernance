@@ -18,6 +18,7 @@ export type ContractualCommitment = {
   commitment_name: string;
   formula: string | null;
   target: string | null;
+  target_uom: string | null;
   penalty_applicable: boolean;
   penalty_value: string | null;
   created_at: string;
@@ -29,6 +30,7 @@ export type ContractualCommitmentPayload = {
   commitment_name: string;
   formula?: string;
   target?: string;
+  target_uom?: string;
   penalty_applicable?: boolean;
   penalty_value?: string;
 };

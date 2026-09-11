@@ -6,6 +6,7 @@ import * as React from "react";
 
 import { AutoBadge, ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
+import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
 import { usePageBanner } from "@/stores/page-banner";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const MET_STATUSES: MetStatus[] = ["Met", "Not Met"];
 // the selected reporting period, then review the full history per commitment.
 export function CommitmentsTab() {
   const { projectId } = useParams<{ projectId: string }>();
+  const periodId = useSearchParams().get("period");
   const { data: items = [] } = useCommitments(projectId);
   const commitmentIds = React.useMemo(() => items.map((i) => i.id), [items]);
   const actualsByCommitment = useLatestCommitmentActuals(projectId, commitmentIds);
@@ -47,6 +49,9 @@ export function CommitmentsTab() {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className="flex justify-end">
+        <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="COMMITMENTS" />
+      </div>
       <SectionCard
         icon={ClipboardCheck}
         title="Commitments Register"
@@ -60,6 +65,7 @@ export function CommitmentsTab() {
             { key: "commitment_name", label: "Commitment" },
             { key: "frequency", label: "Frequency" },
             { key: "target", label: "Target", align: "right" },
+            { key: "target_uom", label: "Target UOM" },
             {
               key: "penalty_applicable",
               label: "Penalty",

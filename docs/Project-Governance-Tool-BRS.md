@@ -26,7 +26,7 @@ This document specifies the business requirements for the **Project Governance T
 
 ### 1.2 Background
 
-Project delivery health, risk registers, contractual compliance, and delivery-excellence audits are currently tracked in separate spreadsheets per project, account, and geography. There is no single system of record, no consistent rule for rolling a project's health up to its account and geo, and no shared audit trail for the reviews and sign-offs that already happen informally. The Project Governance Tool replaces that patchwork with one application covering the full reporting chain from individual project to CXO.
+Project delivery health, risk registers, contractual compliance, and delivery-excellence audits are currently tracked in separate spreadsheets per project, account, and geography. There is no single system of record, no consistent rule for rolling a project's health up to its account and geo, and no shared audit trail for the reviews and sign-offs that already happen informally. The Project Governance Tool replaces that patchwork with one application covering the full reporting chain from individual project to CDO.
 
 ### 1.3 Scope
 
@@ -43,7 +43,7 @@ Project delivery health, risk registers, contractual compliance, and delivery-ex
 | **RAID** | Risk, Assumption, Issue, Dependency — plus Opportunity, tracked here as a fifth, related register. |
 | **Reporting surface** | The screen where a tier (Project/Account/Geo) enters its own data. |
 | **Review surface** | The read-only, one-level-up screen where the next tier reviews and approves/rejects what was reported below it. |
-| **Geo** | Geography (region) — the organizational tier between Account and CXO (e.g., APAC, MEA, US). |
+| **Geo** | Geography (region) — the organizational tier between Account and CDO (e.g., APAC, MEA, US). |
 | **PCI Score** | Delivery Excellence's numeric project compliance/quality index, produced by the DE Assessment. |
 
 ---
@@ -54,7 +54,7 @@ Project delivery health, risk registers, contractual compliance, and delivery-ex
 |---|---|---|
 | 1 | Replace spreadsheet-based status reporting with one system of record | No project's health, RAID log, or contractual status lives only in a local file |
 | 2 | Guarantee that risk visibility travels upward without dilution | A Red project cannot be hidden inside a Green account or geo view |
-| 3 | Make review and sign-off a first-class, auditable action | Every account/geo/CXO approval or rejection is timestamped and attributable |
+| 3 | Make review and sign-off a first-class, auditable action | Every account/geo/CDO approval or rejection is timestamped and attributable |
 | 4 | Reduce the manual effort of assembling roll-up reports | Account and geo views are computed from project data, not re-typed |
 | 5 | Give Delivery Excellence and PMO a consistent audit trail | DE assessments, findings, and data-integrity checks are queryable across the whole portfolio |
 
@@ -69,7 +69,7 @@ The system implements **eight roles**, superseding the source workbook's combine
 | Role | Org scope | Core responsibility |
 |---|---|---|
 | **Admin** | All | User/role administration, integration configuration, reference data, backups |
-| **CXO** | Enterprise | Reviews and approves every Geo's rolled-up status; enterprise-wide dashboard |
+| **CDO** | Enterprise | Reviews and approves every Geo's rolled-up status; enterprise-wide dashboard |
 | **Geo Head** | One or more Geos | Reviews and approves Accounts within their Geo(s); reports their Geo's own status upward |
 | **Account Manager** ("Account Head") | One or more Accounts | Reviews and approves Projects within their Account(s); reports their Account's own status upward |
 | **Project Manager** | Their own project(s) | Owns Project Charter, Status, RAID logs, Measurement entry; submits for DE Assessment |
@@ -82,13 +82,13 @@ A user's Account/Geo scope is assigned individually (a user can be scoped to mor
 ### 3.2 Organizational Hierarchy
 
 ```
-Project  →  Account  →  Geo  →  CXO (enterprise)
+Project  →  Account  →  Geo  →  CDO (enterprise)
 ```
 
 Each tier above Project has two surfaces:
 
 - **Reporting** — the tier's own self-authored status (e.g., an Account Manager's narrative and health for their Account as a whole, independent of any single project).
-- **Review** — a read-only rollup of the tier below, with an **Approve / Reject** action per item, one tier up (Account Manager reviews Projects; Geo Head reviews Accounts; CXO reviews Geos).
+- **Review** — a read-only rollup of the tier below, with an **Approve / Reject** action per item, one tier up (Account Manager reviews Projects; Geo Head reviews Accounts; CDO reviews Geos).
 
 This Reporting/Review pattern is identical at every tier by design, so a fourth tier could be added later without a new UI pattern.
 
@@ -194,13 +194,13 @@ Each requirement is tagged **[Built]** (working in the current system), **[Parti
 | FR-DASH-3 | Aggregation is computed live from current module data, not a separately maintained figure | **[Built]** |
 | FR-DASH-4 | Show a "data as of" / last-refreshed indicator per tile, since underlying modules update on different cadences | **⚠ Open Item** (see §8, Open Item 6) |
 
-### 4.10 Reporting & Review Cascade (Account / Geo / CXO)
+### 4.10 Reporting & Review Cascade (Account / Geo / CDO)
 
 | ID | Requirement | Status |
 |---|---|---|
 | FR-REV-1 | Each Account has its own Reporting surface for self-authored account-level status, independent of any one project | **[Built]** |
 | FR-REV-2 | Account Managers have a Review surface showing every Project in their Account(s), with an Approve/Reject action per rolled-up item | **[Built]** |
-| FR-REV-3 | The same Reporting/Review pair exists one tier up for Geo Heads (reviewing Accounts) and for CXO (reviewing Geos) | **[Built]** |
+| FR-REV-3 | The same Reporting/Review pair exists one tier up for Geo Heads (reviewing Accounts) and for CDO (reviewing Geos) | **[Built]** |
 | FR-REV-4 | Health rollup at every tier uses the worst-wins rule: a Red child forces its parent to at least Red | **[Built]** |
 
 ### 4.11 Administration
@@ -269,7 +269,7 @@ Core entities the system is built around (see the codebase for full schema):
 | 4 | **Measurement reporting-period history.** Should all six Measurement tabs (not just Development) carry an explicit Reporting Period selector and retain prior periods? | Needed to support trend charts and historical comparison on the Dashboard. | FR-MEAS-8 |
 | 5 | **DE Assessment cadence.** Monthly or quarterly, per project? | Drives the Next Assessment Due Date and Data Integrity's "not updated" logic. | FR-DE-6 |
 | 6 | **Dashboard data-freshness indicator.** Should each KPI tile show a "data as of" timestamp, given modules update on different cadences? | Prevents users from misreading a stale number as current. | FR-DASH-4 |
-| 7 | **Combined executive role split.** The source workbook grouped CEO/CDO/GEO Head/Delivery Manager as one access level; the system has since split GEO Head, Account Manager, and CXO into distinct roles. Confirm this split is final and whether a Delivery Manager role is still needed separately. | Affects the role table in §3.1 and every permission check downstream. | §3.1 |
+| 7 | **Combined executive role split.** The source workbook grouped CEO/CDO/GEO Head/Delivery Manager as one access level; the system has since split GEO Head, Account Manager, and CDO into distinct roles. Confirm this split is final and whether a Delivery Manager role is still needed separately. | Affects the role table in §3.1 and every permission check downstream. | §3.1 |
 | 8 | **Opportunity approval authority.** `Approval Required (Y/N)` / `Approved By` exist on the Opportunity Log, but the source doesn't state who approves. | Needed to assign the approval action to a specific role. | FR-RAID-6 |
 | 9 | **Oracle resourcing sync.** Confirm whether Resource Allocation stays manually entered until a live Oracle integration exists, or whether ID mapping is a placeholder for near-term live sync. | Affects whether Resource Allocation fields are editable or read-only in the UI. | FR-CHART-3 |
 | 10 | **Tool naming.** No confirmed product name exists yet (per the source workbook's own open action items); "Project Governance Tool" is used as a working title throughout this document. | Cosmetic but should be resolved before any external-facing rollout. | — |

@@ -69,11 +69,11 @@ Every `/api/v1` route except `/auth/*` passes `verify_api_key` + `get_current_us
 (`product-brain/07` §5): `require_role`, `require_account_scope`,
 `require_account_or_geo_scope`, `require_account_geo_scope`, `require_geo_scope`
 (`bypass_roles`), `require_project_account_scope`, `require_project_de_scope`,
-`require_project_access`. `ADMIN` bypasses scope; `CXO` bypasses geo scope on review +
+`require_project_access`. `ADMIN` bypasses scope; `CDO` bypasses geo scope on review +
 GEO-level Actions.
 
 **Reads** are generally not role-gated (any authenticated user) except `/users*`, `/roles`,
-and `/dashboard/project-health/*` (`PMO`/`ADMIN`/`CXO`).
+and `/dashboard/project-health/*` (`PMO`/`ADMIN`/`CDO`).
 
 ---
 
@@ -207,7 +207,7 @@ Writes: `_write_roles` = `require_project_access(PM, DELIVERY_EXCELLENCE, AM, GH
 | API ID | Method · Path | Purpose | Authz | BR / status |
 | --- | --- | --- | --- | --- |
 | API-GEO-10 | `GET/POST/PUT /geos/{id}/status-reports` (+ `/latest`) | Geo report; Submit | `require_geo_scope(GEO_HEAD, ADMIN)` | BR-GEO-010 |
-| API-GEO-20 | `PATCH /geos/{id}/status-reports/{rid}/review` | CXO Approve/Reject (unscoped) | `require_role(CXO, ADMIN)` | BR-REVIEW-040 |
+| API-GEO-20 | `PATCH /geos/{id}/status-reports/{rid}/review` | CDO Approve/Reject (unscoped) | `require_role(CDO, ADMIN)` | BR-REVIEW-040 |
 | API-GEO-30 | `GET/POST/PUT/DELETE /geos/{id}/status-items` | Items | `require_geo_scope(...)` | — |
 | API-GEO-40 | `GET/POST/PUT /geos/{id}/health-declarations` (+ `/latest`) | Geo health (**no UI**) | `require_geo_scope(GEO_HEAD, ADMIN)` | BR-GEO-020 |
 | API-GEO-50 | `GET /geos/{id}/rollup` · `POST` | Account→geo rollup | `require_geo_scope(...)` | BR-ROLLUP-010/050; `SVC-GEO-ROLLUP` |
@@ -245,15 +245,15 @@ authz per level (`product-brain/07` §3); transitions allowed to the **assignee*
 | API ID | Method · Path | Purpose | Authz |
 | --- | --- | --- | --- |
 | API-DI-10 | `GET/POST/PUT/DELETE /data-integrity-checklist-items` | Catalog CRUD | `require_role(ADMIN)` (via factory) |
-| API-DI-20 | `GET /data-integrity-checklist` (per project) / portfolio grid | Computed freshness rollup | any / `require_role(PMO, ADMIN, CXO)` for the grid |
+| API-DI-20 | `GET /data-integrity-checklist` (per project) / portfolio grid | Computed freshness rollup | any / `require_role(PMO, ADMIN, CDO)` for the grid |
 
 ## 20. Dashboards (`API-DASH-*`)
 
 | API ID | Method · Path | Purpose | Authz |
 | --- | --- | --- | --- |
 | API-DASH-10 | `GET /dashboard/summary` | Shared KPI tiles, scoped | any (scope-filtered) |
-| API-DASH-20 | `GET /dashboard/*` role sections (account-head, geo, de-summary, pmo, cxo) | Per-role "My Summary" data | `require_role(<role set>)` per section |
-| API-DASH-30 | `GET /dashboard/project-health/{projects\|rag\|risks\|issues\|dependencies\|assumptions\|opportunities\|metrics\|commitments\|payment-milestones\|assessments\|findings\|actions\|data-integrity}` | 14 portfolio grids (paged; filter Geo/Account/Project) | `require_role(PMO, ADMIN, CXO)` (BR-DASH-020) |
+| API-DASH-20 | `GET /dashboard/*` role sections (account-head, geo, de-summary, pmo, cdo) | Per-role "My Summary" data | `require_role(<role set>)` per section |
+| API-DASH-30 | `GET /dashboard/project-health/{projects\|rag\|risks\|issues\|dependencies\|assumptions\|opportunities\|metrics\|commitments\|payment-milestones\|assessments\|findings\|actions\|data-integrity}` | 14 portfolio grids (paged; filter Geo/Account/Project) | `require_role(PMO, ADMIN, CDO)` (BR-DASH-020) |
 
 ## 21. Integrations & Audit (`API-INTG-*`, `API-AUDIT-*`) — `require_role(ADMIN)`
 

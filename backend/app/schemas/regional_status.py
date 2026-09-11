@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.dashboard import OpenNcRow
 from app.schemas.enums import ProjectStatusCategory, ReportStatus, RollupStatus
 
 
@@ -49,6 +50,11 @@ class AccountStatusReportRead(BaseModel):
     reviewed_by: UUID | None = None
     reviewed_at: datetime | None = None
     review_comment: str | None = None
+    # Open Alerts as of this period's end date, snapshotted server-side on
+    # every save (see regional_status.py) so a Submitted/Approved report
+    # keeps showing exactly what was open when it was filed.
+    open_alerts_count: int = 0
+    open_alerts_snapshot: list[OpenNcRow] | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -94,6 +100,11 @@ class GeoStatusReportRead(BaseModel):
     reviewed_by: UUID | None = None
     reviewed_at: datetime | None = None
     review_comment: str | None = None
+    # Open Alerts as of this period's end date, snapshotted server-side on
+    # every save (see regional_status.py) so a Submitted/Approved report
+    # keeps showing exactly what was open when it was filed.
+    open_alerts_count: int = 0
+    open_alerts_snapshot: list[OpenNcRow] | None = None
     created_at: datetime
     updated_at: datetime
 

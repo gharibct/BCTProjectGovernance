@@ -147,6 +147,6 @@ ady to code?
 
  - Local: run backend + frontend per deployment.md, exercise both AUTH_TYPE=no_password (today'sow still works) and AUTH_TYPE=onelogin (redirect to OneLogin's hosted login, callback lands                                            e user back in, /auth/me returns the right role/geo/account scoping, protected pages 401→
 direct to /login once the session cookie is cleared/expired).                                                                          Confirm a non-provisioned OneLogin account gets a clean 403 at the callback (strict                                                e-provisioned policy), not a silent auto-created account.
- - Confirm existing seeded dev users (acchead/geohead/cxo/pm) still work under
+ - Confirm existing seeded dev users (acchead/geohead/cdo/pm) still work under
  AUTH_TYPE=no_password unchanged.
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌

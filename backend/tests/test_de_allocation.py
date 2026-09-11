@@ -86,6 +86,21 @@ async def test_allocation_list_allows_de_and_admin(client, override_auth):
         assert response.json() == []
 
 
+async def test_allocation_list_accepts_allocation_filter(client, override_auth):
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE)
+    for value in ("unallocated", "allocated", "all"):
+        response = await client.get(
+            f"/api/v1/de-allocation?allocation={value}", headers=headers
+        )
+        assert response.status_code == 200
+
+
+async def test_allocation_list_rejects_unknown_allocation_filter(client, override_auth):
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE)
+    response = await client.get("/api/v1/de-allocation?allocation=bogus", headers=headers)
+    assert response.status_code == 422
+
+
 async def test_bulk_allocate_rejects_non_de(client, override_auth):
     headers = override_auth(RoleCode.PROJECT_MANAGER)
     response = await client.patch(
@@ -136,3 +151,16 @@ async def test_bulk_allocate_rejects_draft_project(client, override_auth):
         headers=headers,
     )
     assert response.status_code == 400
+
+
+async def test_bulk_allocate_allows_under_amendment_project(client, override_auth):
+    # Any status but Draft is allocatable.
+    project = _fake_project(project_status="Under Amendment")
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map={(Project, _PROJECT_ID): project})
+    response = await client.patch(
+        "/api/v1/de-allocation/allocations",
+        json={"assignments": [{"project_id": str(_PROJECT_ID), "delivery_excellence_id": str(_DE_ID)}]},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert project.delivery_excellence_id == _DE_ID

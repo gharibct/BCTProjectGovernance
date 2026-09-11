@@ -8,14 +8,23 @@ import { ArrowLeft, History } from "lucide-react";
 
 import { SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
+import { useEffectiveRole } from "@/stores/session";
 import { useProject } from "@/lib/api/projects";
 import { useUsers } from "@/lib/api/reference-data";
 import { useDEAssessments } from "@/lib/api/de-assessment";
+import { canWriteDeAssessment } from "@/lib/api/de-assessment-permissions";
 import { HealthDot } from "./shared";
 
 function HistoryInner() {
   const { projectId: rawProjectId } = useParams<{ projectId: string }>();
   const projectId = rawProjectId ?? null;
+
+  const roleCanWrite = canWriteDeAssessment(useEffectiveRole());
+  // Same as de-assessment-workspace.tsx: a read-only viewer (e.g. PM) has no
+  // queue to return to — /de-assessment 403s for them — so send them back to
+  // the project instead.
+  const backHref = roleCanWrite ? "/de-assessment" : `/project-reporting/${projectId}`;
+  const backLabel = roleCanWrite ? "Back to Queue" : "Back to Project";
 
   const { data: project } = useProject(projectId);
   const { data: users = [] } = useUsers();
@@ -36,11 +45,11 @@ function HistoryInner() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
-            href="/de-assessment"
+            href={backHref}
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
           >
             <ArrowLeft className="size-4" />
-            Back to Queue
+            {backLabel}
           </Link>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             Assessment History — {project?.project_name ?? "…"}

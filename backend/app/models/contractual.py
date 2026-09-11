@@ -17,6 +17,7 @@ class ContractualCommitment(Base, UUIDPrimaryKey, TimestampColumns):
     commitment_name: Mapped[str]
     formula: Mapped[str | None]
     target: Mapped[str | None]
+    target_uom: Mapped[str | None]
     penalty_applicable: Mapped[bool]
     penalty_value: Mapped[Decimal | None] = mapped_column(Numeric)
 

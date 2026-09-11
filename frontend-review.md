@@ -28,7 +28,7 @@ Before making recommendations:
 * identify styling approach;
 * identify third-party UI libraries (shadcn/ui usage in particular — is it used consistently or bypassed with ad hoc markup?);
 * identify authentication/authorization handling, including the current session/login flow (`backend/app/core/session.py`, `frontend/src/app/login/callback/`, `frontend/src/lib/api/auth.ts` — this area is under active rework, so review the *current* code rather than assuming an older flow);
-* identify role-based navigation/menu config (`frontend/src/lib/menu-config.ts`) and how it drives what each role (Admin, CXO, Geo Head, Account Head/`ACCOUNT_MANAGER`, Project Manager, Team Member, Delivery Excellence, PMO) sees;
+* identify role-based navigation/menu config (`frontend/src/lib/menu-config.ts`) and how it drives what each role (Admin, CDO, Geo Head, Account Head/`ACCOUNT_MANAGER`, Project Manager, Team Member, Delivery Excellence, PMO) sees;
 * identify the mirrored "Reporting" vs "Review" surface pattern (Project Reporting/Review, Account Reporting/Review, Geo Reporting/Review — `frontend/src/components/status-review/` and siblings) and whether the three tiers stay consistent with each other;
 * identify the five RAID log modules (Risk/Issue/Dependency/Assumption/Opportunity) and how much of their near-identical shape is actually shared vs re-implemented per module.
 
@@ -56,7 +56,7 @@ Look specifically for:
 Pay specific attention to two known duplication-prone areas:
 
 1. **The 5 RAID log modules** (Risk, Issue, Dependency, Assumption, Opportunity) — each has ~15-25 fields and a very similar shape. Assess how much is genuinely shared today vs copy-pasted per module, and whether a shared RAID entry component/hook is warranted (or already exists and is just underused).
-2. **The Reporting/Review tier pattern** — Project Reporting has a mirrored read-only "Review" surface one level up (Account Review), which repeats one level up again (Geo Review → CXO), with an Approve/Reject sign-off action. This was explicitly built to be copied for a potential 4th tier, so check whether the three existing tiers have actually stayed consistent with each other or have already drifted.
+2. **The Reporting/Review tier pattern** — Project Reporting has a mirrored read-only "Review" surface one level up (Account Review), which repeats one level up again (Geo Review → CDO), with an Approve/Reject sign-off action. This was explicitly built to be copied for a potential 4th tier, so check whether the three existing tiers have actually stayed consistent with each other or have already drifted.
 
 For every significant issue, identify the exact file(s).
 
@@ -218,7 +218,7 @@ Identify:
 * duplicated enums/constants;
 * types declared inside components that should be shared;
 * stale or inconsistent status/enum values — in particular, project status should only ever be `Draft` / `Pending Approval` / `Approved`; flag any lingering references to older status naming (e.g. "Start Up"/"Execution") as a bug, not just a style issue;
-* role codes/enums duplicated instead of imported from one source (`ADMIN`, `CXO`, `ACCOUNT_MANAGER`, `GEO_HEAD`, `PROJECT_MANAGER`, `TEAM_MEMBER`, `DELIVERY_EXCELLENCE`, `PMO`).
+* role codes/enums duplicated instead of imported from one source (`ADMIN`, `CDO`, `ACCOUNT_MANAGER`, `GEO_HEAD`, `PROJECT_MANAGER`, `TEAM_MEMBER`, `DELIVERY_EXCELLENCE`, `PMO`).
 
 Recommend where common domain types should be established.
 

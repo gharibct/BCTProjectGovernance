@@ -415,7 +415,7 @@ async def milestone_payment_summary(db: AsyncSession, filters: DashboardFilters)
     return MilestonePaymentSummary(upcoming_count=upcoming, overdue_count=overdue, paid_count=paid)
 
 
-# Governance Matrix (CXO/Geo Head/Account Manager dashboard redesign) — full
+# Governance Matrix (CDO/Geo Head/Account Manager dashboard redesign) — full
 # 6-category breakdown per account/project, unlike account_health_rows'/
 # project_health_rows' single rolled-up overall_health. No bulk "latest
 # declaration per entity" query exists elsewhere, so this fetches every
@@ -2096,10 +2096,10 @@ async def count_open_findings(db: AsyncSession, filters: DashboardFilters) -> in
 
 # Open Alerts — the subset of open findings classified "Alert", as opposed to
 # Observation / Recommendation. Backs the "Open Alerts" KPI + list section on
-# the PM, Account and CXO dashboards; scope comes from _matching_project_ids,
+# the PM, Account and CDO dashboards; scope comes from _matching_project_ids,
 # so the same pair works for a single PM's projects and for an
 # account-/geo-wide rollup.
-async def count_open_ncs(db: AsyncSession, filters: DashboardFilters) -> int:
+async def count_open_ncs(db: AsyncSession, filters: DashboardFilters, as_of: date | None = None) -> int:
     project_ids = await _matching_project_ids(db, filters)
     stmt = (
         select(func.count())
@@ -2110,10 +2110,18 @@ async def count_open_ncs(db: AsyncSession, filters: DashboardFilters) -> int:
             DEAssessmentFinding.status.in_([s.value for s in _FINDING_OPEN_STATES]),
         )
     )
+    if as_of is not None:
+        stmt = stmt.where(or_(DEAssessmentFinding.finding_date.is_(None), DEAssessmentFinding.finding_date <= as_of))
     return (await db.execute(stmt)).scalar_one()
 
 
-async def list_open_ncs(db: AsyncSession, filters: DashboardFilters) -> list[OpenNcRow]:
+async def list_open_ncs(
+    db: AsyncSession, filters: DashboardFilters, as_of: date | None = None
+) -> list[OpenNcRow]:
+    """Open Alerts in scope. `as_of`, when given, limits to alerts raised on
+    or before that date ("Open Alerts till the reporting period" — see
+    open_alerts_snapshot below); omitted, every currently open Alert is
+    returned regardless of when it was raised (the live dashboard view)."""
     project_ids = await _matching_project_ids(db, filters)
     # Explicit column list (not `select(DEAssessmentFinding)`) so the query
     # never references columns a not-yet-migrated live DB may lack
@@ -2143,6 +2151,10 @@ async def list_open_ncs(db: AsyncSession, filters: DashboardFilters) -> list[Ope
         )
         .order_by(DEAssessmentFinding.finding_date.desc())
     )
+    if as_of is not None:
+        stmt = stmt.where(
+            or_(DEAssessmentFinding.finding_date.is_(None), DEAssessmentFinding.finding_date <= as_of)
+        )
     rows = (await db.execute(stmt)).all()
     today = date.today()
     return [
@@ -2175,6 +2187,26 @@ async def list_open_ncs(db: AsyncSession, filters: DashboardFilters) -> list[Ope
             owner_name,
         ) in rows
     ]
+
+
+# Open Alerts snapshot, frozen onto a Project/Account/Geo status report at
+# save time (project_status.py / regional_status.py) rather than read live.
+# Every currently open Alert in scope is captured, no date cutoff — matching
+# what the report's Open Alerts section showed live right up to submission.
+# Storing both the count and the row detail means a Submitted/Approved
+# report keeps showing exactly what was open when it was filed, even after
+# alerts are later closed or new ones are raised.
+async def open_alerts_snapshot(db: AsyncSession, *, scope: str, scope_id: UUID) -> tuple[int, list[dict]]:
+    if scope == "project":
+        filters = DashboardFilters(project_id=scope_id)
+    elif scope == "account":
+        filters = DashboardFilters(account_id=scope_id)
+    elif scope == "geo":
+        filters = DashboardFilters(geo_id=scope_id)
+    else:
+        raise ValueError(f"Unknown scope: {scope}")
+    rows = await list_open_ncs(db, filters)
+    return len(rows), [row.model_dump(mode="json") for row in rows]
 
 
 # Findings have no due-date field — any still-Open finding raised more than
@@ -2730,7 +2762,7 @@ async def pmo_governance_exceptions(
 
 
 # Project Health dashboard (design-reference/Project-Health.html) — an
-# org-wide, portfolio-level bento-grid of KPI cards for PMO/Admin/CXO, built
+# org-wide, portfolio-level bento-grid of KPI cards for PMO/Admin/CDO, built
 # with the same DashboardFilters()/_project_conditions()/_matching_project_ids()
 # pattern as every section above, but exposing the real Geo/Account/Project
 # Type/Period filter bar this page has (unlike pmo_governance_compliance_matrix's

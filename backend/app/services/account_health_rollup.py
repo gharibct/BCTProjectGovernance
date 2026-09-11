@@ -14,10 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud.account_health_declarations import account_health_item_crud
 from app.models.health_declarations import ProjectHealthItem
 from app.models.projects import Project
+from app.models.regional_status import AccountStatusReport
 from app.schemas.account_health_declarations import AccountHealthItemCreate
 from app.schemas.account_health_rollup import AccountHealthRollupItem, AccountHealthRollupResponse
 from app.schemas.enums import RollupStatus
 from app.services.account_rollup import RollupItemAlreadyHandledError, RollupItemNotFoundError
+from app.services.report_lock import assert_report_editable
 
 
 async def compute_account_health_rollup(
@@ -67,6 +69,18 @@ async def pull_health_rollup_item(db: AsyncSession, account_id: UUID, project_it
         raise RollupItemNotFoundError
     if item.account_rollup_status != RollupStatus.PENDING:
         raise RollupItemAlreadyHandledError
+
+    # RAG Status freezes with the Account Status Report package — see
+    # account_health_declarations.py's _assert_period_editable and
+    # account_rollup.pull_rollup_item's matching guard.
+    report_status = (
+        await db.execute(
+            select(AccountStatusReport.status).where(
+                AccountStatusReport.account_id == account_id, AccountStatusReport.period_id == item.period_id
+            )
+        )
+    ).scalars().first()
+    assert_report_editable(report_status)
 
     account_item = await account_health_item_crud.create(
         db,

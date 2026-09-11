@@ -2,7 +2,7 @@
 
 Develop a reusable **ExecutiveContentBuilder** for the existing Project Governance application.
 
-This will be used for **CXO Executive Update**, where users need flexibility similar to preparing content in PowerPoint.
+This will be used for **CDO Executive Update**, where users need flexibility similar to preparing content in PowerPoint.
 
 Do not redesign the application. Follow the existing Next.js/React, TypeScript, Tailwind and UI conventions.
 

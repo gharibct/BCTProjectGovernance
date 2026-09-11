@@ -75,7 +75,7 @@
 | T-31 | FC-DEA-030 Findings | BR-DEA-060 | Finding `Open` → … → `Closed`/`Cancelled` | SCR-DEA-10/30 | API-DEA-40 | `de_assessment_findings` | TS-WF-* , TS-DEA-* |
 | T-33 | FC-DEA-050 Submit → Charter | BR-DEA-040 | DE Assessment `Draft` → `Submitted`; `projects.de_assessed_project_health` refreshed | SCR-DEA-30 | API-DEA-30 | `SVC-HEALTH-ROLLUP` (`compute_overall_project_health`) / `projects` | TS-ROLLUP-GM-10, TS-HEALTH-*, TS-BR-DEA-10 |
 
-### BP-05 — Reporting / Review Cascade (Project → Account → Geo → CXO)
+### BP-05 — Reporting / Review Cascade (Project → Account → Geo → CDO)
 
 | # | FC | BR | Status transition | Screen | API | Service / Table | Test |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -84,7 +84,7 @@
 | T-42 | FC-ACCT-010 Account report + Submit | BR-ACCT-010, BR-ACCT-020 | Account report `Draft` → `Submitted` | SCR-ACCT-20 ★§3.5 | API-ACCT-10 | `account_status_reports` | TS-STATUS-*, TS-E2E-05 |
 | T-43 | FC-REVIEW-020 Geo Head reviews account | BR-REVIEW-010, BR-REVIEW-030 | Account report `Submitted` → decided | SCR-REVIEW-20 | API-ACCT-20 | `account_status_reports` | TS-RBAC-*, TS-E2E-05 |
 | T-44 | FC-ROLLUP-040 Pull account item → geo | BR-ROLLUP-010, BR-ROLLUP-050 | Item `Pending` → `Pulled` | SCR-GEO-20 | API-GEO-50 | `SVC-GEO-ROLLUP` / `geo_status_items` | TS-ROLLUP-GM-20 |
-| T-45 | FC-REVIEW-030 CXO reviews geo | BR-REVIEW-010, BR-REVIEW-040 | Geo report `Submitted` → decided (unscoped) | SCR-REVIEW-30 | API-GEO-20 | `geo_status_reports` | TS-RBAC-*, TS-E2E-05 |
+| T-45 | FC-REVIEW-030 CDO reviews geo | BR-REVIEW-010, BR-REVIEW-040 | Geo report `Submitted` → decided (unscoped) | SCR-REVIEW-30 | API-GEO-20 | `geo_status_reports` | TS-RBAC-*, TS-E2E-05 |
 
 ### BP-06 — Health Declaration & Worst-Wins Rollup
 

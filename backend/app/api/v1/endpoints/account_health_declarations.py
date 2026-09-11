@@ -10,6 +10,7 @@ from app.core.db import get_db
 from app.crud.account_health_declarations import account_health_declaration_crud, account_health_item_crud
 from app.models.account_health_declarations import AccountHealthDeclaration, AccountHealthItem
 from app.models.reference_data import ReportingPeriod
+from app.models.regional_status import AccountStatusReport
 from app.schemas.account_health_declarations import (
     AccountHealthDeclarationCreate,
     AccountHealthDeclarationRead,
@@ -20,6 +21,7 @@ from app.schemas.account_health_declarations import (
 )
 from app.schemas.enums import Category, RoleCode
 from app.services.health_rollup import compute_overall_rating
+from app.services.report_lock import assert_report_editable
 
 # Account RAG Status — account-level equivalent of health_declarations.py,
 # minus the Project-record side-effect writes (accounts has no cached-health
@@ -33,6 +35,17 @@ _account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_
 
 def _by_period_start(model: type) -> Any:
     return select(ReportingPeriod.start_date).where(ReportingPeriod.id == model.period_id).scalar_subquery().desc()
+
+
+# RAG Status is filed as part of the Account Status Report package (see
+# submit-report-action.tsx's "Update the report on Account Reporting / RAG
+# Status, then resubmit") — it freezes with it, gated on the same
+# account_status_reports row for this account + period.
+async def _assert_period_editable(db: AsyncSession, account_id: UUID, period_id: UUID) -> None:
+    stmt = select(AccountStatusReport.status).where(
+        AccountStatusReport.account_id == account_id, AccountStatusReport.period_id == period_id
+    )
+    assert_report_editable((await db.execute(stmt)).scalars().first())
 
 
 @router.get("", response_model=list[AccountHealthDeclarationRead])
@@ -70,6 +83,7 @@ async def create_account_health_declaration(
     payload: AccountHealthDeclarationCreate,
     db: AsyncSession = Depends(get_db),
 ):
+    await _assert_period_editable(db, account_id, payload.period_id)
     overall = compute_overall_rating(
         [
             payload.core_delivery_rating,
@@ -93,6 +107,7 @@ async def update_account_health_declaration(
     obj = await account_health_declaration_crud.get(db, declaration_id)
     if obj is None or obj.account_id != account_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health declaration not found")
+    await _assert_period_editable(db, account_id, obj.period_id)
 
     overall = compute_overall_rating(
         [
@@ -142,6 +157,7 @@ async def list_account_health_items(
 async def create_account_health_item(
     account_id: UUID, payload: AccountHealthItemCreate, db: AsyncSession = Depends(get_db)
 ):
+    await _assert_period_editable(db, account_id, payload.period_id)
     return await account_health_item_crud.create(db, payload, account_id=account_id)
 
 
@@ -152,6 +168,7 @@ async def update_account_health_item(
     obj = await account_health_item_crud.get(db, item_id)
     if obj is None or obj.account_id != account_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    await _assert_period_editable(db, account_id, obj.period_id)
     return await account_health_item_crud.update(db, obj, payload)
 
 
@@ -160,4 +177,5 @@ async def delete_account_health_item(account_id: UUID, item_id: UUID, db: AsyncS
     obj = await account_health_item_crud.get(db, item_id)
     if obj is None or obj.account_id != account_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    await _assert_period_editable(db, account_id, obj.period_id)
     await account_health_item_crud.delete(db, obj)

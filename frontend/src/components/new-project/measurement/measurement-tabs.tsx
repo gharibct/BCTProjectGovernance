@@ -8,7 +8,11 @@ import { Button } from "@/components/ui/button";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
 import { useProject } from "@/lib/api/projects";
-import { useMetricReferenceLookup, type MetricReferenceLookup } from "@/lib/api/metric-reference";
+import {
+  resolveBenchmark,
+  useMetricReferenceLookup,
+  type MetricReferenceLookup,
+} from "@/lib/api/metric-reference";
 import { useProjectTypes } from "@/lib/api/reference-data";
 import {
   useCloudMaintenanceTarget,
@@ -100,6 +104,9 @@ const METRIC_FIELDS: Record<string, Record<string, string>> = {
 // that benchmark, so an untouched field defaults to the recommended value and
 // is saved as the target unless the user changes it. Returns `seed` unchanged
 // while the (static, session-cached) reference data is still loading.
+// Productivity's benchmark varies by the project's Size Unit (CP/FP/LOC/SP),
+// so it's resolved against `seed.sizeUnit` (default "FP", matching the form's
+// Size Unit select); every other metric resolves to its single scalar.
 function applyBenchmarkDefaults(
   seed: Record<string, string>,
   fieldMap: Record<string, string>,
@@ -107,9 +114,10 @@ function applyBenchmarkDefaults(
 ): Record<string, string> {
   const out = { ...seed };
   if (!reference) return out;
+  const unit = seed.sizeUnit?.trim() || "FP";
   for (const [field, metricKey] of Object.entries(fieldMap)) {
     if (out[field]?.trim()) continue;
-    const benchmark = numericBenchmark(reference[metricKey]?.benchmark_value);
+    const benchmark = numericBenchmark(resolveBenchmark(reference[metricKey], unit)?.benchmark_value);
     if (benchmark !== null) out[field] = benchmark;
   }
   return out;
@@ -270,7 +278,7 @@ export function MeasurementTabs() {
   const showError = usePageBanner((state) => state.showError);
 
   const target = useActiveTarget(projectId, projectTypeCode);
-  const { m, set, setAll } = useMeasures();
+  const { m, set, setValue, setAll } = useMeasures();
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
 
   // Editing a field clears its own out-of-range message.
@@ -308,6 +316,25 @@ export function MeasurementTabs() {
     setAll(applyBenchmarkDefaults(target.seed, METRIC_FIELDS[projectTypeCode] ?? {}, reference));
     seededKeyRef.current = seedKey;
   }, [projectId, projectTypeCode, target.isLoaded, target.seed, reference, setAll]);
+
+  // Development only: Productivity's recommended default tracks the Size Unit.
+  // When the user switches CP/FP/LOC/SP and the Productivity target is still
+  // untouched (empty, or still the previous unit's benchmark), swap in the new
+  // unit's benchmark — the same value the (i) popover shows. A hand-entered
+  // value never matches the previous default, so it's left alone.
+  const prevProductivityBenchmarkRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (projectTypeCode !== "DEVELOPMENT" || !reference) return;
+    const unit = m.sizeUnit?.trim() || "FP";
+    const next = numericBenchmark(resolveBenchmark(reference["productivity"], unit)?.benchmark_value);
+    const prev = prevProductivityBenchmarkRef.current;
+    prevProductivityBenchmarkRef.current = next;
+    if (next === null || next === prev) return;
+    const current = m.targetProductivity?.trim() ?? "";
+    if (current === "" || (prev !== null && current === prev)) {
+      setValue("targetProductivity", next);
+    }
+  }, [m.sizeUnit, m.targetProductivity, projectTypeCode, reference, setValue]);
 
   if (!activeTab) {
     return (

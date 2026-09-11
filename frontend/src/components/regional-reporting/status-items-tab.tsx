@@ -34,6 +34,7 @@ export function StatusItemsTab({
   category,
   title,
   icon,
+  frozen = false,
   rollupItems,
   onPullRollupItem,
   onIgnoreRollupItem,
@@ -45,6 +46,9 @@ export function StatusItemsTab({
   category: ProjectStatusCategory;
   title: string;
   icon: LucideIcon;
+  // Set once the report for this period is Submitted/Approved
+  // (status-tabs.tsx already fetches it) — disables Add/Edit/Delete here.
+  frozen?: boolean;
   rollupItems?: RollupSourceItem[];
   onPullRollupItem?: (item: RollupSourceItem) => void;
   onIgnoreRollupItem?: (item: RollupSourceItem) => void;
@@ -70,6 +74,7 @@ export function StatusItemsTab({
       <SectionCard icon={icon} title={title} aside={<AutoBadge label={`${items.length} logged`} />}>
         <EditableTextList
           items={items.map((item) => ({ id: item.id, text: item.description }))}
+          disabled={frozen}
           addLabel={`Add ${title} Item`}
           emptyLabel="Nothing logged yet."
           onAdd={(text) =>
@@ -112,7 +117,7 @@ export function StatusItemsTab({
           onPull={onPullRollupItem!}
           onIgnore={onIgnoreRollupItem!}
           onUndo={onUndoRollupItem!}
-          busy={!!rollupBusy}
+          busy={!!rollupBusy || frozen}
         />
       ) : null}
     </div>

@@ -1,18 +1,23 @@
-"""DE Project Approval (design-reference/de-approval) — the allocated Delivery
-Excellence assessor reviews a project's governance completeness module by module
-and either Approves it (project_status -> Approved) or Returns it to the PM
-(project_status -> Draft). de_review_status carries the review sub-state.
+"""DE Project Approval (design-reference/de-approval) — a Delivery Excellence
+user reviews a project's governance completeness module by module and either
+Approves it (project_status -> Approved) or Returns it to the PM (project_status
+-> Draft). de_review_status carries the review sub-state.
+
+A DE allocation is NOT required here: any project that is Pending Approval shows
+up in the queue and can be reviewed / decided by any DE (or Admin), whether or
+not it has a delivery_excellence_id. (DE Assessment, by contrast, still requires
+an allocated DE — see de_assessment.py.)
 """
 
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.api.deps import get_current_user, require_project_de_assessment_access, require_role
+from app.api.deps import get_current_user, require_role
 from app.core.db import get_db
 from app.crud.projects import project_crud
 from app.models.de_project_review import DeProjectModuleReview
@@ -32,6 +37,7 @@ from app.schemas.enums import (
     DeModuleReviewAction,
     DeReviewStatus,
     GovernanceModuleKey,
+    ProjectLifecycleStatus,
     ProjectStatus,
     RoleCode,
 )
@@ -42,10 +48,11 @@ from app.services.governance_completeness import compute_governance_completeness
 router = APIRouter(prefix="/de-approval", tags=["DE Approval"])
 
 _de = require_role(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
-# Any DE (not only the allocated one) may open / review / decide a project, as
-# long as it has been allocated to Delivery Excellence — all DE data is shared
-# across every DE.
-_de_scope = require_project_de_assessment_access(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
+# DE Project Approval no longer requires the project to have an allocated DE —
+# any DE (or Admin) may open / review / decide any project. The role check is
+# the only gate; the per-route handlers still enforce the Pending Approval
+# precondition.
+_de_scope = _de
 
 
 async def _module_reviews(db: AsyncSession, project_id: UUID) -> dict[str, DeProjectModuleReview]:
@@ -100,9 +107,10 @@ async def approval_queue(
     period_id: UUID | None = None,  # display filter only — echoed, not applied
     db: AsyncSession = Depends(get_db),
 ):
-    # Every DE sees every DE project — the queue is scoped only to projects that
-    # have been allocated to Delivery Excellence, not to the signed-in DE's own
-    # allocations. Same convention as GET /dashboard/de-summary.
+    # The queue is every project awaiting governance approval — Pending Approval
+    # regardless of whether a DE has been allocated — plus any project that
+    # already carries a review sub-state (In Review / Returned) so it stays
+    # visible until it is approved.
     pm = aliased(User)
     stmt = (
         select(Project, pm.full_name, Account.name, Geo.name, Region.name, ProjectType.name)
@@ -111,7 +119,12 @@ async def approval_queue(
         .outerjoin(Geo, Geo.id == Project.geo_id)
         .outerjoin(Region, Region.id == Project.region_id)
         .outerjoin(ProjectType, ProjectType.id == Project.project_type_id)
-        .where(Project.delivery_excellence_id.is_not(None))
+        .where(
+            or_(
+                Project.project_status == ProjectStatus.PENDING_APPROVAL,
+                Project.de_review_status.is_not(None),
+            )
+        )
     )
     records = (await db.execute(stmt)).all()
 
@@ -246,6 +259,11 @@ async def submit_decision(
     if payload.decision == "Approve":
         project.project_status = ProjectStatus.APPROVED
         project.de_review_status = DeReviewStatus.APPROVED
+        # First approval starts the project's lifecycle at Ongoing. A later
+        # amendment approval leaves whatever lifecycle state the PM has since
+        # set (Hold / Open Only for Billing / …) untouched.
+        if project.lifecycle_status is None:
+            project.lifecycle_status = ProjectLifecycleStatus.ONGOING
         if amendment is not None:
             amendment.status = "Completed"
             amendment.completed_at = datetime.now(UTC)

@@ -28,6 +28,7 @@ export function AccountHealthItemsTab({
   category,
   title,
   icon,
+  frozen = false,
   rollupItems,
   onPullRollupItem,
   onIgnoreRollupItem,
@@ -38,6 +39,10 @@ export function AccountHealthItemsTab({
   category: HealthCategory;
   title: string;
   icon: LucideIcon;
+  // Set once the Account Status Report for this period is Submitted/Approved
+  // (rag-status-form.tsx already fetches it) — disables Add/Edit/Delete and
+  // the rollup Pull/Ignore/Undo actions here.
+  frozen?: boolean;
   rollupItems?: RollupSourceItem[];
   onPullRollupItem?: (item: RollupSourceItem) => void;
   onIgnoreRollupItem?: (item: RollupSourceItem) => void;
@@ -63,6 +68,7 @@ export function AccountHealthItemsTab({
       <SectionCard icon={icon} title={title} aside={<AutoBadge label={`${items.length} logged`} />}>
         <EditableTextList
           items={items.map((item) => ({ id: item.id, text: item.description }))}
+          disabled={frozen}
           addLabel={`Add ${title} Note`}
           emptyLabel="Nothing logged yet."
           onAdd={(text) =>
@@ -101,7 +107,7 @@ export function AccountHealthItemsTab({
           onPull={onPullRollupItem!}
           onIgnore={onIgnoreRollupItem!}
           onUndo={onUndoRollupItem!}
-          busy={!!rollupBusy}
+          busy={!!rollupBusy || frozen}
         />
       ) : null}
     </div>

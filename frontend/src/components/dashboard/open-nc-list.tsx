@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import type { OpenNcRow } from "@/lib/api/dashboard";
 
 // "Open Alerts" list — open DE assessment findings classified as Alert, shown
-// as the last section on the PM, Account and CXO dashboards. On the Account/CXO
+// as the last section on the PM, Account and CDO dashboards. On the Account/CDO
 // dashboards `showAccount` adds an Account column, since the list there rolls
 // up across every in-scope project.
 

@@ -141,6 +141,7 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
             current={num(latest?.productivity)}
             unit="Size Units / Person-Hour"
             direction="higher-is-better"
+            benchmarkUnit={target.sizeUnit || "FP"}
           />
           <MetricTile
             label="Effort Variation"
@@ -218,7 +219,7 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
           <Field label="Size Unit" htmlFor="size-unit">
             <NativeSelect id="size-unit" defaultValue="FP">
-              {["CP", "FP", "LOC", "Other"].map((u) => (
+              {["CP", "FP", "LOC", "SP"].map((u) => (
                 <option key={u}>{u}</option>
               ))}
             </NativeSelect>
@@ -243,7 +244,7 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
               className={inputClass}
             />
           </Field>
-          <Field label="Overall Estimated Effort" htmlFor="estimated-effort" hint="Person-Hours">
+          <Field label="Overall Estimated Effort" htmlFor="estimated-effort" hint="Person-Days">
             <Input
               id="estimated-effort"
               type="number"

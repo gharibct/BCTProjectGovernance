@@ -24,6 +24,7 @@ export type Account = {
   id: string;
   name: string;
   geo_id: string | null;
+  region_id: string | null;
   description: string | null;
   is_active: boolean;
   tool_effective_date: string | null;

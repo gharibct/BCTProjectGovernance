@@ -15,6 +15,7 @@ import {
   useUpdateRegionalStatusReport,
   type RegionalScope,
 } from "@/lib/api/regional-status";
+import { isReportFrozen } from "@/lib/api/project-status";
 import { useAccountRollup, usePullRollupItem, useSetItemRollupStatus } from "@/lib/api/account-rollup";
 import { useGeoRollup, usePullGeoRollupItem, useSetAccountItemRollupStatus } from "@/lib/api/geo-rollup";
 import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
@@ -38,6 +39,9 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
   const showError = usePageBanner((state) => state.showError);
 
   const existing = reports?.find((r) => r.period_id === periodId);
+  // Submitted/Approved — the report is frozen (see submit-report-action.tsx);
+  // Key Metrics and the status-item registers all stop accepting edits.
+  const frozen = existing ? isReportFrozen(existing.status) : false;
 
   // Rollup, one level below this scope: Project->Account for "account",
   // Account->Geo for "geo" — pre-fills Key Metrics and feeds each category
@@ -81,8 +85,9 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
           }))
         : undefined;
 
-  // Key Metrics — captured once per report, submitted together with the
-  // Draft/Submitted status rather than saved immediately like the grid rows.
+  // Key Metrics — captured once per report and persisted on "Save Details"
+  // rather than immediately like the grid rows. The report is submitted for
+  // review separately, from the Dashboard.
   const [metrics, setMetrics] = React.useState(BLANK_METRICS);
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
   // Once there's no existing report, wait for the rollup to load before
@@ -146,7 +151,12 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
 
   const isSaving = createReport.isPending || updateReport.isPending;
 
-  const submitReport = () => {
+  // Persists Key Metrics for this period without submitting — the report is
+  // only moved Draft -> Submitted from the Dashboard
+  // (regional-reporting/submit-report-action.tsx). The status-item registers
+  // already persist per-row as they're edited (status-items-tab.tsx), so
+  // after this the whole page is saved.
+  const saveDetails = async () => {
     if (!periodId) return;
     const fields = {
       revenue: metrics.revenue || undefined,
@@ -154,14 +164,15 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
       offshore_fte: metrics.offshore_fte || undefined,
       projects_count: metrics.projects_count ? Number(metrics.projects_count) : undefined,
     };
-    const onSuccess = () => showSuccess("Status Report Submitted Successfully");
-    const onError = (err: unknown) =>
-      showError(err instanceof Error ? err.message : "Failed to submit status report.");
-
-    if (existing) {
-      updateReport.mutate({ id: existing.id, payload: { ...fields, status: "Submitted" } }, { onSuccess, onError });
-    } else {
-      createReport.mutate({ period_id: periodId, status: "Submitted", ...fields }, { onSuccess, onError });
+    try {
+      await (existing
+        ? // No status in the payload — a Draft stays Draft, and an already
+          // Submitted/Approved report keeps its status.
+          updateReport.mutateAsync({ id: existing.id, payload: { ...fields } })
+        : createReport.mutateAsync({ period_id: periodId, status: "Draft", ...fields }));
+      showSuccess("Details Saved Successfully");
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to save details.");
     }
   };
 
@@ -169,6 +180,11 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
     <div>
       {periodId ? (
         <SectionCard icon={TrendingUp} title="Key Metrics">
+          {frozen ? (
+            <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              This report has been submitted and is now read-only.
+            </p>
+          ) : null}
           <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
             <Field label="Revenue" htmlFor="revenue">
               <Input
@@ -177,6 +193,7 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
                 className="h-11"
                 value={metrics.revenue}
                 onChange={setMetric("revenue")}
+                disabled={frozen}
               />
             </Field>
             <Field label="Onsite FTE" htmlFor="onsite_fte">
@@ -186,6 +203,7 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
                 className="h-11"
                 value={metrics.onsite_fte}
                 onChange={setMetric("onsite_fte")}
+                disabled={frozen}
               />
             </Field>
             <Field label="Offshore FTE" htmlFor="offshore_fte">
@@ -195,6 +213,7 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
                 className="h-11"
                 value={metrics.offshore_fte}
                 onChange={setMetric("offshore_fte")}
+                disabled={frozen}
               />
             </Field>
             <Field label="Projects Count" htmlFor="projects_count">
@@ -204,6 +223,7 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
                 className="h-11"
                 value={metrics.projects_count}
                 onChange={setMetric("projects_count")}
+                disabled={frozen}
               />
             </Field>
           </div>
@@ -237,6 +257,7 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
           category={active.category}
           title={active.label}
           icon={active.icon}
+          frozen={frozen}
           rollupItems={rollupItems}
           onPullRollupItem={handlePull}
           onIgnoreRollupItem={handleIgnore}
@@ -245,15 +266,15 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
         />
       </div>
 
-      {periodId ? (
+      {periodId && !frozen ? (
         <div className="mt-8 flex justify-end">
           <Button
             className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
             disabled={isSaving}
-            onClick={submitReport}
+            onClick={saveDetails}
           >
             {isSaving ? <ButtonSpinner /> : null}
-            Submit Report
+            Save Details
           </Button>
         </div>
       ) : null}

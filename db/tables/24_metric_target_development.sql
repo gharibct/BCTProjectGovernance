@@ -10,7 +10,7 @@ CREATE TABLE metric_target_development (
     -- Project-level planning inputs (UX §4.10 "Size & Effort"). Unlike the
     -- per-period measurement_development snapshot, these are the one-time
     -- baseline set at the planning stage.
-    target_size_unit TEXT, -- CP, FP, LOC, Other
+    target_size_unit TEXT, -- CP, FP, LOC, SP (legacy rows may hold "Other")
     target_overall_planned_size NUMERIC(14, 2),
     target_overall_estimated_effort NUMERIC(14, 2),
 

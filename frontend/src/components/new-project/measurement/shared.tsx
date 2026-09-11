@@ -6,7 +6,11 @@ import { Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { MetricReferenceEntry, MetricReferenceLookup } from "@/lib/api/metric-reference";
+import {
+  resolveBenchmark,
+  type MetricReferenceEntry,
+  type MetricReferenceLookup,
+} from "@/lib/api/metric-reference";
 
 export const inputClass = "h-11";
 
@@ -50,8 +54,12 @@ export function useMeasures() {
   const set =
     (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setM((prev) => ({ ...prev, [key]: e.target.value }));
+  const setValue = React.useCallback(
+    (key: string, value: string) => setM((prev) => ({ ...prev, [key]: value })),
+    [],
+  );
   const setAll = React.useCallback((values: Record<string, string>) => setM(values), []);
-  return { m, set, setAll };
+  return { m, set, setValue, setAll };
 }
 
 // Props shape shared by every per-Project-Type target tab now that
@@ -73,7 +81,18 @@ export type MeasuresProps = {
 // Entry screen shows (components/measurement/shared.tsx). When no reference
 // entry exists for the metric (e.g. Consulting) it still shows the tile's
 // own unit string.
-function MetricInfoButton({ entry, unit }: { entry?: MetricReferenceEntry; unit: string }) {
+function MetricInfoButton({
+  entry,
+  unit,
+  benchmarkUnit,
+}: {
+  entry?: MetricReferenceEntry;
+  unit: string;
+  // Project's selected unit of measurement (Development's Size Unit), so the
+  // Benchmark Value below tracks it for metrics with per-unit benchmarks.
+  benchmarkUnit?: string;
+}) {
+  const benchmarkValue = resolveBenchmark(entry, benchmarkUnit)?.benchmark_value;
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -107,7 +126,7 @@ function MetricInfoButton({ entry, unit }: { entry?: MetricReferenceEntry; unit:
                 <dt className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
                   Benchmark Value
                 </dt>
-                <dd>{entry.benchmark_value}</dd>
+                <dd>{benchmarkValue}</dd>
               </div>
             </>
           ) : (
@@ -131,6 +150,7 @@ export function MetricTile({
   metricKey,
   reference,
   error,
+  benchmarkUnit,
 }: {
   label: string;
   value: string;
@@ -146,8 +166,12 @@ export function MetricTile({
   reference?: MetricReferenceLookup;
   // Config min/max violation message, shown under the input.
   error?: string;
+  // Project's selected unit of measurement (Development's Size Unit); picks the
+  // per-unit benchmark for metrics that have one (Productivity).
+  benchmarkUnit?: string;
 }) {
   const entry = metricKey ? reference?.[metricKey] : undefined;
+  const benchmarkValue = resolveBenchmark(entry, benchmarkUnit)?.benchmark_value;
   // Config (metric_reference.yaml) is the source of truth for the unit; the
   // hard-coded `unit` prop is only a fallback for metrics with no config entry
   // (Consulting). A prose benchmark ("P1 <= 4 hours; …") can't seed the numeric
@@ -155,7 +179,7 @@ export function MetricTile({
   // prefilled into `value` upstream, in MeasurementTabs).
   const displayUnit = entry?.unit ?? unit;
   const benchmarkPlaceholder =
-    entry && numericBenchmark(entry.benchmark_value) === null ? entry.benchmark_value : undefined;
+    entry && numericBenchmark(benchmarkValue) === null ? benchmarkValue : undefined;
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
       <div className="flex items-start justify-between gap-2">
@@ -167,7 +191,7 @@ export function MetricTile({
             </span>
           ) : null}
         </p>
-        <MetricInfoButton entry={entry} unit={unit} />
+        <MetricInfoButton entry={entry} unit={unit} benchmarkUnit={benchmarkUnit} />
       </div>
       <Input
         type="number"

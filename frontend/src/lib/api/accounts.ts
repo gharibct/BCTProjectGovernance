@@ -6,6 +6,7 @@ import type { Account } from "./reference-data";
 export type AccountPayload = {
   name: string;
   geo_id?: string;
+  region_id?: string;
   description?: string;
   is_active?: boolean;
   tool_effective_date?: string;

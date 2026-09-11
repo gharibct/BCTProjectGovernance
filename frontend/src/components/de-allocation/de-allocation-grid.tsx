@@ -11,6 +11,7 @@ import {
   useBulkAllocateDe,
   useDeAllocationList,
   type DeAllocationAssignment,
+  type DeAllocationFilter,
   type DeAllocationRow,
 } from "@/lib/api/de-allocation";
 import { effectiveProjectStatus } from "@/lib/api/projects";
@@ -31,16 +32,24 @@ import { ButtonSpinner } from "@/components/forms/form-primitives";
 import { StatCard } from "@/components/de-assessment-workspace/shared";
 
 // DE Project Allocation (design-reference/de-approval) — a DE (or Admin) assigns
-// projects to a Delivery Excellence assessor. Allocation is not period-scoped:
-// the whole pool is shown regardless of reporting period.
-//
-// The list filter is purely on allocation state, not project status: a row is
-// "Allocated" once it has a DE assessor and "Unallocated" otherwise, whether the
-// project is Pending Approval or Approved. (Draft projects never reach the grid.)
-const STATUS_FILTER_OPTIONS = [
-  { value: "Unallocated", label: "Unallocated" },
-  { value: "Allocated", label: "Allocated" },
-] as const;
+// projects to a Delivery Excellence assessor, and can reassign a different one
+// at any time. Allocation is optional and not period-scoped. The "Show" filter
+// switches the grid between projects still awaiting a DE (the default), those
+// already allocated (for reassignment), and all non-Draft projects.
+
+const VIEW_OPTIONS: { value: DeAllocationFilter; label: string }[] = [
+  { value: "unallocated", label: "Awaiting allocation" },
+  { value: "allocated", label: "Already allocated" },
+  { value: "all", label: "All projects" },
+];
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString(undefined, {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
 
 export function DeAllocationGrid() {
   const router = useRouter();
@@ -49,7 +58,8 @@ export function DeAllocationGrid() {
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
-  const { data: rows = [], isLoading, isError, error, refetch } = useDeAllocationList();
+  const [view, setView] = React.useState<DeAllocationFilter>("unallocated");
+  const { data: rows = [], isLoading, isError, error, refetch } = useDeAllocationList(view);
 
   const { data: roles = [] } = useRoles();
   const { data: users = [] } = useUsers();
@@ -61,8 +71,6 @@ export function DeAllocationGrid() {
 
   const [search, setSearch] = React.useState("");
   const [attr, setAttr] = React.useState<ProjectAttrValue>({});
-  // Default view is the work-to-do list: projects still awaiting a DE assessor.
-  const [statusFilter, setStatusFilter] = React.useState("Unallocated");
 
   // Dirty per-row assessor overrides (projectId -> deUserId) plus multi-select.
   const [pending, setPending] = React.useState<Record<string, string>>({});
@@ -74,14 +82,6 @@ export function DeAllocationGrid() {
   const filteredRows = rows.filter((row) => {
     if (search && !`${row.project_code} ${row.project_name}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (!matchesProjectAttrs(row, attr)) return false;
-
-    const isAllocated = !!row.delivery_excellence_id;
-    if (statusFilter === "Allocated") {
-      if (!isAllocated) return false;
-    } else {
-      // "Unallocated" (default) — any project with no assessor yet.
-      if (isAllocated) return false;
-    }
     return true;
   });
 
@@ -131,16 +131,22 @@ export function DeAllocationGrid() {
     });
   };
 
-  // KPIs cover the whole allocation grid regardless of project status.
+  // Rows whose assessor has been changed in this session but not yet saved — a
+  // pending pick that differs from what the server currently has (covers both
+  // first allocation and reassignment).
   const totalProjects = rows.length;
-  const allocatedCount = rows.filter((r) => assessorFor(r)).length;
+  const changedCount = rows.filter(
+    (r) => pending[r.project_id] && pending[r.project_id] !== (r.delivery_excellence_id ?? ""),
+  ).length;
 
   return (
     <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">DE Project Allocation</h1>
-          <p className="mt-1 text-sm text-slate-500">Assign projects to Delivery Excellence assessors</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Assign projects to Delivery Excellence assessors, or reassign an existing allocation
+          </p>
         </div>
       </header>
 
@@ -162,15 +168,43 @@ export function DeAllocationGrid() {
         <p className="text-slate-400">Loading…</p>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-4">
-            <StatCard label="Total Projects" value={totalProjects} />
-            <StatCard label="Allocated" value={allocatedCount} />
-            <StatCard label="Unallocated" value={totalProjects - allocatedCount} accent="red" />
+          <div className="grid grid-cols-2 gap-4">
+            <StatCard
+              label={
+                view === "unallocated"
+                  ? "Awaiting Allocation"
+                  : view === "allocated"
+                    ? "Allocated Projects"
+                    : "Projects"
+              }
+              value={totalProjects}
+              accent={view === "unallocated" && totalProjects > 0 ? "red" : undefined}
+            />
+            <StatCard label="Assessor Changes (unsaved)" value={changedCount} />
           </div>
 
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-1 flex-wrap items-center gap-2">
+                <label className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-600">
+                  Show
+                  <NativeSelect
+                    aria-label="Show projects"
+                    value={view}
+                    onChange={(e) => {
+                      setView(e.target.value as DeAllocationFilter);
+                      setPending({});
+                      setSelected(new Set());
+                    }}
+                    className="h-9 w-44 text-sm"
+                  >
+                    {VIEW_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </label>
                 <div className="relative min-w-[200px] flex-1">
                   <Search
                     aria-hidden
@@ -185,20 +219,6 @@ export function DeAllocationGrid() {
                   />
                 </div>
                 <ProjectAttrFilters rows={rows} value={attr} onChange={setAttr} />
-                <div className="w-52 shrink-0">
-                  <NativeSelect
-                    aria-label="Allocation status filter"
-                    className="h-9 text-sm"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    {STATUS_FILTER_OPTIONS.map((s) => (
-                      <option key={s.value} value={s.value}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </div>
                 {projectAttrFiltersActive(attr) ? (
                   <button
                     type="button"
@@ -213,11 +233,13 @@ export function DeAllocationGrid() {
 
             {filteredRows.length === 0 ? (
               <p className="px-5 py-6 text-sm text-slate-400">
-                {rows.length === 0
-                  ? "No projects awaiting allocation."
-                  : statusFilter === "Unallocated"
-                    ? "No unallocated projects — every project awaiting approval has a DE assessor."
-                    : "No projects match the current filters."}
+                {rows.length > 0
+                  ? "No projects match the current filters."
+                  : view === "unallocated"
+                    ? "No projects awaiting allocation — every non-Draft project already has a DE assessor."
+                    : view === "allocated"
+                      ? "No projects have a DE assessor allocated yet."
+                      : "No non-Draft projects yet."}
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -237,7 +259,7 @@ export function DeAllocationGrid() {
                       <th className="px-3 py-3">Project</th>
                       <th className="px-3 py-3">Account</th>
                       <th className="px-3 py-3">Project Manager</th>
-                      <th className="px-3 py-3">Allocation</th>
+                      <th className="px-3 py-3">Status</th>
                       <th className="px-3 py-3 text-right">Completion</th>
                       <th className="px-3 py-3 min-w-[220px]">DE Assessor</th>
                     </tr>
@@ -245,6 +267,9 @@ export function DeAllocationGrid() {
                   <tbody>
                     {filteredRows.map((row) => {
                       const chosen = assessorFor(row);
+                      const rowChanged =
+                        !!pending[row.project_id] &&
+                        pending[row.project_id] !== (row.delivery_excellence_id ?? "");
                       return (
                         <tr
                           key={row.project_id}
@@ -267,44 +292,39 @@ export function DeAllocationGrid() {
                           <td className="px-3 py-2.5 text-slate-600">{row.account_name ?? "—"}</td>
                           <td className="px-3 py-2.5 text-slate-600">{row.project_manager_name ?? "—"}</td>
                           <td className="px-3 py-2.5">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1",
-                                  row.delivery_excellence_id
-                                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                                    : "bg-red-50 text-red-700 ring-red-200",
-                                )}
-                              >
-                                {row.delivery_excellence_id ? "Allocated" : "Unallocated"}
-                              </span>
-                              {row.project_status === "Approved" ? (
-                                <StatusBadge value={effectiveProjectStatus(row)} />
-                              ) : null}
-                            </div>
+                            <StatusBadge value={effectiveProjectStatus(row)} />
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono text-slate-600">{row.completion_pct}%</td>
                           <td className="px-3 py-2.5">
-                            <NativeSelect
-                              aria-label={`DE Assessor for ${row.project_code}`}
-                              className={cn(
-                                "h-9 text-sm",
-                                chosen ? "text-slate-900" : "text-slate-400",
-                                pending[row.project_id] && "border-[#1a6fc4]",
-                              )}
-                              value={chosen}
-                              disabled={!canWrite}
-                              onChange={(e) =>
-                                setPending((prev) => ({ ...prev, [row.project_id]: e.target.value }))
-                              }
-                            >
-                              <option value="">Select Assessor</option>
-                              {assessors.map((a) => (
-                                <option key={a.id} value={a.id}>
-                                  {a.full_name}
-                                </option>
-                              ))}
-                            </NativeSelect>
+                            <div className="flex flex-col gap-1">
+                              <NativeSelect
+                                aria-label={`DE Assessor for ${row.project_code}`}
+                                className={cn(
+                                  "h-9 text-sm",
+                                  chosen ? "text-slate-900" : "text-slate-400",
+                                  rowChanged && "border-[#1a6fc4]",
+                                )}
+                                value={chosen}
+                                disabled={!canWrite}
+                                onChange={(e) =>
+                                  setPending((prev) => ({ ...prev, [row.project_id]: e.target.value }))
+                                }
+                              >
+                                <option value="">Select Assessor</option>
+                                {assessors.map((a) => (
+                                  <option key={a.id} value={a.id}>
+                                    {a.full_name}
+                                  </option>
+                                ))}
+                              </NativeSelect>
+                              {row.delivery_excellence_id ? (
+                                <span className="text-xs text-slate-400">
+                                  {rowChanged
+                                    ? `Currently ${row.delivery_excellence_name ?? "allocated"} — will be reassigned on save`
+                                    : `Allocated${row.de_allocated_at ? ` ${formatDate(row.de_allocated_at)}` : ""}`}
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       );

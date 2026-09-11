@@ -96,6 +96,18 @@ function emptyValues(): ProjectPayload {
   return {};
 }
 
+// An approved project's lifecycle is Ongoing until the PM explicitly moves it
+// to Hold / Closed / Open Only for Billing on this page — the same default the
+// backend stamps on DE approval. Projects approved before the lifecycle field
+// existed carry a null lifecycle_status, so surface that default here rather
+// than leaving the Amend combo on "Select…".
+function seededLifecycleStatus(project: Project): ProjectLifecycleStatus | undefined {
+  if (project.lifecycle_status) return project.lifecycle_status;
+  return project.project_status === "Approved" || project.project_status === "Under Amendment"
+    ? "Ongoing"
+    : undefined;
+}
+
 function valuesFromProject(project: Project): ProjectPayload {
   return {
     project_name: project.project_name,
@@ -122,7 +134,7 @@ function valuesFromProject(project: Project): ProjectPayload {
     actual_end_date: project.actual_end_date ?? undefined,
     tool_effective_date: project.tool_effective_date ?? undefined,
     applicable_phase: project.applicable_phase ?? [],
-    lifecycle_status: project.lifecycle_status ?? undefined,
+    lifecycle_status: seededLifecycleStatus(project),
   };
 }
 

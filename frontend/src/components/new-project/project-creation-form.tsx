@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Database, IdCard, Trash2, UserRound } from "lucide-react";
+import { Building2, Database, IdCard, Trash2, UserRound } from "lucide-react";
 
 import {
   AutoBadge,
@@ -10,18 +10,27 @@ import {
   Field,
   MandatoryBadge,
   SectionCard,
+  Segmented,
 } from "@/components/forms/form-primitives";
 import { RegisterTable } from "@/components/forms/register-table";
 import { EmployeePicker } from "@/components/forms/employee-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole } from "@/stores/session";
 import { ROLE_LANDING_ROUTE } from "@/lib/menu-config";
 import { useCreateProjectCreationRequest } from "@/lib/api/project-creation-requests";
-import { PM_CANDIDATE_ROLES } from "@/lib/api/reference-data";
+import {
+  PM_CANDIDATE_ROLES,
+  useAccounts,
+  useGeos,
+  useOrganizations,
+  useRegions,
+} from "@/lib/api/reference-data";
 
 const inputClass = "h-11";
+const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700";
 
 type PendingOracleId = { id: string; oracle_project_id: string };
 
@@ -38,11 +47,23 @@ export function ProjectCreationForm() {
   const showError = usePageBanner((state) => state.showError);
   const effectiveRole = useEffectiveRole();
 
+  const { data: organizations } = useOrganizations();
+  const { data: geos } = useGeos();
+  const { data: regions } = useRegions();
+  const { data: accounts } = useAccounts();
+
   const [projectName, setProjectName] = React.useState("");
   const [projectNameError, setProjectNameError] = React.useState<string | null>(null);
 
   const [projectManagerId, setProjectManagerId] = React.useState<string | null>(null);
   const [projectManagerError, setProjectManagerError] = React.useState<string | null>(null);
+
+  // Project profile — same Org / GEO / Region / Account controls as the charter.
+  const [organizationId, setOrganizationId] = React.useState<string | null>(null);
+  const [geoId, setGeoId] = React.useState<string | null>(null);
+  const [regionId, setRegionId] = React.useState<string | null>(null);
+  const [accountId, setAccountId] = React.useState<string | null>(null);
+  const [profileError, setProfileError] = React.useState<string | null>(null);
 
   const [oracleInput, setOracleInput] = React.useState("");
   const [oracleInputError, setOracleInputError] = React.useState<string | null>(null);
@@ -89,8 +110,14 @@ export function ProjectCreationForm() {
     } else {
       setOracleListError(null);
     }
+    if (!organizationId || !geoId || !regionId || !accountId) {
+      setProfileError("Organization, GEO, Region and Account are all required.");
+      blocked = true;
+    } else {
+      setProfileError(null);
+    }
     if (blocked) {
-      showError("Project Name, Project Manager and at least one Oracle Project are required.");
+      showError("Fill in every mandatory field before submitting for approval.");
       return;
     }
 
@@ -98,6 +125,10 @@ export function ProjectCreationForm() {
       await createRequest.mutateAsync({
         project_name: projectName.trim(),
         project_manager_id: projectManagerId,
+        organization_id: organizationId,
+        geo_id: geoId,
+        region_id: regionId,
+        account_id: accountId,
         oracle_project_ids: pendingOracleIds.map((item) => item.oracle_project_id),
       });
       showSuccess("Project creation request submitted for DE approval.", {
@@ -150,6 +181,78 @@ export function ProjectCreationForm() {
             searchPlaceholder="Search Project Managers…"
           />
         </Field>
+      </SectionCard>
+
+      <SectionCard icon={Building2} title="Project Profile">
+        {profileError ? (
+          <p className="mb-4 text-sm font-medium text-red-600">{profileError}</p>
+        ) : null}
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+          <Field label="Organization" badge={<MandatoryBadge />}>
+            <Segmented
+              options={(organizations ?? []).map((org) => ({ value: org.id, label: org.code }))}
+              value={organizationId ?? ""}
+              onChange={(v) => {
+                setOrganizationId(v || null);
+                if (profileError) setProfileError(null);
+              }}
+              activeClassName={segmentedActiveClass}
+            />
+          </Field>
+          <Field label="GEO" badge={<MandatoryBadge />}>
+            <Segmented
+              options={(geos ?? []).map((geo) => ({ value: geo.id, label: geo.code }))}
+              value={geoId ?? ""}
+              onChange={(v) => {
+                setGeoId(v || null);
+                setRegionId(null);
+                if (profileError) setProfileError(null);
+              }}
+              activeClassName={segmentedActiveClass}
+            />
+          </Field>
+          <Field label="Region" htmlFor="region" badge={<MandatoryBadge />}>
+            <NativeSelect
+              id="region"
+              value={regionId ?? ""}
+              onChange={(e) => {
+                setRegionId(e.target.value || null);
+                if (profileError) setProfileError(null);
+              }}
+              disabled={!geoId}
+            >
+              <option value="" disabled>
+                {geoId ? "Select…" : "Select a GEO first"}
+              </option>
+              {(regions ?? [])
+                .filter((region) => region.geo_id === geoId)
+                .map((region) => (
+                  <option key={region.id} value={region.id}>
+                    {region.name}
+                  </option>
+                ))}
+            </NativeSelect>
+          </Field>
+          <Field label="Account Name" htmlFor="account-name" badge={<MandatoryBadge />}>
+            <NativeSelect
+              id="account-name"
+              value={accountId ?? ""}
+              onChange={(e) => {
+                setAccountId(e.target.value || null);
+                if (profileError) setProfileError(null);
+              }}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {(accounts ?? []).map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        </div>
       </SectionCard>
 
       <SectionCard

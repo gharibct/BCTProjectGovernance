@@ -37,7 +37,7 @@ export function GovernanceMatrix({
 }: {
   heading: string;
   // Optional colored PPT-divider-style header (see lib/section-accent-colors.ts)
-  // — omit both for the plain header every other caller (CXO/Account/Geo Head
+  // — omit both for the plain header every other caller (CDO/Account/Geo Head
   // Dashboard) already uses.
   icon?: LucideIcon;
   accentColor?: SectionAccentColor;

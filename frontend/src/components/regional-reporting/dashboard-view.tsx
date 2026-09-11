@@ -58,14 +58,14 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
           <GeoAccountMatrixSection geoId={scopeId} accented />
           <ExecutiveUpdateSection geoId={scopeId} periodId={periodId} />
           <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
-          <OpenNcSection scope={scope} scopeId={scopeId} />
+          <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
           <SubmitReportAction scope={scope} scopeId={scopeId} periodId={periodId} report={report} />
         </>
       ) : (
         <>
           <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
           <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
-          <OpenNcSection scope={scope} scopeId={scopeId} />
+          <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
           <SubmitReportAction scope={scope} scopeId={scopeId} periodId={periodId} report={report} />
         </>
       )}

@@ -64,7 +64,7 @@
 Purpose: BCT legal entity a project belongs to (BCTPL / BCTC / FT). · Key: `id`, `code` unique. · Attributes: code, name. · Relationships: `1–N` ENT-PROJECT. · Owning module: MOD-REF. · Lifecycle: no status (reference). · Retention: permanent.
 
 ### ENT-GEO — Geo
-Purpose: geography tier (APAC / MEA / US) between Account and CXO; a scope dimension. · Key: `id`, `code`. · Attributes: code, name. · Relationships: `1–N` ENT-ACCOUNT, `1–N` ENT-PROJECT, `N–M` ENT-USER via ENT-USERGEO, `1–N` ENT-GEOSTATUSREPORT, `1–N` ENT-GEOHEALTHDECL, `1–N` ENT-EXECUPDATE. · Owning module: MOD-REF. · Lifecycle: no status. · Retention: permanent.
+Purpose: geography tier (APAC / MEA / US) between Account and CDO; a scope dimension. · Key: `id`, `code`. · Attributes: code, name. · Relationships: `1–N` ENT-ACCOUNT, `1–N` ENT-PROJECT, `N–M` ENT-USER via ENT-USERGEO, `1–N` ENT-GEOSTATUSREPORT, `1–N` ENT-GEOHEALTHDECL, `1–N` ENT-EXECUPDATE. · Owning module: MOD-REF. · Lifecycle: no status. · Retention: permanent.
 
 ### ENT-REGION — Region
 Purpose: reference tier added after Geo; **not used in RBAC scoping**. · Key: `id`, `code`. · Attributes: code, name. · Relationships: `1–N` ENT-PROJECT (`region_id`). · Owning module: MOD-REF. · Lifecycle: no status. · Retention: permanent. `ASSUMPTION:` role of Region vs Geo unresolved.
@@ -140,7 +140,7 @@ Purpose: one categorised line of a status report (`ProjectStatusCategory`: Key A
 Same shape as project-level, scoped to `account_id`; the pull targets from project status items; items carry `rolled_up_geo_item_id`. Owning module: MOD-ACCT. Lifecycle: `06` §5 (report), `RollupStatus` (item, account→geo). Retention: permanent history.
 
 ### ENT-GEOSTATUSREPORT / ENT-GEOSTATUSITEM — Geo Status Report / Item
-Same shape, scoped to `geo_id`; reviewed by CXO. Owning module: MOD-GEO. Lifecycle: `06` §6. Retention: permanent history.
+Same shape, scoped to `geo_id`; reviewed by CDO. Owning module: MOD-GEO. Lifecycle: `06` §6. Retention: permanent history.
 
 ---
 
@@ -226,7 +226,7 @@ item and links it; an "Undo" deletes the parent item and clears the link. See
 ## 13. Executive, Action, Data Integrity
 
 ### ENT-EXECUPDATE — Executive Update
-Purpose: structured CXO-facing content for a geo/period. · Key: `id`; (`geo_id`, `period_id`). · Attributes: `status` *(stays `Draft`)*, `content` (JSON — sections + typed blocks with stable IDs), `created_by`. · Relationships: `N–1` ENT-GEO, `N–1` ENT-PERIOD. · Owning module: MOD-EXEC. · Lifecycle: none beyond saved/unsaved (`06` §1 flags no approval). · Retention: permanent history.
+Purpose: structured CDO-facing content for a geo/period. · Key: `id`; (`geo_id`, `period_id`). · Attributes: `status` *(stays `Draft`)*, `content` (JSON — sections + typed blocks with stable IDs), `created_by`. · Relationships: `N–1` ENT-GEO, `N–1` ENT-PERIOD. · Owning module: MOD-EXEC. · Lifecycle: none beyond saved/unsaved (`06` §1 flags no approval). · Retention: permanent history.
 
 ### ENT-ACTION — Action
 Purpose: a tracked task against a GEO / ACCOUNT / PROJECT. · Key: `id`; **business key `action_code` (`ACT-YYYY-NNNN`) unique**. · Attributes: `level` (`ActionLevel`), `level_value` (Geo/Account/Project code), `title`, `description`, `action_by_id` (assignee), `priority` (`ActionPriority`), `status` (`ActionStatus`), `due_date`, `raised_by`, `raised_at`, `completed_at`, `closed_at`, `closed_by`. · Relationships: `N–1` ENT-USER ×3 (assignee, raiser, closer); scoped to a Geo/Account/Project by `level` + `level_value`; `1–N` ENT-ACTIONHISTORY. · Owning module: MOD-ACTION. · Lifecycle: `06` §10. · Retention: permanent.

@@ -1,18 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
+import type { OpenNcRow } from "./dashboard";
 import type { ReportingPeriod } from "./reference-data";
 import type { ReportingActivitySeries } from "@/lib/reporting-activity";
 
 export type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected";
 
-// Reporting Hub (Project/Account/Geo) history tables show only whether a
-// period's report was filed, not the full review lifecycle — Draft/Rejected
-// both mean the PM/account/geo owner still needs to act, so both read as Not
-// Submitted. Mirrors the Submitted/Approved collapse already used for the
-// dashboard "due" and "report status" indicators (backend/app/services/dashboard.py).
-export function submissionStatusLabel(status: ReportStatus): "Submitted" | "Not Submitted" {
-  return status === "Submitted" || status === "Approved" ? "Submitted" : "Not Submitted";
+// Reporting Hub (Project/Account/Geo) history tables surface the review
+// lifecycle: a filed report reads as "Submitted" until the level above signs
+// off, then "Approved"; a plain Draft reads as "Not Submitted". A Rejected
+// report is called out as "Rejected" rather than hidden as "Not Submitted" —
+// the owner has to revise and resubmit it, and that needs to be visible.
+export function submissionStatusLabel(
+  status: ReportStatus
+): "Submitted" | "Approved" | "Rejected" | "Not Submitted" {
+  if (status === "Approved") return "Approved";
+  if (status === "Submitted") return "Submitted";
+  if (status === "Rejected") return "Rejected";
+  return "Not Submitted";
+}
+
+// Submitted (pending review) and Approved (signed off) are both frozen — the
+// owner can no longer change the report, its status-item grids, or (Account
+// only) RAG Status; only Draft/Rejected stay editable. Mirrors the backend
+// guard in services/report_lock.py.
+export function isReportFrozen(status: ReportStatus): boolean {
+  return status === "Submitted" || status === "Approved";
 }
 
 export type ProjectStatusReport = {
@@ -33,6 +47,12 @@ export type ProjectStatusReport = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_comment: string | null;
+  // Open Alerts as of this period's end date, snapshotted server-side on
+  // every save. Kept for history, but the dashboard/Review "Open Alerts"
+  // sections no longer read it — they always show the live, unfiltered set
+  // of currently open Alerts (see lib/api/dashboard.ts's useOpenNcs).
+  open_alerts_count: number;
+  open_alerts_snapshot: OpenNcRow[] | null;
   created_at: string;
   updated_at: string;
 };

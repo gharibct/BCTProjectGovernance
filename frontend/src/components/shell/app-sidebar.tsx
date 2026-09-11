@@ -246,7 +246,7 @@ export function AppSidebar() {
     !id ? false : patchAccountIds === null || patchAccountIds.has(id);
   const reportingAccounts = isAdmin ? accounts : accounts.filter((a) => inPatchAccounts(a.id));
   const reportingGeos =
-    isAdmin || realRole === "CXO" ? geos : geos.filter((g) => patchGeoIds.has(g.id));
+    isAdmin || realRole === "CDO" ? geos : geos.filter((g) => patchGeoIds.has(g.id));
 
   // The "review" (one level up) lists — now that every list is already
   // patch-scoped, review and reporting scopes coincide.
@@ -260,6 +260,7 @@ export function AppSidebar() {
   const isAccountReporting = pathname.startsWith("/account-reporting");
   const isGeoReporting = pathname.startsWith("/geo-reporting");
   const isProjectReview = pathname.startsWith("/project-review");
+  const isProjectPerformance = pathname.startsWith("/project-performance");
   const isAccountReview = pathname.startsWith("/account-review");
   const isGeoReview = pathname.startsWith("/geo-review");
   // The :projectId route segment is the single source of truth for which of
@@ -275,9 +276,12 @@ export function AppSidebar() {
   // /project-reporting/{projectId}(/...) — every project-reporting route is
   // nested under a :projectId segment, including the hub page itself.
   const reportingProjectId = isProjectReporting ? pathname.split("/")[2] : undefined;
+  const isDeAssessmentReport = pathname.startsWith("/de-assessment");
+  const deAssessmentReportProjectId = isDeAssessmentReport ? pathname.split("/")[2] : undefined;
   const reportingAccountId = isAccountReporting ? pathname.split("/")[2] : undefined;
   const reportingGeoId = isGeoReporting ? pathname.split("/")[2] : undefined;
   const reviewProjectId = isProjectReview ? pathname.split("/")[2] : undefined;
+  const performanceProjectId = isProjectPerformance ? pathname.split("/")[2] : undefined;
   const reviewAccountId = isAccountReview ? pathname.split("/")[2] : undefined;
   const reviewGeoId = isGeoReview ? pathname.split("/")[2] : undefined;
 
@@ -328,10 +332,33 @@ export function AppSidebar() {
       />
     </CollapsibleGroup>
   );
+  // Account Manager only — a read-only rollup of Measurements/Commitments/
+  // Payment Milestones/RAIDO per project (no review/approval process, unlike
+  // Project Dashboard above).
+  const projectPerformanceGroup = (
+    <CollapsibleGroup
+      icon={ChartColumn}
+      label="Project Performance Dashboard"
+      active={isProjectPerformance}
+      defaultOpen={isProjectPerformance}
+    >
+      <ProjectNavList
+        projects={reviewProjects}
+        activeId={performanceProjectId}
+        hrefFor={(project) => `/project-performance/${project.id}`}
+        emptyLabel="No projects yet."
+      />
+    </CollapsibleGroup>
+  );
   const isAccountManager = effectiveRole === "ACCOUNT_MANAGER";
   // Project Manager also wants "Project Dashboard" last — see the Account
   // Manager comment above the group's definition.
   const isProjectManager = effectiveRole === "PROJECT_MANAGER";
+  // Delivery Excellence and CDO get "View …" labels on the shared read-only
+  // screens ("Projects", "Project Health") to distinguish them from the
+  // editable versions other roles see under the same nav entries.
+  const isDeliveryExcellence = effectiveRole === "DELIVERY_EXCELLENCE";
+  const isCdo = effectiveRole === "CDO";
 
   return (
     <aside className="w-64 shrink-0 bg-[#1a4a7a] py-6">
@@ -399,7 +426,7 @@ export function AppSidebar() {
           <SimpleLink
             href="/de-projects"
             icon={FolderOpen}
-            label="Projects"
+            label="View Projects"
             active={pathname.startsWith("/de-projects")}
           />
         ) : null}
@@ -419,19 +446,19 @@ export function AppSidebar() {
             active={pathname === "/dashboard/admin"}
           />
         ) : null}
-        {has("cxo-dashboard") ? (
+        {has("cdo-dashboard") ? (
           <SimpleLink
-            href="/dashboard/cxo"
+            href="/dashboard/cdo"
             icon={LayoutGrid}
             label="My Summary"
-            active={pathname === "/dashboard/cxo"}
+            active={pathname === "/dashboard/cdo"}
           />
         ) : null}
         {has("project-health") ? (
           <SimpleLink
             href="/project-health"
             icon={HeartPulse}
-            label="Project Health"
+            label={isDeliveryExcellence || isCdo ? "View Project Health" : "Project Health"}
             active={pathname.startsWith("/project-health")}
           />
         ) : null}
@@ -504,6 +531,22 @@ export function AppSidebar() {
               projects={statusReportProjects}
               activeId={reportingProjectId}
               hrefFor={(project) => `/project-reporting/${project.id}`}
+              emptyLabel="No approved projects yet."
+            />
+          </CollapsibleGroup>
+        ) : null}
+
+        {has("de-assessment-report") ? (
+          <CollapsibleGroup
+            icon={ShieldCheck}
+            label="DE Assessment Report"
+            active={isDeAssessmentReport}
+            defaultOpen={isDeAssessmentReport}
+          >
+            <ProjectNavList
+              projects={statusReportProjects}
+              activeId={deAssessmentReportProjectId}
+              hrefFor={(project) => `/de-assessment/${project.id}`}
               emptyLabel="No approved projects yet."
             />
           </CollapsibleGroup>
@@ -647,6 +690,8 @@ export function AppSidebar() {
         ) : null}
 
         {has("project-review") && (isAccountManager || isProjectManager) ? projectDashboardGroup : null}
+
+        {has("project-performance") && isAccountManager ? projectPerformanceGroup : null}
 
         {has("pm-findings") ? (
           <SimpleLink

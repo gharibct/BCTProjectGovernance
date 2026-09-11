@@ -8,9 +8,11 @@ import { EmptyState } from "@/components/forms/empty-state";
 import { EditableTextList } from "@/components/forms/editable-text-list";
 import { usePageBanner } from "@/stores/page-banner";
 import {
+  isReportFrozen,
   useCreateStatusItem,
   useDeleteStatusItem,
   useStatusItems,
+  useStatusReports,
   useUpdateStatusItem,
   type ProjectStatusCategory,
 } from "@/lib/api/project-status";
@@ -32,6 +34,9 @@ export function StatusItemsTab({
   const { projectId } = useParams<{ projectId: string }>();
   const periodId = useSearchParams().get("period");
   const { data: items = [] } = useStatusItems(projectId ?? null, periodId, category);
+  const { data: reports } = useStatusReports(projectId ?? null);
+  const report = reports?.find((r) => r.period_id === periodId);
+  const frozen = report ? isReportFrozen(report.status) : false;
   const createItem = useCreateStatusItem(projectId ?? null, periodId, category);
   const updateItem = useUpdateStatusItem(projectId ?? null, periodId, category);
   const deleteItem = useDeleteStatusItem(projectId ?? null, periodId, category);
@@ -54,6 +59,7 @@ export function StatusItemsTab({
     <SectionCard icon={icon} title={title} aside={<AutoBadge label={`${items.length} logged`} />}>
       <EditableTextList
         items={items.map((item) => ({ id: item.id, text: item.description }))}
+        disabled={frozen}
         addLabel={`Add ${title} Item`}
         emptyLabel="Nothing logged yet."
         onAdd={(text) =>

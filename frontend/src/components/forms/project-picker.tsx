@@ -7,6 +7,7 @@ import {
   fetchProjectById,
   fetchProjectOptions,
   type Project,
+  type ProjectStatus,
 } from "@/lib/api/projects";
 import { useAccounts, useGeos } from "@/lib/api/reference-data";
 import { FilteredCombo, type ComboItem } from "@/components/forms/filtered-combo";
@@ -26,6 +27,7 @@ export function ProjectPicker({
   disabled = false,
   id,
   className,
+  excludeStatus,
 }: {
   value: string | null;
   onChange: (id: string | null) => void;
@@ -35,6 +37,9 @@ export function ProjectPicker({
   disabled?: boolean;
   id?: string;
   className?: string;
+  // Omit projects in this approval-workflow status from the results, e.g.
+  // "Draft" for pickers that must only target already-submitted projects.
+  excludeStatus?: ProjectStatus;
 }) {
   const { data: geos = [] } = useGeos();
   const { data: accounts = [] } = useAccounts();
@@ -72,7 +77,7 @@ export function ProjectPicker({
       searchLabel="Project name / code"
       // geos/accounts length in the key so the display names refresh once the
       // reference data resolves.
-      queryKey={["projects", "filtered-combo", geos.length, accounts.length]}
+      queryKey={["projects", "filtered-combo", geos.length, accounts.length, excludeStatus ?? ""]}
       facets={[
         {
           key: "geo_id",
@@ -94,6 +99,7 @@ export function ProjectPicker({
           search,
           filters: { geo_id: filters.geo_id, account_id: filters.account_id },
           limit,
+          excludeStatus,
         });
         return { items: page.items.map(toItem), total: page.total };
       }}

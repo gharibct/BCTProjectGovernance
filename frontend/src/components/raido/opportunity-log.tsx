@@ -22,6 +22,7 @@ import {
   type RaidoStatusFilter,
 } from "@/lib/raido-status";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
+import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
 import { useUsers } from "@/lib/api/reference-data";
 import {
   useCreateOpportunity,
@@ -165,12 +166,15 @@ export function OpportunityLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <AiRowSuggestionsTrigger
-        projectId={projectId}
-        screen="opportunities"
-        periodId={periodId}
-        itemLabel="Opportunity"
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <AiRowSuggestionsTrigger
+          projectId={projectId}
+          screen="opportunities"
+          periodId={periodId}
+          itemLabel="Opportunity"
+        />
+        <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="OPPORTUNITY" />
+      </div>
 
       <SectionCard
         icon={TrendingUp}

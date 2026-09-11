@@ -190,7 +190,7 @@ Processed`.
 2. Weekly status: create → items → submit → Account Manager approve (BP-02 + BP-05).
 3. Monthly review: measurement + contractual + RAIDO (BP-03).
 4. DE monthly assessment + alert-when-not-Green (BP-04).
-5. Rollup: PM item → AM pull → AM submit → GH approve → GH submit → CXO approve (BP-05).
+5. Rollup: PM item → AM pull → AM submit → GH approve → GH submit → CDO approve (BP-05).
 6. Worst-wins visible end to end: a `Red` project turns its account and geo `Red` (BP-06).
 7. Executive Update: build + paste image + paste Excel range (BP-07).
 8. Action lifecycle by the assignee (BP-08).
@@ -217,7 +217,7 @@ Absorb `docs/e2e-test-flow.csv` — its rows become concrete `TS-E2E-*` scenario
 
 ## 12. UAT per role
 
-Scripted UAT scenarios per role (`PROJECT_MANAGER`, `ACCOUNT_MANAGER`, `GEO_HEAD`, `CXO`,
+Scripted UAT scenarios per role (`PROJECT_MANAGER`, `ACCOUNT_MANAGER`, `GEO_HEAD`, `CDO`,
 `DELIVERY_EXCELLENCE`, `PMO`, `TEAM_MEMBER`, `ADMIN`) covering that role's screens and
 actions from `product-brain/07` / `08`, run on seeded multi-account/multi-geo data. Sign-off
 is a pilot-gate input (`product-brain/24` §3).

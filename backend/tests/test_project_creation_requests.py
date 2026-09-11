@@ -32,6 +32,10 @@ def _fake_request(**overrides):
         id=_REQUEST_ID,
         project_name="Core Banking Modernization",
         project_manager_id=_PM_ID,
+        organization_id=None,
+        geo_id=None,
+        region_id=None,
+        account_id=None,
         status="Pending",
         requested_by=uuid4(),
         approved_project_id=None,
@@ -144,21 +148,56 @@ async def test_approve_404_when_request_missing(client, override_auth):
     assert response.status_code == 404
 
 
-async def test_reject_deletes_request(client, override_auth):
+async def test_reject_retains_request_as_rejected_with_remarks(client, override_auth):
     request = _fake_request()
     headers = override_auth(
         RoleCode.DELIVERY_EXCELLENCE,
         get_map={(ProjectCreationRequest, _REQUEST_ID): request},
     )
-    response = await client.delete(
-        f"/api/v1/project-creation-requests/{_REQUEST_ID}", headers=headers
+    response = await client.post(
+        f"/api/v1/project-creation-requests/{_REQUEST_ID}/reject",
+        json={"reviewed_by": str(_REVIEWER_ID), "remarks": "Duplicate of PRJ-0042"},
+        headers=headers,
     )
-    assert response.status_code == 204
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["status"] == "Rejected"
+    assert body["review_remarks"] == "Duplicate of PRJ-0042"
+    # The row is retained (not deleted) and stamped with the reviewer.
+    assert request.status == "Rejected"
+    assert request.reviewed_by == _REVIEWER_ID
+    assert request.review_remarks == "Duplicate of PRJ-0042"
+
+
+async def test_reject_requires_remarks(client, override_auth):
+    request = _fake_request()
+    headers = override_auth(
+        RoleCode.DELIVERY_EXCELLENCE,
+        get_map={(ProjectCreationRequest, _REQUEST_ID): request},
+    )
+    response = await client.post(
+        f"/api/v1/project-creation-requests/{_REQUEST_ID}/reject",
+        json={"reviewed_by": str(_REVIEWER_ID), "remarks": ""},
+        headers=headers,
+    )
+    assert response.status_code == 422
+
+
+async def test_reject_404_when_request_missing(client, override_auth):
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map={})
+    response = await client.post(
+        f"/api/v1/project-creation-requests/{_REQUEST_ID}/reject",
+        json={"reviewed_by": str(_REVIEWER_ID), "remarks": "n/a"},
+        headers=headers,
+    )
+    assert response.status_code == 404
 
 
 async def test_reject_rejects_account_head(client, override_auth):
     headers = override_auth(RoleCode.ACCOUNT_MANAGER)
-    response = await client.delete(
-        f"/api/v1/project-creation-requests/{_REQUEST_ID}", headers=headers
+    response = await client.post(
+        f"/api/v1/project-creation-requests/{_REQUEST_ID}/reject",
+        json={"reviewed_by": str(_REVIEWER_ID), "remarks": "no"},
+        headers=headers,
     )
     assert response.status_code == 403

@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, CircleAlert, SendHorizontal, Undo2, GitPullRequestArrow } from "lucide-react";
+import { ClipboardCheck, CircleAlert, MessageSquareWarning, SendHorizontal, Undo2, GitPullRequestArrow } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/client";
@@ -44,6 +44,22 @@ function Tile({
       <span className={cn("text-2xl font-bold", tone === "red" ? "text-red-600" : "text-slate-900")}>{value}</span>
       <span className="mt-0.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase">{label}</span>
     </div>
+  );
+}
+
+// The DE's per-section verdict from the last Project Details Approval review.
+function DeReviewBadge({ action }: { action: string }) {
+  const tone =
+    action === "Gap Identified"
+      ? "bg-red-50 text-red-700"
+      : action === "Reviewed"
+        ? "bg-emerald-50 text-emerald-700"
+        : "bg-slate-100 text-slate-500";
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold", tone)}>
+      {action === "Gap Identified" ? <CircleAlert className="size-3.5" /> : null}
+      {action}
+    </span>
   );
 }
 
@@ -92,6 +108,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
 
   if (isLoading || !view) return <p className="text-slate-400">Loading…</p>;
 
+  const wasReturnedByDe = view.de_review_status === "Returned" && !!view.de_review_remarks;
   const isPendingApproval = view.project_status === "Pending Approval";
   const isUnderAmendment = view.project_status === "Under Amendment";
   // An approved project can be amended unless its lifecycle state is Closed.
@@ -259,6 +276,22 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
         />
       </div>
 
+      {wasReturnedByDe ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-red-800">
+            <MessageSquareWarning className="size-4" />
+            Returned by Delivery Excellence
+            {view.de_reviewed_at ? (
+              <span className="font-normal text-red-600">· {view.de_reviewed_at.slice(0, 10)}</span>
+            ) : null}
+          </div>
+          <p className="mt-2 text-[11px] font-bold tracking-wider text-red-400 uppercase">
+            Rejection Remarks
+          </p>
+          <p className="mt-1 text-sm whitespace-pre-wrap text-red-700">{view.de_review_remarks}</p>
+        </div>
+      ) : null}
+
       <SectionCard icon={ClipboardCheck} title="Approval Readiness Checklist">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -267,6 +300,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
                 <th className="px-3 py-3">Module</th>
                 <th className="px-3 py-3">Completion</th>
                 <th className="px-3 py-3">Gaps</th>
+                <th className="px-3 py-3">DE Review</th>
                 <th className="px-3 py-3 text-right">View</th>
               </tr>
             </thead>
@@ -302,6 +336,9 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
                     ) : (
                       "—"
                     )}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <DeReviewBadge action={m.de_review_action} />
                   </td>
                   <td className="px-3 py-2.5 text-right">
                     <Link

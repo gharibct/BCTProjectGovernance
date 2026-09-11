@@ -5,7 +5,7 @@
 
 INSERT INTO roles (id, code, name, description) VALUES
     (gen_random_uuid(), 'ADMIN', 'Admin', 'Full system administration'),
-    (gen_random_uuid(), 'CXO', 'CXO', 'CEO / CDO / Delivery Manager read-mostly access'),
+    (gen_random_uuid(), 'CDO', 'CDO', 'CEO / CDO / Delivery Manager read-mostly access'),
     (gen_random_uuid(), 'ACCOUNT_MANAGER', 'Account Manager', 'Owns account-level commercial relationship and oversight'),
     (gen_random_uuid(), 'GEO_HEAD', 'Geo Head', 'Read-mostly oversight across projects in their GEO'),
     (gen_random_uuid(), 'PROJECT_MANAGER', 'Project Manager', 'Owns project charter and delivery'),
@@ -68,7 +68,7 @@ INSERT INTO users (id, ldap_username, full_name, email, role_id, is_active, mfa_
     -- prefix) so testing each new role's menu/dashboard doesn't require
     -- remembering a person's name.
     (gen_random_uuid(), 'pm', 'Project Manager', 'pm@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'PROJECT_MANAGER'), true, false, now(), now()),
-    (gen_random_uuid(), 'cxo', 'CXO', 'cxo@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'CXO'), true, false, now(), now()),
+    (gen_random_uuid(), 'cdo', 'CDO', 'cdo@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'CDO'), true, false, now(), now()),
     (gen_random_uuid(), 'acchead', 'Account Manager', 'acchead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ACCOUNT_MANAGER'), true, false, now(), now()),
     (gen_random_uuid(), 'geohead', 'Geo Head', 'geohead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'GEO_HEAD'), true, false, now(), now());
 	*/

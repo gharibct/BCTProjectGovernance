@@ -14,7 +14,7 @@ const ROLES = [
     slug: "admin",
     identifier: "hari.g",
     landing: "/dashboard/admin",
-    // Admin keeps only its own screens — PM / Account Head / Geo Head / DE / CXO
+    // Admin keeps only its own screens — PM / Account Head / Geo Head / DE / CDO
     // work is reached via the top-bar "Work as" combo (see menu-config.ts).
     expectMenu: [
       "Admin Dashboard",
@@ -60,9 +60,9 @@ const ROLES = [
     ],
   },
   {
-    slug: "cxo",
-    identifier: "cxo",
-    landing: "/dashboard/cxo",
+    slug: "cdo",
+    identifier: "cdo",
+    landing: "/dashboard/cdo",
     expectMenu: ["My Summary", "Geo Dashboard"],
     avoidMenu: ["New Project", "Account Reporting", "Geo Reporting", "Admin Dashboard", "Project Dashboard"],
   },

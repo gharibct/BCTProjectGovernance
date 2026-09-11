@@ -23,7 +23,7 @@ from app.master_data.business_keys import BUSINESS_KEYS, GENERATED_CODE_COLUMN, 
 from app.master_data.enum_columns import ENUM_COLUMNS
 from app.master_data.registry import ALWAYS_EXCLUDED_COLUMNS, EXCLUDED_TABLES, EXTRA_EXCLUDED_COLUMNS
 
-_ACRONYMS = {"pci", "fte", "sla", "mttr", "uat", "sdlc", "de", "cxo", "id", "mfa"}
+_ACRONYMS = {"pci", "fte", "sla", "mttr", "uat", "sdlc", "de", "cdo", "id", "mfa"}
 # Column names generic enough (reused across many tables) that a lookup label
 # needs the owning table's name folded in too, e.g. "Period Code" rather than
 # just "Code" — otherwise a composite key like measurement_development's

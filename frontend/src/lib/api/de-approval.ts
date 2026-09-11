@@ -3,10 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { ProjectLifecycleStatus, ProjectStatus } from "./projects";
 
-// DE Project Approval (design-reference/de-approval) — the allocated Delivery
-// Excellence assessor reviews governance completeness module by module and
-// Approves or Returns the project. The queue is scoped server-side to the
-// signed-in DE's allocations; period_id is a display filter only.
+// DE Project Approval (design-reference/de-approval) — a Delivery Excellence
+// user reviews governance completeness module by module and Approves or Returns
+// the project. No DE allocation is required: the queue is every project that is
+// pending approval (plus any still carrying a review sub-state). period_id is a
+// display filter only.
 
 export type DeReviewStatus = "In Review" | "Returned" | "Approved";
 export type DeModuleReviewAction = "Not Reviewed" | "Reviewed" | "Gap Identified";

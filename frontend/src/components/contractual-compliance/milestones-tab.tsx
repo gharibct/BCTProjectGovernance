@@ -1,11 +1,12 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Flag, GaugeCircle } from "lucide-react";
 import * as React from "react";
 
 import { AutoBadge, ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
+import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
 import { usePageBanner } from "@/stores/page-banner";
 import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const MILESTONE_STATUSES: MilestonePaymentStatus[] = [
 // register read-only and lets the PM record the actual payment as it happens.
 export function MilestonesTab() {
   const { projectId } = useParams<{ projectId: string }>();
+  const periodId = useSearchParams().get("period");
   const { data: items = [] } = useMilestonePayments(projectId);
   const milestoneIds = React.useMemo(() => items.map((i) => i.id), [items]);
   const actualsByMilestone = useMilestoneActuals(projectId, milestoneIds);
@@ -44,6 +46,9 @@ export function MilestonesTab() {
 
   return (
     <div className="flex flex-col gap-8">
+      <div className="flex justify-end">
+        <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="PAYMENT_MILESTONES" />
+      </div>
       <SectionCard
         icon={Flag}
         title="Payment Milestones Register"

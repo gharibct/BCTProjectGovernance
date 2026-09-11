@@ -27,6 +27,7 @@ const COMMITMENT_PREVIEW_FIELDS = [
   { key: "commitment_name", label: "Name" },
   { key: "frequency", label: "Frequency" },
   { key: "target", label: "Target" },
+  { key: "target_uom", label: "Target UOM" },
 ] as const;
 
 // Shared by the manual "Add Commitment" button and the AI row-suggestions
@@ -37,6 +38,7 @@ function buildCommitmentPayload(values: Record<string, string>): ContractualComm
     frequency: values.frequency as CommitmentFrequency,
     formula: values.formula || undefined,
     target: values.target || undefined,
+    target_uom: values.target_uom || undefined,
     penalty_applicable: values.penalty_applicable === "Yes",
     penalty_value: values.penalty_value || undefined,
   };
@@ -49,6 +51,7 @@ function toValues(item: ContractualCommitment): Record<string, string> {
     frequency: item.frequency,
     formula: item.formula ?? "",
     target: item.target ?? "",
+    target_uom: item.target_uom ?? "",
     penalty_applicable: item.penalty_applicable ? "Yes" : "No",
     penalty_value: item.penalty_value ?? "",
   };
@@ -79,6 +82,7 @@ const COMMITMENT_FIELDS: FieldDef[] = [
   },
   { key: "formula", label: "Formula", kind: "text", placeholder: "e.g. Resolved / Total" },
   { key: "target", label: "Target", kind: "text", placeholder: "e.g. 95%" },
+  { key: "target_uom", label: "Target UOM", kind: "text", placeholder: "e.g. %, hrs, days" },
   {
     key: "penalty_applicable",
     label: "Penalty Applicable",
@@ -183,6 +187,7 @@ export function CommitmentsTab() {
             { key: "commitment_name", label: "Commitment" },
             { key: "frequency", label: "Frequency" },
             { key: "target", label: "Target", align: "right" },
+            { key: "target_uom", label: "Target UOM" },
             {
               key: "penalty_applicable",
               label: "Penalty",

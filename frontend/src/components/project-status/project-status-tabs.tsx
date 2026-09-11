@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { usePageBanner } from "@/stores/page-banner";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import {
+  isReportFrozen,
   previousPeriodReport,
   statusMetricsFromReport,
   useCreateStatusReport,
@@ -38,6 +39,9 @@ export function ProjectStatusTabs() {
   const showError = usePageBanner((state) => state.showError);
 
   const existing = reports?.find((r) => r.period_id === periodId);
+  // Submitted/Approved — the report is frozen (see submit-report-action.tsx);
+  // Key Metrics and the status-item registers all stop accepting edits.
+  const frozen = existing ? isReportFrozen(existing.status) : false;
 
   // No report yet for this period → carry Key Metrics forward from the last
   // period's report so unchanged figures don't have to be re-keyed.
@@ -98,7 +102,11 @@ export function ProjectStatusTabs() {
       {periodId ? (
         <div className="flex flex-col gap-8">
           <SectionCard icon={TrendingUp} title="Key Metrics">
-            {carriedFromLabel ? (
+            {frozen ? (
+              <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                This report has been submitted and is now read-only.
+              </p>
+            ) : carriedFromLabel ? (
               <p className="mb-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
                 Pre-filled from {carriedFromLabel}. Review and adjust before saving.
               </p>
@@ -111,6 +119,7 @@ export function ProjectStatusTabs() {
                   className="h-11"
                   value={metrics.revenue}
                   onChange={setMetric("revenue")}
+                  disabled={frozen}
                 />
               </Field>
               <Field label="Onsite FTE" htmlFor="onsite_fte">
@@ -120,6 +129,7 @@ export function ProjectStatusTabs() {
                   className="h-11"
                   value={metrics.onsite_fte}
                   onChange={setMetric("onsite_fte")}
+                  disabled={frozen}
                 />
               </Field>
               <Field label="Offshore FTE" htmlFor="offshore_fte">
@@ -129,6 +139,7 @@ export function ProjectStatusTabs() {
                   className="h-11"
                   value={metrics.offshore_fte}
                   onChange={setMetric("offshore_fte")}
+                  disabled={frozen}
                 />
               </Field>
               <Field label="Projects Count" htmlFor="projects_count">
@@ -138,6 +149,7 @@ export function ProjectStatusTabs() {
                   className="h-11"
                   value={metrics.projects_count}
                   onChange={setMetric("projects_count")}
+                  disabled={frozen}
                 />
               </Field>
             </div>
@@ -169,7 +181,7 @@ export function ProjectStatusTabs() {
         <StatusItemsTab category={active.category} title={active.label} icon={active.icon} />
       </div>
 
-      {periodId ? (
+      {periodId && !frozen ? (
         <div className="mt-8 flex justify-end">
           <Button
             className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
 
 // Project Health dashboard (design-reference/Project-Health.html) — an
-// org-wide, portfolio-level KPI page for PMO/Admin/CXO, unlike every other
+// org-wide, portfolio-level KPI page for PMO/Admin/CDO, unlike every other
 // dashboard hook in this file which is server-scoped/parameterless: this one
 // takes a client-supplied Geo/Account/Project Type/Period filter bar.
 

@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import { Suspense } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { usePathname, useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarDays, ClipboardCheck, HeartPulse, History } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
@@ -40,6 +41,10 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
+}
+
 function ContextItem({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -62,6 +67,8 @@ function WorkspaceInner() {
   const { projectId: rawProjectId } = useParams<{ projectId: string }>();
   const projectId = rawProjectId ?? null;
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const role = useEffectiveRole();
   const showSuccess = usePageBanner((s) => s.showSuccess);
@@ -97,11 +104,27 @@ function WorkspaceInner() {
 
   const readOnly = !canWrite;
 
+  // Read-only viewers (PM) have no draft to edit — the combo below lets them
+  // browse any Submitted assessment via ?assessment=<id>, defaulting to the
+  // latest one. Write-capable DE/Admin are unaffected: they always see their
+  // own open Draft (or a blank new-assessment form), never a past submission.
+  const selectedAssessmentId = searchParams.get("assessment");
+  const selectedAssessment: DEAssessment | null = readOnly
+    ? (submittedHistory.find((a) => a.id === selectedAssessmentId) ?? previous)
+    : null;
+  const displaySource = readOnly ? selectedAssessment : working;
+
+  const onAssessmentChange = (id: string) => {
+    router.replace(`${pathname}?assessment=${id}`);
+  };
+
   const accountName = accounts.find((a) => a.id === project?.account_id)?.name ?? "—";
   const pmName = users.find((u) => u.id === project?.project_manager_id)?.full_name ?? "—";
 
-  // Form state, seeded from the working draft during render (the app's
-  // "adjust state on prop change" idiom — see charter-form.tsx).
+  // Form state, seeded from `displaySource` during render (the app's "adjust
+  // state on prop change" idiom — see charter-form.tsx): the open Draft for a
+  // write-capable viewer, or the combo-selected/latest Submitted assessment
+  // for a read-only one.
   const [syncedId, setSyncedId] = React.useState<string | null>("__init__");
   const [healthValue, setHealthValue] = React.useState<KebabHealth>("green");
   const [pciScore, setPciScore] = React.useState("");
@@ -109,13 +132,13 @@ function WorkspaceInner() {
   const [assessmentDate, setAssessmentDate] = React.useState(today());
   const [errors, setErrors] = React.useState<{ pci?: string; remarks?: string }>({});
 
-  const workingKey = working?.id ?? null;
-  if (workingKey !== syncedId) {
-    setSyncedId(workingKey);
-    setHealthValue(working ? RATING_FROM_API[working.de_assessed_project_health] : "green");
-    setPciScore(working?.pci_score ?? "");
-    setRemarks(working?.remarks ?? "");
-    setAssessmentDate(working?.assessment_date ?? today());
+  const displaySourceKey = displaySource?.id ?? null;
+  if (displaySourceKey !== syncedId) {
+    setSyncedId(displaySourceKey);
+    setHealthValue(displaySource ? RATING_FROM_API[displaySource.de_assessed_project_health] : "green");
+    setPciScore(displaySource?.pci_score ?? "");
+    setRemarks(displaySource?.remarks ?? "");
+    setAssessmentDate(displaySource?.assessment_date ?? today());
     setErrors({});
   }
 
@@ -181,33 +204,65 @@ function WorkspaceInner() {
     (f) => f.classification === "Alert" && f.status !== "Closed" && f.status !== "Cancelled"
   ).length;
 
-  const subtitle = working
-    ? "Editing Draft"
-    : roleCanWrite && !hasDeAllocated
-      ? "No Delivery Excellence resource allocated"
-      : "New Assessment";
+  // A PM (or any other read-only viewer) never has a queue to return to — the
+  // DE-only /de-assessment queue 403s for them (require_role DELIVERY_EXCELLENCE
+  // /ADMIN on /dashboard/de-summary) — so they go back to the project instead.
+  const backHref = roleCanWrite ? "/de-assessment" : `/project-reporting/${projectId}`;
+  const backLabel = roleCanWrite ? "Back to Queue" : "Back to Project";
+
+  const subtitle = roleCanWrite
+    ? working
+      ? "Editing Draft"
+      : !hasDeAllocated
+        ? "No Delivery Excellence resource allocated"
+        : "New Assessment"
+    : displaySource
+      ? displaySource.id === previous?.id
+        ? "Last Submitted Assessment"
+        : `Viewing Past Assessment${displaySource.assessment_date ? ` — ${formatDate(displaySource.assessment_date)}` : ""}`
+      : "No Assessment Recorded Yet";
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <Link
-            href="/de-assessment"
+            href={backHref}
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
           >
             <ArrowLeft className="size-4" />
-            Back to Queue
+            {backLabel}
           </Link>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             Project Assessment — {project?.project_name ?? "…"}
           </h1>
           <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
         </div>
-        <FindingsDrawerTrigger
-          projectId={projectId}
-          projectName={project?.project_name ?? "Project"}
-          findings={findings}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          {readOnly && submittedHistory.length > 0 ? (
+            <div className="w-64 shrink-0">
+              <NativeSelect
+                aria-label="Assessment Date"
+                value={selectedAssessment?.id ?? ""}
+                onChange={(e) => onAssessmentChange(e.target.value)}
+                chevronClassName="text-[#1a6fc4]"
+                className="h-11 rounded-full border-2 border-[#1a6fc4] bg-blue-50 pl-4 pr-10 text-sm font-bold text-[#15406b] shadow-sm transition-colors hover:bg-blue-100"
+              >
+                {submittedHistory.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.assessment_date ? formatDate(a.assessment_date) : a.id}
+                    {a.id === previous?.id ? " (Latest)" : ""}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          ) : null}
+          <FindingsDrawerTrigger
+            projectId={projectId}
+            projectName={project?.project_name ?? "Project"}
+            findings={findings}
+          />
+        </div>
       </div>
 
       {roleCanWrite && !hasDeAllocated ? (
@@ -373,11 +428,10 @@ function WorkspaceInner() {
         )}
       </SectionCard>
 
-      {/* Sticky footer actions */}
-      <div className="sticky bottom-0 -mx-10 flex items-center justify-between border-t border-slate-200 bg-white/90 px-10 py-4 backdrop-blur">
-        <Button variant="ghost" onClick={() => router.push("/de-assessment")}>
-          Cancel
-        </Button>
+      {/* Sticky footer actions — Back-to-Project/Queue link at the top already
+          covers navigation, so a read-only viewer gets just the status
+          message here, right-aligned; no redundant Close button. */}
+      <div className="sticky bottom-0 -mx-10 flex items-center justify-end border-t border-slate-200 bg-white/90 px-10 py-4 backdrop-blur">
         {readOnly ? (
           <p className="text-sm text-slate-400">
             {roleCanWrite && !hasDeAllocated
@@ -386,6 +440,9 @@ function WorkspaceInner() {
           </p>
         ) : (
           <div className="flex gap-3">
+            <Button variant="ghost" onClick={() => router.push(backHref)}>
+              Cancel
+            </Button>
             <Button variant="outline" onClick={() => persist("Draft")} disabled={busy} className="gap-2">
               {busy ? <ButtonSpinner /> : null}
               Save Draft

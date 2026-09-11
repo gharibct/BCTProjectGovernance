@@ -6,7 +6,7 @@ import type { SessionUser } from "@/stores/session";
 // Matches backend/app/schemas/enums.py's RoleCode.
 export type RoleCode =
   | "ADMIN"
-  | "CXO"
+  | "CDO"
   | "ACCOUNT_MANAGER"
   | "GEO_HEAD"
   | "PROJECT_MANAGER"
@@ -53,5 +53,19 @@ export function useMe(enabled: boolean) {
 export function useLogout() {
   return useMutation({
     mutationFn: () => api.post<{ logout_url: string | null }>("/auth/logout"),
+  });
+}
+
+// Minimum local-password length — mirrors PASSWORD_MIN_LENGTH in
+// backend/app/schemas/users.py.
+export const PASSWORD_MIN_LENGTH = 8;
+
+// Self-service local-password change, offered in the profile menu. Only
+// available under auth_type="password" (the backend re-checks and 403s
+// otherwise); requires the current password, unlike the Admin reset.
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (body: { current_password: string; new_password: string }) =>
+      api.post<void>("/auth/change-password", body),
   });
 }

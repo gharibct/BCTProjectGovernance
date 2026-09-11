@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Literal
 from uuid import UUID
 
@@ -97,6 +98,12 @@ async def get_dashboard_summary(
 async def get_open_ncs(
     scope: Literal["project", "account", "geo"] = Query(...),
     scope_id: UUID = Query(...),
+    # "Open Alerts till the reporting period" — a reporting-hub caller that
+    # hasn't saved a report for the period yet (so has no frozen snapshot to
+    # show instead — see project_status.py/regional_status.py) passes the
+    # period's end_date here to preview what a save right now would capture.
+    # Omitted, every currently open Alert is returned (the plain live view).
+    as_of: date | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -107,8 +114,8 @@ async def get_open_ncs(
     else:
         filters = DashboardFilters(geo_id=scope_id)
     return OpenNcListResponse(
-        open_ncs_count=await dashboard_service.count_open_ncs(db, filters),
-        open_ncs=await dashboard_service.list_open_ncs(db, filters),
+        open_ncs_count=await dashboard_service.count_open_ncs(db, filters, as_of=as_of),
+        open_ncs=await dashboard_service.list_open_ncs(db, filters, as_of=as_of),
     )
 
 
@@ -400,7 +407,7 @@ async def get_pmo_dashboard_summary(db: AsyncSession = Depends(get_db)):
 
 
 # Project Health dashboard (design-reference/Project-Health.html) — a new,
-# additional org-wide portfolio page for PMO/Admin/CXO/Delivery Excellence
+# additional org-wide portfolio page for PMO/Admin/CDO/Delivery Excellence
 # (not a replacement of their existing landing summaries above), with a real
 # Geo/Account/Project Type/Period filter bar unlike pmo-summary's fully
 # unfiltered scope.
@@ -410,7 +417,7 @@ async def get_pmo_dashboard_summary(db: AsyncSession = Depends(get_db)):
     dependencies=[
         Depends(
             require_role(
-                RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE
+                RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE
             )
         )
     ],
@@ -466,7 +473,7 @@ async def get_project_health_dashboard(
 
 
 _project_health_role = [
-    Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE))
+    Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE))
 ]
 
 

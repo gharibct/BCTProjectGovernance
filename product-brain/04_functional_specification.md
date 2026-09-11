@@ -292,7 +292,7 @@ flowchart LR
 - **Exceptions:** out-of-scope account → `403`; pull of a non-`Pending` item → error.
 - **Notifications:** N-REVIEW-PENDING to the Geo Head. `<!-- pending -->`
 - **Integration Points:** MOD-AI (document processing under `/account-reporting/[id]/ai-hub`).
-- **Reports:** Account Governance Matrix, Top Highlights on Geo/CXO/Admin dashboards.
+- **Reports:** Account Governance Matrix, Top Highlights on Geo/CDO/Admin dashboards.
 - **Dependencies:** MOD-ROLLUP, MOD-REF; downstream MOD-GEO, MOD-REVIEW, MOD-DASH.
 - **Assumptions:** `ASSUMPTION:` none material.
 
@@ -313,11 +313,11 @@ flowchart LR
 - **Outputs:** `GeoStatusReport`, `GeoStatusItem`, `GeoHealthDeclaration`.
 - **Business Rules:** BR-GEO-* / BR-REVIEW-*. `<!-- pending -->`
 - **Validations:** scope; period; rating enum.
-- **Status Behaviour:** Geo report `Draft` → `Submitted` → `Approved` \| `Rejected` (CXO reviews).
+- **Status Behaviour:** Geo report `Draft` → `Submitted` → `Approved` \| `Rejected` (CDO reviews).
 - **Exceptions:** out-of-scope geo → `403`.
-- **Notifications:** N-REVIEW-PENDING to the CXO. `<!-- pending -->`
+- **Notifications:** N-REVIEW-PENDING to the CDO. `<!-- pending -->`
 - **Integration Points:** MOD-AI; MOD-EXEC.
-- **Reports:** feeds CXO dashboard governance matrix and Top Highlights.
+- **Reports:** feeds CDO dashboard governance matrix and Top Highlights.
 - **Dependencies:** MOD-ROLLUP, MOD-REF; downstream MOD-REVIEW, MOD-EXEC, MOD-DASH.
 - **Assumptions:** `ASSUMPTION:` **no geo RAG-status screen exists** — geo health is entered via the API until built (known gap).
 
@@ -351,13 +351,13 @@ flowchart LR
 
 # FS-REVIEW — Reporting / Review Cascade (Full)
 
-- **Purpose:** The read-only, one-tier-up review of a submitted report with an Approve / Reject action per report: `ACCOUNT_MANAGER` reviews Projects, `GEO_HEAD` reviews Accounts, `CXO` reviews Geos.
-- **Actors:** `ACCOUNT_MANAGER`, `GEO_HEAD`, `CXO`, `ADMIN`.
-- **Preconditions:** The target report is `Submitted`; the reviewer holds the role and (except `ADMIN`, and `CXO` at geo level) the Account/Geo scope.
+- **Purpose:** The read-only, one-tier-up review of a submitted report with an Approve / Reject action per report: `ACCOUNT_MANAGER` reviews Projects, `GEO_HEAD` reviews Accounts, `CDO` reviews Geos.
+- **Actors:** `ACCOUNT_MANAGER`, `GEO_HEAD`, `CDO`, `ADMIN`.
+- **Preconditions:** The target report is `Submitted`; the reviewer holds the role and (except `ADMIN`, and `CDO` at geo level) the Account/Geo scope.
 - **Functional Capabilities:**
   - `FC-REVIEW-010` Review a project status report (`PATCH /projects/{id}/status-reports/{rid}/review`, `_account_manager_review`).
   - `FC-REVIEW-020` Review an account status report (`PATCH /accounts/{id}/status-reports/{rid}/review`, `_geo_head_review`).
-  - `FC-REVIEW-030` Review a geo status report (`PATCH /geos/{id}/status-reports/{rid}/review`, `_cxo_review`).
+  - `FC-REVIEW-030` Review a geo status report (`PATCH /geos/{id}/status-reports/{rid}/review`, `_cdo_review`).
   - `FC-REVIEW-040` Record `decision` ∈ {`Approved`, `Rejected`}, a comment, `reviewed_by`, `reviewed_at`.
   - `FC-REVIEW-050` Present the tier-below data read-only (Overview quadrants, RAG Status) on the review screen.
 - **Main Process:** BP-05 review steps.
@@ -378,7 +378,7 @@ flowchart LR
 # FS-ACTION — Action Tracker (Full)
 
 - **Purpose:** One action-tracking implementation across GEO / ACCOUNT / PROJECT levels with a full history and an assignee-driven lifecycle.
-- **Actors:** PROJECT: `PROJECT_MANAGER`/`ACCOUNT_MANAGER`/`ADMIN`; ACCOUNT: `ACCOUNT_MANAGER`/`GEO_HEAD`/`ADMIN`; GEO: `GEO_HEAD`/`CXO`/`ADMIN`; **the assignee** (any role) for transitions.
+- **Actors:** PROJECT: `PROJECT_MANAGER`/`ACCOUNT_MANAGER`/`ADMIN`; ACCOUNT: `ACCOUNT_MANAGER`/`GEO_HEAD`/`ADMIN`; GEO: `GEO_HEAD`/`CDO`/`ADMIN`; **the assignee** (any role) for transitions.
 - **Preconditions:** The user can reach the entity; for create/edit, the level's write role.
 - **Functional Capabilities:**
   - `FC-ACTION-010` List / get actions for an entity (`GET /{geos|accounts|projects}/{id}/actions`).
@@ -404,8 +404,8 @@ flowchart LR
 
 # FS-EXEC — Executive Updates (Full)
 
-- **Purpose:** Structured CXO-facing content prepared by a Geo Head (Delivery / People / Financials / Operations sections; rich-text / image / table blocks). Draft only.
-- **Actors:** `GEO_HEAD` (edit); `CXO`, `ADMIN` (view).
+- **Purpose:** Structured CDO-facing content prepared by a Geo Head (Delivery / People / Financials / Operations sections; rich-text / image / table blocks). Draft only.
+- **Actors:** `GEO_HEAD` (edit); `CDO`, `ADMIN` (view).
 - **Preconditions:** The user holds `GEO_HEAD` and the geo scope.
 - **Functional Capabilities:**
   - `FC-EXEC-010` Create an Executive Update for the geo/period (`POST /geos/{id}/executive-updates`).
@@ -422,7 +422,7 @@ flowchart LR
 - **Exceptions:** non-Geo-Head write → `403`; empty clipboard on paste → no-op.
 - **Notifications:** none.
 - **Integration Points:** local filesystem (image storage).
-- **Reports:** Executive Updates view on the CXO dashboard.
+- **Reports:** Executive Updates view on the CDO dashboard.
 - **Dependencies:** MOD-GEO; downstream MOD-DASH.
 - **Assumptions:** `ASSUMPTION:` no approval workflow is planned for Executive Updates.
 
@@ -431,11 +431,11 @@ flowchart LR
 # FS-DASH — Dashboards & Project Health (Full)
 
 - **Purpose:** Role-scoped "My Summary" dashboards and a portfolio-wide Project Health view; live aggregation over every module.
-- **Actors:** all roles (own "My Summary"); `PMO`/`CXO`/`ADMIN` (Project Health portfolio).
+- **Actors:** all roles (own "My Summary"); `PMO`/`CDO`/`ADMIN` (Project Health portfolio).
 - **Preconditions:** authenticated; underlying module data exists.
 - **Functional Capabilities:**
   - `FC-DASH-010` `GET /dashboard/summary` — KPI tiles scoped to the caller (Active Projects, Projects by Type, Delayed, Open Risks/Issues, Pending Approvals, Contractual status, Milestones Linked to Payment).
-  - `FC-DASH-020` Role sections: PM, Account Manager, Geo Head, CXO, Admin, PMO, DE "My Summary" (each with its own API section).
+  - `FC-DASH-020` Role sections: PM, Account Manager, Geo Head, CDO, Admin, PMO, DE "My Summary" (each with its own API section).
   - `FC-DASH-030` Governance / Account Matrix (one row per project or account with RAG per dimension) + Top Highlights (most recent status items).
   - `FC-DASH-040` Project Health portfolio — 14 paged, filterable grids (`/dashboard/project-health/{projects,rag,risks,issues,dependencies,assumptions,opportunities,metrics,commitments,payment-milestones,assessments,findings,actions,data-integrity}`), filter by Geo / Account / Project.
   - `FC-DASH-050` Drill-in from a tile/row to the source screen.

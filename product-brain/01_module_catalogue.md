@@ -300,7 +300,7 @@ Business Entities. Role codes are from `product-brain/00` §3.
 | Major Functions | `/geos/{id}/status-reports` (+ items, + `/review`); `/geos/{id}/health-declarations` (+ `/latest`); Submit |
 | Main Screens | `/geo-reporting/[id]` (hub), `/status`, `/executive-update`, `/dashboard`, `/ai-hub/document-processing`. **No geo RAG-status screen yet** — backend endpoints exist, no UI (known gap). |
 | Upstream Modules | MOD-ROLLUP (pulls from accounts), MOD-REF |
-| Downstream Modules | MOD-REVIEW (CXO reviews), MOD-EXEC, MOD-DASH |
+| Downstream Modules | MOD-REVIEW (CDO reviews), MOD-EXEC, MOD-DASH |
 | Integrations | MOD-AI |
 | Major Business Entities | GeoStatusReport, GeoStatusItem, GeoHealthDeclaration |
 
@@ -323,9 +323,9 @@ Business Entities. Role codes are from `product-brain/00` §3.
 | Attribute | Value |
 | --- | --- |
 | Module ID | MOD-REVIEW |
-| Purpose | The read-only, one-tier-up review of a submitted report, with an Approve / Reject action per item: Account Manager reviews Projects; Geo Head reviews Accounts; CXO reviews Geos. |
-| Primary Users | `ACCOUNT_MANAGER`, `GEO_HEAD`, `CXO`, `ADMIN` |
-| Major Functions | `PATCH /projects/{id}/status-reports/{rid}/review` (`_account_manager_review`); `PATCH /accounts/{id}/status-reports/{rid}/review` (`_geo_head_review`); `PATCH /geos/{id}/status-reports/{rid}/review` (`_cxo_review`) |
+| Purpose | The read-only, one-tier-up review of a submitted report, with an Approve / Reject action per item: Account Manager reviews Projects; Geo Head reviews Accounts; CDO reviews Geos. |
+| Primary Users | `ACCOUNT_MANAGER`, `GEO_HEAD`, `CDO`, `ADMIN` |
+| Major Functions | `PATCH /projects/{id}/status-reports/{rid}/review` (`_account_manager_review`); `PATCH /accounts/{id}/status-reports/{rid}/review` (`_geo_head_review`); `PATCH /geos/{id}/status-reports/{rid}/review` (`_cdo_review`) |
 | Main Screens | `/project-review/[id]`, `/account-review/[id]`, `/geo-review/[id]` |
 | Upstream Modules | MOD-STATUS, MOD-ACCT, MOD-GEO (a report must be `Submitted`) |
 | Downstream Modules | MOD-DASH |
@@ -337,8 +337,8 @@ Business Entities. Role codes are from `product-brain/00` §3.
 | Attribute | Value |
 | --- | --- |
 | Module ID | MOD-EXEC |
-| Purpose | Structured CXO-facing content (Delivery / People / Financials / Operations sections; rich-text / image / table blocks) prepared by a Geo Head. Save Draft only — no approval step. |
-| Primary Users | `GEO_HEAD` (edit); `CXO`, `ADMIN` (view) |
+| Purpose | Structured CDO-facing content (Delivery / People / Financials / Operations sections; rich-text / image / table blocks) prepared by a Geo Head. Save Draft only — no approval step. |
+| Primary Users | `GEO_HEAD` (edit); `CDO`, `ADMIN` (view) |
 | Major Functions | `/geos/{id}/executive-updates` list/create/update; image upload (`POST …/images`, `GET …/images/{filename}`); clipboard image + Excel-range paste (frontend) |
 | Main Screens | `/geo-reporting/[id]/executive-update` |
 | Upstream Modules | MOD-GEO |
@@ -352,7 +352,7 @@ Business Entities. Role codes are from `product-brain/00` §3.
 | --- | --- |
 | Module ID | MOD-ACTION |
 | Purpose | One action-tracking implementation across GEO / ACCOUNT / PROJECT levels (built from an `ActionLevelConfig`), with a full history and an assignee-driven lifecycle. |
-| Primary Users | PROJECT: `PROJECT_MANAGER`/`ACCOUNT_MANAGER`/`ADMIN`; ACCOUNT: `ACCOUNT_MANAGER`/`GEO_HEAD`/`ADMIN`; GEO: `GEO_HEAD`/`CXO`/`ADMIN`. The assignee can always transition their own action. |
+| Primary Users | PROJECT: `PROJECT_MANAGER`/`ACCOUNT_MANAGER`/`ADMIN`; ACCOUNT: `ACCOUNT_MANAGER`/`GEO_HEAD`/`ADMIN`; GEO: `GEO_HEAD`/`CDO`/`ADMIN`. The assignee can always transition their own action. |
 | Major Functions | `/{geos\|accounts\|projects}/{id}/actions` list/get/create/update; `/history`; `PATCH …/start\|complete\|close\|cancel`; `POST …/comments`; lifecycle `OPEN→IN_PROGRESS→COMPLETED→CLOSED` or `→CANCELLED` |
 | Main Screens | `/project-health/actions`; action panels within project/account/geo screens |
 | Upstream Modules | MOD-PROJ, MOD-ACCT, MOD-GEO (the entity an action is scoped to) |
@@ -380,9 +380,9 @@ Business Entities. Role codes are from `product-brain/00` §3.
 | --- | --- |
 | Module ID | MOD-DASH |
 | Purpose | Role-scoped "My Summary" dashboards and a portfolio-wide Project Health view; live aggregation over every module. |
-| Primary Users | All roles (own "My Summary"); `PMO`/`CXO`/`ADMIN` (Project Health portfolio) |
+| Primary Users | All roles (own "My Summary"); `PMO`/`CDO`/`ADMIN` (Project Health portfolio) |
 | Major Functions | `GET /dashboard/summary` + role-specific sections; `GET /dashboard/project-health/{projects\|rag\|risks\|issues\|dependencies\|assumptions\|opportunities\|metrics\|commitments\|payment-milestones\|assessments\|findings\|actions\|data-integrity}` (paged, filter by Geo/Account/Project) |
-| Main Screens | `/dashboard`, `/dashboard/{admin\|cxo\|geo-head\|account-manager\|project-manager\|pmo\|delivery-excellence}`; `/project-health/*` (14 sub-screens) |
+| Main Screens | `/dashboard`, `/dashboard/{admin\|cdo\|geo-head\|account-manager\|project-manager\|pmo\|delivery-excellence}`; `/project-health/*` (14 sub-screens) |
 | Upstream Modules | Every module (read) |
 | Downstream Modules | — (consumer only) |
 | Integrations | — |

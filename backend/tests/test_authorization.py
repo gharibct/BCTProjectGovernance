@@ -237,7 +237,7 @@ async def test_require_account_geo_scope_rejects_when_account_in_other_geo():
 
 async def test_project_scope_conditions_unrestricted_for_portfolio_roles():
     user = make_user()
-    for role in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CXO):
+    for role in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CDO):
         conds = await project_scope_conditions(FakeDB(role), user)
         assert conds == []
 

@@ -69,7 +69,7 @@ for UX; the server re-check is authoritative.
 | BR-SEC-040 | Account-scoped writes are limited to the caller's owned Accounts. | Write on an `/accounts/{account_id}/…` route | `account_id` ∈ `user_accounts` **or** its `geo_id` ∈ `user_geos` (for `require_account_or_geo_scope`) | `403` "You do not have access to this account." | API (`require_account_scope`, `require_account_or_geo_scope`) | Blocking |
 | BR-SEC-050 | Geo-scoped writes are limited to the caller's owned Geos. | Write on a `/geos/{geo_id}/…` route | `geo_id` ∈ `user_geos` | `403` "You do not have access to this geo." | API (`require_geo_scope`) | Blocking |
 | BR-SEC-060 | `ADMIN` bypasses all Account/Geo/Project scope checks. | Any scoped route | `role.code = ADMIN` | Scope predicate skipped; role check still applies | API (all `require_*_scope`) | High |
-| BR-SEC-070 | `CXO` bypasses geo scope for Geo report review and Geo-level Actions only. | Geo review / GEO-level Action write | `role.code = CXO` and route passes `bypass_roles=(ADMIN, CXO)` | Scope predicate skipped | API (`_cxo_review`, `actions._geo_scope`) | High |
+| BR-SEC-070 | `CDO` bypasses geo scope for Geo report review and Geo-level Actions only. | Geo review / GEO-level Action write | `role.code = CDO` and route passes `bypass_roles=(ADMIN, CDO)` | Scope predicate skipped | API (`_cdo_review`, `actions._geo_scope`) | High |
 | BR-SEC-080 | Work Context ("act as") lets `ACCOUNT_MANAGER` / `GEO_HEAD` perform project-scoped writes only within their own patch. | Project-scoped write via `require_project_access` | `ACCOUNT_MANAGER`: project's `account_id` ∈ owned accounts; `GEO_HEAD`: project's (or its account's) `geo_id` ∈ owned geos; `PM`/`DE`/`ADMIN` unconditional | Allow / `403` | API (`require_project_access`) | Blocking |
 | BR-SEC-090 | Under OneLogin, only pre-provisioned users may sign in; email (case-insensitive) is the join key. | `/auth/onelogin/callback` | A `User` row exists with the asserted `email` and `is_active` | Set session cookie / `403` — no auto-create | API (`auth.py`) | Blocking |
 
@@ -221,10 +221,10 @@ for UX; the server re-check is authoritative.
 
 | Rule ID | Business Rule | Trigger | Condition | System Action | Enforcement | Severity |
 | --- | --- | --- | --- | --- | --- | --- |
-| BR-REVIEW-010 | Review happens exactly one tier up: `ACCOUNT_MANAGER` reviews Projects, `GEO_HEAD` reviews Accounts, `CXO` reviews Geos. | `PATCH .../review` | route's review dependency matches the tier | `403` otherwise | API (`_account_manager_review`, `_geo_head_review`, `_cxo_review`) | Blocking |
+| BR-REVIEW-010 | Review happens exactly one tier up: `ACCOUNT_MANAGER` reviews Projects, `GEO_HEAD` reviews Accounts, `CDO` reviews Geos. | `PATCH .../review` | route's review dependency matches the tier | `403` otherwise | API (`_account_manager_review`, `_geo_head_review`, `_cdo_review`) | Blocking |
 | BR-REVIEW-020 | A project's own `PROJECT_MANAGER` cannot review that project's report (segregation of duties). | Project review | reviewer role ∈ {AM, GH, ADMIN}, not PM | `403` | API (`_account_manager_review` excludes PM) | High |
 | BR-REVIEW-030 | Account review requires the reviewer's owned geo to contain the account. | `PATCH /accounts/{id}/status-reports/{rid}/review` | `account.geo_id` ∈ `user_geos` or `ADMIN` | `403` otherwise | API (`require_account_geo_scope`) | Blocking |
-| BR-REVIEW-040 | Geo review is not ownership-scoped — any `CXO` (or `ADMIN`) may review any geo's report. | `PATCH /geos/{id}/status-reports/{rid}/review` | `role.code` ∈ {CXO, ADMIN} | Proceed | API (`_cxo_review`) | Medium |
+| BR-REVIEW-040 | Geo review is not ownership-scoped — any `CDO` (or `ADMIN`) may review any geo's report. | `PATCH /geos/{id}/status-reports/{rid}/review` | `role.code` ∈ {CDO, ADMIN} | Proceed | API (`_cdo_review`) | Medium |
 | BR-REVIEW-050 | A review decision records `decision` (`Approved`/`Rejected`), a comment, `reviewed_by`, and a server-set `reviewed_at`. | Review submitted | report is `Submitted` | Set the fields; a `Rejected` report returns to the author (`ASSUMPTION`) | API | Medium |
 
 ---
@@ -233,7 +233,7 @@ for UX; the server re-check is authoritative.
 
 | Rule ID | Business Rule | Trigger | Condition | System Action | Enforcement | Severity |
 | --- | --- | --- | --- | --- | --- | --- |
-| BR-ACTION-010 | Action create/edit permission depends on the level: PROJECT → PM/AM/ADMIN; ACCOUNT → AM/GH/ADMIN (in patch); GEO → GH/CXO/ADMIN. | Action `POST`/`PUT` | level-appropriate role (+ scope for ACCOUNT/GEO) | `403` otherwise | API (`_project_role`, `_account_or_geo_scope`, `_geo_scope`) | Blocking |
+| BR-ACTION-010 | Action create/edit permission depends on the level: PROJECT → PM/AM/ADMIN; ACCOUNT → AM/GH/ADMIN (in patch); GEO → GH/CDO/ADMIN. | Action `POST`/`PUT` | level-appropriate role (+ scope for ACCOUNT/GEO) | `403` otherwise | API (`_project_role`, `_account_or_geo_scope`, `_geo_scope`) | Blocking |
 | BR-ACTION-020 | The **assignee** may always transition their own action regardless of role or level. | `PATCH .../start\|complete\|close\|cancel` | `action.action_by_id = current_user.id` | Transition allowed | API | High |
 | BR-ACTION-030 | Lifecycle order: `OPEN → IN_PROGRESS → COMPLETED → CLOSED`. | transition call | current status is the predecessor | Advance / reject | API | Blocking |
 | BR-ACTION-040 | `CLOSED` is reachable only from `COMPLETED` (a separate sign-off step). | `PATCH .../close` | `status = COMPLETED` | `CLOSED` / reject | API | Blocking |
@@ -248,7 +248,7 @@ for UX; the server re-check is authoritative.
 | --- | --- | --- | --- | --- | --- | --- |
 | BR-EXEC-010 | Only a `GEO_HEAD` who owns the geo (or `ADMIN`) may create/edit an Executive Update. | `/geos/{id}/executive-updates` write | `require_geo_scope` | `403` otherwise | API (`_geo_head_write`) | Blocking |
 | BR-EXEC-020 | An Executive Update is stored as **structured JSON** (sections + typed blocks with stable IDs), not one HTML blob. | Save | block `type` ∈ {`rich_text`,`image`,`table`} | Persist the structure | Pydantic-schema/API | Medium |
-| BR-EXEC-030 | There is no approval step — Save Draft is the only state. | Save | — | Update in place; visible to `CXO` | API | Low |
+| BR-EXEC-030 | There is no approval step — Save Draft is the only state. | Save | — | Update in place; visible to `CDO` | API | Low |
 
 ---
 
@@ -257,7 +257,7 @@ for UX; the server re-check is authoritative.
 | Rule ID | Business Rule | Trigger | Condition | System Action | Enforcement | Severity |
 | --- | --- | --- | --- | --- | --- | --- |
 | BR-DASH-010 | Dashboard output is filtered to the caller's Account/Geo scope. | Any `/dashboard/*` read | user's scope | Query restricted; empty scope → empty dashboard (not an error) | Service | High |
-| BR-DASH-020 | The Project Health portfolio grids are restricted to `PMO` / `ADMIN` / `CXO`. | `/dashboard/project-health/*` | `role.code` ∈ {PMO, ADMIN, CXO} | `403` otherwise | API (`_project_health_role`) | Blocking |
+| BR-DASH-020 | The Project Health portfolio grids are restricted to `PMO` / `ADMIN` / `CDO`. | `/dashboard/project-health/*` | `role.code` ∈ {PMO, ADMIN, CDO} | `403` otherwise | API (`_project_health_role`) | Blocking |
 | BR-DASH-030 | Dashboard figures are computed live from current module data, never a separately stored aggregate. | Dashboard render | — | Recompute on each request | Service | Medium |
 
 ---

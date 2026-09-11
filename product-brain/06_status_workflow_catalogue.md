@@ -165,9 +165,9 @@ Same lifecycle as §4. Differences:
 | Aspect | Geo report |
 | --- | --- |
 | Author | `GEO_HEAD` (owned geo) or `ADMIN` |
-| Reviewer | any `CXO` or `ADMIN` — **not ownership-scoped** (BR-REVIEW-040) |
+| Reviewer | any `CDO` or `ADMIN` — **not ownership-scoped** (BR-REVIEW-040) |
 | Rules | BR-GEO-010, BR-ACCT-020, BR-REVIEW-010, BR-REVIEW-040 |
-| Notification | N-REVIEW-PENDING to the CXO `<!-- pending -->` |
+| Notification | N-REVIEW-PENDING to the CDO `<!-- pending -->` |
 
 ---
 
@@ -252,7 +252,7 @@ stateDiagram-v2
 
 | From | Action | To | Actor | Preconditions | Business Rules | System Actions | Notification | Reversible? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| *(none)* | Create | `OPEN` | level write role (PROJECT: PM/AM/ADMIN; ACCOUNT: AM/GH/ADMIN; GEO: GH/CXO/ADMIN) | role (+ scope) | BR-ACTION-010 | Generate `ACT-*`; `CREATED` history | N-ACTION-ASSIGNED `<!-- pending -->` | No |
+| *(none)* | Create | `OPEN` | level write role (PROJECT: PM/AM/ADMIN; ACCOUNT: AM/GH/ADMIN; GEO: GH/CDO/ADMIN) | role (+ scope) | BR-ACTION-010 | Generate `ACT-*`; `CREATED` history | N-ACTION-ASSIGNED `<!-- pending -->` | No |
 | `OPEN` | start | `IN_PROGRESS` | assignee **or** level write role | — | BR-ACTION-020, BR-ACTION-030 | `STATUS_CHANGE` history | — | No |
 | `IN_PROGRESS` | complete | `COMPLETED` | assignee or write role | — | BR-ACTION-030 | `STATUS_CHANGE` history; set `completed_at` | — | No |
 | `COMPLETED` | close | `CLOSED` | write role or assignee | status is `COMPLETED` | BR-ACTION-040 | Set `closed_at` / `closed_by` | — | No |

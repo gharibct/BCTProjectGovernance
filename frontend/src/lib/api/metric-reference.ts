@@ -10,6 +10,14 @@ import { api } from "./client";
 // caching (refetch on mount/focus) so an edit to the yaml shows up on the next
 // navigation rather than only after a hard refresh.
 
+// A benchmark_value / min_value / max_value triple scoped to one unit of
+// measurement — same string conventions as MetricReferenceEntry's own fields.
+export type MetricUnitBenchmark = {
+  benchmark_value: string;
+  min_value: string;
+  max_value: string;
+};
+
 export type MetricReferenceEntry = {
   key: string;
   label: string;
@@ -22,7 +30,27 @@ export type MetricReferenceEntry = {
   min_value: string;
   max_value: string;
   mandatory: boolean | null;
+  // Per-unit-of-measurement benchmark overrides. Only Development's
+  // `productivity` populates this today, keyed by Size Unit (CP/FP/LOC/SP).
+  benchmark_by_unit?: Record<string, MetricUnitBenchmark> | null;
 };
+
+// The benchmark / min / max a metric should show for a given unit of
+// measurement: the per-unit override when the entry has one for `unit`,
+// otherwise the entry's own scalar values. Returns undefined only when there's
+// no entry at all.
+export function resolveBenchmark(
+  entry: MetricReferenceEntry | undefined,
+  unit?: string | null,
+): { benchmark_value: string; min_value: string; max_value: string } | undefined {
+  if (!entry) return undefined;
+  const perUnit = unit ? entry.benchmark_by_unit?.[unit] : undefined;
+  return {
+    benchmark_value: perUnit?.benchmark_value ?? entry.benchmark_value,
+    min_value: perUnit?.min_value ?? entry.min_value,
+    max_value: perUnit?.max_value ?? entry.max_value,
+  };
+}
 
 export type ProjectTypeMetricReference = {
   has_excel_reference: boolean;

@@ -38,7 +38,7 @@ from app.schemas.users import UserCreate
 
 ROLES = [
     ("ADMIN", "Admin", "Full system administration"),
-    ("CXO", "CXO", "CEO / CDO / Delivery Manager read-mostly access"),
+    ("CDO", "CDO", "CEO / CDO / Delivery Manager read-mostly access"),
     ("ACCOUNT_MANAGER", "Account Manager", "Owns account-level commercial relationship and oversight"),
     ("GEO_HEAD", "Geo Head", "Read-mostly oversight across projects in their GEO"),
     ("PROJECT_MANAGER", "Project Manager", "Owns project charter and delivery"),
@@ -91,9 +91,9 @@ PRODUCTS = [
 ]
 
 ACCOUNTS = [
-    ("Gulf National Bank", "MEA"),
-    ("Pacific Retail Group", "APAC"),
-    ("Liberty Insurance Co", "US"),
+    ("Gulf National Bank", "MEA", "UAE"),
+    ("Pacific Retail Group", "APAC", "SINGAPORE"),
+    ("Liberty Insurance Co", "US", "US"),
 ]
 
 USERS = [
@@ -107,7 +107,7 @@ USERS = [
     # prefix) so testing each new role's menu/dashboard doesn't require
     # remembering a person's name.
     ("pm", "Project Manager", "pm@bahwancybertek.com", "PROJECT_MANAGER"),
-    ("cxo", "CXO", "cxo@bahwancybertek.com", "CXO"),
+    ("cdo", "CDO", "cdo@bahwancybertek.com", "CDO"),
     ("acchead", "Account Manager", "acchead@bahwancybertek.com", "ACCOUNT_MANAGER"),
     ("geohead", "Geo Head", "geohead@bahwancybertek.com", "GEO_HEAD"),
 ]
@@ -147,8 +147,11 @@ async def main() -> None:
         for geo in GEOS:
             geos_by_code[geo.code] = await geo_crud.create(db, geo)
 
+        regions_by_code: dict[str, object] = {}
         for code, name, geo_code in REGIONS:
-            await region_crud.create(db, RegionCreate(geo_id=geos_by_code[geo_code].id, code=code, name=name))
+            regions_by_code[code] = await region_crud.create(
+                db, RegionCreate(geo_id=geos_by_code[geo_code].id, code=code, name=name)
+            )
 
         for pt in PROJECT_TYPES:
             await project_type_crud.create(db, pt)
@@ -157,9 +160,14 @@ async def main() -> None:
             await product_crud.create(db, product)
 
         accounts_by_name: dict[str, object] = {}
-        for name, geo_code in ACCOUNTS:
+        for name, geo_code, region_code in ACCOUNTS:
             accounts_by_name[name] = await account_crud.create(
-                db, AccountCreate(name=name, geo_id=geos_by_code[geo_code].id)
+                db,
+                AccountCreate(
+                    name=name,
+                    geo_id=geos_by_code[geo_code].id,
+                    region_id=regions_by_code[region_code].id,
+                ),
             )
 
         users_by_username: dict[str, object] = {}

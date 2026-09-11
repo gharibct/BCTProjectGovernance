@@ -24,7 +24,9 @@ from app.schemas.project_status import (
 )
 from app.schemas.reporting_activity import ReportingActivityResponse
 from app.schemas.status_review import StatusReportReviewRequest
+from app.services import dashboard as dashboard_service
 from app.services import notifications as notify_svc
+from app.services.report_lock import assert_report_editable
 from app.services.reporting_activity import build_reporting_activity
 
 # Weekly/Monthly history (UX §4.4 / §7 items 2-3): list (period-sorted) +
@@ -130,7 +132,16 @@ async def create_status_report(
         if carried:
             payload = payload.model_copy(update=carried)
 
-    return await project_status_report_crud.create(db, payload, project_id=project_id)
+    alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
+        db, scope="project", scope_id=project_id
+    )
+    return await project_status_report_crud.create(
+        db,
+        payload,
+        project_id=project_id,
+        open_alerts_count=alerts_count,
+        open_alerts_snapshot=alerts_snapshot,
+    )
 
 
 @router.put("/{report_id}", response_model=ProjectStatusReportRead, dependencies=_pm_write)
@@ -143,10 +154,37 @@ async def update_status_report(
     obj = await project_status_report_crud.get(db, report_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
-    was_submitted = obj.status == ReportStatus.SUBMITTED
+    # Submitted/Approved are frozen — only a Draft or Rejected report can be
+    # edited here (a Submitted report is only ever decided, via the separate
+    # /review endpoint, never edited back through this one).
+    assert_report_editable(obj.status)
+    was_rejected = obj.status == ReportStatus.REJECTED
     updated = await project_status_report_crud.update(db, obj, payload)
 
-    if not was_submitted and updated.status == ReportStatus.SUBMITTED:
+    # Re-snapshot Open Alerts on every edit while the report is still
+    # editable, so it stays current right up to the moment it's frozen by
+    # submission — from then on assert_report_editable above keeps this
+    # code from ever running again for this report.
+    alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
+        db, scope="project", scope_id=project_id
+    )
+    updated.open_alerts_count = alerts_count
+    updated.open_alerts_snapshot = alerts_snapshot
+    await db.flush()
+    await db.refresh(updated)
+
+    # A rejected report being resubmitted (Rejected -> Submitted) starts a
+    # fresh review cycle: drop the previous reviewer's decision so it doesn't
+    # carry a stale "Reviewed / Rejected on ..." trail into its new Submitted
+    # state, and the reviewer sees a clean Submitted report to act on.
+    if was_rejected and updated.status == ReportStatus.SUBMITTED:
+        updated.reviewed_by = None
+        updated.reviewed_at = None
+        updated.review_comment = None
+        await db.flush()
+        await db.refresh(updated)
+
+    if updated.status == ReportStatus.SUBMITTED:
         project = await project_crud.get(db, project_id)
         if project is not None:
             await notify_svc.notify(
@@ -212,6 +250,17 @@ async def review_status_report(
 items_router = APIRouter(prefix="/projects/{project_id}/status-items", tags=["Project Status"])
 
 
+# Items have no report_id of their own (keyed by project_id + period_id +
+# category — see the model) — this is how create/update/delete below find
+# out whether the report that period belongs to is frozen.
+async def _assert_period_editable(db: AsyncSession, project_id: UUID, period_id: UUID) -> None:
+    stmt = select(ProjectStatusReport.status).where(
+        ProjectStatusReport.project_id == project_id, ProjectStatusReport.period_id == period_id
+    )
+    report_status = (await db.execute(stmt)).scalars().first()
+    assert_report_editable(report_status)
+
+
 @items_router.get("", response_model=list[ProjectStatusItemRead])
 async def list_status_items(
     project_id: UUID,
@@ -233,6 +282,7 @@ async def list_status_items(
 
 @items_router.post("", response_model=ProjectStatusItemRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
 async def create_status_item(project_id: UUID, payload: ProjectStatusItemCreate, db: AsyncSession = Depends(get_db)):
+    await _assert_period_editable(db, project_id, payload.period_id)
     return await project_status_item_crud.create(db, payload, project_id=project_id)
 
 
@@ -243,6 +293,7 @@ async def update_status_item(
     obj = await project_status_item_crud.get(db, item_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status item not found")
+    await _assert_period_editable(db, project_id, obj.period_id)
     return await project_status_item_crud.update(db, obj, payload)
 
 
@@ -251,6 +302,7 @@ async def delete_status_item(project_id: UUID, item_id: UUID, db: AsyncSession =
     obj = await project_status_item_crud.get(db, item_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status item not found")
+    await _assert_period_editable(db, project_id, obj.period_id)
     await project_status_item_crud.delete(db, obj)
 
 

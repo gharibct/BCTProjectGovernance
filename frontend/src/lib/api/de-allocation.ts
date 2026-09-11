@@ -4,8 +4,13 @@ import { api } from "./client";
 import type { ProjectLifecycleStatus, ProjectStatus } from "./projects";
 
 // DE Project Allocation (design-reference/de-approval) — assign a Delivery
-// Excellence assessor to projects that are Pending Approval or Approved (Draft is
-// excluded). Allocation is not period-scoped: any DE / Admin sees the whole pool.
+// Excellence assessor to a non-Draft project, or reassign a different one at
+// any time. `allocation` picks which slice the server returns: "unallocated"
+// (no DE yet — the default work-to-do list), "allocated" (already have a DE,
+// for reassignment), or "all". Allocation is optional (a project can be
+// approved without a DE) and not period-scoped.
+
+export type DeAllocationFilter = "unallocated" | "allocated" | "all";
 
 export type DeAllocationRow = {
   project_id: string;
@@ -32,10 +37,11 @@ export type DeAllocationAssignment = {
   delivery_excellence_id: string;
 };
 
-export function useDeAllocationList() {
+export function useDeAllocationList(allocation: DeAllocationFilter = "unallocated") {
   return useQuery({
-    queryKey: ["de-allocation"],
-    queryFn: () => api.get<DeAllocationRow[]>("/de-allocation"),
+    queryKey: ["de-allocation", allocation],
+    queryFn: () =>
+      api.get<DeAllocationRow[]>(`/de-allocation?allocation=${allocation}`),
   });
 }
 

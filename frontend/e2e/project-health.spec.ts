@@ -3,7 +3,7 @@ import { trackConsoleErrors } from "./utils/console";
 
 // Project Health — the org-wide portfolio dashboard + its 15 drill-down grids
 // (components/dashboard/project-health-*.tsx). Every backing endpoint is gated
-// to PMO/ADMIN/CXO (backend/app/api/v1/endpoints/dashboard.py::_project_health_role),
+// to PMO/ADMIN/CDO (backend/app/api/v1/endpoints/dashboard.py::_project_health_role),
 // so these run as admin. The dev seed creates no Project rows, so the grids
 // render empty — this suite is about every route being mounted, rendering a
 // heading, and staying console-error-free, not about row data.

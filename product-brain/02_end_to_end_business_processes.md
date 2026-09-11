@@ -24,7 +24,7 @@
 | BP-02 | Weekly Project Status Reporting | MOD-STATUS | Status Report `Draft` | Status Report `Submitted` |
 | BP-03 | Monthly Project Review | MOD-MEAS, MOD-CONTRACT, MOD-RAID | prior period's records | current-month records saved |
 | BP-04 | Monthly Delivery Excellence Assessment | MOD-DEA | DE Assessment *(none)* → `Draft` | DE Assessment `Submitted` |
-| BP-05 | Reporting / Review Cascade (Project → Account → Geo → CXO) | MOD-STATUS, MOD-ACCT, MOD-GEO, MOD-ROLLUP, MOD-REVIEW | Report `Submitted` | Report `Approved` \| `Rejected` at each tier |
+| BP-05 | Reporting / Review Cascade (Project → Account → Geo → CDO) | MOD-STATUS, MOD-ACCT, MOD-GEO, MOD-ROLLUP, MOD-REVIEW | Report `Submitted` | Report `Approved` \| `Rejected` at each tier |
 | BP-06 | Health Declaration & Worst-Wins Rollup | MOD-HEALTH, MOD-DEA, MOD-ROLLUP | Health Declaration *(none)* | project / account / geo overall health computed |
 | BP-07 | Executive Update Preparation | MOD-EXEC | Executive Update *(none)* | Executive Update saved (`Draft` only) |
 | BP-08 | Action Tracking | MOD-ACTION | Action *(none)* → `OPEN` | Action `CLOSED` \| `CANCELLED` |
@@ -32,7 +32,7 @@
 | BP-10 | AI-Assisted Data Entry | MOD-AI | Document `Not Processed` | Suggestions `resolved` \| `ignored` \| `applied` |
 
 **Actor legend:** `PROJECT_MANAGER`, `TEAM_MEMBER`, `DELIVERY_EXCELLENCE`, `ACCOUNT_MANAGER`,
-`GEO_HEAD`, `CXO`, `PMO`, `ADMIN` (roles from `product-brain/00` §3); `SYSTEM` (automatic);
+`GEO_HEAD`, `CDO`, `PMO`, `ADMIN` (roles from `product-brain/00` §3); `SYSTEM` (automatic);
 `AI-PIPELINE` (external vLLM extraction service).
 
 ---
@@ -259,17 +259,17 @@ flowchart TD
 
 ---
 
-## BP-05 — Reporting / Review Cascade (Project → Account → Geo → CXO)
+## BP-05 — Reporting / Review Cascade (Project → Account → Geo → CDO)
 
 | Field | Detail |
 | --- | --- |
 | **Process ID** | BP-05 |
 | **Purpose** | Promote each tier's submitted status up one level: the parent authors its own status, pulls selected items from the tier below, and Approves/Rejects the submitted report. Identical pattern at every tier. |
 | **Trigger** | A lower tier submits its status report (BP-02, or the Account/Geo equivalent). |
-| **Actors** | `PROJECT_MANAGER` → `ACCOUNT_MANAGER` → `GEO_HEAD` → `CXO`; `ADMIN` (any tier) |
+| **Actors** | `PROJECT_MANAGER` → `ACCOUNT_MANAGER` → `GEO_HEAD` → `CDO`; `ADMIN` (any tier) |
 | **Preconditions** | The lower report is `Submitted`; the reviewer holds the role **and** the Account/Geo scope. |
 
-### Main Flow (one hop — Project → Account; identical for Account → Geo and Geo → CXO)
+### Main Flow (one hop — Project → Account; identical for Account → Geo and Geo → CDO)
 
 | # | Actor | Step | Result / state |
 | --- | --- | --- | --- |
@@ -279,7 +279,7 @@ flowchart TD
 | 4 | `ACCOUNT_MANAGER` | **Ignore** an item, or **Undo** a prior decision | `Ignored`, or back to `Pending` |
 | 5 | `ACCOUNT_MANAGER` | Author the Account's own narrative + health (BP-06); **Submit** the Account report | Account report `Submitted` |
 | 6 | `GEO_HEAD` | Open Account Review (`PATCH /accounts/{id}/status-reports/{rid}/review`) with `decision` ∈ {`Approved`, `Rejected`} + comment | Account report `Approved` \| `Rejected`; `reviewed_by` / `reviewed_at` recorded |
-| 7 | *(repeat)* | `GEO_HEAD` authors the Geo report and pulls from accounts; `CXO` reviews Geo reports (`_cxo_review`, no ownership scoping) | Geo report `Approved` \| `Rejected` |
+| 7 | *(repeat)* | `GEO_HEAD` authors the Geo report and pulls from accounts; `CDO` reviews Geo reports (`_cdo_review`, no ownership scoping) | Geo report `Approved` \| `Rejected` |
 
 ### Alternate Flows
 
@@ -295,7 +295,7 @@ flowchart TD
 | --- | --- | --- |
 | BP-05-E1 | Review of a non-`Submitted` report | `400` — "Only Submitted reports can be reviewed". |
 | BP-05-E2 | Pull of an item not `Pending` | `RollupItemAlreadyHandledError`. |
-| BP-05-E3 | Reviewer outside the Account/Geo scope | `403` via `require_account_scope` / `require_geo_scope` (`ADMIN`, and `CXO` at geo level, bypass). |
+| BP-05-E3 | Reviewer outside the Account/Geo scope | `403` via `require_account_scope` / `require_geo_scope` (`ADMIN`, and `CDO` at geo level, bypass). |
 
 **Business Rules referenced:** BR-REVIEW-* (submit-before-review, one-tier-up, scope), BR-ROLLUP-* (pull idempotency, undo, worst-wins) `<!-- pending -->`
 
@@ -310,7 +310,7 @@ flowchart LR
     AM --> AR[Account report: authored + Submitted]
     AR --> GH[Geo Head: Approve/Reject]
     GH --> GR[Geo report: authored + Submitted]
-    GR --> CX[CXO: Approve/Reject]
+    GR --> CX[CDO: Approve/Reject]
 ```
 
 ---
@@ -334,7 +334,7 @@ flowchart LR
 | 3 | `SYSTEM` | `compute_overall_project_health(delivery_declared, de_assessed)` — combine the PM declaration with the latest DE-Assessed health (BP-04) | project's effective health set |
 | 4 | `ACCOUNT_MANAGER` | Open `/accounts/{id}/health-rollup`; Pull project health items into the Account declaration | Account overall = worst of pulled project ratings |
 | 5 | `GEO_HEAD` | Open `/geos/{id}/rollup`; Pull account health | Geo overall = worst of accounts |
-| 6 | `SYSTEM` / `CXO` | Enterprise view = worst of geos | Portfolio health visible on dashboards |
+| 6 | `SYSTEM` / `CDO` | Enterprise view = worst of geos | Portfolio health visible on dashboards |
 
 ### Alternate Flows
 
@@ -373,9 +373,9 @@ flowchart TD
 | Field | Detail |
 | --- | --- |
 | **Process ID** | BP-07 |
-| **Purpose** | A Geo Head prepares structured CXO-facing content (Delivery / People / Financials / Operations sections; rich-text / image / table blocks). Draft only — no approval step. |
+| **Purpose** | A Geo Head prepares structured CDO-facing content (Delivery / People / Financials / Operations sections; rich-text / image / table blocks). Draft only — no approval step. |
 | **Trigger** | A `GEO_HEAD` opens the Executive Update screen for their geo. |
-| **Actors** | `GEO_HEAD` (edit); `CXO`, `ADMIN` (view) |
+| **Actors** | `GEO_HEAD` (edit); `CDO`, `ADMIN` (view) |
 | **Preconditions** | The user holds `GEO_HEAD` and the geo scope. |
 
 ### Main Flow
@@ -385,7 +385,7 @@ flowchart TD
 | 1 | `GEO_HEAD` | `POST /geos/{id}/executive-updates` — create for the period | Update created with default sections |
 | 2 | `GEO_HEAD` | Add / rename / reorder / delete sections; add rich-text, image, or table blocks; reorder / delete blocks | Structured JSON (sections + blocks with stable IDs) |
 | 3 | `GEO_HEAD` | Paste a screenshot into an image block (`Ctrl+V`) or an Excel cell range into a table block | Image uploaded (`POST …/images`); table built from clipboard HTML/text, merged cells flattened |
-| 4 | `GEO_HEAD` | **Save Draft** (`PUT /geos/{id}/executive-updates/{uid}`) | Saved; visible to `CXO` on the Executive Updates view |
+| 4 | `GEO_HEAD` | **Save Draft** (`PUT /geos/{id}/executive-updates/{uid}`) | Saved; visible to `CDO` on the Executive Updates view |
 
 ### Alternate Flows / Exceptions
 
@@ -399,7 +399,7 @@ flowchart TD
 **Status Changes:** none — Executive Update has no lifecycle beyond saved/unsaved.
 **System Interactions:** local filesystem (image storage); MOD-DASH (Executive Update view).
 **Notifications:** none.
-**Outputs:** a saved, structured Executive Update for the CXO.
+**Outputs:** a saved, structured Executive Update for the CDO.
 
 ```mermaid
 flowchart LR
@@ -407,7 +407,7 @@ flowchart LR
     S --> B[Add rich-text / image / table blocks]
     B --> PST[Paste screenshot / Excel range]
     PST --> SV[Save Draft]
-    SV --> CX[[CXO: view]]
+    SV --> CX[[CDO: view]]
 ```
 
 ---
@@ -419,7 +419,7 @@ flowchart LR
 | **Process ID** | BP-08 |
 | **Purpose** | Track a discrete action against a project, account, or geo through an assignee-driven lifecycle, with a full history. |
 | **Trigger** | Any authorised user creates an action on an entity's page. |
-| **Actors** | PROJECT: `PROJECT_MANAGER` / `ACCOUNT_MANAGER` / `ADMIN`; ACCOUNT: `ACCOUNT_MANAGER` / `GEO_HEAD` / `ADMIN`; GEO: `GEO_HEAD` / `CXO` / `ADMIN`; plus **the assignee** (any role). |
+| **Actors** | PROJECT: `PROJECT_MANAGER` / `ACCOUNT_MANAGER` / `ADMIN`; ACCOUNT: `ACCOUNT_MANAGER` / `GEO_HEAD` / `ADMIN`; GEO: `GEO_HEAD` / `CDO` / `ADMIN`; plus **the assignee** (any role). |
 | **Preconditions** | The user can reach the entity; for create/edit, the level's write role (or the assignee for transitions). |
 
 ### Main Flow

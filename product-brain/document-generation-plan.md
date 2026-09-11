@@ -70,7 +70,7 @@ discrepancy in your report.
 
 ProjectGovernance is an internal BCT PMO / delivery-governance platform. It replaces a
 patchwork of per-project / per-account / per-geography governance spreadsheets with one
-system of record covering the full reporting chain from an individual project up to CXO:
+system of record covering the full reporting chain from an individual project up to CDO:
 project charter & master data; health declaration with a worst-wins Red/Amber/Green rollup
 (project → account → geo → enterprise); a report-and-review workflow at each tier; five
 RAID registers; weekly status reporting; delivery metrics by engagement type; contractual
@@ -106,8 +106,8 @@ within the BCT network.
 | Code | Name | Org scope | Core responsibility |
 |---|---|---|---|
 | `ADMIN` | Admin | All | Users/roles/scope, reference data, integrations, backups. Superset; can approve/reject at every tier; bypasses scope checks. |
-| `CXO` | CXO | Enterprise (unscoped) | Reviews/approves every Geo's rolled-up status; enterprise dashboard. Lightest write footprint. Creates/edits Geo-level Actions. |
-| `GEO_HEAD` | Geo Head | One or more Geos | Reviews/approves Accounts in their Geo(s); authors Geo status + Geo health; pulls Account→Geo rollup; builds the CXO Executive Update (draft only). |
+| `CDO` | CDO | Enterprise (unscoped) | Reviews/approves every Geo's rolled-up status; enterprise dashboard. Lightest write footprint. Creates/edits Geo-level Actions. |
+| `GEO_HEAD` | Geo Head | One or more Geos | Reviews/approves Accounts in their Geo(s); authors Geo status + Geo health; pulls Account→Geo rollup; builds the CDO Executive Update (draft only). |
 | `ACCOUNT_MANAGER` | Account Manager ("Account Head") | One or more Accounts | Reviews/approves Projects in their Account(s); authors Account status + Account health; Pull/Ignore/Undo Project→Account rollup. |
 | `PROJECT_MANAGER` | Project Manager (PM) | Their project(s) — today role-only, any PM can edit any project | Owns Charter, Scope/Schedule, Resource Allocation, all 5 RAID logs, Health Declarations, Status Reports (+ Submit), Measurement entry, Contractual, uploads to AI Hub. Sends project for approval. |
 | `TEAM_MEMBER` | Team Member | Assigned project(s) | Updates RAID items assigned to them; read-only on Charter/Status. Thin in implementation (dashboard-only menu). |
@@ -119,10 +119,10 @@ notes PM self-approval and PM "My Summary" on mock data. Verify against `backend
 
 ### 1.4 Hierarchy & surfaces
 
-`Project → Account → Geo → CXO (enterprise)`. Each non-project tier has two surfaces:
+`Project → Account → Geo → CDO (enterprise)`. Each non-project tier has two surfaces:
 **Reporting** (the tier's own self-authored status/health) and **Review** (read-only rollup
 of the tier below, with per-item Approve/Reject one tier up: Account Manager reviews
-Projects; Geo Head reviews Accounts; CXO reviews Geos). The pattern is identical at every
+Projects; Geo Head reviews Accounts; CDO reviews Geos). The pattern is identical at every
 tier by design.
 
 ### 1.5 Health & rollup
@@ -336,7 +336,7 @@ Template fields: **Output · Depth · Mirrors · Answers · Required outline · 
 - **Answers:** What is ProjectGovernance, who uses it, what is in/out of scope, and what is the end-to-end governance lifecycle?
 - **Required outline:** 1 Product Purpose · 2 Business Problem (spreadsheet-patchwork table) · 3 User Groups (the 8 roles, one line each) · 4 In Scope · 5 Out of Scope · 6 Major Capabilities · 7 Major Modules (pointer to `01`) · 8 High-Level Governance Lifecycle (Mermaid) · 9 Major Integrations (OneLogin, AI pipeline, Oracle, M365/ticketing, backup — status each) · 10 Key Terminology (pointer to `03`) · 11 Assumptions.
 - **Read first:** repo: `docs/Project-Governance-Tool-BRS.md` §1–2 §6–7, `docs/ux-requirements.md` §1, `backend/app/api/v1/router.py`, `roles-actions.md` · absorb: BRS §1–2 §6 · TMS: `00_product_overview.md`
-- **Must include:** greenfield replacing spreadsheets; internal-only; on-prem + data-residency; Project→Account→Geo→CXO cascade with Reporting/Review surfaces; worst-wins RAG; the 8 role codes; `ASSUMPTION:` no confirmed product name; auth today is a no-password prototype.
+- **Must include:** greenfield replacing spreadsheets; internal-only; on-prem + data-residency; Project→Account→Geo→CDO cascade with Reporting/Review surfaces; worst-wins RAG; the 8 role codes; `ASSUMPTION:` no confirmed product name; auth today is a no-password prototype.
 - **Defines IDs:** none (references `MOD-*` from `01`).
 - **Consumes:** 01, 03 → fallback §1.8 / §1.4.
 - **Diagrams:** one Mermaid flowchart — the governance lifecycle (onboarding → weekly/monthly reporting → tiered review → executive update).
@@ -365,7 +365,7 @@ Template fields: **Output · Depth · Mirrors · Answers · Required outline · 
 - **Mirrors:** `sample-docs\as-is-reference\02_end_to_end_business_processes.md` — Process Index + per-process (Field/Detail table, Main Flow, Alternate Flows, Exceptions, Business Rules referenced, Status Changes, System Interactions, Notifications, Outputs, Mermaid).
 - **Answers:** How does the product behave across modules for the scenarios the business cares about?
 - **Required outline:** Process Index (BP id, name, primary modules, start state, end state) · one H2 per process BP-01…BP-10.
-- **Processes:** `BP-01` Project onboarding → charter → Send for Approval → DE governance approval → Approved. `BP-02` Weekly project status reporting (Draft → Submit). `BP-03` Monthly project review (Measurements + Contractual + RAIDO). `BP-04` DE monthly assessment (Assessed Health + PCI + Findings + Alert-if-not-Green). `BP-05` Reporting/Review cascade Project→Account→Geo→CXO (author → submit → pull/ignore/undo → approve/reject). `BP-06` Health declaration & worst-wins rollup (category → overall → tier). `BP-07` Executive Update preparation (Geo Head, draft-only). `BP-08` Action tracking lifecycle. `BP-09` Data-integrity / defaulter tracking. `BP-10` AI-assisted data entry (upload → extract → apply/ignore).
+- **Processes:** `BP-01` Project onboarding → charter → Send for Approval → DE governance approval → Approved. `BP-02` Weekly project status reporting (Draft → Submit). `BP-03` Monthly project review (Measurements + Contractual + RAIDO). `BP-04` DE monthly assessment (Assessed Health + PCI + Findings + Alert-if-not-Green). `BP-05` Reporting/Review cascade Project→Account→Geo→CDO (author → submit → pull/ignore/undo → approve/reject). `BP-06` Health declaration & worst-wins rollup (category → overall → tier). `BP-07` Executive Update preparation (Geo Head, draft-only). `BP-08` Action tracking lifecycle. `BP-09` Data-integrity / defaulter tracking. `BP-10` AI-assisted data entry (upload → extract → apply/ignore).
 - **Read first:** repo: `DATA-ENTRY-GUIDE.md`, `backend/app/api/v1/endpoints/{projects,project_status,de_approval,de_assessment,regional_status,account_rollup,geo_rollup,actions}.py`, `backend/app/services/{account_rollup,geo_rollup,health_rollup,governance_completeness}.py` · absorb: BRS §3.2, DATA-ENTRY-GUIDE flow · TMS: `02_end_to_end_business_processes.md`
 - **Must include:** PM self-approval today vs. intended DE approval (flag); pull/ignore/undo semantics; worst-wins at each hop; "report must be Submitted before Review shows Approve/Reject"; geo RAG screen gap (BP-06 alternate).
 - **Defines IDs:** `BP-01…BP-10`.
@@ -445,7 +445,7 @@ Template fields: **Output · Depth · Mirrors · Answers · Required outline · 
 - **Answers:** Who can do what — per module, per action, per entity status, per scope?
 - **Required outline:** 1 Roles (the 8, with code, who they are, typical scope) · 2 Permission Verbs · 3 Role × Permission Matrix by Module (one grid per module; legend ✔/–/S status-dependent/scope/own) · 4 Status-Dependent Permissions · 5 Scope Model (account/geo/global; `user_accounts`/`user_geos`; ADMIN bypass; `require_*` dependency factories) · 6 Work Context ("act as") · 7 Segregation of Duties · 8 Known Gaps (DE, PMO, PM self-approval).
 - **Read first:** repo: `backend/app/api/deps.py` (every `require_*`), a slice of endpoints showing which dependency guards which route, `frontend/src/lib/menu-config.ts` (`ROLE_MENUS`, `WORK_CONTEXTS`, `ROLE_LANDING_ROUTE`), `backend/tests/test_authorization.py` · absorb & **supersede** `roles-actions.md`; BRS §3; `docs/ux-requirements.md` §2 · TMS: `08_roles_permissions_matrix.md`
-- **Must include:** exact `RoleCode` values; the dependency factories `require_role`, `require_account_scope`, `require_geo_scope` (+ `bypass_roles`), `require_account_or_geo_scope`, `require_account_geo_scope`, `require_project_account_scope`, `require_project_de_scope`, `require_project_access`; ADMIN = superset + scope bypass; CXO also bypasses geo scope for review + Actions; Work Context: ACCOUNT_MANAGER→PM, GEO_HEAD→ACCOUNT_MANAGER/PM (client menu + list scoping; backend independently allows the lower-role writes within owned scope); DE & PMO not in most write/approve gates (gap); PM self-approves today.
+- **Must include:** exact `RoleCode` values; the dependency factories `require_role`, `require_account_scope`, `require_geo_scope` (+ `bypass_roles`), `require_account_or_geo_scope`, `require_account_geo_scope`, `require_project_account_scope`, `require_project_de_scope`, `require_project_access`; ADMIN = superset + scope bypass; CDO also bypasses geo scope for review + Actions; Work Context: ACCOUNT_MANAGER→PM, GEO_HEAD→ACCOUNT_MANAGER/PM (client menu + list scoping; backend independently allows the lower-role writes within owned scope); DE & PMO not in most write/approve gates (gap); PM self-approves today.
 - **Defines IDs:** none (owns the permission-verb vocabulary).
 - **Consumes:** 01 (modules), 06 (statuses for status-dependent cells) → fallback §1.
 - **Diagrams:** optional scope-model Mermaid (user → scope → visible records).

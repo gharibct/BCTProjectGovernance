@@ -83,6 +83,15 @@ class PasswordSet(BaseModel):
     password: str = Field(min_length=PASSWORD_MIN_LENGTH)
 
 
+class PasswordChange(BaseModel):
+    """Self-service password rotation (POST /auth/change-password). Unlike the
+    Admin reset route (PUT /users/{id}/password) the caller must prove they
+    hold the current password."""
+
+    current_password: str
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH)
+
+
 class UserSessionRead(UserRead):
     """Login response — UserRead plus the nested role and the geo(s)/
     account(s) the user is mapped to (see user_geos/user_accounts), so the

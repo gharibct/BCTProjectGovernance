@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FileText,
   LayoutGrid,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 
@@ -20,7 +21,7 @@ import { activeClass, childClass, idleClass, StatusIcon, type NavGroup } from ".
 
 // Every href is relative to the current :projectId route segment (see
 // buildGroups) so navigating between tabs stays on the same project.
-function buildGroups(base: string): NavGroup[] {
+function buildGroups(base: string, projectId: string): NavGroup[] {
   return [
     {
       heading: "Project Charter",
@@ -66,6 +67,18 @@ function buildGroups(base: string): NavGroup[] {
       // reads as an outstanding checklist item.
       items: [
         { label: "Document Processing", href: `${base}/ai-hub/document-processing`, done: true },
+      ],
+    },
+    {
+      heading: "Delivery Excellence",
+      icon: ShieldCheck,
+      // Read-only for everyone but DE/Admin (de-assessment-workspace.tsx
+      // gates the actual write controls) — lives at the top-level
+      // /de-assessment route, not under project-reporting, so this is the
+      // PM's way in. Not a period-completion task, so always shown as done
+      // like AI Hub above.
+      items: [
+        { label: "DE Assessment", href: `/de-assessment/${projectId}`, done: true },
       ],
     },
   ];
@@ -176,7 +189,7 @@ export function ProjectNav() {
   const pathname = usePathname();
   const { projectId } = useParams<{ projectId: string }>();
   const base = `/project-reporting/${projectId}`;
-  const groups = buildGroups(base);
+  const groups = buildGroups(base, projectId);
 
   // The hub page (/project-reporting/:projectId) is a menu of cards linking
   // into each reporting area — it isn't itself a Weekly/Monthly reporting

@@ -235,14 +235,19 @@ export function useHealthDeclarationForm() {
 export function HealthPicker({
   value,
   onChange,
+  disabled = false,
 }: {
   value: HealthRating;
   onChange: (value: HealthRating) => void;
+  disabled?: boolean;
 }) {
   return (
     <div
       role="radiogroup"
-      className="inline-flex h-10 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1"
+      className={cn(
+        "inline-flex h-10 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1",
+        disabled && "opacity-60"
+      )}
     >
       {HEALTH_LEVELS.map((level) => (
         <button
@@ -250,12 +255,14 @@ export function HealthPicker({
           type="button"
           role="radio"
           aria-checked={value === level.value}
+          disabled={disabled}
           onClick={() => onChange(level.value)}
           className={cn(
             "flex h-full items-center gap-2 rounded-md px-3 text-xs font-semibold whitespace-nowrap transition-colors",
             value === level.value
               ? level.activeClass
-              : "text-slate-500 hover:text-slate-800"
+              : "text-slate-500 hover:text-slate-800",
+            disabled && "cursor-not-allowed"
           )}
         >
           <span

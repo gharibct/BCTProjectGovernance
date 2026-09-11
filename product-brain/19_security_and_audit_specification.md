@@ -80,7 +80,7 @@ flowchart LR
 
 MFA is a listed Security requirement (BRS NFR-7, FR-AUTH-2). Under OneLogin it is enforced
 **at the IdP**, not by ProjectGovernance. **Open decision** (BRS §8 Open Item 1): is MFA
-mandatory for every role, or configurable / mandatory only for `ADMIN` / `CXO` / `FIN`-type
+mandatory for every role, or configurable / mandatory only for `ADMIN` / `CDO` / `FIN`-type
 roles? Recorded as `DECISION REQUIRED`. Under `no_password` mode MFA is meaningless.
 
 ---
@@ -95,7 +95,7 @@ Fully specified in `product-brain/07`. Summary:
   `require_account_geo_scope`, `require_geo_scope` (`bypass_roles`),
   `require_project_account_scope`, `require_project_de_scope`, `require_project_access`
   (`app/api/deps.py`).
-- **Bypass:** `ADMIN` skips all scope checks; `CXO` skips geo scope for geo review + GEO
+- **Bypass:** `ADMIN` skips all scope checks; `CDO` skips geo scope for geo review + GEO
   Actions.
 - **SoD:** a PM cannot review their own project's report; DE governance approval is
   separate from authoring; reference/user/integration config is `ADMIN`-only.

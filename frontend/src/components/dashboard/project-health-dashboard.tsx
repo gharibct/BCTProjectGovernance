@@ -28,7 +28,7 @@ import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BigStat, Card, SubStat } from "./project-health-kpi";
 
 // Project Health dashboard (design-reference/Project-Health.html) — an
-// org-wide, portfolio-level KPI page for PMO/Admin/CXO. Restyled to this
+// org-wide, portfolio-level KPI page for PMO/Admin/CDO. Restyled to this
 // app's real design system (plain white/slate cards, emerald/amber/red RAG,
 // #1a6fc4 accent — see account-head-my-summary.tsx/pmo-my-summary.tsx for
 // the established pattern) rather than the mockup's own Material palette.

@@ -35,11 +35,11 @@ export type ReviewStatusReport = ProjectStatusReport | RegionalStatusReport;
 export type ReviewHealthDeclaration = HealthDeclaration | AccountHealthDeclaration | GeoHealthDeclaration;
 
 // Which role reviews which scope — Account Heads review projects, Geo Heads
-// review accounts, CXO reviews geos (see frontend/src/lib/menu-config.ts).
+// review accounts, CDO reviews geos (see frontend/src/lib/menu-config.ts).
 export const REVIEWER_ROLE_BY_SCOPE: Record<ReviewScope, RoleCode> = {
   project: "ACCOUNT_MANAGER",
   account: "GEO_HEAD",
-  geo: "CXO",
+  geo: "CDO",
 };
 
 function regionalScope(scope: ReviewScope): RegionalScope {

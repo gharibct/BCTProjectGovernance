@@ -40,7 +40,7 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
   const suffix = period ? `?period=${period}` : "";
 
   // Standalone entry (not part of a heading+items group like the ones
-  // below) — the Geo Head's read-first counterpart to the CXO's Geo Review
+  // below) — the Geo Head's read-first counterpart to the CDO's Geo Review
   // screen, mirrors account-nav.tsx's "Account Dashboard".
   const dashboardHref = `${base}/dashboard`;
   const dashboardActive = pathname === dashboardHref;

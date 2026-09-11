@@ -73,7 +73,7 @@ All seven have a `POST/PUT/DELETE` REST API (`/organizations`, `/geos`, `/region
 
 | Attribute | Value |
 | --- | --- |
-| Purpose | Geography tier between Account and CXO; a first-class **scope dimension** (`user_geos`). |
+| Purpose | Geography tier between Account and CDO; a first-class **scope dimension** (`user_geos`). |
 | Key attributes | `id`, `code`, `name`. Known values: **APAC, MEA, US**. |
 | Owner | `ADMIN` (MOD-REF). |
 | Used by | MOD-PROJ (`geo_id`), MOD-ACCT (`accounts.geo_id`), MOD-GEO (reporting, health, executive updates), MOD-USER (Geo Head scope), MOD-DASH (filter), MOD-ACTION (GEO-level `level_value`). |

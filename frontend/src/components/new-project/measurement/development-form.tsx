@@ -59,6 +59,7 @@ export function DevelopmentTab({ m, set, reference, errors }: MeasuresProps) {
             onChange={set("targetProductivity")}
             error={errors?.targetProductivity}
             unit="Size Units / Person-Hour"
+            benchmarkUnit={m.sizeUnit || "FP"}
           />
           <MetricTile
             label="Effort Variation"
@@ -134,7 +135,7 @@ export function DevelopmentTab({ m, set, reference, errors }: MeasuresProps) {
               value={m.sizeUnit || "FP"}
               onChange={set("sizeUnit")}
             >
-              {["CP", "FP", "LOC", "Other"].map((u) => (
+              {["CP", "FP", "LOC", "SP"].map((u) => (
                 <option key={u}>{u}</option>
               ))}
             </NativeSelect>
@@ -153,7 +154,7 @@ export function DevelopmentTab({ m, set, reference, errors }: MeasuresProps) {
             label="Overall Estimated Effort"
             htmlFor="estimated-effort"
             required
-            hint="Person-Hours"
+            hint="Person-Days"
           >
             <Input
               id="estimated-effort"

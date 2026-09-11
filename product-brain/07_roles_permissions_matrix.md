@@ -22,7 +22,7 @@
 | Role | Code | Who they are | Typical scope |
 | --- | --- | --- | --- |
 | Admin | `ADMIN` | IT / system owner. Superset of every permission; bypasses all scope checks. | Instance |
-| CXO | `CXO` | Top of the review chain. Reviews/approves every Geo's rolled-up status. Lightest write footprint. | Enterprise (unscoped); bypasses geo scope for geo review + GEO-level Actions |
+| CDO | `CDO` | Top of the review chain. Reviews/approves every Geo's rolled-up status. Lightest write footprint. | Enterprise (unscoped); bypasses geo scope for geo review + GEO-level Actions |
 | Geo Head | `GEO_HEAD` | Owns one or more Geos. Reviews Accounts, authors Geo status/health, builds the Executive Update. | One or more Geos (`user_geos`) |
 | Account Manager ("Account Head") | `ACCOUNT_MANAGER` | Owns one or more Accounts. Reviews Projects, authors Account status/health, runs project→account rollup. | One or more Accounts (`user_accounts`) |
 | Project Manager | `PROJECT_MANAGER` | Owns project delivery data. **Currently any PM can edit any project** (role-only, no per-project assignment). | All projects (no per-project scope in the schema) |
@@ -58,7 +58,7 @@
 
 Reads: **every authenticated role can View every module's data** unless a stricter gate is noted (Users, Project Health portfolio). The grid shows **write / action** capability.
 
-| Module | `ADMIN` | `CXO` | `GEO_HEAD` | `ACCOUNT_MANAGER` | `PROJECT_MANAGER` | `TEAM_MEMBER` | `DELIVERY_EXCELLENCE` | `PMO` |
+| Module | `ADMIN` | `CDO` | `GEO_HEAD` | `ACCOUNT_MANAGER` | `PROJECT_MANAGER` | `TEAM_MEMBER` | `DELIVERY_EXCELLENCE` | `PMO` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | MOD-PROJ Charter | ✔ | – | ●(P)(S) | ●(P)(S) | ●(S) | R | R | R |
 | MOD-STATUS Project Status | ✔ | – | ●(P)(S) | ●(P)(S) | ●(S) | R | R | R |
@@ -127,7 +127,7 @@ dependency factories from `backend/app/api/deps.py` guards writes:
 | `require_account_scope(*roles)` | `{account_id}` ∈ `user_accounts` | `ADMIN` | *(available; superseded by the two below in practice)* |
 | `require_account_or_geo_scope(*roles)` | account owned directly **or** its `geo_id` ∈ `user_geos` | `ADMIN` | Account status/health writes; account rollup; ACCOUNT-level Actions |
 | `require_account_geo_scope(*roles)` | the account's `geo_id` ∈ `user_geos` | `ADMIN` | Account report **review** (Geo Head) |
-| `require_geo_scope(*roles, bypass_roles=(ADMIN,))` | `{geo_id}` ∈ `user_geos` | `ADMIN`; Actions pass `bypass_roles=(ADMIN, CXO)` | Geo status/health writes; Executive Updates; geo rollup; GEO-level Actions |
+| `require_geo_scope(*roles, bypass_roles=(ADMIN,))` | `{geo_id}` ∈ `user_geos` | `ADMIN`; Actions pass `bypass_roles=(ADMIN, CDO)` | Geo status/health writes; Executive Updates; geo rollup; GEO-level Actions |
 | `require_project_account_scope(*roles)` | the project's `account_id` ∈ `user_accounts` | `ADMIN` | *(available)* |
 | `require_project_de_scope(*roles)` | `project.delivery_excellence_id == current_user.id` | `ADMIN` | DE Governance Approval scoped writes |
 | `require_project_access(*roles)` | `PM`/`DE`/`ADMIN` unconditional; `ACCOUNT_MANAGER` only if the project's account is owned; `GEO_HEAD` only if the project's (or its account's) geo is owned | — | **All project-data writes** (`_pm_write` on MOD-PROJ/STATUS/RAID/HEALTH/MEAS/TARGET/CONTRACT/AI/documents); DE Assessment (`_write_roles`, also allows `DELIVERY_EXCELLENCE`) |
@@ -179,7 +179,7 @@ Config: `frontend/src/lib/menu-config.ts` — `WORK_CONTEXTS`.
 | `PMO` | pmo-dashboard, project-health |
 | `ACCOUNT_MANAGER` | account-manager-dashboard, account-review, account-reporting, project-review |
 | `GEO_HEAD` | geo-head-dashboard, geo-review, geo-reporting, account-review |
-| `CXO` | cxo-dashboard, project-health, geo-review |
+| `CDO` | cdo-dashboard, project-health, geo-review |
 | `ADMIN` | union of all + system-health *(dead link)*, admin-users-roles, admin-integrations |
 
 ---
@@ -189,7 +189,7 @@ Config: `frontend/src/lib/menu-config.ts` — `WORK_CONTEXTS`.
 | Guard | Rule |
 | --- | --- |
 | **A PM cannot review their own project's report** | `_account_manager_review` = `require_project_access(ACCOUNT_MANAGER, GEO_HEAD, ADMIN)` — `PROJECT_MANAGER` is excluded (BR-REVIEW-020). |
-| **Review is exactly one tier up** | Account Manager → Project; Geo Head → Account; CXO → Geo (BR-REVIEW-010). |
+| **Review is exactly one tier up** | Account Manager → Project; Geo Head → Account; CDO → Geo (BR-REVIEW-010). |
 | **DE governance approval is separate from project authoring** | Only the allocated `DELIVERY_EXCELLENCE` (or `ADMIN`) may Decide (BR-DEAL-020, BR-DEAP-030). |
 | **Reference / user / integration config is `ADMIN`-only** | BR-REF-010, BR-USER-010, BR-INTG-010. |
 | **Assignee override on Actions** | The assignee may always transition their own action regardless of role (BR-ACTION-020) — a deliberate exception, not a gap. |

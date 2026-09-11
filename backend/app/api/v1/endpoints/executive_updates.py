@@ -17,7 +17,7 @@ from app.models.reference_data import ReportingPeriod
 from app.schemas.enums import RoleCode
 from app.schemas.executive_updates import ExecutiveUpdateCreate, ExecutiveUpdateRead, ExecutiveUpdateUpdate
 
-# Geo Head's Executive Update for CXO (see db/tables/43_executive_updates.sql)
+# Geo Head's Executive Update for CDO (see db/tables/43_executive_updates.sql)
 # — list/create/edit, same shape as regional_status.py's Geo Status Report
 # endpoints, minus review (no submit/review workflow yet — see that file's
 # module comment for what a future pass would add). Image upload for image

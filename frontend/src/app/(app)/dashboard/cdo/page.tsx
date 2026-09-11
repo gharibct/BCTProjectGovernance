@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "My Summary | Project Governance Tool",
 };
 
-export default function CxoDashboardPage() {
+export default function CdoDashboardPage() {
   return (
     <DashboardView
       title="My Summary"

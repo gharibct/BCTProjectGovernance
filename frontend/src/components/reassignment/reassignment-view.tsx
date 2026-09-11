@@ -23,10 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { SectionCard, ButtonSpinner } from "@/components/forms/form-primitives";
+import { PaginationBar } from "@/components/forms/pagination-bar";
 import { ResourcePicker } from "@/components/forms/resource-picker";
 import { ACCOUNT_HEAD_CANDIDATE_ROLES, PM_CANDIDATE_ROLES } from "@/lib/api/reference-data";
 
 const GEO_HEAD_ROLES = ["GEO_HEAD"] as const;
+
+// Rows shown per page in each reassignment tab (matches pm-findings-view).
+const PAGE_SIZE = 15;
 
 // Reassign Owners — a Geo Head, Account Head or Delivery Excellence user
 // changes a Project's Project Manager, an Account's Account Manager, or a
@@ -120,6 +124,7 @@ function TableFrame({
   error,
   onRetry,
   empty,
+  footer,
   children,
 }: {
   /** Leading entity column headers; the New-owner picker + actions are appended. */
@@ -130,6 +135,8 @@ function TableFrame({
   error: unknown;
   onRetry: () => void;
   empty: boolean;
+  /** Pagination bar, rendered below the table when there are rows. */
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
   if (isError) {
@@ -159,24 +166,27 @@ function TableFrame({
       {empty ? (
         <p className="py-4 text-sm text-slate-400">Nothing to show.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold tracking-wide text-slate-500 uppercase">
-                {headers.map((h, i) => (
-                  <th
-                    key={h}
-                    className={cn("px-3 py-3", i === headers.length - 1 && "min-w-[240px]")}
-                  >
-                    {h}
-                  </th>
-                ))}
-                <th className="px-3 py-3" />
-              </tr>
-            </thead>
-            <tbody>{children}</tbody>
-          </table>
-        </div>
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold tracking-wide text-slate-500 uppercase">
+                  {headers.map((h, i) => (
+                    <th
+                      key={h}
+                      className={cn("px-3 py-3", i === headers.length - 1 && "min-w-[240px]")}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                  <th className="px-3 py-3" />
+                </tr>
+              </thead>
+              <tbody>{children}</tbody>
+            </table>
+          </div>
+          {footer}
+        </>
       )}
     </>
   );
@@ -267,6 +277,13 @@ export function ReassignmentView() {
   const [amGeo, setAmGeo] = React.useState("");
   const [amAm, setAmAm] = React.useState("");
 
+  // Per-tab pagination — each tab keeps its own page position. Every filter /
+  // search change routes through these setters so it also jumps back to page 1
+  // (a narrowed result set must never strand the user on an empty page).
+  const [pmSkip, setPmSkip] = React.useState(0);
+  const [amSkip, setAmSkip] = React.useState(0);
+  const [geoSkip, setGeoSkip] = React.useState(0);
+
   const onError = (err: unknown) =>
     showError(err instanceof Error ? err.message : "Reassignment failed.");
 
@@ -318,6 +335,25 @@ export function ReassignmentView() {
     const q = gSearch.trim().toLowerCase();
     return !q || `${r.geo_code} ${r.geo_name}`.toLowerCase().includes(q);
   });
+
+  // Current page of each filtered list (client-side — the API returns all rows).
+  const projectPage = projectRows.slice(pmSkip, pmSkip + PAGE_SIZE);
+  const accountPage = accountRows.slice(amSkip, amSkip + PAGE_SIZE);
+  const geoPage = geoRows.slice(geoSkip, geoSkip + PAGE_SIZE);
+
+  // Filter setters that also jump back to page 1 for that tab.
+  const withPmReset =
+    <T,>(set: (v: T) => void) =>
+    (v: T) => {
+      set(v);
+      setPmSkip(0);
+    };
+  const withAmReset =
+    <T,>(set: (v: T) => void) =>
+    (v: T) => {
+      set(v);
+      setAmSkip(0);
+    };
 
   const searchInput = (value: string, onChange: (v: string) => void, label: string) => (
     <Input
@@ -378,39 +414,39 @@ export function ReassignmentView() {
                 <FilterSelect
                   label="Geo"
                   value={pmGeo}
-                  onChange={(v) => {
+                  onChange={withPmReset((v) => {
                     setPmGeo(v);
                     setPmRegion("");
                     setPmAccount("");
-                  }}
+                  })}
                   options={pmOptions.geos}
                   width="w-40"
                 />
                 <FilterSelect
                   label="Region"
                   value={pmRegion}
-                  onChange={(v) => {
+                  onChange={withPmReset((v) => {
                     setPmRegion(v);
                     setPmAccount("");
-                  }}
+                  })}
                   options={pmOptions.regions}
                 />
                 <FilterSelect
                   label="Account"
                   value={pmAccount}
-                  onChange={setPmAccount}
+                  onChange={withPmReset(setPmAccount)}
                   options={pmOptions.accounts}
                   width="w-48"
                 />
                 <FilterSelect
                   label="Current PM"
                   value={pmPm}
-                  onChange={setPmPm}
+                  onChange={withPmReset(setPmPm)}
                   options={pmOptions.pms}
                   width="w-48"
                   notAllocated
                 />
-                {searchInput(pSearch, setPSearch, "Search projects")}
+                {searchInput(pSearch, withPmReset(setPSearch), "Search projects")}
               </>
             }
             isLoading={projects.isLoading}
@@ -418,8 +454,16 @@ export function ReassignmentView() {
             error={projects.error}
             onRetry={projects.refetch}
             empty={projectRows.length === 0}
+            footer={
+              <PaginationBar
+                skip={pmSkip}
+                limit={PAGE_SIZE}
+                total={projectRows.length}
+                onPageChange={setPmSkip}
+              />
+            }
           >
-            {projectRows.map((row) => (
+            {projectPage.map((row) => (
               <ReassignRow
                 key={row.project_id}
                 leading={[
@@ -461,19 +505,19 @@ export function ReassignmentView() {
                 <FilterSelect
                   label="Geo"
                   value={amGeo}
-                  onChange={setAmGeo}
+                  onChange={withAmReset(setAmGeo)}
                   options={amOptions.geos}
                   width="w-44"
                 />
                 <FilterSelect
                   label="Current AM"
                   value={amAm}
-                  onChange={setAmAm}
+                  onChange={withAmReset(setAmAm)}
                   options={amOptions.ams}
                   width="w-48"
                   notAllocated
                 />
-                {searchInput(aSearch, setASearch, "Search accounts")}
+                {searchInput(aSearch, withAmReset(setASearch), "Search accounts")}
               </>
             }
             isLoading={accounts.isLoading}
@@ -481,8 +525,16 @@ export function ReassignmentView() {
             error={accounts.error}
             onRetry={accounts.refetch}
             empty={accountRows.length === 0}
+            footer={
+              <PaginationBar
+                skip={amSkip}
+                limit={PAGE_SIZE}
+                total={accountRows.length}
+                onPageChange={setAmSkip}
+              />
+            }
           >
-            {accountRows.map((row) => (
+            {accountPage.map((row) => (
               <ReassignRow
                 key={row.account_id}
                 leading={[
@@ -516,14 +568,29 @@ export function ReassignmentView() {
         {tab === "geo" && showGeoTab ? (
           <TableFrame
             headers={["Geo", "Current Geo Head", "New Geo Head"]}
-            toolbar={searchInput(gSearch, setGSearch, "Search geos")}
+            toolbar={searchInput(
+              gSearch,
+              (v) => {
+                setGSearch(v);
+                setGeoSkip(0);
+              },
+              "Search geos",
+            )}
             isLoading={geos.isLoading}
             isError={geos.isError}
             error={geos.error}
             onRetry={geos.refetch}
             empty={geoRows.length === 0}
+            footer={
+              <PaginationBar
+                skip={geoSkip}
+                limit={PAGE_SIZE}
+                total={geoRows.length}
+                onPageChange={setGeoSkip}
+              />
+            }
           >
-            {geoRows.map((row) => (
+            {geoPage.map((row) => (
               <ReassignRow
                 key={row.geo_id}
                 leading={[

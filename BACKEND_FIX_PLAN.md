@@ -39,10 +39,10 @@ Of the 25 endpoint modules under `app/api/v1/endpoints/`, only these two have ze
 **Prompt:**
 > In `backend/app/`, two endpoint modules have no authorization gate at all, unlike every other router.
 >
-> 1. `app/api/v1/endpoints/audit.py::list_activity_log` — this is a portfolio-wide, cross-account audit trail, so gate it with a role check: `Depends(require_role(RoleCode.ADMIN, RoleCode.CXO))` (adjust the exact role set if a broader group should legitimately see the whole activity log — check `app/schemas/enums.py`'s `RoleCode` for the full list, and use the same judgment already applied to other admin-facing endpoints like `integrations.py`'s `_admin_only`).
-> 2. `app/api/v1/endpoints/dashboard.py::get_dashboard_summary` — this is a landing page for multiple roles, not just admins, so a blanket role gate is wrong here. Instead, scope the *query results*: for callers whose role is not `ADMIN`/`CXO`, constrain the effective `account_ids`/`geo_ids` used in `DashboardFilters` to the caller's own `user_accounts`/`user_geos` — reuse the `_owned_account_ids`/`_owned_geo_ids` helpers already defined in `app/api/deps.py` rather than re-deriving that logic. Do this before the filters reach `app/services/dashboard.py`.
+> 1. `app/api/v1/endpoints/audit.py::list_activity_log` — this is a portfolio-wide, cross-account audit trail, so gate it with a role check: `Depends(require_role(RoleCode.ADMIN, RoleCode.CDO))` (adjust the exact role set if a broader group should legitimately see the whole activity log — check `app/schemas/enums.py`'s `RoleCode` for the full list, and use the same judgment already applied to other admin-facing endpoints like `integrations.py`'s `_admin_only`).
+> 2. `app/api/v1/endpoints/dashboard.py::get_dashboard_summary` — this is a landing page for multiple roles, not just admins, so a blanket role gate is wrong here. Instead, scope the *query results*: for callers whose role is not `ADMIN`/`CDO`, constrain the effective `account_ids`/`geo_ids` used in `DashboardFilters` to the caller's own `user_accounts`/`user_geos` — reuse the `_owned_account_ids`/`_owned_geo_ids` helpers already defined in `app/api/deps.py` rather than re-deriving that logic. Do this before the filters reach `app/services/dashboard.py`.
 > 3. Do not change either endpoint's response shape — only add the access restriction.
-> 4. Verify: a `TEAM_MEMBER` calling `GET /audit-log` now gets 403 (or is excluded from whatever role set you land on); a non-admin user calling `GET /dashboard/summary` with someone else's `account_id`/`geo_id` no longer sees that account's/geo's data, while their own scoped data still returns correctly; `ADMIN`/`CXO` are unaffected.
+> 4. Verify: a `TEAM_MEMBER` calling `GET /audit-log` now gets 403 (or is excluded from whatever role set you land on); a non-admin user calling `GET /dashboard/summary` with someone else's `account_id`/`geo_id` no longer sees that account's/geo's data, while their own scoped data still returns correctly; `ADMIN`/`CDO` are unaffected.
 
 ---
 
@@ -147,7 +147,7 @@ Every test file under `backend/tests/` that exercises an endpoint runs through t
 
 ## Issue 10: Stale role list in a model comment (ID-11, P3)
 
-`app/models/users.py:14`'s comment on `Role.code` lists `ADMIN, EXECUTIVE, PROJECT_MANAGER, TEAM_MEMBER, DELIVERY_EXCELLENCE, PMO` — the actual `RoleCode` enum (`app/schemas/enums.py:20-25`) is `ADMIN, CXO, ACCOUNT_MANAGER, GEO_HEAD, PROJECT_MANAGER, TEAM_MEMBER`. No functional impact, but it misleads anyone reading the model file about what roles exist.
+`app/models/users.py:14`'s comment on `Role.code` lists `ADMIN, EXECUTIVE, PROJECT_MANAGER, TEAM_MEMBER, DELIVERY_EXCELLENCE, PMO` — the actual `RoleCode` enum (`app/schemas/enums.py:20-25`) is `ADMIN, CDO, ACCOUNT_MANAGER, GEO_HEAD, PROJECT_MANAGER, TEAM_MEMBER`. No functional impact, but it misleads anyone reading the model file about what roles exist.
 
 **Prompt:**
 > In `app/models/users.py:14`, replace the inline comment listing role codes on `Role.code` with a pointer to the actual source of truth: `app/schemas/enums.py::RoleCode`. Either quote the current list from that enum, or (preferred, so it can't drift again) just reference the enum by name instead of duplicating the list. No other change needed.

@@ -124,7 +124,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
               <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
             </>
           )}
-          <OpenNcSection scope={scope} scopeId={scopeId} />
+          <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
           <ReviewActions scope={scope} scopeId={scopeId} report={report} />
         </>
       )}

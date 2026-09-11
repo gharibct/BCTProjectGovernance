@@ -159,11 +159,13 @@ export async function fetchProjectOptions(args: {
   search: string;
   filters: ProjectOptionFilters;
   limit: number;
+  excludeStatus?: ProjectStatus;
 }): Promise<Page<Project>> {
   const params = new URLSearchParams({ limit: String(args.limit) });
   if (args.search.trim()) params.set("search", args.search.trim());
   if (args.filters.geo_id) params.set("geo_id", args.filters.geo_id);
   if (args.filters.account_id) params.set("account_id", args.filters.account_id);
+  if (args.excludeStatus) params.set("exclude_status", args.excludeStatus);
   return api.get<Page<Project>>(`/projects?${params.toString()}`);
 }
 

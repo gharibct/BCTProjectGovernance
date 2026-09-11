@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
+import type { OpenNcRow } from "./dashboard";
 import type { ProjectStatusCategory, ReportStatus } from "./project-status";
 import type { ReportingActivitySeries } from "@/lib/reporting-activity";
 
@@ -31,6 +32,12 @@ export type RegionalStatusReport = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_comment: string | null;
+  // Open Alerts as of this period's end date, snapshotted server-side on
+  // every save. Kept for history, but the dashboard/Review "Open Alerts"
+  // sections no longer read it — they always show the live, unfiltered set
+  // of currently open Alerts (see lib/api/dashboard.ts's useOpenNcs).
+  open_alerts_count: number;
+  open_alerts_snapshot: OpenNcRow[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -123,7 +130,7 @@ export function useUpdateRegionalStatusReport(scope: RegionalScope, scopeId: str
   });
 }
 
-// Account Review / Geo Review (for Geo Heads / CXO): approve/reject a
+// Account Review / Geo Review (for Geo Heads / CDO): approve/reject a
 // Submitted report.
 export type StatusReportReviewPayload = {
   decision: "Approved" | "Rejected";

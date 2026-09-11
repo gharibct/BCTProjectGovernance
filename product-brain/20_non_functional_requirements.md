@@ -86,7 +86,7 @@ These drive the numbers in §3. All `— baseline 2026-Q4`.
 | NFR-SEC-30 | Session lifetime | `TARGET:` ≤ 8 h, no sliding renewal (current `SESSION_TTL_MINUTES=480`) | config | security test |
 | NFR-SEC-40 | Login rate limiting | `TARGET:` ≤ 5 failed attempts / 5 min / identifier then backoff — **not implemented** | config | security test |
 | NFR-SEC-50 | RBAC + Account/Geo scope enforced server-side on every route | `FIXED` (BRS NFR-3) | `test_authorization.py` + route sweep | `product-brain/25` §11 |
-| NFR-SEC-60 | MFA | `TARGET:` mandatory for `ADMIN` / `CXO`; configurable elsewhere — **decision open** (BRS §8 Open Item 1) | IdP config | release gate |
+| NFR-SEC-60 | MFA | `TARGET:` mandatory for `ADMIN` / `CDO`; configurable elsewhere — **decision open** (BRS §8 Open Item 1) | IdP config | release gate |
 | NFR-SEC-70 | Secrets are environment-supplied, no insecure fallback in shared/prod | `FIXED` — remove the `"change-me-*"` defaults for non-local | config audit | release gate |
 | NFR-SEC-80 | Stored user content (rich text) is sanitised | `FIXED` — no stored-XSS | security test | VAPT |
 

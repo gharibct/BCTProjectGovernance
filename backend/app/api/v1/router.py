@@ -27,12 +27,14 @@ from app.api.v1.endpoints import (
     notifications,
     pm_findings,
     project_creation_requests,
+    project_performance,
     project_status,
     projects,
     raid,
     reassignment,
     reference_data,
     regional_status,
+    reporting_attestation,
     users,
 )
 
@@ -57,6 +59,8 @@ api_router.include_router(raid.router)
 api_router.include_router(measurement.router)
 api_router.include_router(metric_target.router)
 api_router.include_router(contractual.router)
+api_router.include_router(reporting_attestation.router)
+api_router.include_router(project_performance.router)
 api_router.include_router(de_assessment.router)
 api_router.include_router(de_assessment.findings_router)
 api_router.include_router(de_findings.router)

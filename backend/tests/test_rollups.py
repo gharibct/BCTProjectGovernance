@@ -84,15 +84,15 @@ class TestGeoStatusReports:
         assert response.status_code != 403
 
     async def test_review_rejects_wrong_role(self, client, override_auth):
-        # Gated by require_role(CXO, ADMIN) — no ownership scoping.
+        # Gated by require_role(CDO, ADMIN) — no ownership scoping.
         headers = override_auth(RoleCode.TEAM_MEMBER)
         response = await client.patch(
             f"/api/v1/geos/{_GEO_ID}/status-reports/{uuid4()}/review", json={}, headers=headers
         )
         assert response.status_code == 403
 
-    async def test_review_passes_cxo_or_admin_gate(self, client, override_auth):
-        headers = override_auth(RoleCode.CXO)
+    async def test_review_passes_cdo_or_admin_gate(self, client, override_auth):
+        headers = override_auth(RoleCode.CDO)
         response = await client.patch(
             f"/api/v1/geos/{_GEO_ID}/status-reports/{uuid4()}/review", json={}, headers=headers
         )

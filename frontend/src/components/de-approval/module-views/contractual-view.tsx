@@ -38,6 +38,7 @@ export function ContractualView() {
             { key: "commitment_name", label: "Commitment" },
             { key: "frequency", label: "Frequency" },
             { key: "target", label: "Target", align: "right" },
+            { key: "target_uom", label: "Target UOM" },
             {
               key: "actual_value",
               label: "Actual",

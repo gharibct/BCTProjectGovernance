@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contractual import ContractualCommitment, MilestonePayment
+from app.models.de_project_review import DeProjectModuleReview
 from app.models.metric_target import (
     MetricTargetCloudMaintenance,
     MetricTargetCloudMigration,
@@ -36,7 +37,12 @@ from app.models.raid import (
 )
 from app.models.reference_data import ProjectType
 from app.schemas.approval_readiness import ApprovalReadiness, ApprovalReadinessModule
-from app.schemas.enums import ProjectStatus, StaffingPriority, YesNo
+from app.schemas.enums import (
+    DeModuleReviewAction,
+    ProjectStatus,
+    StaffingPriority,
+    YesNo,
+)
 from app.schemas.metric_target import (
     MetricTargetCloudMaintenanceIn,
     MetricTargetCloudMigrationIn,
@@ -55,6 +61,19 @@ MODULES: list[tuple[str, str, bool]] = [
     ("milestones", "Milestones", True),
     ("raido", "RAIDO Register", False),
 ]
+
+# Maps each PM readiness module to the DE governance module whose per-section
+# review_action it should mirror (schemas.enums.GovernanceModuleKey). The DE
+# reviews Commitments + Milestones together as one "Contractual Compliance"
+# section, so both PM rows reflect the same DE verdict.
+_DE_MODULE_FOR_READINESS: dict[str, str] = {
+    "project_profile": "project_profile",
+    "scope_schedule": "scope_schedule",
+    "measurement": "measurement",
+    "commitments": "contractual_compliance",
+    "milestones": "contractual_compliance",
+    "raido": "raido",
+}
 
 _GAP_TEXT: dict[str, str] = {
     "project_profile": "Project Profile fields incomplete",
@@ -204,7 +223,12 @@ async def measurement_complete(db: AsyncSession, project: Project) -> tuple[bool
 
 
 async def _module_status(
-    db: AsyncSession, key: str, label: str, mandatory: bool, project: Project
+    db: AsyncSession,
+    key: str,
+    label: str,
+    mandatory: bool,
+    project: Project,
+    de_reviews: dict[str, DeProjectModuleReview],
 ) -> ApprovalReadinessModule:
     gap_default: str | None = _GAP_TEXT.get(key)
     gap_override: str | None = None
@@ -247,6 +271,14 @@ async def _module_status(
 
     complete = ft > 0 and fc >= ft
     progress_pct = round(100 * fc / ft) if ft else 0
+
+    de_review = de_reviews.get(_DE_MODULE_FOR_READINESS.get(key, key))
+    de_action = (
+        DeModuleReviewAction(de_review.review_action)
+        if de_review is not None
+        else DeModuleReviewAction.NOT_REVIEWED
+    )
+
     return ApprovalReadinessModule(
         key=key,
         label=label,
@@ -257,12 +289,32 @@ async def _module_status(
         fields_complete=fc,
         fields_total=ft,
         progress_pct=progress_pct,
+        de_review_action=de_action,
+        de_review_remarks=de_review.remarks if de_review is not None else None,
     )
 
 
+async def _de_module_reviews(
+    db: AsyncSession, project_id: UUID
+) -> dict[str, DeProjectModuleReview]:
+    rows = (
+        (
+            await db.execute(
+                select(DeProjectModuleReview).where(
+                    DeProjectModuleReview.project_id == project_id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return {r.module_key: r for r in rows}
+
+
 async def compute_approval_readiness(db: AsyncSession, project: Project) -> ApprovalReadiness:
+    de_reviews = await _de_module_reviews(db, project.id)
     modules = [
-        await _module_status(db, key, label, mandatory, project)
+        await _module_status(db, key, label, mandatory, project, de_reviews)
         for key, label, mandatory in MODULES
     ]
 
@@ -286,4 +338,7 @@ async def compute_approval_readiness(db: AsyncSession, project: Project) -> Appr
         lifecycle_status=project.lifecycle_status,
         can_submit=modules_incomplete == 0
         and project.project_status in (ProjectStatus.DRAFT, ProjectStatus.UNDER_AMENDMENT),
+        de_review_status=getattr(project, "de_review_status", None),
+        de_review_remarks=getattr(project, "de_review_remarks", None),
+        de_reviewed_at=getattr(project, "de_reviewed_at", None),
     )

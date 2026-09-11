@@ -12,7 +12,12 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.schemas.enums import ProjectLifecycleStatus, ProjectStatus
+from app.schemas.enums import (
+    DeModuleReviewAction,
+    DeReviewStatus,
+    ProjectLifecycleStatus,
+    ProjectStatus,
+)
 
 
 class ApprovalReadinessModule(BaseModel):
@@ -27,6 +32,11 @@ class ApprovalReadinessModule(BaseModel):
     fields_complete: int = 0
     fields_total: int = 0
     progress_pct: int = 0
+    # The DE's per-section verdict from the last Project Details Approval review
+    # ("Not Reviewed" until the DE picks one). Commitments and Milestones both
+    # mirror the single Contractual Compliance module the DE reviews.
+    de_review_action: DeModuleReviewAction = DeModuleReviewAction.NOT_REVIEWED
+    de_review_remarks: str | None = None
 
 
 class ApprovalReadiness(BaseModel):
@@ -39,3 +49,8 @@ class ApprovalReadiness(BaseModel):
     project_status: ProjectStatus
     lifecycle_status: ProjectLifecycleStatus | None = None
     can_submit: bool
+    # Last DE governance-review outcome, surfaced to the PM. de_review_remarks
+    # is the mandatory remark the DE entered when approving / returning.
+    de_review_status: DeReviewStatus | None = None
+    de_review_remarks: str | None = None
+    de_reviewed_at: datetime | None = None

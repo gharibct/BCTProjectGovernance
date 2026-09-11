@@ -22,6 +22,7 @@ import {
   type RaidoStatusFilter,
 } from "@/lib/raido-status";
 import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
+import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
 import { useUsers } from "@/lib/api/reference-data";
 import {
   useCreateIssue,
@@ -151,7 +152,10 @@ export function IssueLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <AiRowSuggestionsTrigger projectId={projectId} screen="issues" periodId={periodId} itemLabel="Issue" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <AiRowSuggestionsTrigger projectId={projectId} screen="issues" periodId={periodId} itemLabel="Issue" />
+        <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="ISSUE" />
+      </div>
 
       <SectionCard
         icon={TriangleAlert}

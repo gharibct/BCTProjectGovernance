@@ -1,9 +1,10 @@
 """New Project Creation flow. An Account Head / Geo Head submits a lightweight
 creation request (project name + Project Manager + Oracle Project IDs); Delivery
 Excellence approves it — materialising a real projects row in Draft plus its
-project_oracle_ids — or rejects it, which hard-deletes the request. This is a
-separate cycle from DE Project Approval (which reviews governance completeness of
-an already-created project that a PM has sent for approval).
+project_oracle_ids — or rejects it with a mandatory reason, which retains the
+request row as "Rejected" so the requester can see why. This is a separate cycle
+from DE Project Approval (which reviews governance completeness of an
+already-created project that a PM has sent for approval).
 """
 
 from datetime import UTC, datetime
@@ -21,10 +22,12 @@ from app.models.project_creation_request import (
     ProjectCreationRequest,
     ProjectCreationRequestOracleId,
 )
+from app.models.reference_data import Account, Geo, Organization, Region
 from app.models.users import User
 from app.schemas.enums import ProjectStatus, RoleCode
 from app.schemas.project_creation_request import (
     ProjectCreationApproveRequest,
+    ProjectCreationRejectRequest,
     ProjectCreationRequestCreate,
     ProjectCreationRequestRow,
 )
@@ -43,6 +46,7 @@ _reader = require_role(
 
 _STATUS_PENDING = "Pending"
 _STATUS_APPROVED = "Approved"
+_STATUS_REJECTED = "Rejected"
 
 
 async def _user_name(db: AsyncSession, user_id: UUID | None) -> str | None:
@@ -50,6 +54,13 @@ async def _user_name(db: AsyncSession, user_id: UUID | None) -> str | None:
         return None
     user = await db.get(User, user_id)
     return user.full_name if user is not None else None
+
+
+async def _ref_name(db: AsyncSession, model: type, ref_id: UUID | None) -> str | None:
+    if ref_id is None:
+        return None
+    row = await db.get(model, ref_id)
+    return getattr(row, "name", None) if row is not None else None
 
 
 async def _oracle_ids(db: AsyncSession, request_id: UUID) -> list[str]:
@@ -63,6 +74,40 @@ async def _oracle_ids(db: AsyncSession, request_id: UUID) -> list[str]:
     return list(rows)
 
 
+async def _to_row(
+    db: AsyncSession,
+    request: ProjectCreationRequest,
+    *,
+    pm_name: str | None = None,
+    requester_name: str | None = None,
+    oracle_ids: list[str] | None = None,
+) -> ProjectCreationRequestRow:
+    """Build the API row for one request. pm_name / requester_name / oracle_ids
+    may be passed in when the caller already has them (e.g. from a join or the
+    just-created rows); otherwise they are looked up here."""
+    return ProjectCreationRequestRow(
+        id=request.id,
+        project_name=request.project_name,
+        project_manager_id=request.project_manager_id,
+        project_manager_name=pm_name or await _user_name(db, request.project_manager_id),
+        organization_id=request.organization_id,
+        organization_name=await _ref_name(db, Organization, request.organization_id),
+        geo_id=request.geo_id,
+        geo_name=await _ref_name(db, Geo, request.geo_id),
+        region_id=request.region_id,
+        region_name=await _ref_name(db, Region, request.region_id),
+        account_id=request.account_id,
+        account_name=await _ref_name(db, Account, request.account_id),
+        oracle_project_ids=oracle_ids if oracle_ids is not None else await _oracle_ids(db, request.id),
+        requested_by=request.requested_by,
+        requested_by_name=requester_name or await _user_name(db, request.requested_by),
+        status=request.status,
+        review_remarks=request.review_remarks,
+        reviewed_at=request.reviewed_at,
+        created_at=request.created_at,
+    )
+
+
 @router.post("", response_model=ProjectCreationRequestRow, status_code=status.HTTP_201_CREATED)
 async def create_request(
     payload: ProjectCreationRequestCreate,
@@ -74,6 +119,10 @@ async def create_request(
         id=uuid4(),
         project_name=payload.project_name.strip(),
         project_manager_id=payload.project_manager_id,
+        organization_id=payload.organization_id,
+        geo_id=payload.geo_id,
+        region_id=payload.region_id,
+        account_id=payload.account_id,
         status=_STATUS_PENDING,
         requested_by=current_user.id,
         approved_project_id=None,
@@ -104,17 +153,7 @@ async def create_request(
         )
 
     await db.flush()
-    return ProjectCreationRequestRow(
-        id=request.id,
-        project_name=request.project_name,
-        project_manager_id=request.project_manager_id,
-        project_manager_name=await _user_name(db, request.project_manager_id),
-        oracle_project_ids=oracle_ids,
-        requested_by=request.requested_by,
-        requested_by_name=await _user_name(db, request.requested_by),
-        status=request.status,
-        created_at=request.created_at,
-    )
+    return await _to_row(db, request, oracle_ids=oracle_ids)
 
 
 @router.get("", response_model=list[ProjectCreationRequestRow])
@@ -128,31 +167,24 @@ async def list_requests(
         select(ProjectCreationRequest, pm.full_name, requester.full_name)
         .outerjoin(pm, pm.id == ProjectCreationRequest.project_manager_id)
         .outerjoin(requester, requester.id == ProjectCreationRequest.requested_by)
-        .where(ProjectCreationRequest.status == _STATUS_PENDING)
         .order_by(ProjectCreationRequest.created_at.desc())
     )
-    # Account / Geo Head see only what they submitted; DE / Admin see everything.
+    # DE / Admin get the action queue — only Pending. Account / Geo Head see only
+    # what they submitted, and also their Rejected requests (with the reason).
     role_code = await _role_code(db, current_user)
     if role_code in (RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD):
-        stmt = stmt.where(ProjectCreationRequest.requested_by == current_user.id)
+        stmt = stmt.where(
+            ProjectCreationRequest.requested_by == current_user.id,
+            ProjectCreationRequest.status.in_((_STATUS_PENDING, _STATUS_REJECTED)),
+        )
+    else:
+        stmt = stmt.where(ProjectCreationRequest.status == _STATUS_PENDING)
 
     records = (await db.execute(stmt)).all()
-    rows: list[ProjectCreationRequestRow] = []
-    for request, pm_name, requester_name in records:
-        rows.append(
-            ProjectCreationRequestRow(
-                id=request.id,
-                project_name=request.project_name,
-                project_manager_id=request.project_manager_id,
-                project_manager_name=pm_name,
-                oracle_project_ids=await _oracle_ids(db, request.id),
-                requested_by=request.requested_by,
-                requested_by_name=requester_name,
-                status=request.status,
-                created_at=request.created_at,
-            )
-        )
-    return rows
+    return [
+        await _to_row(db, request, pm_name=pm_name, requester_name=requester_name)
+        for request, pm_name, requester_name in records
+    ]
 
 
 @router.post("/{request_id}/approve", response_model=ProjectRead)
@@ -177,6 +209,10 @@ async def approve_request(
         ProjectCreate(
             project_name=request.project_name,
             project_manager_id=request.project_manager_id,
+            organization_id=request.organization_id,
+            geo_id=request.geo_id,
+            region_id=request.region_id,
+            account_id=request.account_id,
             created_by=request.requested_by,
         ),
         project_code=code,
@@ -197,14 +233,16 @@ async def approve_request(
     return project
 
 
-@router.delete("/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{request_id}/reject", response_model=ProjectCreationRequestRow)
 async def reject_request(
     request_id: UUID,
+    payload: ProjectCreationRejectRequest,
     current_user: User = Depends(_reviewer),
     db: AsyncSession = Depends(get_db),
 ):
-    """Reject == delete. The child Oracle ID rows cascade. No project is created,
-    and (per current scope) no mail/notification is sent."""
+    """Reject with a mandatory reason. The request row is retained as "Rejected"
+    (not deleted) with the remarks, so the requester can see why. No project is
+    created; the child Oracle ID rows are kept with the record."""
     request = await db.get(ProjectCreationRequest, request_id)
     if request is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project creation request not found")
@@ -213,5 +251,11 @@ async def reject_request(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             f"Request is {request.status}; only a Pending request can be rejected.",
         )
-    await db.delete(request)
+
+    request.status = _STATUS_REJECTED
+    request.reviewed_by = payload.reviewed_by
+    request.reviewed_at = datetime.now(UTC)
+    request.review_remarks = payload.remarks.strip()
     await db.flush()
+
+    return await _to_row(db, request)

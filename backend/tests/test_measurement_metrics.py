@@ -211,3 +211,27 @@ async def test_metric_reference_endpoint_shape(client, override_auth):
 async def test_metric_reference_requires_auth(client):
     response = await client.get("/api/v1/metric-reference")
     assert response.status_code == 401
+
+
+async def test_metric_reference_productivity_benchmark_by_unit(client, override_auth):
+    from app.schemas.enums import RoleCode
+
+    headers = override_auth(RoleCode.TEAM_MEMBER)
+    response = await client.get("/api/v1/metric-reference", headers=headers)
+    assert response.status_code == 200
+    dev = {m["key"]: m for m in response.json()["DEVELOPMENT"]["metrics"]}
+
+    # Productivity carries a per-Size-Unit benchmark override (CP/FP/LOC/SP);
+    # the scalar benchmark_value stays as the fallback for an unlisted unit.
+    prod = dev["productivity"]
+    assert prod["benchmark_value"] == "0.45"
+    assert prod["benchmark_by_unit"]["FP"]["benchmark_value"] == "0.14"
+    assert prod["benchmark_by_unit"]["LOC"] == {
+        "benchmark_value": "125",
+        "min_value": "50",
+        "max_value": "200",
+    }
+    assert set(prod["benchmark_by_unit"]) == {"CP", "FP", "LOC", "SP"}
+
+    # Every other metric leaves it null.
+    assert dev["effort_variation_pct"]["benchmark_by_unit"] is None

@@ -80,7 +80,7 @@ async def test_project_list_rejects_non_uuid_region(client, override_auth):
 # --- every Project Health drill-down list endpoint ---------------------------
 # These 15 grids back the Project Health dashboard's report cards
 # (design-reference/project-health-screens.md). They share one role gate
-# (_project_health_role = PMO / ADMIN / CXO / DELIVERY_EXCELLENCE) and the {items,total,skip,limit}
+# (_project_health_role = PMO / ADMIN / CDO / DELIVERY_EXCELLENCE) and the {items,total,skip,limit}
 # Page shape. FakeDB seeds nothing, so each returns an empty page — enough to
 # lock in that the route is mounted, gated, and doesn't raise.
 
@@ -119,7 +119,7 @@ async def test_drilldown_rejects_unprivileged_role(client, override_auth, path):
 
 
 @pytest.mark.parametrize(
-    "role", [RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE]
+    "role", [RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE]
 )
 @pytest.mark.parametrize("path", _DRILLDOWN_PATHS)
 async def test_drilldown_returns_empty_page_for_privileged_role(client, override_auth, path, role):
@@ -142,7 +142,7 @@ async def test_project_health_summary_rejects_unprivileged_role(client, override
 
 
 @pytest.mark.parametrize(
-    "role", [RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE]
+    "role", [RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE]
 )
 async def test_project_health_summary_returns_zeroed_shape_for_privileged_role(
     client, override_auth, role

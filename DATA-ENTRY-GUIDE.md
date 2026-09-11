@@ -2,7 +2,7 @@
 
 This app has two layers of records: **master data** (Projects, Accounts, Geos, Users — you said you already have this) and **narrative/period data** (status reports, health declarations, RAID logs, contractual commitments) that most screens actually render. If a screen looks empty, it's almost always because the narrative/period data for that project/account/geo hasn't been entered yet — the screen itself isn't broken.
 
-Everything below assumes you already have at least one Project, its Account, and its Geo created, and users assigned to the `ACCOUNT_MANAGER`/`GEO_HEAD`/`CXO` roles with the right account/geo scope.
+Everything below assumes you already have at least one Project, its Account, and its Geo created, and users assigned to the `ACCOUNT_MANAGER`/`GEO_HEAD`/`CDO` roles with the right account/geo scope.
 
 **Creating that master data**, if you still need to: sign in as Admin.
 - **Accounts**: sidebar → "Accounts" (`/admin/accounts`) — Account Name + Geo, then "Add Account".
@@ -42,7 +42,7 @@ Everything below assumes you already have at least one Project, its Account, and
 20. Geo Review — `/geo-review/[geoId]`
 
 **Dashboards**
-21. CXO Dashboard — `/dashboard/cxo`
+21. CDO Dashboard — `/dashboard/cdo`
 22. Admin Dashboard — `/dashboard/admin`
 23. Geo Head Dashboard — `/dashboard/geo-head`
 24. Account Manager Dashboard — `/dashboard/account-manager`
@@ -76,17 +76,17 @@ These feed the KPI counts and RAG rollups everywhere downstream.
 ### 5. Repeat for Account Reporting
 - **Account Status** (`/account-reporting/[accountId]/status`): same Key Metrics + 4-category items + Submit Report flow as step 3.
 - **RAG Status** (`/account-reporting/[accountId]/rag-status`): same 6-category declaration as step 2's Self Assessment.
-- These two feed Account Review, and (once you have data for multiple accounts) the Account Governance Matrix + Top 5 Highlights on the CXO/Admin/Geo Head dashboards.
+- These two feed Account Review, and (once you have data for multiple accounts) the Account Governance Matrix + Top 5 Highlights on the CDO/Admin/Geo Head dashboards.
 - Approve/Reject on **Account Review** requires a `GEO_HEAD` user assigned to this account's geo.
 
 ### 6. Repeat for Geo Reporting — with one gap
 - **Geo Status** (`/geo-reporting/[geoId]/status`): same flow as above.
 - **Geo RAG Status**: **there is no screen for this yet** (see Known Gaps below) — Geo Review's RAG Status section and any geo-level health rollup will stay empty until either that screen is built or you enter it directly via the API.
-- Approve/Reject on **Geo Review** requires a `CXO` (or `ADMIN`) user.
+- Approve/Reject on **Geo Review** requires a `CDO` (or `ADMIN`) user.
 
 ### 7. Dashboards
 Once the above exists for a few accounts/projects:
-- **CXO / Admin / Geo Head dashboards**: the Account Governance Matrix shows one row per account with data from step 5's RAG Status declarations; Top 5 Highlights pulls the 5 most recent Account Status items (any category) across accounts in scope; KPI row pulls from RAID logs/DE Assessments/Opportunities entered in step 2; Contractual Compliance widget will show everything as "Not Recorded" — see Known Gaps.
+- **CDO / Admin / Geo Head dashboards**: the Account Governance Matrix shows one row per account with data from step 5's RAG Status declarations; Top 5 Highlights pulls the 5 most recent Account Status items (any category) across accounts in scope; KPI row pulls from RAID logs/DE Assessments/Opportunities entered in step 2; Contractual Compliance widget will show everything as "Not Recorded" — see Known Gaps.
 - **Account Manager dashboard**: same shape but rows = Projects, sourced from step 2/3's project-level data instead.
 - Use the **Geo Selection** / **Account Selection** dropdown (top-right) to narrow the whole page to one geo/account, or leave it on "All" for everything you're scoped to.
 

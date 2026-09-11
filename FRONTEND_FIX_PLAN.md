@@ -179,7 +179,7 @@ Same duplication pattern as Issue 6, but for the remaining ~20 files: `component
 
 ## Issue 11: `/dashboard` (home for 4 of 8 roles) renders hard-coded sample data (IT-09, P2)
 
-`components/dashboard/dashboard.tsx` + `components/dashboard/data.ts` is the landing page for `PROJECT_MANAGER`, `TEAM_MEMBER`, `DELIVERY_EXCELLENCE`, and `PMO`. It renders fixed, fake project names/numbers via a manual `useState`+`useEffect` fetch loop against sample data (`data.ts`'s own comment: "Sample portfolio data until there's a backend"), unlike the real API-backed `DashboardView` used by Admin/CXO/Account Manager/Geo Head.
+`components/dashboard/dashboard.tsx` + `components/dashboard/data.ts` is the landing page for `PROJECT_MANAGER`, `TEAM_MEMBER`, `DELIVERY_EXCELLENCE`, and `PMO`. It renders fixed, fake project names/numbers via a manual `useState`+`useEffect` fetch loop against sample data (`data.ts`'s own comment: "Sample portfolio data until there's a backend"), unlike the real API-backed `DashboardView` used by Admin/CDO/Account Manager/Geo Head.
 
 **Prompt:**
 > `frontend/src/components/dashboard/dashboard.tsx` (the `/dashboard` landing page for `PROJECT_MANAGER`, `TEAM_MEMBER`, `DELIVERY_EXCELLENCE`, and `PMO` roles) currently renders hard-coded sample data from `frontend/src/components/dashboard/data.ts`'s `fetchProjects()`, which simulates an async call but returns fixed fake data — real users on these 4 roles currently see fake project names/KPIs on their home screen.

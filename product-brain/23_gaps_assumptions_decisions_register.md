@@ -128,14 +128,14 @@
 
 | GAD | Area | Decision | Working default | Why it matters | Owner | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| GAD-300 | Auth | LDAP bind vs SSO vs other; MFA per-role or configurable? (BRS Open Item 1) | OneLogin OIDC; MFA mandatory for `ADMIN`/`CXO` | no rollout before this | PMO + IT security | OPEN |
+| GAD-300 | Auth | LDAP bind vs SSO vs other; MFA per-role or configurable? (BRS Open Item 1) | OneLogin OIDC; MFA mandatory for `ADMIN`/`CDO` | no rollout before this | PMO + IT security | OPEN |
 | GAD-301 | Naming | Confirm the product name. (BRS Open Item 10) | "Project Governance Tool" | external rollout | PMO sponsor | OPEN |
 | GAD-302 | Project status | Confirm implemented values (`Draft`/`Pending Approval`/`Approved`/…) supersede the workbook's "Start Up"/"Execution". (BRS Open Item 2) | implemented values final | re-litigated repeatedly | PMO | OPEN |
 | GAD-303 | RAID | Add `Last/Next Review Date` to Issue/Dependency/Opportunity? (BRS Open Item 3) | add them for consistency | monthly-review filter + defaulters | PMO | OPEN |
 | GAD-304 | Measurement | All 7 tabs get a period selector + history? (BRS Open Item 4) | yes | trend charts, cadence | PMO | OPEN |
 | GAD-305 | DE | DE Assessment cadence — monthly or quarterly per project? (BRS Open Item 5) | monthly | `next_assessment_due_date`, Data Integrity | Delivery Excellence | OPEN |
 | GAD-306 | Dashboards | Per-tile "data as of" indicator? (BRS Open Item 6) | add it | prevents misreading stale numbers | PMO | OPEN |
-| GAD-307 | Roles | Is the CEO/CDO/GEO Head/Delivery Manager split into `CXO`/`GEO_HEAD`/`ACCOUNT_MANAGER` final; is a separate Delivery Manager role needed? (BRS Open Item 7) | split final; DM is a Charter field, not a role | every permission check | PMO | OPEN |
+| GAD-307 | Roles | Is the CEO/CDO/GEO Head/Delivery Manager split into `CDO`/`GEO_HEAD`/`ACCOUNT_MANAGER` final; is a separate Delivery Manager role needed? (BRS Open Item 7) | split final; DM is a Charter field, not a role | every permission check | PMO | OPEN |
 | GAD-308 | RAID | Who approves an Opportunity (`Approved By`)? (BRS Open Item 8) | Delivery Manager / `ACCOUNT_MANAGER` | assigns the approval action | PMO | OPEN |
 | GAD-309 | Oracle | Resource Allocation stays manually entered until a live Oracle integration exists, or is ID mapping a near-term placeholder? (BRS Open Item 9) | manual until live sync | Charter field editability | PMO + IT | OPEN |
 | GAD-310 | Roles | Confirm the 8-role model is final and no ninth role (e.g. Delivery Manager, Team Lead) is needed. | 8 roles | §3 role table + downstream | PMO | OPEN |

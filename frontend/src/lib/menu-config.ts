@@ -3,7 +3,7 @@ import type { RoleCode } from "@/lib/api/auth";
 // Which sidebar entries each role sees, and where their login lands them.
 // Admin keeps only the admin-specific screens (plus PMO, which has no
 // Work-as option). Everything owned by PM / Account Head / Geo Head / DE /
-// CXO is reached by switching the top-bar "Work as" combo to that role —
+// CDO is reached by switching the top-bar "Work as" combo to that role —
 // see WORK_CONTEXTS below (and docs/ux-requirements.md §5).
 export type MenuEntryId =
   | "dashboard"
@@ -12,9 +12,10 @@ export type MenuEntryId =
   | "maintain-project"
   | "view-amend-projects"
   | "project-reporting"
+  | "de-assessment-report"
   | "system-health"
   | "admin-dashboard"
-  | "cxo-dashboard"
+  | "cdo-dashboard"
   | "project-health"
   | "account-manager-dashboard"
   | "geo-head-dashboard"
@@ -31,6 +32,7 @@ export type MenuEntryId =
   | "account-reporting"
   | "geo-reporting"
   | "project-review"
+  | "project-performance"
   | "account-review"
   | "geo-review"
   | "admin-users-roles"
@@ -45,6 +47,11 @@ const PROJECT_MANAGER_MENU: MenuEntryId[] = [
   // approves. The PM picks it up from "Provide Project Details" once approved.
   "maintain-project",
   "project-reporting",
+  // Read-only — the DE Assessment workspace itself already renders every
+  // field disabled for a PM (see de-assessment-workspace.tsx); this just
+  // gives PM a proper entry point, listing the same projects as
+  // "project-reporting".
+  "de-assessment-report",
   "view-amend-projects",
   // Rendered last in the sidebar (after "Project Dashboard") — see app-sidebar.tsx.
   "pm-findings",
@@ -76,6 +83,9 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
     "account-review",
     "account-reporting",
     "project-review",
+    // View-only monthly Measurements/Commitments/Payment Milestones/RAIDO
+    // rollup — no review/approval process, unlike project-review above.
+    "project-performance",
     // Rendered last in the sidebar — see app-sidebar.tsx.
     "reassignment",
   ],
@@ -88,9 +98,9 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
     // Rendered last in the sidebar — see app-sidebar.tsx.
     "reassignment",
   ],
-  CXO: ["cxo-dashboard", "project-health", "geo-review"],
+  CDO: ["cdo-dashboard", "project-health", "geo-review"],
   // Admin-only screens. Everything else (PM / Account Head / Geo Head / DE /
-  // CXO work) is reached via the top-bar "Work as" combo — see WORK_CONTEXTS.
+  // CDO work) is reached via the top-bar "Work as" combo — see WORK_CONTEXTS.
   ADMIN: [
     "admin-dashboard",
     "pmo-dashboard",
@@ -114,7 +124,7 @@ export const ROLE_LANDING_ROUTE: Record<RoleCode, string> = {
   PMO: "/dashboard/pmo",
   ACCOUNT_MANAGER: "/dashboard/account-manager",
   GEO_HEAD: "/dashboard/geo-head",
-  CXO: "/dashboard/cxo",
+  CDO: "/dashboard/cdo",
   ADMIN: "/dashboard/admin",
 };
 
@@ -133,7 +143,7 @@ export const WORK_CONTEXTS: Partial<Record<RoleCode, RoleCode[]>> = {
     "ACCOUNT_MANAGER",
     "GEO_HEAD",
     "DELIVERY_EXCELLENCE",
-    "CXO",
+    "CDO",
   ],
 };
 
@@ -141,7 +151,7 @@ export const WORK_CONTEXT_LABEL: Record<RoleCode, string> = {
   PROJECT_MANAGER: "PM",
   ACCOUNT_MANAGER: "Account Head",
   GEO_HEAD: "Geo Head",
-  CXO: "CXO",
+  CDO: "CDO",
   TEAM_MEMBER: "Team Member",
   DELIVERY_EXCELLENCE: "DE",
   PMO: "PMO",

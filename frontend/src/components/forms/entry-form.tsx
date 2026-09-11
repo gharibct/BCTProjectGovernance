@@ -33,12 +33,15 @@ type ChangeEvent = React.ChangeEvent<
 // not re-implement a form.
 export function useEntryValues() {
   const [values, setValues] = React.useState<Record<string, string>>({});
-  const set = (key: string) => (e: ChangeEvent) =>
-    setValues((prev) => ({ ...prev, [key]: e.target.value }));
+  // Set one field directly — for programmatic changes (e.g. clearing a
+  // dependent field when its parent changes), not driven by a DOM event.
+  const setValue = (key: string, value: string) =>
+    setValues((prev) => ({ ...prev, [key]: value }));
+  const set = (key: string) => (e: ChangeEvent) => setValue(key, e.target.value);
   const reset = () => setValues({});
   // Bulk-populate from an existing row — used when editing a register entry.
   const load = (next: Record<string, string>) => setValues(next);
-  return { values, set, reset, load };
+  return { values, set, setValue, reset, load };
 }
 
 // Edit-in-place state shared by every RAIDO register: tracks which row (by
@@ -136,6 +139,7 @@ export function EntryFields({
   values,
   set,
   errors,
+  trailing,
 }: {
   defs: FieldDef[];
   values: Record<string, string>;
@@ -143,6 +147,10 @@ export function EntryFields({
   // Optional field-level validation messages, keyed by FieldDef.key — see
   // Field's own `error` prop. Undefined/omitted renders exactly as before.
   errors?: Record<string, string>;
+  // Optional extra control(s) placed as the final cell(s) of the grid row,
+  // i.e. immediately after the last non-textarea field (e.g. a ResourcePicker
+  // that isn't part of the declarative FieldDef list).
+  trailing?: React.ReactNode;
 }) {
   const gridDefs = defs.filter((d) => d.kind !== "textarea");
   const textDefs = defs.filter((d) => d.kind === "textarea");
@@ -162,6 +170,7 @@ export function EntryFields({
             {renderControl(def, values[def.key] ?? "", set(def.key))}
           </Field>
         ))}
+        {trailing}
       </div>
       {textDefs.map((def) => (
         <Field

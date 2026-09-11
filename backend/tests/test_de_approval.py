@@ -131,6 +131,22 @@ async def test_decision_rejects_non_de(client, override_auth):
     assert response.status_code == 403
 
 
+async def test_decision_allowed_for_de_without_allocation(client, override_auth):
+    # Project Details Approval no longer needs an allocated DE — a plain DE can
+    # decide on a project whose delivery_excellence_id is None.
+    project = _fake_project(delivery_excellence_id=None)
+    headers = override_auth(
+        RoleCode.DELIVERY_EXCELLENCE, get_map={(Project, _PROJECT_ID): project}
+    )
+    response = await client.patch(
+        f"/api/v1/de-approval/{_PROJECT_ID}/decision",
+        json={"decision": "Approve", "remarks": "Governance complete.", "reviewed_by": str(_REVIEWER_ID)},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert project.project_status == "Approved"
+
+
 async def test_decision_rejects_when_not_pending_approval(client, override_auth):
     project = _fake_project(project_status="Draft")
     headers = override_auth(RoleCode.ADMIN, get_map={(Project, _PROJECT_ID): project})
@@ -167,6 +183,23 @@ async def test_approve_sets_status_and_review_fields(client, override_auth):
     assert project.de_review_remarks == "Governance complete."
     assert project.de_reviewed_by == _REVIEWER_ID
     assert project.de_reviewed_at is not None
+    # First approval starts the lifecycle at Ongoing.
+    assert project.lifecycle_status == "Ongoing"
+
+
+async def test_approve_keeps_existing_lifecycle_status(client, override_auth):
+    # A re-approval (e.g. after amendment) must not clobber a lifecycle state
+    # the PM has since chosen.
+    project = _fake_project(lifecycle_status="Hold")
+    headers = override_auth(RoleCode.ADMIN, get_map={(Project, _PROJECT_ID): project})
+    response = await client.patch(
+        f"/api/v1/de-approval/{_PROJECT_ID}/decision",
+        json={"decision": "Approve", "remarks": "Approved.", "reviewed_by": str(_REVIEWER_ID)},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert project.project_status == "Approved"
+    assert project.lifecycle_status == "Hold"
 
 
 async def test_return_resets_project_to_draft(client, override_auth):

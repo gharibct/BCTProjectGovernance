@@ -118,6 +118,7 @@ export function DeFindingsCreateView({ onDone }: { onDone: () => void }) {
             setProjectId(id ?? "");
             if (errors.project) setErrors((p) => ({ ...p, project: undefined }));
           }}
+          excludeStatus="Draft"
         />
       </Field>
 

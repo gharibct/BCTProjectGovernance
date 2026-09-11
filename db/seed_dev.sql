@@ -5,7 +5,7 @@
 
 INSERT INTO roles (id, code, name, description) VALUES
     (gen_random_uuid(), 'ADMIN', 'Admin', 'Full system administration'),
-    (gen_random_uuid(), 'CXO', 'CXO', 'CEO / CDO / Delivery Manager read-mostly access'),
+    (gen_random_uuid(), 'CDO', 'CDO', 'CEO / CDO / Delivery Manager read-mostly access'),
     (gen_random_uuid(), 'ACCOUNT_MANAGER', 'Account Manager', 'Owns account-level commercial relationship and oversight'),
     (gen_random_uuid(), 'GEO_HEAD', 'Geo Head', 'Read-mostly oversight across projects in their GEO'),
     (gen_random_uuid(), 'PROJECT_MANAGER', 'Project Manager', 'Owns project charter and delivery'),
@@ -51,10 +51,10 @@ INSERT INTO products (id, code, name, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'ERP', 'ERP Suite', true, now(), now()),
     (gen_random_uuid(), 'ANALYTICS', 'Analytics Suite', true, now(), now());
 
-INSERT INTO accounts (id, name, geo_id, is_active, created_at, updated_at) VALUES
-    (gen_random_uuid(), 'Gulf National Bank', (SELECT id FROM geos WHERE code = 'MEA'), true, now(), now()),
-    (gen_random_uuid(), 'Pacific Retail Group', (SELECT id FROM geos WHERE code = 'APAC'), true, now(), now()),
-    (gen_random_uuid(), 'Liberty Insurance Co', (SELECT id FROM geos WHERE code = 'US'), true, now(), now());
+INSERT INTO accounts (id, name, geo_id, region_id, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), 'Gulf National Bank', (SELECT id FROM geos WHERE code = 'MEA'), (SELECT id FROM regions WHERE code = 'UAE'), true, now(), now()),
+    (gen_random_uuid(), 'Pacific Retail Group', (SELECT id FROM geos WHERE code = 'APAC'), (SELECT id FROM regions WHERE code = 'SINGAPORE'), true, now(), now()),
+    (gen_random_uuid(), 'Liberty Insurance Co', (SELECT id FROM geos WHERE code = 'US'), (SELECT id FROM regions WHERE code = 'US'), true, now(), now());
 
 INSERT INTO users (id, ldap_username, full_name, email, role_id, is_active, mfa_enrolled, created_at, updated_at) VALUES
     -- Admin role so this login (the primary dev/test account) sees every
@@ -67,7 +67,7 @@ INSERT INTO users (id, ldap_username, full_name, email, role_id, is_active, mfa_
     -- prefix) so testing each new role's menu/dashboard doesn't require
     -- remembering a person's name.
     (gen_random_uuid(), 'pm', 'Project Manager', 'pm@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'PROJECT_MANAGER'), true, false, now(), now()),
-    (gen_random_uuid(), 'cxo', 'CXO', 'cxo@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'CXO'), true, false, now(), now()),
+    (gen_random_uuid(), 'cdo', 'CDO', 'cdo@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'CDO'), true, false, now(), now()),
     (gen_random_uuid(), 'acchead', 'Account Manager', 'acchead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ACCOUNT_MANAGER'), true, false, now(), now()),
     (gen_random_uuid(), 'geohead', 'Geo Head', 'geohead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'GEO_HEAD'), true, false, now(), now());
 

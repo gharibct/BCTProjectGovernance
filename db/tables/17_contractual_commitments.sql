@@ -9,6 +9,7 @@ CREATE TABLE contractual_commitments (
     commitment_name TEXT NOT NULL,
     formula TEXT,
     target TEXT,
+    target_uom TEXT, -- unit of measure for the Target value (free text, e.g. "%", "hrs", "days")
     penalty_applicable BOOLEAN NOT NULL,
     penalty_value NUMERIC(18, 2),
     created_at TIMESTAMPTZ NOT NULL,

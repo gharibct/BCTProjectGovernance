@@ -1,4 +1,4 @@
--- Geo Head's Executive Update for CXO — free-form Delivery/People/Financials/
+-- Geo Head's Executive Update for CDO — free-form Delivery/People/Financials/
 -- Operations content (ExecutiveContentBuilder), replacing the rollup model
 -- at the top of the reporting chain. Independent of geo_status_reports
 -- (34_account_geo_status_reports.sql) — no submit/review workflow yet,

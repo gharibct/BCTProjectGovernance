@@ -38,13 +38,13 @@ Scoped to assigned geos (except Admin).
 - **Geo Reporting**: create/update Status Report, items, rollup-status
 - **Geo RAG/Health**: create/update declaration
 - **Rollup (Account → Geo)**: Pull
-- **Executive Update**: build CXO-facing content (Delivery/People/Financials/Operations sections; rich text/image/table) — Save Draft only, no approval step
+- **Executive Update**: build CDO-facing content (Delivery/People/Financials/Operations sections; rich text/image/table) — Save Draft only, no approval step
 - **Account Status Report Review**: Approve/Reject Account Head submissions in their geo
 - **Action Tracker — Geo level**: create/edit for owned geos
 - **Action Tracker — Account level (also)**: for accounts in their geo
-- Does **not** review Geo reports themselves (CXO does)
+- Does **not** review Geo reports themselves (CDO does)
 
-## 4. CXO
+## 4. CDO
 
 Lightest write footprint — top of the review chain, unscoped.
 
@@ -76,7 +76,7 @@ Superset of everything, plus:
 |---|---|
 | PROJECT | PM, Account Head, Admin |
 | ACCOUNT | Account Head, Geo Head, Admin |
-| GEO | Geo Head, CXO, Admin |
+| GEO | Geo Head, CDO, Admin |
 
 The action's own **assignee can always transition it** (start/complete/close/cancel/comment) regardless of role or level. Anyone who can reach the entity's page can view its actions. Lifecycle: `OPEN → IN_PROGRESS → COMPLETED → CLOSED`, or → `CANCELLED`.
 
@@ -87,4 +87,4 @@ A tab inside DE Assessment (`project-reporting/[projectId]/de-assessment`) — w
 ## Other gaps worth knowing
 
 - **PMO role** has the identical "no distinguishing permission" gap DE had — read-only everywhere, dashboard-only menu.
-- **PM's own "My Summary" dashboard is still on mock data**, unlike Account Head/Geo Head/CXO/Admin's dashboards (which call the real `/dashboard/summary` API) — worth rewiring if you design a PM dashboard around it.
+- **PM's own "My Summary" dashboard is still on mock data**, unlike Account Head/Geo Head/CDO/Admin's dashboards (which call the real `/dashboard/summary` API) — worth rewiring if you design a PM dashboard around it.

@@ -6,7 +6,7 @@ import type { Action, ActionLevel } from "@/lib/api/actions";
 // real. Kept here (not duplicated per component) since v1 had this literal
 // array copy-pasted across list/create/detail views.
 const WRITE_ROLES: Record<ActionLevel, readonly RoleCode[]> = {
-  GEO: ["GEO_HEAD", "CXO", "ADMIN"],
+  GEO: ["GEO_HEAD", "CDO", "ADMIN"],
   ACCOUNT: ["ACCOUNT_MANAGER", "GEO_HEAD", "ADMIN"],
   PROJECT: ["PROJECT_MANAGER", "ACCOUNT_MANAGER", "ADMIN"],
 };

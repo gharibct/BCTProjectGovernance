@@ -132,7 +132,7 @@ columns, `set_updated_at` trigger `T`, `ENT-*` from `product-brain/10`).
 | 40 | `account_status_item_rollup` | account→geo status-item rollup tracking | *(as above)* | `account_status_items`, `geo_status_items` | — |
 | 41 | `project_health_items`, `account_health_items` | Itemised health register (one line per category per period) | `id`; `(scope_id, period_id, category)` | `project_id` / `account_id (CASCADE)`, `period_id`; `rolled_up_account_item_id` | `T`. Coexists with 04/37 legacy model. `ENT-PROJHEALTHITEM/ACCTHEALTHITEM`. |
 | 42 | `project_health_item_rollup` | health-item rollup tracking | *(link)* | `project_health_items`, `account_health_items` | — |
-| 43 | `executive_updates` | CXO-facing structured content | `id`; `(geo_id, period_id)` | `geo_id (CASCADE)`, `period_id`, `created_by` | `T`. `content` JSON (sections + typed blocks). `status` stays `Draft`. `ENT-EXECUPDATE`. |
+| 43 | `executive_updates` | CDO-facing structured content | `id`; `(geo_id, period_id)` | `geo_id (CASCADE)`, `period_id`, `created_by` | `T`. `content` JSON (sections + typed blocks). `status` stays `Draft`. `ENT-EXECUPDATE`. |
 | 44 | `actions`, `action_history` | Action Tracker + audit | `id`; `action_code` (`ACT-*`) unique | `action_by_id`, `raised_by`, `closed_by → users`; `action_history.action_id (CASCADE)` | `T` on `actions`. Scoped by `level` + `level_value` (Geo/Account/Project code — **not a FK**). `ENT-ACTION/ACTIONHISTORY`. |
 | 45 | `measurement_consulting` | Consulting metrics | `id` | `project_id (CASCADE)`, `period_id` | `T`. Added by `add_consulting_measurements.sql`. `ENT-MEAS-CONSULTING`. |
 | 46 | `metric_target_consulting` | Consulting targets | `id` | `project_id (CASCADE)` | `T`. `ENT-METRICTARGET`. |

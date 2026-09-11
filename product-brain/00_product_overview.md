@@ -19,7 +19,7 @@
 
 ProjectGovernance is an **internal Bahwan CyberTek (BCT) PMO / delivery-governance web
 application**. It is the single system of record for project delivery health across BCT's
-project portfolio, covering the full reporting chain from an individual project up to CXO:
+project portfolio, covering the full reporting chain from an individual project up to CDO:
 project charter and master data; health declaration with a worst-wins Red / Amber / Green
 rollup from project to account to geography to enterprise; a report-and-review workflow at
 each tier; five RAID registers; weekly status reporting; delivery metrics by engagement
@@ -41,7 +41,7 @@ FastAPI / PostgreSQL backend. It is **internal only** (no customer-facing surfac
 
 | Problem | Impact today | How ProjectGovernance addresses it |
 | --- | --- | --- |
-| Project health, RAID registers, contractual compliance, and Delivery Excellence audits are tracked in separate spreadsheets per project, account, and geography | No single system of record; governance data lives only in local files | One application covering project → account → geo → CXO |
+| Project health, RAID registers, contractual compliance, and Delivery Excellence audits are tracked in separate spreadsheets per project, account, and geography | No single system of record; governance data lives only in local files | One application covering project → account → geo → CDO |
 | No consistent rule for rolling a project's health up to its account, geo, and the enterprise | A Red project can be hidden inside a Green account or geo view | Worst-wins RAG rollup, computed from project data at every tier |
 | Review and sign-off happen informally | No timestamped, attributable record of who approved or rejected what | Reporting and Review surfaces with an Approve / Reject action at each tier, audited |
 | Roll-up reports are assembled by hand | Manual effort; account and geo numbers go stale | Account and geo views are computed live from current project data, not re-typed |
@@ -59,8 +59,8 @@ what they see on every reporting, review, and dashboard screen. Full permission 
 | Role code | Name | What they do |
 | --- | --- | --- |
 | `ADMIN` | Admin | Users, roles, and Account/Geo scope; reference data; integrations; backups. Superset of all permissions; can approve/reject at every tier; bypasses scope checks. |
-| `CXO` | CXO | Reviews and approves every Geo's rolled-up status; enterprise dashboard. Lightest write footprint — top of the review chain. |
-| `GEO_HEAD` | Geo Head | Reviews and approves Accounts in their Geo(s); authors their Geo's own status and health; builds the CXO Executive Update (draft only). |
+| `CDO` | CDO | Reviews and approves every Geo's rolled-up status; enterprise dashboard. Lightest write footprint — top of the review chain. |
+| `GEO_HEAD` | Geo Head | Reviews and approves Accounts in their Geo(s); authors their Geo's own status and health; builds the CDO Executive Update (draft only). |
 | `ACCOUNT_MANAGER` | Account Manager ("Account Head") | Reviews and approves Projects in their Account(s); authors their Account's own status and health; Pull / Ignore / Undo project rollup items. |
 | `PROJECT_MANAGER` | Project Manager (PM) | Owns the Project Charter, Scope & Schedule, Resource Allocation, all five RAID logs, Health Declarations, Status Reports, Measurement entry, and Contractual Compliance; sends the project for approval. |
 | `TEAM_MEMBER` | Team Member | Updates RAID items assigned to them; read-only on Charter and Status. |
@@ -86,7 +86,7 @@ what they see on every reporting, review, and dashboard screen. Full permission 
   governance-approval workflow
 - A data-integrity checklist that flags stale / not-updated data across every module
 - An Action Tracker at project, account, and geo level
-- Executive Updates (CXO-facing content prepared by Geo Heads)
+- Executive Updates (CDO-facing content prepared by Geo Heads)
 - Role-scoped dashboards ("My Summary" per role) and a portfolio-wide Project Health view
 - User, role, and Account/Geo-scope administration; reference-data management
 
@@ -116,10 +116,10 @@ what they see on every reporting, review, and dashboard screen. Full permission 
 | C6 | Delivery metrics | Engagement-type-specific entered inputs and read-only computed KPIs, with per-type targets |
 | C7 | Contractual & milestone tracking | SLA commitments and payment milestones with actuals and Met / Not-Met derivation |
 | C8 | Delivery Excellence assessment | Dated per-project assessment: Assessed Health, PCI score, Findings, Alert-if-not-Green |
-| C9 | Reporting / Review cascade | Identical Reporting + Review surfaces at Account, Geo, and CXO; pull / ignore / undo of items from the tier below |
+| C9 | Reporting / Review cascade | Identical Reporting + Review surfaces at Account, Geo, and CDO; pull / ignore / undo of items from the tier below |
 | C10 | Data integrity | Per-project, per-period "updated / not updated" checklist across every module, judged against each item's own cadence |
 | C11 | Action tracking | Project / account / geo actions with a full history and assignee-driven lifecycle |
-| C12 | Executive updates | Structured rich-text / image / table content for the CXO, prepared by Geo Heads |
+| C12 | Executive updates | Structured rich-text / image / table content for the CDO, prepared by Geo Heads |
 | C13 | Role-based dashboards | "My Summary" per role plus a portfolio-wide Project Health view (KPIs + drill-in grids) |
 | C14 | Access control | Role-based, Account/Geo-scoped, status-aware permissions; a "Work as" (act-as) context for higher roles |
 | C15 | AI-assisted data entry | A local LLM extracts structured values from uploaded documents; the user reviews and applies them — the AI never writes to business tables |
@@ -160,8 +160,8 @@ flowchart TD
     G --> H
     H --> I[Account Reporting and Review]
     I --> J[Geo Reporting and Review]
-    J --> K[CXO Review]
-    J --> L[Executive Update for CXO]
+    J --> K[CDO Review]
+    J --> L[Executive Update for CDO]
     D -.-> M[Action Tracker - project / account / geo]
     E -.-> N[Data Integrity checklist and defaulter tracking]
 
@@ -190,8 +190,8 @@ flowchart TD
 7. **Reporting / Review cascade** — Each tier authors its own status and health on a
    **Reporting** surface; the tier above sees a read-only **Review** surface with an
    Approve / Reject action per rolled-up item (Account Manager reviews Projects; Geo Head
-   reviews Accounts; CXO reviews Geos). Items are promoted with Pull / Ignore / Undo.
-8. **Executive Update** — Geo Heads prepare structured CXO-facing content (draft only).
+   reviews Accounts; CDO reviews Geos). Items are promoted with Pull / Ignore / Undo.
+8. **Executive Update** — Geo Heads prepare structured CDO-facing content (draft only).
 9. **Cross-cutting** — Actions are tracked at every tier; the Data Integrity checklist flags,
    per period, which data points have not been updated.
 
@@ -229,7 +229,7 @@ read this document:
 | **RAID / RAIDO** | Risk, Assumption, Issue, Dependency — plus Opportunity, tracked as a fifth register. |
 | **Reporting surface** | The screen where a tier (Project / Account / Geo) enters its own status and health. |
 | **Review surface** | The read-only, one-level-up screen where the next tier reviews and approves/rejects what was reported below it. |
-| **Geo** | Geography / region — the organisational tier between Account and CXO (e.g. APAC, MEA, US). |
+| **Geo** | Geography / region — the organisational tier between Account and CDO (e.g. APAC, MEA, US). |
 | **PCI score** | Delivery Excellence's numeric project compliance/quality index, produced by the DE Assessment. |
 | **Work Context ("act as")** | A higher role (Account Manager, Geo Head) viewing the app as a lower role within its own scope. |
 | **Reporting period** | A `Weekly`, `Monthly`, or `Baseline` bucket; weeks are keyed to the Monday date. |

@@ -7,7 +7,7 @@ const ROLES: Record<string, { identifier: string; landing: string }> = {
   admin: { identifier: "hari.g", landing: "/dashboard/admin" },
   "project-manager": { identifier: "pm", landing: "/dashboard" },
   "delivery-excellence": { identifier: "daniel.osei", landing: "/dashboard" },
-  cxo: { identifier: "cxo", landing: "/dashboard/cxo" },
+  cdo: { identifier: "cdo", landing: "/dashboard/cdo" },
   "account-manager": { identifier: "acchead", landing: "/dashboard/account-manager" },
   "geo-head": { identifier: "geohead", landing: "/dashboard/geo-head" },
 };

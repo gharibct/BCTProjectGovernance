@@ -44,7 +44,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
         <>
           <OverviewSection scope="project" scopeId={projectId} periodId={periodId} />
           <RagStatusSection scope="project" scopeId={projectId} periodId={periodId} />
-          <OpenNcSection scope="project" scopeId={projectId} />
+          <OpenNcSection scope="project" scopeId={projectId} report={report} />
           <SubmitReportAction projectId={projectId} periodId={periodId} report={report} />
         </>
       )}

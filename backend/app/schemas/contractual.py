@@ -12,6 +12,7 @@ class ContractualCommitmentCreate(BaseModel):
     commitment_name: str
     formula: str | None = None
     target: str | None = None
+    target_uom: str | None = None
     penalty_applicable: bool = False
     penalty_value: Decimal | None = None
 
@@ -21,6 +22,7 @@ class ContractualCommitmentUpdate(BaseModel):
     commitment_name: str | None = None
     formula: str | None = None
     target: str | None = None
+    target_uom: str | None = None
     penalty_applicable: bool | None = None
     penalty_value: Decimal | None = None
 
@@ -33,6 +35,7 @@ class ContractualCommitmentRead(BaseModel):
     commitment_name: str
     formula: str | None = None
     target: str | None = None
+    target_uom: str | None = None
     penalty_applicable: bool
     penalty_value: Decimal | None = None
     created_at: datetime

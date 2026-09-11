@@ -10,6 +10,8 @@ import { ButtonSpinner } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { currentPeriod } from "@/lib/period-utils";
+import { isReportFrozen } from "@/lib/api/project-status";
+import { useRegionalStatusReports } from "@/lib/api/regional-status";
 import {
   useAccountHealthDeclarations,
   useCreateAccountHealthDeclaration,
@@ -74,6 +76,13 @@ function useAccountHealthDeclarationForm() {
   const periodId = urlPeriodId ?? currentPeriod(periods, "Monthly")?.id ?? "";
   const existing = declarations?.find((d) => d.period_id === periodId);
 
+  // RAG Status is filed as part of the Account Status Report package (see
+  // regional-reporting/submit-report-action.tsx) — it freezes with it, not
+  // with its own (there is no separate "submit" for a RAG declaration).
+  const { data: statusReports } = useRegionalStatusReports("account", accountId);
+  const statusReport = statusReports?.find((r) => r.period_id === periodId);
+  const frozen = statusReport ? isReportFrozen(statusReport.status) : false;
+
   React.useEffect(() => {
     if (!urlPeriodId && periodId) {
       router.replace(`${pathname}?period=${periodId}`, { scroll: false });
@@ -135,13 +144,14 @@ function useAccountHealthDeclarationForm() {
     setRating,
     overall,
     submit,
+    frozen,
     isSubmitting: isSubmitting || createDeclaration.isPending || updateDeclaration.isPending,
   };
 }
 
 function AccountRagStatusFormInner() {
   const form = useAccountHealthDeclarationForm();
-  const { accountId, periodId, ratings, setRating } = form;
+  const { accountId, periodId, ratings, setRating, frozen } = form;
 
   const [tab, setTab] = React.useState<(typeof HEALTH_CATEGORIES)[number]["label"]>(HEALTH_CATEGORIES[0].label);
   const activeTab = HEALTH_CATEGORIES.find((t) => t.label === tab)!;
@@ -219,7 +229,11 @@ function AccountRagStatusFormInner() {
           <p className="text-sm font-bold text-slate-800">{activeCategory.name}</p>
           <p className="mt-0.5 text-xs text-slate-400">{activeCategory.covers}</p>
         </div>
-        <HealthPicker value={ratings[activeCategory.key]} onChange={(value) => setRating(activeCategory.key, value)} />
+        <HealthPicker
+          value={ratings[activeCategory.key]}
+          onChange={(value) => setRating(activeCategory.key, value)}
+          disabled={frozen}
+        />
       </div>
 
       <div className="mt-6">
@@ -228,6 +242,7 @@ function AccountRagStatusFormInner() {
           category={activeTab.category}
           title={activeTab.label}
           icon={activeTab.icon}
+          frozen={frozen}
           rollupItems={rollupItems}
           onPullRollupItem={handlePull}
           onIgnoreRollupItem={handleIgnore}
@@ -239,16 +254,20 @@ function AccountRagStatusFormInner() {
       <div className="mt-10 flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Lock className="size-4" />
-          Editable by the Account Manager while the current month is open.
+          {frozen
+            ? "This account's report has been submitted — RAG Status is now read-only."
+            : "Editable by the Account Manager while the current month is open."}
         </p>
-        <Button
-          className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          disabled={!accountId || form.isSubmitting}
-          onClick={form.submit}
-        >
-          {form.isSubmitting ? <ButtonSpinner /> : null}
-          Save RAG Status
-        </Button>
+        {!frozen ? (
+          <Button
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={!accountId || form.isSubmitting}
+            onClick={form.submit}
+          >
+            {form.isSubmitting ? <ButtonSpinner /> : null}
+            Save RAG Status
+          </Button>
+        ) : null}
       </div>
     </div>
   );

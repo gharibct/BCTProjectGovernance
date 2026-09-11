@@ -49,7 +49,7 @@ Effort Variation, Schedule Performance Index, Cost Performance Index
 9) Weeks should be populated with Monday date.
 10)Implement geo reporting
 
-cxo login:
+cdo login:
 1) change geo review to geo dashboard
 2) geo login: Add New Menu - Geo Dashboard
 3) acc login: Add New Menu - Acc Dashboard
@@ -73,7 +73,7 @@ Also, Move AI Hub to top
 
 
   Role       │ Login identifier │
-CXO              ayesha.khan      
+CDO              ayesha.khan      
 Geo Head         arjun.rao        
 Account Manager  neha.kapoor      
 Admin            admin.user

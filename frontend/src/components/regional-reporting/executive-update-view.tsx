@@ -30,7 +30,7 @@ function defaultExecutiveUpdate(): ExecutiveUpdate {
 }
 
 // Sample screen for the Geo Head's Executive Update — the free-form
-// narrative CXO needs (Delivery/People/Financials/Operations), replacing the
+// narrative CDO needs (Delivery/People/Financials/Operations), replacing the
 // account→geo rollup model at the top of the reporting chain. Save-only for
 // now (see lib/api/executive-updates.ts) — no submit/review workflow yet.
 export function ExecutiveUpdateView() {

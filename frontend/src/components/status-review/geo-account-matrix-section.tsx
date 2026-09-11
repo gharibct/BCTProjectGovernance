@@ -9,12 +9,12 @@ import { sectionAccentColor } from "@/lib/section-accent-colors";
 // Geo has no health-declaration entry screen of its own (see
 // design-reference gap noted this session — the backend endpoint exists,
 // nothing writes to it), so Geo Review shows the same Account Governance
-// Matrix as the CXO Dashboard instead of an always-empty RAG Status
+// Matrix as the CDO Dashboard instead of an always-empty RAG Status
 // section, scoped to just this geo's accounts. Reflects each account's
 // latest declaration (the dashboard summary has no period concept), not
 // necessarily the period selected on this review page.
 //
-// Shared between /geo-review (CXO's Geo Dashboard) and the Geo Head's own
+// Shared between /geo-review (CDO's Geo Dashboard) and the Geo Head's own
 // Dashboard (regional-reporting/dashboard-view.tsx) — `accented` opts into
 // the "Summary" heading + blue PPT-divider header, matching the Executive
 // Update section colors on both pages.

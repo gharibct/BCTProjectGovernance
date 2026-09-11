@@ -60,7 +60,7 @@ _TRANSITION_DENIED = "Only the action's owner or an authorized manager can do th
 #     the action — inherently can't happen purely via Depends(). ---
 
 _account_or_geo_scope = require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN)
-_geo_scope = require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CXO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CXO))
+_geo_scope = require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CDO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CDO))
 _project_role = require_role(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN)
 
 

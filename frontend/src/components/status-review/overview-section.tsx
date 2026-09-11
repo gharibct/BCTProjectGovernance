@@ -5,7 +5,7 @@ import { BarChart3 } from "lucide-react";
 
 import { HealthPill, RATING_FROM_API } from "@/components/project-charter/health-declaration";
 import { STATUS_CATEGORIES } from "@/lib/status-categories";
-import { useOpenNcs } from "@/lib/api/dashboard";
+import { useOpenAlertsForReport } from "@/lib/api/dashboard";
 import {
   useReviewHealthDeclaration,
   useReviewStatusItems,
@@ -87,7 +87,7 @@ export function OverviewSection({
   const { data: reports = [] } = useReviewStatusReports(scope, scopeId);
   const report = reports.find((r) => r.period_id === periodId);
   const { data: declaration } = useReviewHealthDeclaration(scope, scopeId, periodId);
-  const { data: openNcs } = useOpenNcs(scope, scopeId);
+  const openNcs = useOpenAlertsForReport(scope, scopeId, report);
   const openNcCount = openNcs?.open_ncs_count ?? null;
 
   // Decimal fields come back from the API as strings like "5.00" — trim the

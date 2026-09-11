@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
+import type { DeModuleReviewAction, DeReviewStatus } from "./de-approval";
 import type { Project, ProjectLifecycleStatus, ProjectStatus } from "./projects";
 
 // Maintain Project — "Send To Approval" screen. The PM-facing mirror of the DE
@@ -29,6 +30,11 @@ export type ApprovalReadinessModule = {
   fields_complete: number;
   fields_total: number;
   progress_pct: number;
+  // The DE's per-section verdict from the last Project Details Approval review
+  // ("Not Reviewed" until the DE sets one). Commitments and Milestones both
+  // mirror the single Contractual Compliance section the DE reviews.
+  de_review_action: DeModuleReviewAction;
+  de_review_remarks: string | null;
 };
 
 export type ApprovalReadiness = {
@@ -41,6 +47,11 @@ export type ApprovalReadiness = {
   project_status: ProjectStatus;
   lifecycle_status: ProjectLifecycleStatus | null;
   can_submit: boolean;
+  // Last DE governance-review outcome, surfaced to the PM. de_review_remarks is
+  // the mandatory remark the DE entered when approving / returning the project.
+  de_review_status: DeReviewStatus | null;
+  de_review_remarks: string | null;
+  de_reviewed_at: string | null;
 };
 
 // Shape of the 422 body from POST /send-to-approval when validation fails.

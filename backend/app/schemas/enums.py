@@ -19,7 +19,7 @@ HEALTH_RATING_SEVERITY = [HealthRating.RED, HealthRating.POTENTIAL_RED, HealthRa
 
 class RoleCode(StrEnum):
     ADMIN = "ADMIN"
-    CXO = "CXO"
+    CDO = "CDO"
     ACCOUNT_MANAGER = "ACCOUNT_MANAGER"
     GEO_HEAD = "GEO_HEAD"
     PROJECT_MANAGER = "PROJECT_MANAGER"
@@ -521,6 +521,22 @@ class AiSuggestionStatus(StrEnum):
     PENDING = "pending"
     IGNORED = "ignored"
     RESOLVED = "resolved"
+
+
+class ReportPageType(StrEnum):
+    """monthly_report_attestations.page_type — the 8 monthly-reviewable sections
+    of the Project Performance Report (Measurement, Contractual Compliance's 2
+    tabs, and each of the 5 RAIDO logs). A section is complete for a month if
+    its data was saved that month OR it was explicitly attested here."""
+
+    MEASUREMENT = "MEASUREMENT"
+    COMMITMENTS = "COMMITMENTS"
+    PAYMENT_MILESTONES = "PAYMENT_MILESTONES"
+    RISK = "RISK"
+    ISSUE = "ISSUE"
+    DEPENDENCY = "DEPENDENCY"
+    ASSUMPTION = "ASSUMPTION"
+    OPPORTUNITY = "OPPORTUNITY"
 
 
 class AiRowSuggestionStatus(StrEnum):

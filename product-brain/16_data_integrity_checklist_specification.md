@@ -142,7 +142,7 @@ is_critical_gap:
 | Columns | item name, module, cadence, last updated, Updated/Not Updated | Project, Check, Category, Status, Issue, Last Checked (`design-reference/project-health-screens.md`) |
 | KPIs | per-project pass count | Checks Passed %, Projects With Gaps, Critical Gaps |
 | Filter | — | filter to "Not Updated" across a single project **or the whole portfolio**; **drill into the source module** for a flagged row (BRS FR-DI-3) |
-| Role | any (read) | `require_role(PMO, ADMIN, CXO)` (BR-DASH-020) |
+| Role | any (read) | `require_role(PMO, ADMIN, CDO)` (BR-DASH-020) |
 
 ---
 

@@ -13,11 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.regional_status import geo_status_item_crud
 from app.models.reference_data import Account
-from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusItem
+from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusItem, GeoStatusReport
 from app.schemas.enums import ReportStatus, RollupStatus
 from app.schemas.geo_rollup import GeoRollupItem, GeoRollupMetrics, GeoRollupResponse
 from app.schemas.regional_status import GeoStatusItemCreate
 from app.services.account_rollup import RollupItemAlreadyHandledError, RollupItemNotFoundError
+from app.services.report_lock import assert_report_editable
 
 __all__ = ["RollupItemAlreadyHandledError", "RollupItemNotFoundError", "compute_geo_rollup", "pull_rollup_item"]
 
@@ -102,6 +103,19 @@ async def pull_rollup_item(db: AsyncSession, geo_id: UUID, account_item_id: UUID
         raise RollupItemNotFoundError
     if item.account_rollup_status != RollupStatus.PENDING:
         raise RollupItemAlreadyHandledError
+
+    # Pulling inserts a new row into the Geo's own status-item register for
+    # this period — same freeze as adding one by hand (see
+    # api/v1/endpoints/regional_status.py's _assert_geo_period_editable) and
+    # mirroring account_rollup.pull_rollup_item's guard one level down.
+    report_status = (
+        await db.execute(
+            select(GeoStatusReport.status).where(
+                GeoStatusReport.geo_id == geo_id, GeoStatusReport.period_id == item.period_id
+            )
+        )
+    ).scalars().first()
+    assert_report_editable(report_status)
 
     geo_item = await geo_status_item_crud.create(
         db,

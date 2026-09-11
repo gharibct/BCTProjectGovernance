@@ -20,7 +20,7 @@
 - Definitions are ≤ 3 sentences. Where a term is a status or a lifecycle, the definition is
   brief and `product-brain/06` is authoritative for its states and transitions.
 - Role names always use the exact codes from `product-brain/00` §3
-  (`ADMIN`, `CXO`, `GEO_HEAD`, `ACCOUNT_MANAGER`, `PROJECT_MANAGER`, `TEAM_MEMBER`,
+  (`ADMIN`, `CDO`, `GEO_HEAD`, `ACCOUNT_MANAGER`, `PROJECT_MANAGER`, `TEAM_MEMBER`,
   `DELIVERY_EXCELLENCE`, `PMO`).
 
 ---
@@ -57,11 +57,11 @@
 | **Delivery Manager (DM)** | A Charter attribute (a named person); not a distinct system role in the current eight-role model. | Role |
 | **Engagement type** | The delivery model that selects a project's Measurement tab: Development, Support, Professional Staffing, Testing, Consulting, Cloud Maintenance, Cloud Migration. | Measurement, Project Type |
 | **Evidence** | The exact supporting text and source location (page / sheet / paragraph) an AI suggestion cites. | AI suggestion |
-| **Executive Update** | Structured CXO-facing content (Delivery / People / Financials / Operations sections; rich-text / image / table blocks) prepared by a `GEO_HEAD`. Draft only — no approval step. | — |
+| **Executive Update** | Structured CDO-facing content (Delivery / People / Financials / Operations sections; rich-text / image / table blocks) prepared by a `GEO_HEAD`. Draft only — no approval step. | — |
 | **Finding (DE)** | A Key Finding in a DE Assessment: sequence #, Classification, description, severity, action taken, dates, and a lifecycle status. | Alert, DE Assessment |
 | **Freshness source** | The table/column the Data Integrity service reads to answer "when was this data point last updated for this project in this period". | Data Integrity checklist |
 | **Frequency** | A Contractual Commitment's recurrence: One Time / Weekly / Fortnight / Monthly / Quarterly / Half Yearly / Phase Wise. Drives when actuals are captured. | Contractual Commitment |
-| **Geo** | Geography / region — the organisational tier between Account and CXO (e.g. APAC, MEA, US). A user is scoped to one or more Geos. | Region, Account, Scope |
+| **Geo** | Geography / region — the organisational tier between Account and CDO (e.g. APAC, MEA, US). A user is scoped to one or more Geos. | Region, Account, Scope |
 | **Governance completeness** | A score computed for DE Governance Approval: each governance module is Complete / Incomplete, with an overall percentage over the mandatory subset and a gap count. | DE Governance Approval, Governance module |
 | **Governance module** | One of the project areas DE reviews during approval (Status, RAIDO, Health, Measurement, Contractual). Each gets a `Not Reviewed` / `Reviewed` / `Gap Identified` verdict. | DE Governance Approval |
 | **Head Count / FTE** | Computed resourcing figures on the Charter, derived from the Resource Allocation list. | Resource Allocation |
@@ -91,10 +91,10 @@
 | **Reporting surface** | The screen where a tier (Project / Account / Geo) enters its own status and health. | Review surface |
 | **Reporting week** | A `Weekly` reporting period, keyed to its Monday date. | Reporting period |
 | **Resource Allocation** | The Charter's list of resources with FTE, from which Head Count and total FTE are computed. Sourced from the BCT Oracle Application by intent; not yet synced. | Head Count / FTE |
-| **Review surface** | The read-only, one-level-up screen where the next tier reviews and Approves/Rejects what was reported below it: `ACCOUNT_MANAGER` reviews Projects, `GEO_HEAD` reviews Accounts, `CXO` reviews Geos. | Reporting surface |
+| **Review surface** | The read-only, one-level-up screen where the next tier reviews and Approves/Rejects what was reported below it: `ACCOUNT_MANAGER` reviews Projects, `GEO_HEAD` reviews Accounts, `CDO` reviews Geos. | Reporting surface |
 | **Role** | One of the eight `RoleCode` values. A user has exactly one role plus an Account/Geo scope. | Scope, Work Context |
 | **Rollup** | Promoting a lower tier's data upward: **Pull** (adopt an item into the parent register), **Ignore** (dismiss it), **Undo** (revert either decision). Health and Key Metrics also roll up (worst-wins / sum). | Worst-wins rollup, Key Metrics |
-| **Scope** | The Accounts and/or Geos a user is assigned to; it bounds every reporting, review, and dashboard screen. `ADMIN` (and `CXO` at geo level) bypass scope checks. | Patch |
+| **Scope** | The Accounts and/or Geos a user is assigned to; it bounds every reporting, review, and dashboard screen. `ADMIN` (and `CDO` at geo level) bypass scope checks. | Patch |
 | **Send for Approval** | The PM action that moves a project from `Draft` to `Pending Approval` (all Project Profile fields must be present). Labelled "Send To Approval" in the UI. | Charter, DE Governance Approval |
 | **Session** | Server-side identity: a signed JWT in the httpOnly `pg_session` cookie, verified by `get_current_user` on every non-auth request, alongside a shared static `X-API-Key`. | no-password mode, OneLogin |
 | **Status Item** | One categorised line of a status report (Key Accomplishments / Upcoming / Leadership Support / Key Risks & Issues), each carrying a rollup status. | Status Report, Rollup |

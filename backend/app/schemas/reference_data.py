@@ -120,6 +120,7 @@ class ProductRead(ProductBase):
 class AccountBase(BaseModel):
     name: str
     geo_id: UUID | None = None
+    region_id: UUID | None = None
     description: str | None = None
     is_active: bool = True
     tool_effective_date: date | None = None
@@ -132,6 +133,7 @@ class AccountCreate(AccountBase):
 class AccountUpdate(BaseModel):
     name: str | None = None
     geo_id: UUID | None = None
+    region_id: UUID | None = None
     description: str | None = None
     is_active: bool | None = None
     tool_effective_date: date | None = None

@@ -1,13 +1,17 @@
 """DE Project Allocation (design-reference/de-approval) — a DE (or Admin)
-assigns not-yet-approved projects to a Delivery Excellence assessor. Assignment
-writes Project.delivery_excellence_id + Project.de_allocated_at; there is no
-separate allocation entity.
+assigns a Delivery Excellence assessor to a non-Draft project, and can
+reassign a different one at any time (the list endpoint's `allocation` filter
+surfaces already-allocated projects for that). Assignment writes
+Project.delivery_excellence_id + Project.de_allocated_at; there is no separate
+allocation entity. Allocation is optional — a project can be approved without a
+DE (see de_approval.py).
 """
 
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -26,10 +30,12 @@ router = APIRouter(prefix="/de-allocation", tags=["DE Allocation"])
 
 _de = require_role(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
 
-# The allocation grid lists projects that are ready for a DE assessor. Draft
-# projects are excluded (nothing to allocate yet); Approved projects are
-# included so a DE / Admin can re-assign the assessor when it needs to change.
-_ALLOCATABLE_STATUSES = (ProjectStatus.PENDING_APPROVAL, ProjectStatus.APPROVED)
+
+# A project is allocatable once it has left Draft — its status can be anything
+# else (Pending Approval, Approved, Under Amendment). Draft projects have nothing
+# to allocate yet.
+def _is_allocatable(project: Project) -> bool:
+    return project.project_status != ProjectStatus.DRAFT
 
 
 async def _user_name(db: AsyncSession, user_id: UUID | None) -> str | None:
@@ -79,8 +85,20 @@ async def _row(
 
 
 @router.get("", response_model=list[DeAllocationRow], dependencies=[Depends(_de)])
-async def list_allocation_grid(db: AsyncSession = Depends(get_db)):
-    # Allocation is not period-scoped — the whole allocatable pool is returned.
+async def list_allocation_grid(
+    allocation: Literal["unallocated", "allocated", "all"] = Query(
+        "unallocated",
+        description=(
+            "Which non-Draft projects to return: 'unallocated' (no DE assessor "
+            "yet — the default work-to-do list), 'allocated' (already have a DE, "
+            "so a DE/Admin can reassign them), or 'all'."
+        ),
+    ),
+    db: AsyncSession = Depends(get_db),
+):
+    # Allocation is not period-scoped. By default the grid is the work-to-do
+    # list (projects with no DE assessor that have left Draft); `allocation`
+    # switches it to already-allocated projects for reassignment, or all.
     pm = aliased(User)
     de = aliased(User)
     stmt = (
@@ -91,8 +109,12 @@ async def list_allocation_grid(db: AsyncSession = Depends(get_db)):
         .outerjoin(Geo, Geo.id == Project.geo_id)
         .outerjoin(Region, Region.id == Project.region_id)
         .outerjoin(ProjectType, ProjectType.id == Project.project_type_id)
-        .where(Project.project_status.in_(_ALLOCATABLE_STATUSES))
+        .where(Project.project_status != ProjectStatus.DRAFT)
     )
+    if allocation == "unallocated":
+        stmt = stmt.where(Project.delivery_excellence_id.is_(None))
+    elif allocation == "allocated":
+        stmt = stmt.where(Project.delivery_excellence_id.is_not(None))
     rows = (await db.execute(stmt)).all()
     return [
         await _row(db, project, pm_name, acc_name, de_name, geo_name, region_name, project_type_name)
@@ -108,10 +130,10 @@ async def bulk_allocate(payload: DeAllocationBulkAssign, db: AsyncSession = Depe
         project = await project_crud.get(db, assignment.project_id)
         if project is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Project {assignment.project_id} not found")
-        if project.project_status not in _ALLOCATABLE_STATUSES:
+        if not _is_allocatable(project):
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                f"Project {assignment.project_id} is not in an allocatable status",
+                f"Project {assignment.project_id} is still Draft and cannot be allocated",
             )
         if project.delivery_excellence_id != assignment.delivery_excellence_id:
             project.delivery_excellence_id = assignment.delivery_excellence_id

@@ -15,10 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud.regional_status import account_status_item_crud
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
 from app.models.projects import Project
-from app.models.regional_status import AccountStatusItem
+from app.models.regional_status import AccountStatusItem, AccountStatusReport
 from app.schemas.account_rollup import AccountRollupItem, AccountRollupMetrics, AccountRollupResponse
 from app.schemas.enums import ReportStatus, RollupStatus
 from app.schemas.regional_status import AccountStatusItemCreate
+from app.services.report_lock import assert_report_editable
 
 
 def _sum(values: list[Decimal | int | None]) -> Decimal | int | None:
@@ -112,6 +113,20 @@ async def pull_rollup_item(db: AsyncSession, account_id: UUID, project_item_id: 
         raise RollupItemNotFoundError
     if item.account_rollup_status != RollupStatus.PENDING:
         raise RollupItemAlreadyHandledError
+
+    # Pulling inserts a new row into the Account's own status-item register
+    # for this period, so it's subject to the same freeze as adding one by
+    # hand (see api/v1/endpoints/regional_status.py's
+    # _assert_account_period_editable) — no pulling into an already
+    # Submitted/Approved Account report.
+    report_status = (
+        await db.execute(
+            select(AccountStatusReport.status).where(
+                AccountStatusReport.account_id == account_id, AccountStatusReport.period_id == item.period_id
+            )
+        )
+    ).scalars().first()
+    assert_report_editable(report_status)
 
     account_item = await account_status_item_crud.create(
         db,

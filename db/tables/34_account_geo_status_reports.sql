@@ -8,7 +8,7 @@ CREATE TABLE account_status_reports (
     id UUID PRIMARY KEY,
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     period_id UUID NOT NULL REFERENCES reporting_periods(id),
-    status TEXT NOT NULL DEFAULT 'Draft', -- Draft, Submitted
+    status TEXT NOT NULL DEFAULT 'Draft', -- Draft, Submitted, Approved, Rejected
     -- Key Metrics — captured once per report alongside the narrative tabs.
     revenue NUMERIC(18, 2),
     onsite_fte NUMERIC(5, 2),
@@ -23,6 +23,10 @@ CREATE TABLE account_status_reports (
     reviewed_by UUID REFERENCES users(id),
     reviewed_at TIMESTAMPTZ,
     review_comment TEXT,
+    -- Open Alerts snapshot, frozen at save time (as of this period's
+    -- end_date) — see db/add_status_report_open_alerts_snapshot.sql.
+    open_alerts_count INTEGER NOT NULL DEFAULT 0,
+    open_alerts_snapshot JSONB,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 
@@ -37,7 +41,7 @@ CREATE TABLE geo_status_reports (
     id UUID PRIMARY KEY,
     geo_id UUID NOT NULL REFERENCES geos(id) ON DELETE CASCADE,
     period_id UUID NOT NULL REFERENCES reporting_periods(id),
-    status TEXT NOT NULL DEFAULT 'Draft', -- Draft, Submitted
+    status TEXT NOT NULL DEFAULT 'Draft', -- Draft, Submitted, Approved, Rejected
     -- Key Metrics — captured once per report alongside the narrative tabs.
     revenue NUMERIC(18, 2),
     onsite_fte NUMERIC(5, 2),
@@ -47,11 +51,15 @@ CREATE TABLE geo_status_reports (
     upcoming_key_releases TEXT,
     leadership_support_required TEXT,
     created_by UUID REFERENCES users(id),
-    -- Review/sign-off by the level above (CXO) — set once the report
+    -- Review/sign-off by the level above (CDO) — set once the report
     -- transitions Submitted -> Approved/Rejected.
     reviewed_by UUID REFERENCES users(id),
     reviewed_at TIMESTAMPTZ,
     review_comment TEXT,
+    -- Open Alerts snapshot, frozen at save time (as of this period's
+    -- end_date) — see db/add_status_report_open_alerts_snapshot.sql.
+    open_alerts_count INTEGER NOT NULL DEFAULT 0,
+    open_alerts_snapshot JSONB,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 

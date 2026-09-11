@@ -30,6 +30,14 @@ DEVELOPMENT:
       benchmark_value: "0.45"
       min_value: "0"
       max_value: ""
+      # Per Size Unit (metric_target_development.target_size_unit). Selects the
+      # benchmark the Metric Target screen shows / prefills for Productivity; an
+      # unlisted unit falls back to the scalar benchmark_value above.
+      benchmark_by_unit:
+        CP:  { benchmark_value: "0.5",  min_value: "0.4",  max_value: "0.6" }
+        FP:  { benchmark_value: "0.14", min_value: "0.08", max_value: "0.2" }
+        LOC: { benchmark_value: "125",  min_value: "50",   max_value: "200" }
+        SP:  { benchmark_value: "0.65", min_value: "0.3",  max_value: "1" }
 
     - key: effort_variation_pct
       label: Effort Variation

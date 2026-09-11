@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 import { EmptyState } from "@/components/forms/empty-state";
+import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
 import { useProject } from "@/lib/api/projects";
 import { useProjectTypes } from "@/lib/api/reference-data";
 
@@ -50,14 +51,31 @@ export function MeasurementTabs() {
     );
   }
 
-  const Active = activeTab.content;
-
   return (
     // A project only ever matches one Project Type, so there's never
     // anything to switch between — no tab chrome, just the one form.
     // useSearchParams (for the period) requires a Suspense boundary.
     <Suspense fallback={null}>
-      <Active projectId={projectId} />
+      <MeasurementTabBody projectId={projectId} Content={activeTab.content} />
     </Suspense>
+  );
+}
+
+function MeasurementTabBody({
+  projectId,
+  Content,
+}: {
+  projectId: string;
+  Content: (typeof TABS)[number]["content"];
+}) {
+  const periodId = useSearchParams().get("period");
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Content projectId={projectId} />
+      <div className="flex justify-end">
+        <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="MEASUREMENT" />
+      </div>
+    </div>
   );
 }

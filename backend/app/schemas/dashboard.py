@@ -90,7 +90,7 @@ class HighlightRow(BaseModel):
 class OpenNcRow(BaseModel):
     """One open Alert — a DE assessment finding classified 'Alert' whose
     status is still open. Row shape for the "Open Alerts" list section
-    added to the PM, Account and CXO dashboards; on the Account/CXO
+    added to the PM, Account and CDO dashboards; on the Account/CDO
     dashboards the list rolls up across every in-scope project."""
 
     finding_id: UUID
@@ -436,7 +436,7 @@ class PmoDashboardSummary(BaseModel):
 
 
 # Project Health dashboard (design-reference/Project-Health.html) — an
-# org-wide, portfolio-level bento-grid of KPI cards for PMO/Admin/CXO, one
+# org-wide, portfolio-level bento-grid of KPI cards for PMO/Admin/CDO, one
 # card per business area (Portfolio, Health, the 5 RAIDO entities, Metrics,
 # Commitments, Payment Milestones, Actions, Findings, DE Assessments, Data
 # Integrity). See services/dashboard.py's "Project Health dashboard" section

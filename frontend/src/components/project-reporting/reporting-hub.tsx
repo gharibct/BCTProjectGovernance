@@ -89,7 +89,7 @@ export function ReportingHub() {
           actionLabel="Open Delivery Status Reporting"
         />
         <ReportingProgressCard
-          title="Metrics Reporting (Monthly)"
+          title="Project Performance Report (Monthly)"
           icon={ChartColumn}
           captionNoun="Monthly Metrics"
           series={monthly}
@@ -100,7 +100,7 @@ export function ReportingHub() {
           currentId={currentMonthId}
           onChange={setMonthOverride}
           actionHref={periodHref(monthId)}
-          actionLabel="Open Metric Reporting"
+          actionLabel="Open Project Performance Report"
         />
       </div>
 

@@ -92,7 +92,7 @@
 | Rules enforced | BR-ROLLUP-010/020/050. |
 | Status transitions | `AccountStatusItem.account_rollup_status`: `Pending → Pulled`. |
 | Error modes | as A3. |
-| Remarks | There is no geo → enterprise service — the CXO view is `SVC-HEALTH-ROLLUP` over geos, computed in the dashboard. |
+| Remarks | There is no geo → enterprise service — the CDO view is `SVC-HEALTH-ROLLUP` over geos, computed in the dashboard. |
 
 ## A6. `SVC-DATA-INTEGRITY-ROLLUP` — freshness evaluation
 
@@ -171,7 +171,7 @@
 | Rules enforced | BR-DASH-010, BR-DASH-020, BR-DASH-030. |
 | Status transitions | none. |
 | Error modes | empty scope → empty payload (not an error). |
-| Remarks | The `/dashboard/project-health/*` grids are `require_role(PMO, ADMIN, CXO)`-gated. Performance target: `product-brain/20`. |
+| Remarks | The `/dashboard/project-health/*` grids are `require_role(PMO, ADMIN, CDO)`-gated. Performance target: `product-brain/20`. |
 
 ---
 

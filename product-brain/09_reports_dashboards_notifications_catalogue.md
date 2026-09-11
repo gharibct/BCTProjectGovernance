@@ -27,7 +27,7 @@
     separately stored aggregate (BR-DASH-030).
   - Output is filtered to the caller's Account/Geo scope (BR-DASH-010); an empty scope
     yields an empty dashboard, not an error.
-  - `ADMIN` sees all scopes; `CXO` is unscoped at enterprise level.
+  - `ADMIN` sees all scopes; `CDO` is unscoped at enterprise level.
   - `GET /dashboard/summary` returns the shared KPI shape; role-specific sections come from
     dedicated endpoints (`/dashboard/*`) and hooks (`lib/api/{pm,account-head,geo-head,pmo,de}-dashboard.ts`).
 - **`ASSUMPTION` — "data as of" indicator.** A per-tile "last refreshed / data as of"
@@ -41,7 +41,7 @@
 | DASH-PM-10 | SCR-DASH-20 `/dashboard/project-manager` | `PROJECT_MANAGER` | `lib/api/pm-dashboard.ts` | **On mock data** — not wired to `/dashboard/summary` (`roles-actions.md`; verify). |
 | DASH-AM-10 | SCR-DASH-30 `/dashboard/account-manager` | `ACCOUNT_MANAGER` | `/dashboard/summary` + account-head section (`require_role(ACCOUNT_MANAGER, GEO_HEAD, ADMIN)`) | Live. |
 | DASH-GH-10 | SCR-DASH-40 `/dashboard/geo-head` | `GEO_HEAD` | `/dashboard/*` geo section (`require_role(GEO_HEAD, ADMIN)`) | Live. |
-| DASH-CXO-10 | SCR-DASH-50 `/dashboard/cxo` | `CXO` | `/dashboard/summary` + PMO/CXO section (`require_role(PMO, ADMIN, CXO)`) | Live. |
+| DASH-CDO-10 | SCR-DASH-50 `/dashboard/cdo` | `CDO` | `/dashboard/summary` + PMO/CDO section (`require_role(PMO, ADMIN, CDO)`) | Live. |
 | DASH-ADMIN-10 | SCR-DASH-60 `/dashboard/admin` | `ADMIN` | superset of all sections | Live. |
 | DASH-DE-10 | SCR-DASH-70 `/dashboard/delivery-excellence` | `DELIVERY_EXCELLENCE` | `de-summary` (`require_role(DELIVERY_EXCELLENCE, ADMIN)`), `lib/api/de-dashboard.ts` | **Live** — stat cards, work queue, findings summary. |
 | DASH-PMO-10 | SCR-DASH-80 `/dashboard/pmo` | `PMO` | PMO section (`require_role(PMO, ADMIN)`) | Live (read-only). |
@@ -72,7 +72,7 @@
 
 ## A3. Project Health Portfolio — 14 grids (`RPT-*`)
 
-Screen group `/project-health/*` (SCR-DASH-100..114); role gate `require_role(PMO, ADMIN, CXO)`
+Screen group `/project-health/*` (SCR-DASH-100..114); role gate `require_role(PMO, ADMIN, CDO)`
 (BR-DASH-020); filters: Geo / Account / Project; paged. Columns per
 `design-reference/project-health-screens.md`.
 
@@ -101,11 +101,11 @@ Contractual, DE Assessment, Action panel, or Data Integrity).
 | Element | Where | Content |
 | --- | --- | --- |
 | **Project Governance Matrix** | DASH-AM-10 (rows = Projects) | one row per project in the account: RAG per dimension (Schedule / Financial / Delivery / Overall), reporting status, last updated. "Rename Entity to Projects; add Account column before Projects" (`PendingPoints`). |
-| **Account Governance Matrix** | DASH-GH-10 / DASH-CXO-10 / DASH-ADMIN-10 (rows = Accounts) | one row per account: RAG from the latest Account RAG-status declaration; from step-5 data of the data-entry flow. |
-| **Top 5 Highlights** | DASH-AM-10 / DASH-CXO-10 / DASH-GH-10 | the 5 most recent status items (any category) across the scope. |
-| **Contractual Compliance widget** | DASH-CXO-10 / DASH-ADMIN-10 | Met / Not Met / **Not Recorded** summary — everything shows "Not Recorded" where no actuals-entry path exists (BR-CONTRACT-050). |
-| **Milestone Payments widget** | DASH-CXO-10 / DASH-ADMIN-10 | Upcoming vs Overdue from each milestone's expected date; "Paid" requires an actual date (gap). |
-| **Executive Updates view** | DASH-CXO-10 | read-only render of Geo Heads' Executive Updates. |
+| **Account Governance Matrix** | DASH-GH-10 / DASH-CDO-10 / DASH-ADMIN-10 (rows = Accounts) | one row per account: RAG from the latest Account RAG-status declaration; from step-5 data of the data-entry flow. |
+| **Top 5 Highlights** | DASH-AM-10 / DASH-CDO-10 / DASH-GH-10 | the 5 most recent status items (any category) across the scope. |
+| **Contractual Compliance widget** | DASH-CDO-10 / DASH-ADMIN-10 | Met / Not Met / **Not Recorded** summary — everything shows "Not Recorded" where no actuals-entry path exists (BR-CONTRACT-050). |
+| **Milestone Payments widget** | DASH-CDO-10 / DASH-ADMIN-10 | Upcoming vs Overdue from each milestone's expected date; "Paid" requires an actual date (gap). |
+| **Executive Updates view** | DASH-CDO-10 | read-only render of Geo Heads' Executive Updates. |
 
 ## A5. Account & Geo Dashboards (read-only, PPT-style)
 
@@ -138,7 +138,7 @@ Contractual, DE Assessment, Action panel, or Data Integrity).
 | N-DEAP-DECISION | DE decision `Approve` / `Return` | project's `PROJECT_MANAGER` | In-App / Email | "Your project {code} was {approved / returned}: {remarks}." | **Planned** |
 | N-STATUS-SUBMITTED | Weekly project status report submitted | owning `ACCOUNT_MANAGER` | In-App (derived) | "{project} submitted its week {period} status." | In-App (derived) via Review queue; Email **Planned** |
 | N-STATUS-DEFAULTER | Weekly report **not** submitted by cadence cut-off | `PROJECT_MANAGER`, escalate to `ACCOUNT_MANAGER` | In-App (derived) / Email | "Week {period} status not submitted for {project}." | **Planned** — depends on `product-brain/14` cadence ratification |
-| N-REVIEW-PENDING | A tier's report awaits the next tier's review | next-tier reviewer (`ACCOUNT_MANAGER` / `GEO_HEAD` / `CXO`) | In-App (derived) | "{n} reports awaiting your review." | In-App (derived) via "Pending Approvals" KPI |
+| N-REVIEW-PENDING | A tier's report awaits the next tier's review | next-tier reviewer (`ACCOUNT_MANAGER` / `GEO_HEAD` / `CDO`) | In-App (derived) | "{n} reports awaiting your review." | In-App (derived) via "Pending Approvals" KPI |
 | N-REVIEW-DECISION | Review `Approved` / `Rejected` | the report's author | In-App / Email | "Your {tier} status for {period} was {approved / rejected}: {comment}." | **Planned** |
 | N-REVIEW-DEFAULTER | Monthly review datasets (Measurement / Contractual / RAIDO) not updated | `PROJECT_MANAGER`, escalate up | In-App (derived) / Email | "Monthly review incomplete for {project}: {missing modules}." | **Planned** |
 | N-DEA-OVERDUE | Assessment past `next_assessment_due_date` | allocated `DELIVERY_EXCELLENCE` | In-App (derived) | "{n} assessments overdue." | In-App (derived) via DE dashboard |

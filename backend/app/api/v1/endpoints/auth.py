@@ -9,10 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.db import get_db
-from app.core.security import verify_password
+from app.core.security import hash_password, verify_password
 from app.core.session import SESSION_COOKIE_NAME, create_session_token
 from app.models.users import Role, User, UserAccount, UserGeo
-from app.schemas.users import LoginRequest, RoleRead, UserRead, UserSessionRead
+from app.schemas.users import (
+    LoginRequest,
+    PasswordChange,
+    RoleRead,
+    UserRead,
+    UserSessionRead,
+)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -83,6 +89,33 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
 
     _set_session_cookie(response, user.id)
     return await _build_session_read(db, user)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    body: PasswordChange,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Let a signed-in user rotate their own local password. Only meaningful
+    under AUTH_TYPE=password; unlike the Admin reset (PUT /users/{id}/password)
+    it requires the current password. The new plaintext is scrypt-hashed here
+    and is never stored or logged."""
+    if settings.auth_type != "password":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="Local password change is not available."
+        )
+    if not verify_password(body.current_password, current_user.password_hash):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect."
+        )
+    if body.new_password == body.current_password:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password.",
+        )
+    current_user.password_hash = hash_password(body.new_password)
+    await db.flush()
 
 
 @router.get("/onelogin/login")

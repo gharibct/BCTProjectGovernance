@@ -1,10 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Briefcase, LayoutGrid, LogOut, Menu } from "lucide-react";
+import { Briefcase, LayoutGrid, Menu } from "lucide-react";
 
 import type { RoleCode } from "@/lib/api/auth";
-import { useLogout } from "@/lib/api/auth";
 import {
   ROLE_LANDING_ROUTE,
   WORK_CONTEXTS,
@@ -13,23 +12,14 @@ import {
 import { useEffectiveRole, useSession } from "@/stores/session";
 import { NativeSelect } from "@/components/ui/native-select";
 import { NotificationsBell } from "@/components/shell/notifications-bell";
-
-function initials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
-}
+import { ProfileMenu } from "@/components/shell/profile-menu";
 
 export function AppHeader() {
   const router = useRouter();
   const user = useSession((s) => s.user);
-  const signOut = useSession((s) => s.signOut);
   const workContext = useSession((s) => s.workContext);
   const setWorkContext = useSession((s) => s.setWorkContext);
   const effectiveRole = useEffectiveRole();
-  const logout = useLogout();
 
   const contextOptions = user ? WORK_CONTEXTS[user.role.code] : undefined;
 
@@ -87,28 +77,7 @@ export function AppHeader() {
                 ? `${WORK_CONTEXT_LABEL[effectiveRole]} (acting)`
                 : user.role.name}
             </span>
-            <div className="flex size-9 items-center justify-center rounded-full bg-[#1a6fc4] text-sm font-semibold text-white">
-              {initials(user.full_name)}
-            </div>
-            <button
-              type="button"
-              aria-label="Sign out"
-              onClick={() => {
-                logout.mutate(undefined, {
-                  onSettled: (data) => {
-                    signOut();
-                    if (data?.logout_url) {
-                      window.location.href = data.logout_url;
-                    } else {
-                      router.push("/login");
-                    }
-                  },
-                });
-              }}
-              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-            >
-              <LogOut className="size-5" />
-            </button>
+            <ProfileMenu />
           </div>
         ) : null}
       </div>

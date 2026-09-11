@@ -8,7 +8,7 @@ from app.models.mixins import TimestampColumns, UUIDPrimaryKey
 from app.models.types import PortableJSON
 
 
-# Geo Head's Executive Update for CXO (see db/tables/43_executive_updates.sql)
+# Geo Head's Executive Update for CDO (see db/tables/43_executive_updates.sql)
 # — free-form Delivery/People/Financials/Operations content, independent of
 # GeoStatusReport (regional_status.py). `content` is the whole
 # { sections: [...] } document as authored by ExecutiveContentBuilder on the

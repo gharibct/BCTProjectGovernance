@@ -4,7 +4,7 @@ import { trackConsoleErrors } from "./utils/console";
 
 // Review pages — one level up the org hierarchy from Reporting (see
 // components/status-review/status-review-page.tsx): Account Manager reviews
-// their accounts' projects, Geo Head reviews their geos' accounts, CXO
+// their accounts' projects, Geo Head reviews their geos' accounts, CDO
 // reviews every geo. All read-only. GET endpoints backing these pages carry
 // no role/scope dependency (see backend/app/api/v1/endpoints/regional_status.py
 // — only the write/review-decision endpoints got scoped in the recent
@@ -68,7 +68,7 @@ test.describe("/account-review/[accountId]", () => {
 });
 
 test.describe("/geo-review/[geoId]", () => {
-  test.use({ storageState: "e2e/.auth/cxo.json" });
+  test.use({ storageState: "e2e/.auth/cdo.json" });
 
   test("renders with no console errors", async ({ page }) => {
     const errors = trackConsoleErrors(page);

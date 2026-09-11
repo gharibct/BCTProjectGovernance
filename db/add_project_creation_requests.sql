@@ -21,6 +21,16 @@ CREATE INDEX IF NOT EXISTS idx_pcr_status ON project_creation_requests(status);
 CREATE INDEX IF NOT EXISTS idx_pcr_project_manager_id ON project_creation_requests(project_manager_id);
 CREATE INDEX IF NOT EXISTS idx_pcr_requested_by ON project_creation_requests(requested_by);
 
+-- Org / GEO / Region / Account profile captured on the request (added later; see
+-- add_pcr_profile_fields.sql for the standalone patch against an even older DB).
+ALTER TABLE project_creation_requests ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id);
+ALTER TABLE project_creation_requests ADD COLUMN IF NOT EXISTS geo_id UUID REFERENCES geos(id);
+ALTER TABLE project_creation_requests ADD COLUMN IF NOT EXISTS region_id UUID REFERENCES regions(id);
+ALTER TABLE project_creation_requests ADD COLUMN IF NOT EXISTS account_id UUID REFERENCES accounts(id);
+CREATE INDEX IF NOT EXISTS idx_pcr_geo_id ON project_creation_requests(geo_id);
+CREATE INDEX IF NOT EXISTS idx_pcr_region_id ON project_creation_requests(region_id);
+CREATE INDEX IF NOT EXISTS idx_pcr_account_id ON project_creation_requests(account_id);
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_pcr_updated_at') THEN

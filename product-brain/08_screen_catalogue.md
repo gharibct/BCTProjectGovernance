@@ -58,11 +58,11 @@
 | SCR-DASH-20 | `/dashboard/project-manager` | Dashboard | MOD-DASH | `PROJECT_MANAGER` | PM "My Summary" (**still on mock data**). |
 | SCR-DASH-30 | `/dashboard/account-manager` | Dashboard | MOD-DASH | `ACCOUNT_MANAGER` | Account Head "My Summary": Project Governance Matrix (rows = Projects), Top 5 Highlights, KPI row. |
 | SCR-DASH-40 | `/dashboard/geo-head` | Dashboard | MOD-DASH | `GEO_HEAD` | Geo Head "My Summary": Account Governance Matrix, highlights, KPIs. |
-| SCR-DASH-50 | `/dashboard/cxo` | Dashboard | MOD-DASH | `CXO` | Enterprise portfolio: KPI tiles, Governance Matrix, Contractual/Milestone summaries, Executive Updates view. |
+| SCR-DASH-50 | `/dashboard/cdo` | Dashboard | MOD-DASH | `CDO` | Enterprise portfolio: KPI tiles, Governance Matrix, Contractual/Milestone summaries, Executive Updates view. |
 | SCR-DASH-60 | `/dashboard/admin` | Dashboard | MOD-DASH | `ADMIN` | Admin dashboard (superset). |
 | SCR-DASH-70 | `/dashboard/delivery-excellence` | Dashboard | MOD-DASH | `DELIVERY_EXCELLENCE` | DE "My Summary" — stat cards, work queue, findings summary (wired to `useDeDashboardSummary`). |
 | SCR-DASH-80 | `/dashboard/pmo` | Dashboard | MOD-DASH | `PMO` | PMO "My Summary". |
-| SCR-DASH-100 | `/project-health` | Hub | MOD-DASH | `PMO`/`CXO`/`ADMIN` | Project Health overview; rail to the 14 grids. |
+| SCR-DASH-100 | `/project-health` | Hub | MOD-DASH | `PMO`/`CDO`/`ADMIN` | Project Health overview; rail to the 14 grids. |
 | SCR-DASH-101 | `/project-health/project-list` | List | MOD-DASH | as above | Total / Active / Completed / On Hold; columns Project, Type, Geo, Account, PM, dates, Overall Health, Status. |
 | SCR-DASH-102 | `/project-health/rag` | List | MOD-DASH | as above | Green/Amber/Red/Reporting Overdue; per-dimension RAG + Period + Last Updated. |
 | SCR-DASH-103 | `/project-health/risks` | List | MOD-DASH | as above | Open Risks, High/Critical, Overdue, No Mitigation. |
@@ -138,7 +138,7 @@
 | --- | --- | --- | --- | --- | --- |
 | SCR-REVIEW-10 | `/project-review/[projectId]` | Detail | MOD-REVIEW | `ACCOUNT_MANAGER`/`GEO_HEAD`/`ADMIN` (not the PM) | Read-only project data (Overview quadrants, RAG Status) + Approve/Reject bar on a `Submitted` report. |
 | SCR-REVIEW-20 | `/account-review/[accountId]` | Detail | MOD-REVIEW | `GEO_HEAD`/`ADMIN` (owned geo) | Read-only account rollup + Approve/Reject. |
-| SCR-REVIEW-30 | `/geo-review/[geoId]` | Detail | MOD-REVIEW | `CXO`/`ADMIN` | Read-only geo rollup + Approve/Reject (unscoped). |
+| SCR-REVIEW-30 | `/geo-review/[geoId]` | Detail | MOD-REVIEW | `CDO`/`ADMIN` | Read-only geo rollup + Approve/Reject (unscoped). |
 
 ### 2.8 Delivery Excellence workflow
 
@@ -334,7 +334,7 @@ flowchart LR
     D --> PM[/dashboard/project-manager/]
     D --> AM[/dashboard/account-manager/]
     D --> GH[/dashboard/geo-head/]
-    D --> CX[/dashboard/cxo/]
+    D --> CX[/dashboard/cdo/]
     D --> DE[/dashboard/delivery-excellence/]
     PM --> NP[/new-project/[id]/*  create->charter->schedule->self-assessment->raido->measurement->contractual->de-assessment/]
     PM --> PR[/project-reporting/[id]/*  status->measurement->contractual->raido->de-assessment/]

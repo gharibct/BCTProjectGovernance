@@ -66,7 +66,7 @@ async def project_scope_conditions(db: AsyncSession, user: User) -> list:
     """SQLAlchemy WHERE conditions restricting a `select(Project)` to what the
     caller may see in a project LIST (GET /projects):
 
-    - ADMIN / DELIVERY_EXCELLENCE / PMO / CXO: no restriction (they need
+    - ADMIN / DELIVERY_EXCELLENCE / PMO / CDO: no restriction (they need
       cross-portfolio reads — the DE Projects browser, Project Health, the
       account/geo dashboards).
     - PROJECT_MANAGER: only projects they manage.
@@ -76,7 +76,7 @@ async def project_scope_conditions(db: AsyncSession, user: User) -> list:
     - anything else (e.g. TEAM_MEMBER): nothing.
     """
     role_code = await _role_code(db, user)
-    if role_code in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CXO):
+    if role_code in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CDO):
         return []
     if role_code == RoleCode.PROJECT_MANAGER:
         return [Project.project_manager_id == user.id]
@@ -139,9 +139,9 @@ def require_geo_scope(*allowed_roles: RoleCode, bypass_roles: tuple[RoleCode, ..
     """Role check plus: the `geo_id` path param must be one of the caller's
     owned geos (user_geos), unless the caller's role is in `bypass_roles`
     (defaults to ADMIN only, preserving every existing caller's behavior).
-    Action Tracker's GEO-level write gate passes bypass_roles=(ADMIN, CXO) —
-    CXO already reviews geo-level reports without ownership scoping (see
-    regional_status.py's `_cxo_review = require_role(CXO, ADMIN)`)."""
+    Action Tracker's GEO-level write gate passes bypass_roles=(ADMIN, CDO) —
+    CDO already reviews geo-level reports without ownership scoping (see
+    regional_status.py's `_cdo_review = require_role(CDO, ADMIN)`)."""
 
     async def dependency(
         geo_id: UUID,

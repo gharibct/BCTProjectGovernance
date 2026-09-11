@@ -68,6 +68,7 @@ CREATE TABLE accounts (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     geo_id UUID REFERENCES geos(id),
+    region_id UUID REFERENCES regions(id),
     description TEXT, -- short summary about the customer
     is_active BOOLEAN NOT NULL,
     -- Date this account started being tracked in the tool. NULL = no
@@ -79,6 +80,7 @@ CREATE TABLE accounts (
 );
 
 CREATE INDEX idx_accounts_geo_id ON accounts(geo_id);
+CREATE INDEX idx_accounts_region_id ON accounts(region_id);
 
 -- Reporting Period lookup — the Week/Month codes that Measurement Entry and
 -- Project Reporting submit and read against. Admin-maintained ahead of time

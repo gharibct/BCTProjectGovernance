@@ -8,7 +8,11 @@ import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAiReview } from "@/components/ai/use-ai-review";
 import { usePageBanner } from "@/stores/page-banner";
-import type { MetricReferenceEntry, MetricReferenceLookup } from "@/lib/api/metric-reference";
+import {
+  resolveBenchmark,
+  type MetricReferenceEntry,
+  type MetricReferenceLookup,
+} from "@/lib/api/metric-reference";
 
 export const inputClass = "h-11";
 
@@ -65,10 +69,15 @@ function MetricPriorityBadge({ children }: { children: React.ReactNode }) {
 function MetricInfoButton({
   entry,
   fallbackFormula,
+  benchmarkUnit,
 }: {
   entry?: MetricReferenceEntry;
   fallbackFormula?: string;
+  // Project's selected unit of measurement (Development's Size Unit), so the
+  // Benchmark Value tracks it for metrics with per-unit benchmarks.
+  benchmarkUnit?: string;
 }) {
+  const benchmarkValue = resolveBenchmark(entry, benchmarkUnit)?.benchmark_value;
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -101,7 +110,7 @@ function MetricInfoButton({
               <dt className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
                 Benchmark Value
               </dt>
-              <dd>{entry.benchmark_value}</dd>
+              <dd>{benchmarkValue}</dd>
             </div>
           </dl>
         ) : (
@@ -132,6 +141,7 @@ export function MetricTile({
   direction,
   digits = 2,
   badge,
+  benchmarkUnit,
 }: {
   label: string;
   // Looks the metric up in the fetched reference map; the per-priority tiles
@@ -147,6 +157,9 @@ export function MetricTile({
   direction?: MetricDirection;
   digits?: number;
   badge?: string;
+  // Project's selected unit of measurement (Development's Size Unit); picks the
+  // per-unit benchmark for metrics that have one (Productivity).
+  benchmarkUnit?: string;
 }) {
   const entry = metricKey ? reference?.[metricKey] : undefined;
   const displayFormula = entry?.formula ?? formula ?? "";
@@ -180,7 +193,7 @@ export function MetricTile({
         <p className="text-xs font-bold tracking-wide text-slate-700 uppercase">{label}</p>
         <div className="flex shrink-0 items-center gap-1.5">
           {badge ? <MetricPriorityBadge>{badge}</MetricPriorityBadge> : null}
-          <MetricInfoButton entry={entry} fallbackFormula={formula} />
+          <MetricInfoButton entry={entry} fallbackFormula={formula} benchmarkUnit={benchmarkUnit} />
         </div>
       </div>
       <p className="mt-0.5 text-[11px] italic text-slate-400">{displayFormula}</p>

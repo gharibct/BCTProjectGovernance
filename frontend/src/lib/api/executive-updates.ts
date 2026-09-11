@@ -4,7 +4,7 @@ import { api } from "./client";
 import type { ReportStatus } from "./project-status";
 import type { ExecutiveUpdate } from "@/components/executive-content-builder/types";
 
-// Geo Head's Executive Update for CXO — same list/create/edit shape as
+// Geo Head's Executive Update for CDO — same list/create/edit shape as
 // lib/api/regional-status.ts's Geo Status Report hooks, minus review (no
 // submit/review workflow yet). `content` round-trips the
 // ExecutiveContentBuilder JSON shape as-is.

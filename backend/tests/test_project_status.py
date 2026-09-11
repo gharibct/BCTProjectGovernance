@@ -110,6 +110,42 @@ async def test_review_status_report_passes_account_manager_or_admin_gate(client,
     assert response.status_code != 403
 
 
+async def test_resubmitting_rejected_report_clears_prior_review(client, override_auth):
+    """A Rejected report can be edited back to Submitted (the PM's resubmit
+    path), and doing so wipes the previous reviewer's decision so it re-enters
+    review as a clean Submitted report."""
+    from datetime import UTC, datetime
+
+    from app.models.project_status import ProjectStatusReport
+
+    report_id = uuid4()
+    report = ProjectStatusReport(
+        id=report_id,
+        project_id=_PROJECT_ID,
+        period_id=uuid4(),
+        status="Rejected",
+        reviewed_by=uuid4(),
+        reviewed_at=datetime.now(UTC),
+        review_comment="Numbers don't add up",
+        open_alerts_count=0,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+    headers = override_auth(RoleCode.ADMIN, get_map={(ProjectStatusReport, report_id): report})
+
+    response = await client.put(
+        f"/api/v1/projects/{_PROJECT_ID}/status-reports/{report_id}",
+        json={"status": "Submitted"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "Submitted"
+    assert body["reviewed_by"] is None
+    assert body["reviewed_at"] is None
+    assert body["review_comment"] is None
+
+
 async def test_list_status_items_returns_200(client, override_auth):
     headers = override_auth(RoleCode.TEAM_MEMBER)
     response = await client.get(

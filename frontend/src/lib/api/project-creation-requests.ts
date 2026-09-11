@@ -12,16 +12,30 @@ export type ProjectCreationRequestRow = {
   project_name: string;
   project_manager_id: string | null;
   project_manager_name: string | null;
+  organization_id: string | null;
+  organization_name: string | null;
+  geo_id: string | null;
+  geo_name: string | null;
+  region_id: string | null;
+  region_name: string | null;
+  account_id: string | null;
+  account_name: string | null;
   oracle_project_ids: string[];
   requested_by: string | null;
   requested_by_name: string | null;
   status: string;
+  review_remarks: string | null;
+  reviewed_at: string | null;
   created_at: string;
 };
 
 export type ProjectCreationRequestPayload = {
   project_name: string;
   project_manager_id: string | null;
+  organization_id: string | null;
+  geo_id: string | null;
+  region_id: string | null;
+  account_id: string | null;
   oracle_project_ids: string[];
 };
 
@@ -63,7 +77,11 @@ export function useApproveProjectCreationRequest() {
 export function useRejectProjectCreationRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/project-creation-requests/${id}`),
+    mutationFn: ({ id, reviewedBy, remarks }: { id: string; reviewedBy: string; remarks: string }) =>
+      api.post<ProjectCreationRequestRow>(`/project-creation-requests/${id}/reject`, {
+        reviewed_by: reviewedBy,
+        remarks,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEY });
     },
