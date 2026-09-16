@@ -183,6 +183,65 @@ export function ProjectCreationForm() {
         </Field>
       </SectionCard>
 
+      <SectionCard
+        icon={Database}
+        title="Oracle Projects Register"
+        aside={<AutoBadge label={`${pendingOracleIds.length} mapped`} />}
+      >
+        {oracleListError ? (
+          <p className="mb-4 text-sm font-medium text-red-600">{oracleListError}</p>
+        ) : null}
+        <RegisterTable
+          items={pendingOracleIds}
+          emptyLabel="No Oracle Project IDs added yet."
+          columns={[
+            { key: "oracle_project_id", label: "Oracle Project ID" },
+            {
+              key: "actions",
+              label: "",
+              render: (item: PendingOracleId) => (
+                <button
+                  type="button"
+                  aria-label={`Remove ${item.oracle_project_id}`}
+                  onClick={() => removeOracleId(item)}
+                  className="text-slate-400 hover:text-red-600"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              ),
+            },
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard icon={Database} title="Add Oracle Project">
+        <Field
+          label="Oracle Project ID"
+          htmlFor="oracle-project-id"
+          badge={<MandatoryBadge />}
+          error={oracleInputError ?? undefined}
+        >
+          <Input
+            id="oracle-project-id"
+            placeholder="e.g. ORA-88121"
+            value={oracleInput}
+            onChange={(e) => {
+              setOracleInput(e.target.value);
+              if (oracleInputError) setOracleInputError(null);
+            }}
+            className={inputClass}
+          />
+        </Field>
+        <div className="mt-6 flex justify-end">
+          <Button
+            onClick={addOracleId}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+          >
+            Add
+          </Button>
+        </div>
+      </SectionCard>
+
       <SectionCard icon={Building2} title="Project Profile">
         {profileError ? (
           <p className="mb-4 text-sm font-medium text-red-600">{profileError}</p>
@@ -252,65 +311,6 @@ export function ProjectCreationForm() {
               ))}
             </NativeSelect>
           </Field>
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        icon={Database}
-        title="Oracle Projects Register"
-        aside={<AutoBadge label={`${pendingOracleIds.length} mapped`} />}
-      >
-        {oracleListError ? (
-          <p className="mb-4 text-sm font-medium text-red-600">{oracleListError}</p>
-        ) : null}
-        <RegisterTable
-          items={pendingOracleIds}
-          emptyLabel="No Oracle Project IDs added yet."
-          columns={[
-            { key: "oracle_project_id", label: "Oracle Project ID" },
-            {
-              key: "actions",
-              label: "",
-              render: (item: PendingOracleId) => (
-                <button
-                  type="button"
-                  aria-label={`Remove ${item.oracle_project_id}`}
-                  onClick={() => removeOracleId(item)}
-                  className="text-slate-400 hover:text-red-600"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              ),
-            },
-          ]}
-        />
-      </SectionCard>
-
-      <SectionCard icon={Database} title="Add Oracle Project">
-        <Field
-          label="Oracle Project ID"
-          htmlFor="oracle-project-id"
-          badge={<MandatoryBadge />}
-          error={oracleInputError ?? undefined}
-        >
-          <Input
-            id="oracle-project-id"
-            placeholder="e.g. ORA-88121"
-            value={oracleInput}
-            onChange={(e) => {
-              setOracleInput(e.target.value);
-              if (oracleInputError) setOracleInputError(null);
-            }}
-            className={inputClass}
-          />
-        </Field>
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addOracleId}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            Add
-          </Button>
         </div>
       </SectionCard>
 

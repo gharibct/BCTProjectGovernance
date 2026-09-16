@@ -8,16 +8,18 @@ progress rings and activity heatmaps.
 One row per reporting period in the requested calendar year, each classified
 against that scope's status reports, plus the rolled-up counts.
 
-- "n/a"      — nothing was owed: the period starts before the project's start
-               date, or after the reporting window closes (min of today and
-               the project's end date). Shown as a plain box, excluded from
-               the ring totals / percentage.
+- "n/a"      — nothing is/was owed: the period ends before the project's start
+               date (entirely over before the project existed), starts after
+               the reporting window closes (min of today and the project's
+               end date), or hasn't fully ended yet (still running — nothing
+               is due until it's over, unless already reported early). Shown
+               as a plain box, excluded from the ring totals / percentage.
 - "on-time"  — a Submitted/Approved report whose updated_at date is on or
                before the period end (updated_at stands in for submit time;
                deadline = period end, no grace — same rule as
                services/dashboard.py's _project_reporting_bucket).
 - "late"     — a Submitted/Approved report updated after the period end.
-- "pending"  — in the reporting window, started, no submitted report yet.
+- "pending"  — in the reporting window, fully ended, no submitted report yet.
 """
 
 from datetime import date, datetime
@@ -58,13 +60,16 @@ def _classify(
     report: _StatusReportLike | None,
     scope_start: date | None,
     window_end: date,
+    today: date,
 ) -> PeriodActivityStatus:
-    if scope_start is not None and period.start_date < scope_start:
-        return "n/a"  # before the scope existed — no report was owed
+    if scope_start is not None and period.end_date < scope_start:
+        return "n/a"  # entirely before the scope existed — no report was owed
     if period.start_date > window_end:
         return "n/a"  # future, or past the scope's end date — not owed
     if report is not None and report.status in _SUBMITTED:
         return "on-time" if report.updated_at.date() <= period.end_date else "late"
+    if period.end_date >= today:
+        return "n/a"  # still running — nothing due until it fully ends
     return "pending"
 
 
@@ -73,12 +78,13 @@ def _series(
     by_period: dict[UUID, _StatusReportLike],
     scope_start: date | None,
     window_end: date,
+    today: date,
 ) -> ReportingActivitySeries:
     items: list[PeriodActivityItem] = []
     on_time = late = pending = not_applicable = 0
     for period in sorted(periods, key=lambda p: p.start_date):
         report = by_period.get(period.id)
-        status = _classify(period, report, scope_start, window_end)
+        status = _classify(period, report, scope_start, window_end, today)
         if status == "on-time":
             on_time += 1
         elif status == "late":
@@ -177,10 +183,10 @@ async def build_reporting_activity(
     return ReportingActivityResponse(
         year=year,
         weekly=_series(
-            [p for p in periods if p.period_type == "Weekly"], by_period, project_start, window_end
+            [p for p in periods if p.period_type == "Weekly"], by_period, project_start, window_end, today
         ),
         monthly=_series(
-            [p for p in periods if p.period_type == "Monthly"], by_period, project_start, window_end
+            [p for p in periods if p.period_type == "Monthly"], by_period, project_start, window_end, today
         ),
     )
 
@@ -220,8 +226,9 @@ async def build_weekly_reporting_activity(
             .all()
         )
     by_period = {r.period_id: r for r in reports}
+    today = date.today()
 
     return WeeklyReportingActivityResponse(
         year=year,
-        weekly=_series(periods, by_period, scope_start, date.today()),
+        weekly=_series(periods, by_period, scope_start, today, today),
     )

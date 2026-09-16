@@ -17,7 +17,7 @@ from app.services.reporting_activity import _series, build_reporting_activity, b
 from tests.test_authorization import override_auth
 
 _PROJECT_ID = uuid4()
-_TODAY = date(2026, 8, 20)
+_TODAY = date(2026, 8, 24)
 
 
 def _period(pid, start, end):
@@ -65,7 +65,7 @@ def test_series_buckets_and_counts():
         _period(p1, date(2026, 8, 3), date(2026, 8, 9)),
         _period(p2, date(2026, 8, 10), date(2026, 8, 16)),
         _period(p3, date(2026, 8, 17), date(2026, 8, 23)),
-        _period(p4, date(2026, 8, 24), date(2026, 8, 30)),  # starts after _TODAY -> n/a (future)
+        _period(p4, date(2026, 8, 24), date(2026, 8, 30)),  # hasn't ended by _TODAY -> n/a (still running)
     ]
     reports = {
         # submitted within the period window -> on-time
@@ -76,7 +76,7 @@ def test_series_buckets_and_counts():
         p3: _report(p3, ReportStatus.DRAFT, datetime(2026, 8, 20, tzinfo=timezone.utc)),
     }
 
-    series = _series(periods, reports, scope_start=None, window_end=_TODAY)
+    series = _series(periods, reports, scope_start=None, window_end=_TODAY, today=_TODAY)
 
     assert [i.status for i in series.items] == ["late", "on-time", "pending", "n/a"]
     assert [i.period_id for i in series.items] == [p1, p2, p3, p4]  # chronological
@@ -98,13 +98,29 @@ def test_series_excludes_periods_before_project_start():
         _period(p3, date(2026, 8, 10), date(2026, 8, 16)),  # in window, unsubmitted -> pending
     ]
 
-    series = _series(periods, {}, scope_start=date(2026, 8, 1), window_end=_TODAY)
+    series = _series(periods, {}, scope_start=date(2026, 8, 1), window_end=_TODAY, today=_TODAY)
 
     assert [i.status for i in series.items] == ["n/a", "pending", "pending"]
     assert series.counts.not_applicable == 1
     assert series.counts.pending == 2
     assert series.counts.total == 2
     assert series.pct == 0
+
+
+def test_series_includes_period_overlapping_scope_start():
+    p1, p2 = uuid4(), uuid4()
+    periods = [
+        _period(p1, date(2026, 8, 24), date(2026, 8, 30)),  # scope starts mid-period -> pending, not n/a
+        _period(p2, date(2026, 8, 17), date(2026, 8, 23)),  # entirely before scope start -> n/a
+    ]
+
+    series = _series(
+        periods, {}, scope_start=date(2026, 8, 30), window_end=date(2026, 9, 15), today=date(2026, 9, 15)
+    )
+
+    assert [i.status for i in series.items] == ["n/a", "pending"]  # chronological: p2, p1
+    assert series.counts.pending == 1
+    assert series.counts.not_applicable == 1
 
 
 def test_series_excludes_periods_after_project_end():
@@ -115,8 +131,8 @@ def test_series_excludes_periods_after_project_end():
         _period(p3, date(2026, 8, 17), date(2026, 8, 23)),  # starts after the project ended -> n/a
     ]
 
-    # project ended 2026-08-15, before _TODAY (2026-08-20) -> window_end = 08-15
-    series = _series(periods, {}, scope_start=date(2026, 1, 1), window_end=date(2026, 8, 15))
+    # project ended 2026-08-15, before _TODAY (2026-08-24) -> window_end = 08-15
+    series = _series(periods, {}, scope_start=date(2026, 1, 1), window_end=date(2026, 8, 15), today=_TODAY)
 
     assert [i.status for i in series.items] == ["pending", "pending", "n/a"]
     assert series.counts.total == 2
@@ -124,11 +140,38 @@ def test_series_excludes_periods_after_project_end():
 
 
 def test_series_empty():
-    series = _series([], {}, scope_start=None, window_end=_TODAY)
+    series = _series([], {}, scope_start=None, window_end=_TODAY, today=_TODAY)
     assert series.counts.total == 0
     assert series.counts.not_applicable == 0
     assert series.pct == 0
     assert series.items == []
+
+
+def test_series_still_running_period_is_not_due_yet():
+    p1, p2 = uuid4(), uuid4()
+    periods = [
+        _period(p1, date(2026, 9, 7), date(2026, 9, 13)),  # already ended -> pending
+        _period(p2, date(2026, 9, 14), date(2026, 9, 20)),  # still running -> n/a, not pending
+    ]
+
+    series = _series(periods, {}, scope_start=None, window_end=date(2026, 12, 31), today=date(2026, 9, 15))
+
+    assert [i.status for i in series.items] == ["pending", "n/a"]
+    assert series.counts.pending == 1
+    assert series.counts.not_applicable == 1
+    assert series.counts.total == 1
+
+
+def test_series_early_submission_during_still_running_period_counts():
+    p1 = uuid4()
+    periods = [_period(p1, date(2026, 9, 14), date(2026, 9, 20))]  # still running
+    reports = {p1: _report(p1, ReportStatus.SUBMITTED, datetime(2026, 9, 15, tzinfo=timezone.utc))}
+
+    series = _series(periods, reports, scope_start=None, window_end=date(2026, 12, 31), today=date(2026, 9, 15))
+
+    assert series.items[0].status == "on-time"
+    assert series.counts.pending == 0
+    assert series.counts.not_applicable == 0
 
 
 # --- account / geo weekly-only endpoints ---------------------------------

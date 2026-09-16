@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -23,9 +23,9 @@ class Action(Base, UUIDPrimaryKey, TimestampColumns):
 
     due_date: Mapped[date]
     raised_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
-    raised_at: Mapped[datetime]
-    completed_at: Mapped[datetime | None]
-    closed_at: Mapped[datetime | None]
+    raised_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
 
@@ -38,4 +38,4 @@ class ActionHistory(Base, UUIDPrimaryKey):
     old_value: Mapped[str | None]
     new_value: Mapped[str | None]
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
