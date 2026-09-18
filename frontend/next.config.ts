@@ -23,6 +23,19 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  // `app/layout.tsx`'s `export const dynamic = "force-dynamic"` stops the
+  // same workStore race from hitting our own pages, but `/_global-error` and
+  // `/_not-found` are special — they REPLACE the root layout instead of
+  // nesting under it, so that export never applies to them, and they still
+  // get prerendered by whichever of the parallel static-generation workers
+  // picks them up. With >1 worker that's exactly the cross-worker race the
+  // note above describes, just for a page we can't mark dynamic. Forcing a
+  // single worker (well above our ~100 routes) removes the race instead of
+  // chasing which page it lands on next.
+  experimental: {
+    staticGenerationMinPagesPerWorker: 1000,
+    staticGenerationRetryCount: 2,
+  },
   async rewrites() {
     return [
       {
