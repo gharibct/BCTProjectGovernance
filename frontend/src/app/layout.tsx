@@ -17,6 +17,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// The whole app sits behind client-only OneLogin/session auth (see
+// AuthGuard) and has no anonymous/cacheable content worth static
+// prerendering — so there's nothing to lose by forcing every route dynamic.
+// Doing it here, once, also works around an intermittent Turbopack build
+// bug ("Expected workStore to be initialized") that otherwise randomly
+// fails prerendering of whichever page is left in the static-generation
+// worker pool (seen on both /project-health/actions and /_not-found).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Governance One",
   description:
