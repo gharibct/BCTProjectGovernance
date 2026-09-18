@@ -4,7 +4,7 @@ import { GovernanceModuleView } from "@/components/de-approval/module-views/gove
 import { ProjectProfileView } from "@/components/de-approval/module-views/project-profile-view";
 
 export const metadata: Metadata = {
-  title: "Project Profile — Governance Review | Project Governance Tool",
+  title: "Project Profile — Governance Review | Governance One",
 };
 
 export default function DeApprovalProjectProfilePage() {

@@ -27,7 +27,7 @@ export default function LoginCallbackPage() {
 
   const error = me.isError
     ? me.error instanceof ApiError && me.error.status === 403
-      ? "OneLogin sign-in succeeded, but there's no Project Governance Tool account for that email. Contact your admin."
+      ? "OneLogin sign-in succeeded, but there's no Governance One account for that email. Contact your admin."
       : "Sign-in could not be completed. Try again."
     : null;
 

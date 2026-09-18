@@ -41,7 +41,7 @@ export function GeoHeadAccountReviewQueue({ rows }: { rows: AccountReviewQueueRo
         <div>
           <h2 className="font-bold text-slate-900">Account Report Review Queue</h2>
           <p className="mt-0.5 text-sm text-slate-400">
-            Account Status Reports submitted by Account Heads requiring your approval.
+            Account Status Reports submitted by Account Managers requiring your approval.
           </p>
         </div>
         {rows.length > 0 ? (

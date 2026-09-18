@@ -10,7 +10,7 @@ import { useAccounts } from "@/lib/api/reference-data";
 import { EmptyState } from "@/components/forms/empty-state";
 
 // Shared chrome for the read-only module views launched from the Account
-// Head's Project Performance Dashboard (/project-performance/[projectId]) —
+// Manager's / PM's Project Performance Dashboard (/project-performance/[projectId]) —
 // Measurement / Contractual Compliance / RAIDO. No edit affordances and no
 // PM reporting nav rail; the only navigation is a "Back to Project
 // Performance Dashboard" link. Mirrors de-approval's GovernanceModuleView,

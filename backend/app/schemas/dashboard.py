@@ -809,6 +809,8 @@ class ReportSubmissionDetailRow(BaseModel):
 
     row_key: str  # stable client key: "<type>-<entity_id>-<period_id>"
     report_type: str  # Delivery Status - Project | Metrics - Project | Delivery Status - Account | Delivery Status - Geo
+    entity_id: UUID  # project_id / account_id / geo_id depending on report_type
+    period_id: UUID
     geo_name: str | None = None
     account_name: str | None = None
     project_label: str | None = None

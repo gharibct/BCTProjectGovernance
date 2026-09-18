@@ -41,7 +41,7 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
 
   // Standalone entry (not part of a heading+items group like the ones
   // below) — the Geo Head's read-first counterpart to the CDO's Geo Review
-  // screen, mirrors account-nav.tsx's "Account Dashboard".
+  // screen, mirrors account-nav.tsx's "Delivery Status Report - Account".
   const dashboardHref = `${base}/dashboard`;
   const dashboardActive = pathname === dashboardHref;
 
@@ -56,7 +56,7 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
         )}
       >
         <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
-        Geo Dashboard
+        Delivery Status Report - Geo
       </Link>
 
       {groups.map((group) => (

@@ -224,14 +224,14 @@ export function CreateAccountPanel() {
           set={set}
           trailing={
             <Field
-              label="Account Head"
-              hint="Optional. An Account Head or Geo Head who owns this account. Can be changed later on Reassign Owners."
+              label="Account Manager"
+              hint="Optional. An Account Manager or Geo Head who owns this account. Can be changed later on Reassign Owners."
             >
               <ResourcePicker
                 value={accountHeadId}
                 onChange={setAccountHeadId}
                 roleCodes={ACCOUNT_HEAD_CANDIDATE_ROLES}
-                placeholder="Select Account Head…"
+                placeholder="Select Account Manager…"
               />
             </Field>
           }

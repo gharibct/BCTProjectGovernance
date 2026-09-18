@@ -4,7 +4,7 @@ import { ProjectPerformanceModuleView } from "@/components/project-performance/p
 import { ContractualView } from "@/components/de-approval/module-views/contractual-view";
 
 export const metadata: Metadata = {
-  title: "Contractual Compliance — Project Performance | Project Governance Tool",
+  title: "Contractual Compliance — Project Performance | Governance One",
 };
 
 export default function ProjectPerformanceContractualCompliancePage() {

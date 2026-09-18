@@ -4,7 +4,7 @@ import { OracleMappingForm } from "@/components/new-project/oracle-mapping/oracl
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — Map Oracle Projects | Project Governance Tool",
+  title: "Amend Project — Map Oracle Projects | Governance One",
 };
 
 export default function AmendProjectMapOracleProjectsPage() {

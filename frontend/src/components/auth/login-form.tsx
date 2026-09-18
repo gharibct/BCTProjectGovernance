@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -83,14 +83,6 @@ export function LoginForm() {
         >
           Sign in with OneLogin
         </Button>
-
-        <div className="mt-8 flex items-start gap-3 rounded-xl bg-slate-100 p-4">
-          <ShieldCheck className="mt-0.5 size-5 shrink-0 text-slate-500" />
-          <p className="text-sm leading-relaxed text-slate-600">
-            Authorized personnel only. Secure login is monitored via session
-            auditing. Version 0.1.0 — internal build.
-          </p>
-        </div>
       </div>
     );
   }
@@ -184,19 +176,12 @@ export function LoginForm() {
 
         <Button
           type="submit"
-          className="mt-8 h-12 w-full rounded-lg bg-[#16283e] text-sm font-semibold tracking-[0.08em] text-white uppercase hover:bg-[#1d3350]"
+          className="mt-8 h-12 w-full gap-2 rounded-lg bg-[#16283e] text-sm font-semibold tracking-[0.08em] text-white uppercase hover:bg-[#1d3350]"
         >
           Sign in to System
+          <ArrowRight className="size-4" />
         </Button>
       </form>
-
-      <div className="mt-8 flex items-start gap-3 rounded-xl bg-slate-100 p-4">
-        <ShieldCheck className="mt-0.5 size-5 shrink-0 text-slate-500" />
-        <p className="text-sm leading-relaxed text-slate-600">
-          Authorized personnel only. Secure login is monitored via session
-          auditing. Version 0.1.0 — internal build.
-        </p>
-      </div>
     </div>
   );
 }

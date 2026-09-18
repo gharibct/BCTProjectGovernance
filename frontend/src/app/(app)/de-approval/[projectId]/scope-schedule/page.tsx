@@ -4,7 +4,7 @@ import { GovernanceModuleView } from "@/components/de-approval/module-views/gove
 import { ScopeScheduleView } from "@/components/de-approval/module-views/scope-schedule-view";
 
 export const metadata: Metadata = {
-  title: "Scope & Schedule — Governance Review | Project Governance Tool",
+  title: "Scope & Schedule — Governance Review | Governance One",
 };
 
 export default function DeApprovalScopeSchedulePage() {

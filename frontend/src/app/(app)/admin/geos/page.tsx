@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { CreateGeoPanel } from "@/components/admin/create-geo-panel";
 
 export const metadata: Metadata = {
-  title: "Geos | Project Governance Tool",
+  title: "Geos | Governance One",
 };
 
 export default function AdminGeosPage() {

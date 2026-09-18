@@ -62,8 +62,8 @@ function CompletionChecklist({ completion }: { completion: PageCompletionStatus[
   );
 }
 
-// Presentational body shared by the PM's own monthly Project Dashboard
-// (below, with a gated Submit Report) and the Account Manager's read-only
+// Presentational body shared by the PM's own monthly Delivery Status Report
+// - Project (below, with a gated Submit Report) and the Account Manager's read-only
 // /project-performance/[projectId] view (readOnly — no Submit Report, no
 // attestation buttons anywhere on the page it's embedded in).
 export function PerformanceDashboardBody({

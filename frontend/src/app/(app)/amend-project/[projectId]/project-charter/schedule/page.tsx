@@ -4,7 +4,7 @@ import { ScopeScheduleForm } from "@/components/new-project/charter-form";
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — Scope & Schedule | Project Governance Tool",
+  title: "Amend Project — Scope & Schedule | Governance One",
 };
 
 export default function AmendProjectSchedulePage() {

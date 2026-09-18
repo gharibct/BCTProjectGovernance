@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { CreateAccountPanel } from "@/components/admin/create-account-panel";
 
 export const metadata: Metadata = {
-  title: "Accounts | Project Governance Tool",
+  title: "Accounts | Governance One",
 };
 
 export default function AdminAccountsPage() {

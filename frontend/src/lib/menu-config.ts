@@ -13,7 +13,6 @@ export type MenuEntryId =
   | "view-amend-projects"
   | "project-reporting"
   | "de-assessment-report"
-  | "system-health"
   | "admin-dashboard"
   | "cdo-dashboard"
   | "project-health"
@@ -33,6 +32,7 @@ export type MenuEntryId =
   | "geo-reporting"
   | "project-review"
   | "project-performance"
+  | "actions"
   | "account-review"
   | "geo-review"
   | "admin-users-roles"
@@ -53,7 +53,15 @@ const PROJECT_MANAGER_MENU: MenuEntryId[] = [
   // "project-reporting".
   "de-assessment-report",
   "view-amend-projects",
-  // Rendered last in the sidebar (after "Project Dashboard") — see app-sidebar.tsx.
+  // View-only monthly Measurements/Commitments/Payment Milestones/RAIDO
+  // rollup — same /project-performance route the Account Manager uses (see
+  // app-sidebar.tsx), no review/approval process, unlike project-review above.
+  "project-performance",
+  // Standalone Level+Value Actions screen (frontend/src/components/actions/
+  // actions-view.tsx) — PM only ever gets Project as a Level (see
+  // action-permissions.ts's actionLevelsForRole).
+  "actions",
+  // Rendered last in the sidebar (after "Delivery Status Report - Project") — see app-sidebar.tsx.
   "pm-findings",
 ];
 
@@ -86,6 +94,9 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
     // View-only monthly Measurements/Commitments/Payment Milestones/RAIDO
     // rollup — no review/approval process, unlike project-review above.
     "project-performance",
+    // Standalone Level+Value Actions screen — Account Manager gets Account
+    // and Project as Levels (see action-permissions.ts's actionLevelsForRole).
+    "actions",
     // Rendered last in the sidebar — see app-sidebar.tsx.
     "reassignment",
   ],
@@ -95,16 +106,20 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
     "geo-review",
     "geo-reporting",
     "account-review",
+    // Standalone Level+Value Actions screen — Geo Head gets all three Levels
+    // (see action-permissions.ts's actionLevelsForRole).
+    "actions",
     // Rendered last in the sidebar — see app-sidebar.tsx.
     "reassignment",
   ],
-  CDO: ["cdo-dashboard", "project-health", "geo-review"],
+  // Standalone Level+Value Actions screen — CDO gets all three Levels too
+  // (see action-permissions.ts's actionLevelsForRole).
+  CDO: ["cdo-dashboard", "project-health", "geo-review", "actions"],
   // Admin-only screens. Everything else (PM / Account Head / Geo Head / DE /
   // CDO work) is reached via the top-bar "Work as" combo — see WORK_CONTEXTS.
   ADMIN: [
     "admin-dashboard",
     "pmo-dashboard",
-    "system-health",
     "admin-users-roles",
     "admin-integrations",
     "admin-regions",
@@ -149,7 +164,7 @@ export const WORK_CONTEXTS: Partial<Record<RoleCode, RoleCode[]>> = {
 
 export const WORK_CONTEXT_LABEL: Record<RoleCode, string> = {
   PROJECT_MANAGER: "PM",
-  ACCOUNT_MANAGER: "Account Head",
+  ACCOUNT_MANAGER: "Account Manager",
   GEO_HEAD: "Geo Head",
   CDO: "CDO",
   TEAM_MEMBER: "Team Member",

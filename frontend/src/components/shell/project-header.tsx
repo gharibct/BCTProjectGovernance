@@ -14,14 +14,16 @@ import { useStatusReports } from "@/lib/api/project-status";
 
 type ProjectHeaderProps = {
   subheading?: string;
-  // Explicit "which period" override for callers (Project Dashboard) that
-  // already resolved one via their own fallback chain — omit to read the raw
-  // ?period= off the URL directly (Project Status's behavior: no fallback).
+  // Explicit "which period" override for callers (Delivery Status Report -
+  // Project) that already resolved one via their own fallback chain — omit
+  // to read the raw ?period= off the URL directly (Project Status's
+  // behavior: no fallback).
   periodId?: string | null;
   // Project Status only: ignore `subheading`, use "{period.period_type} Report" instead.
   dynamicSubheading?: boolean;
-  // Project Dashboard only — the Action Tracker trigger lives on Project
-  // Dashboard and Project Review, not every other Project Reporting sub-page.
+  // Delivery Status Report - Project only — the Action Tracker trigger
+  // lives on Delivery Status Report - Project and Project Review, not every
+  // other Project Reporting sub-page.
   showActionTracker?: boolean;
 };
 

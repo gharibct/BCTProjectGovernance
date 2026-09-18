@@ -32,13 +32,14 @@ type RegionalHeaderProps = {
   // Account/Geo Status page only: ignore `subheading`, use
   // "{period.period_type} Report" instead.
   dynamicSubheading?: boolean;
-  // Explicit "which period" override for callers (Account Dashboard) that
-  // already resolved one via their own fallback chain — omit to read the raw
-  // ?period= off the URL directly (Status page's behavior: no fallback).
+  // Explicit "which period" override for callers (Delivery Status Report -
+  // Account) that already resolved one via their own fallback chain — omit
+  // to read the raw ?period= off the URL directly (Status page's behavior:
+  // no fallback).
   periodId?: string | null;
-  // Account/Geo Dashboard only — the Action Tracker trigger lives on
-  // Account/Geo Dashboard and Account/Geo Review, not every other
-  // Account/Geo Reporting sub-page.
+  // Delivery Status Report - Account/Geo only — the Action Tracker trigger
+  // lives on Delivery Status Report - Account/Geo and Account/Geo Review,
+  // not every other Account/Geo Reporting sub-page.
   showActionTracker?: boolean;
 };
 

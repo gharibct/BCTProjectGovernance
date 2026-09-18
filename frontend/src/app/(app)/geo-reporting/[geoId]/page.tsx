@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { RegionalReportingHub } from "@/components/reporting/regional-reporting-hub";
 
 export const metadata: Metadata = {
-  title: "Geo Reporting | Project Governance Tool",
+  title: "Geo Reporting | Governance One",
 };
 
 export default function GeoReportingPage() {

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { GeoHeadMySummary } from "@/components/dashboard/geo-head-my-summary";
 
 export const metadata: Metadata = {
-  title: "My Summary | Project Governance Tool",
+  title: "My Summary | Governance One",
 };
 
 export default function GeoHeadDashboardPage() {

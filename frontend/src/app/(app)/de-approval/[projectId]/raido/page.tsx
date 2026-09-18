@@ -4,7 +4,7 @@ import { GovernanceModuleView } from "@/components/de-approval/module-views/gove
 import { RaidoView } from "@/components/de-approval/module-views/raido-view";
 
 export const metadata: Metadata = {
-  title: "RAIDO Register — Governance Review | Project Governance Tool",
+  title: "RAIDO Register — Governance Review | Governance One",
 };
 
 export default function DeApprovalRaidoPage() {

@@ -4,7 +4,7 @@ import { SendToApprovalView } from "@/components/new-project/send-to-approval/se
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — Send To Approve | Project Governance Tool",
+  title: "Amend Project — Send To Approve | Governance One",
 };
 
 export default function AmendProjectSendToApprovePage() {

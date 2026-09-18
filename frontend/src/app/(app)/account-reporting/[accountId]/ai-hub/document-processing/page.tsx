@@ -4,7 +4,7 @@ import { Sparkles } from "lucide-react";
 import { RegionalHeader } from "@/components/regional-reporting/regional-header";
 
 export const metadata: Metadata = {
-  title: "Account Reporting — AI Document Processing | Project Governance Tool",
+  title: "Account Reporting — AI Document Processing | Governance One",
 };
 
 // Placeholder — AI Document Processing for Account Reporting is a real

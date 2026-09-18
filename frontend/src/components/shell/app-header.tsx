@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Briefcase, LayoutGrid, Menu } from "lucide-react";
+import { Briefcase, Menu } from "lucide-react";
 
 import type { RoleCode } from "@/lib/api/auth";
 import {
@@ -41,10 +42,15 @@ export function AppHeader() {
           <Menu className="size-6" />
         </button>
         <div className="flex items-center gap-3">
-          <LayoutGrid className="size-7 text-[#1a4a7a]" />
-          <span className="text-xl font-bold tracking-tight text-[#1a4a7a]">
-            Project Governance
-          </span>
+          <Image src="/logo.png" alt="Governance One" width={32} height={32} className="size-8" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-xl font-bold tracking-tight text-[#1a4a7a]">
+              Governance One
+            </span>
+            <span className="hidden text-[11px] font-medium text-slate-500 sm:block">
+              Know Early. Act Early. Deliver Better.
+            </span>
+          </div>
         </div>
       </div>
 

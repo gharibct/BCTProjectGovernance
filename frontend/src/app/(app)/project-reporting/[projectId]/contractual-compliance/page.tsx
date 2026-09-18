@@ -4,7 +4,7 @@ import { ContractualComplianceForm } from "@/components/contractual-compliance/c
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "Contractual Compliance | Project Governance Tool",
+  title: "Contractual Compliance | Governance One",
 };
 
 export default function ContractualCompliancePage() {

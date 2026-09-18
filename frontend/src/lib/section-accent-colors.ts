@@ -1,7 +1,7 @@
 // Validated categorical palette (dataviz skill's references/palette.md) for
 // coloring topic-based section headers PPT-divider style. Shared by the
 // Executive Update content view (Delivery/People/Financials/Operations) and
-// the Geo Dashboard's Summary header so they read as one consistent visual
+// the Delivery Status Report - Geo's Summary header so they read as one consistent visual
 // language. Assigned by position, not by title, so it stays sensible if
 // sections are renamed, reordered, or added to. This exact 8-color order
 // clears every *adjacent*-pair colorblind-safety gate (worst adjacent CVD

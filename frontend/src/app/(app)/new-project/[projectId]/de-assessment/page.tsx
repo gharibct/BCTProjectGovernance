@@ -4,7 +4,7 @@ import { DeAssessmentForm } from "@/components/new-project/de-assessment/de-asse
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "New Project — DE Assessment | Project Governance Tool",
+  title: "New Project — DE Assessment | Governance One",
 };
 
 export default function NewProjectDeAssessmentPage() {

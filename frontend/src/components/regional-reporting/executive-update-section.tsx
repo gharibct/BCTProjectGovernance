@@ -7,7 +7,7 @@ import { fetchExecutiveUpdateImage, useExecutiveUpdates } from "@/lib/api/execut
 
 // Read-only display of the Geo Head's saved Executive Update for a period —
 // same content the editable form at executive-update-view.tsx produces,
-// shown wherever it needs reviewing (currently: the Geo Dashboard).
+// shown wherever it needs reviewing (currently: Delivery Status Report - Geo).
 export function ExecutiveUpdateSection({ geoId, periodId }: { geoId: string; periodId: string }) {
   const { data: records = [] } = useExecutiveUpdates(geoId);
   const record = records.find((r) => r.period_id === periodId);

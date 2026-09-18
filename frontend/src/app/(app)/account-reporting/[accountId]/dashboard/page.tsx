@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { RegionalDashboardView } from "@/components/regional-reporting/dashboard-view";
 
 export const metadata: Metadata = {
-  title: "Account Dashboard | Project Governance Tool",
+  title: "Delivery Status Report - Account | Governance One",
 };
 
 export default function AccountDashboardPage() {

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { StatusReviewPage } from "@/components/status-review/status-review-page";
 
 export const metadata: Metadata = {
-  title: "Account Review | Project Governance Tool",
+  title: "Account Review | Governance One",
 };
 
 export default function AccountReviewPage() {

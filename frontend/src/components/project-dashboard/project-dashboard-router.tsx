@@ -9,7 +9,7 @@ import { currentPeriod } from "@/lib/period-utils";
 import { ProjectDashboardView } from "./project-dashboard-view";
 import { ProjectPerformanceDashboardView } from "./project-performance-dashboard-view";
 
-// The Project Dashboard route is shared by Weekly (Delivery Status Reporting)
+// The Delivery Status Report - Project route is shared by Weekly (Delivery Status Reporting)
 // and Monthly (Project Performance Report) — same URL, ?period= picks which.
 // Renders the Weekly RAG/Overview/Open-Alerts dashboard for a Weekly period,
 // or the Monthly Project Performance Dashboard otherwise — mirrors each

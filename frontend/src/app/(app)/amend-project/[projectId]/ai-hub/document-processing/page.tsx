@@ -4,7 +4,7 @@ import { DocumentProcessing } from "@/components/new-project/ai-hub/document-pro
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — AI Document Processing | Project Governance Tool",
+  title: "Amend Project — AI Document Processing | Governance One",
 };
 
 export default function AmendProjectDocumentProcessingPage() {

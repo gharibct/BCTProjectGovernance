@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { CreateRegionPanel } from "@/components/admin/create-region-panel";
 
 export const metadata: Metadata = {
-  title: "Regions | Project Governance Tool",
+  title: "Regions | Governance One",
 };
 
 export default function AdminRegionsPage() {

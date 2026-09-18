@@ -4,7 +4,7 @@ import { ProjectPerformanceModuleView } from "@/components/project-performance/p
 import { RaidoView } from "@/components/de-approval/module-views/raido-view";
 
 export const metadata: Metadata = {
-  title: "RAIDO — Project Performance | Project Governance Tool",
+  title: "RAIDO — Project Performance | Governance One",
 };
 
 export default function ProjectPerformanceRaidoPage() {

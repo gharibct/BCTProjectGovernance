@@ -25,9 +25,9 @@ import { ReviewActions } from "./review-actions";
 import { ExecutiveUpdateSection } from "@/components/regional-reporting/executive-update-section";
 
 const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
-  project: "Project Dashboard",
-  account: "Account Dashboard",
-  geo: "Geo Dashboard",
+  project: "Delivery Status Report - Project",
+  account: "Delivery Status Report - Account",
+  geo: "Delivery Status Report - Geo",
 };
 
 const SCOPE_NAV_HREF: Record<ReviewScope, string> = {
@@ -65,12 +65,18 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
     router.replace(`${pathname}?period=${e.target.value}`);
   };
 
+  // A caller that links into this report from somewhere other than the
+  // bare review list (e.g. Project Health's Report Submissions grid,
+  // project-health-report-submissions.tsx) can carry a `?back=` path so
+  // this breadcrumb returns there instead of defaulting to SCOPE_NAV_HREF.
+  const back = searchParams.get("back");
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div>
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-          <Link href={SCOPE_NAV_HREF[scope]} className="font-semibold text-[#1a6fc4] hover:underline">
-            {SCOPE_NAV_LABEL[scope]}
+          <Link href={back || SCOPE_NAV_HREF[scope]} className="font-semibold text-[#1a6fc4] hover:underline">
+            {back ? "Report Submissions" : SCOPE_NAV_LABEL[scope]}
           </Link>
           {period ? (
             <>

@@ -36,7 +36,7 @@ export function ActionTrackerTrigger({ level, id, name }: { level: ActionLevel; 
           <Plus className="size-4 text-slate-400 transition-colors group-hover:text-[#1a6fc4]" />
         </button>
       </SheetTrigger>
-      <ActionTrackerDrawer level={level} id={id} name={name} />
+      <ActionTrackerDrawer level={level} id={id} name={name} open={open} />
     </Sheet>
   );
 }

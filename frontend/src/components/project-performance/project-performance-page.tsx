@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, type ChangeEvent } from "react";
+import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
@@ -10,12 +11,13 @@ import { useProjects } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
 
-// Account Manager's read-only counterpart to the PM's own monthly Project
-// Dashboard — same Measurements/Commitments/Payment Milestones/RAIDO summary
-// and completion checklist, no Submit Report or "Reviewed and No Changes"
-// controls. Modeled on status-review-page.tsx's header + period-combo
-// layout, filtered to Monthly periods only (there is no weekly Project
-// Performance Report).
+// Read-only Project Performance Report, shared by Account Manager and PM —
+// same Measurements/Commitments/Payment Milestones/RAIDO summary and
+// completion checklist as the PM's own monthly Project Dashboard
+// (project-reporting), but with no Submit Report or "Reviewed and No
+// Changes" controls. Modeled on status-review-page.tsx's header +
+// period-combo layout, filtered to Monthly periods only (there is no weekly
+// Project Performance Report).
 function PeriodAwareBody({ projectId }: { projectId: string }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,11 +42,25 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
     router.replace(`${pathname}?period=${e.target.value}`);
   };
 
+  // A caller that links into this report from somewhere other than the
+  // bare Project Performance list (e.g. Project Health's Report
+  // Submissions grid, project-health-report-submissions.tsx) can carry a
+  // `?back=` path so this breadcrumb returns there instead of the plain
+  // "Project Performance Dashboard" text — mirrors status-review-page.tsx's
+  // `back` handling.
+  const back = searchParams.get("back");
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div>
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-          <span className="font-semibold text-[#1a6fc4]">Project Performance Dashboard</span>
+          {back ? (
+            <Link href={back} className="font-semibold text-[#1a6fc4] hover:underline">
+              Report Submissions
+            </Link>
+          ) : (
+            <span className="font-semibold text-[#1a6fc4]">Project Performance Dashboard</span>
+          )}
           {period ? (
             <>
               <ChevronRight className="size-4 text-slate-400" />

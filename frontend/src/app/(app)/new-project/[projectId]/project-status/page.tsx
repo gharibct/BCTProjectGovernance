@@ -4,7 +4,7 @@ import { NewProjectHeader } from "@/components/new-project/new-project-header";
 import { NewProjectStatusTabs } from "@/components/new-project/status-tabs";
 
 export const metadata: Metadata = {
-  title: "New Project — Project Status | Project Governance Tool",
+  title: "New Project — Project Status | Governance One",
 };
 
 export default function NewProjectStatusPage() {

@@ -87,8 +87,9 @@ function buildGroups(base: string, projectId: string): NavGroup[] {
 // Each period type reports on only a slice of buildGroups(). Weekly covers
 // Project Status and RAG Status; Monthly covers the three baseline registers
 // (Measurement, Contractual Compliance, RAIDO). Neither touches the Project
-// Charter group, so it's dropped; the standalone Project Dashboard link and the
-// AI Hub group stay in both. (DE Assessment is no longer part of project
+// Charter group, so it's dropped; the standalone Delivery Status Report -
+// Project link and the AI Hub group stay in both. (DE Assessment is no
+// longer part of project
 // reporting — it lives at the top-level /de-assessment for the DE role.)
 function weeklyGroups(groups: NavGroup[]): NavGroup[] {
   return groups
@@ -154,7 +155,7 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
         )}
       >
         <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
-        Project Dashboard
+        Delivery Status Report - Project
       </Link>
 
       {visibleGroups.map((group) => (

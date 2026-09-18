@@ -18,8 +18,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Project Governance Tool",
-  description: "BCT Project Governance Tool — manage delivery governance, compliance and project health.",
+  title: "Governance One",
+  description:
+    "Governance One — Know Early. Act Early. Deliver Better. Manage delivery governance, compliance and project health.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({

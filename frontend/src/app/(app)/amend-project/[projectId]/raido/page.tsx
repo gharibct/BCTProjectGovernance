@@ -4,7 +4,7 @@ import { RaidoTabs } from "@/components/new-project/raido/raido-tabs";
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — Project RAIDO Register | Project Governance Tool",
+  title: "Amend Project — Project RAIDO Register | Governance One",
 };
 
 export default function AmendProjectRaidoPage() {

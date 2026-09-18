@@ -15,6 +15,24 @@ export function canCreateAction(level: ActionLevel, roleCode: RoleCode | undefin
   return !!roleCode && WRITE_ROLES[level].includes(roleCode);
 }
 
+// Which Levels the standalone Actions page (frontend/src/components/actions/
+// actions-view.tsx) offers per role — separate from WRITE_ROLES above (that
+// gates creating/editing at a level; this gates which levels are even
+// browsable). PM only ever deals with their own Projects; Account Manager
+// adds Account; Geo Head and CDO get all three. DE and Admin aren't in this
+// map — they don't get the standalone Actions entry at all (DE works
+// through DE Findings, Admin has no operational allocation to act under).
+const LEVELS_BY_ROLE: Partial<Record<RoleCode, readonly ActionLevel[]>> = {
+  PROJECT_MANAGER: ["PROJECT"],
+  ACCOUNT_MANAGER: ["ACCOUNT", "PROJECT"],
+  GEO_HEAD: ["GEO", "ACCOUNT", "PROJECT"],
+  CDO: ["GEO", "ACCOUNT", "PROJECT"],
+};
+
+export function actionLevelsForRole(roleCode: RoleCode | undefined): readonly ActionLevel[] {
+  return (roleCode && LEVELS_BY_ROLE[roleCode]) || [];
+}
+
 // A transition (start/complete/close/cancel/comment) is allowed for the
 // action's own assignee regardless of role, or for anyone who'd pass the
 // level's write gate — matches actions.py's _owner_or().

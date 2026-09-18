@@ -48,11 +48,18 @@ export function ActionListView({
   id,
   onSelect,
   onCreate,
+  canCreate = true,
 }: {
   level: ActionLevel;
   id: string;
   onSelect: (actionId: string) => void;
   onCreate: () => void;
+  // Hides "New Action" for a role/level combo that can't write here (e.g.
+  // CDO at Account/Project on the standalone Actions page — see
+  // action-permissions.ts). Defaults true: the per-entity header trigger
+  // (ActionTrackerDrawer) never gated this client-side, relying on the
+  // server to reject the POST, so existing usages are unaffected.
+  canCreate?: boolean;
 }) {
   const [filter, setFilter] = React.useState<Filter>("active");
   const { data: actions = [], isLoading } = useActions(level, id);
@@ -66,10 +73,12 @@ export function ActionListView({
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between gap-2">
         <Segmented options={FILTERS} value={filter} onChange={setFilter} className="h-9" />
-        <Button size="sm" className="gap-1.5" onClick={onCreate}>
-          <Plus className="size-4" />
-          New Action
-        </Button>
+        {canCreate ? (
+          <Button size="sm" className="gap-1.5" onClick={onCreate}>
+            <Plus className="size-4" />
+            New Action
+          </Button>
+        ) : null}
       </div>
 
       {isLoading ? (

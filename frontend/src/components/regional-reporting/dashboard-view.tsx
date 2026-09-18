@@ -29,8 +29,9 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
   // Reports are ordered by the period's start_date desc, so the first row is
   // the latest one. Falls back to the current month when neither the URL nor
   // any report has picked a period yet — same "no ?period= yet" fallback
-  // Project Dashboard / StarterCards use — so this page isn't a dead end on a
-  // manager's very first visit, before anything has ever been submitted.
+  // Delivery Status Report - Project / StarterCards use — so this page isn't
+  // a dead end on a manager's very first visit, before anything has ever
+  // been submitted.
   const urlPeriodId = searchParams.get("period");
   const periodId = urlPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
   const report = reports.find((r) => r.period_id === periodId);
@@ -40,7 +41,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
       <RegionalHeader
         scope={scope}
         paramName={scope === "account" ? "accountId" : "geoId"}
-        subheading={scope === "account" ? "Account Dashboard" : "Geo Dashboard"}
+        subheading={scope === "account" ? "Delivery Status Report - Account" : "Delivery Status Report - Geo"}
         periodId={periodId}
         showActionTracker
       />
@@ -50,7 +51,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
           No reporting period available yet.
         </p>
       ) : scope === "geo" ? (
-        // Geo Dashboard order: Summary (the accented Account Governance
+        // Delivery Status Report - Geo order: Summary (the accented Account Governance
         // Matrix) first, then the Geo Head's own Executive Update content
         // section by section, then the Overview (KPI snapshot + 2x2
         // category grid), then Submit.

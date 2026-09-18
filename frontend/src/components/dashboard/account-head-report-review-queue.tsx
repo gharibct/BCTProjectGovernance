@@ -59,7 +59,7 @@ export function AccountHeadReportReviewQueue({ rows }: { rows: ReportReviewQueue
         <div>
           <h2 className="font-bold text-slate-900">Report Review Queue</h2>
           <p className="mt-0.5 text-sm text-slate-400">
-            Project Status Reports submitted by PMs requiring Account Head approval.
+            Project Status Reports submitted by PMs requiring Account Manager approval.
           </p>
         </div>
         {rows.length > 0 ? (

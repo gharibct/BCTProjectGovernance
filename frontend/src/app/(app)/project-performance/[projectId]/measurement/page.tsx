@@ -4,7 +4,7 @@ import { ProjectPerformanceModuleView } from "@/components/project-performance/p
 import { MeasurementView } from "@/components/de-approval/module-views/measurement-view";
 
 export const metadata: Metadata = {
-  title: "Measurement — Project Performance | Project Governance Tool",
+  title: "Measurement — Project Performance | Governance One",
 };
 
 export default function ProjectPerformanceMeasurementPage() {

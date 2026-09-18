@@ -14,7 +14,7 @@ import { sectionAccentColor } from "@/lib/section-accent-colors";
 // latest declaration (the dashboard summary has no period concept), not
 // necessarily the period selected on this review page.
 //
-// Shared between /geo-review (CDO's Geo Dashboard) and the Geo Head's own
+// Shared between /geo-review (CDO's Delivery Status Report - Geo) and the Geo Head's own
 // Dashboard (regional-reporting/dashboard-view.tsx) — `accented` opts into
 // the "Summary" heading + blue PPT-divider header, matching the Executive
 // Update section colors on both pages.

@@ -42,7 +42,8 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
 
   // Standalone entry (not part of a heading+items group like the ones
   // below) — the Account Manager's read-first counterpart to the Geo Head's
-  // Account Review screen, mirrors project-nav.tsx's "Project Dashboard".
+  // Account Review screen, mirrors project-nav.tsx's "Delivery Status
+  // Report - Project".
   const dashboardHref = `${base}/dashboard`;
   const dashboardActive = pathname === dashboardHref;
 
@@ -57,7 +58,7 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
         )}
       >
         <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
-        Account Dashboard
+        Delivery Status Report - Account
       </Link>
 
       {groups.map((group) => (

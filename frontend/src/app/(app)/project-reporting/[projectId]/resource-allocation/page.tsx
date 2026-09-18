@@ -4,7 +4,7 @@ import { ResourceAllocationForm } from "@/components/project-charter/charter-for
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "Resource Allocation | Project Governance Tool",
+  title: "Resource Allocation | Governance One",
 };
 
 export default function ResourceAllocationPage() {

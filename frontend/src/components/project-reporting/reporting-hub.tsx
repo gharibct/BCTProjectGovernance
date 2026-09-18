@@ -35,8 +35,8 @@ export function ReportingHub() {
   const { data: reports = [] } = useStatusReports(projectId ?? null);
   const { data: activity } = useReportingActivity(projectId ?? null);
 
-  // Project Dashboard (the consolidated preview + submit screen) is where
-  // entering the reporting flow for a period should land.
+  // Delivery Status Report - Project (the consolidated preview + submit
+  // screen) is where entering the reporting flow for a period should land.
   const dashboardHref = `/project-reporting/${projectId}/dashboard`;
 
   const weekly = activity?.weekly ?? EMPTY_ACTIVITY_SERIES;

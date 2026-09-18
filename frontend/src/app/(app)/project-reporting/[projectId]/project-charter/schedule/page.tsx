@@ -4,7 +4,7 @@ import { ScopeScheduleForm } from "@/components/project-charter/charter-form";
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "Project Charter — Scope and Schedule | Project Governance Tool",
+  title: "Project Charter — Scope and Schedule | Governance One",
 };
 
 export default function ProjectCharterSchedulePage() {

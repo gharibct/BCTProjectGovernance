@@ -1004,6 +1004,8 @@ async def list_report_submissions_for_health(
                     ReportSubmissionDetailRow(
                         row_key=f"dsp-{pid}-{per_id}",
                         report_type="Delivery Status - Project",
+                        entity_id=pid,
+                        period_id=per_id,
                         status="Submitted" if ds_date else "Not Submitted",
                         submission_date=ds_date,
                         **base,
@@ -1015,6 +1017,8 @@ async def list_report_submissions_for_health(
                     ReportSubmissionDetailRow(
                         row_key=f"mp-{pid}-{per_id}",
                         report_type="Metrics - Project",
+                        entity_id=pid,
+                        period_id=per_id,
                         status="Submitted" if m_date else "Not Submitted",
                         submission_date=m_date,
                         **base,
@@ -1069,6 +1073,8 @@ async def list_report_submissions_for_health(
                 ReportSubmissionDetailRow(
                     row_key=f"dsa-{aid}-{per_id}",
                     report_type="Delivery Status - Account",
+                    entity_id=aid,
+                    period_id=per_id,
                     geo_name=geo_name,
                     account_name=aname,
                     account_head_name=account_head_by_id.get(aid),
@@ -1122,6 +1128,8 @@ async def list_report_submissions_for_health(
                 ReportSubmissionDetailRow(
                     row_key=f"dsg-{gid}-{per_id}",
                     report_type="Delivery Status - Geo",
+                    entity_id=gid,
+                    period_id=per_id,
                     geo_name=gname,
                     geo_head_name=geo_head_by_id.get(gid),
                     period_label=label_by_period.get(per_id, ""),

@@ -16,6 +16,7 @@ import {
   Globe,
   HeartPulse,
   LayoutGrid,
+  ListChecks,
   Map as MapIcon,
   Plug,
   Plus,
@@ -27,10 +28,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { NEW_PROJECT_SEGMENT } from "@/stores/new-project-ui";
-import { useProjects, type Project } from "@/lib/api/projects";
-import { useAccounts, useGeos } from "@/lib/api/reference-data";
+import type { Project } from "@/lib/api/projects";
 import { ROLE_MENUS, type MenuEntryId } from "@/lib/menu-config";
 import { useSession } from "@/stores/session";
+import { usePatchScope } from "@/hooks/use-patch-scope";
 
 const itemClass =
   "flex w-full items-center justify-start gap-3.5 rounded-lg px-4 py-2.5 text-left text-[13px] font-semibold text-white transition-colors";
@@ -201,52 +202,21 @@ export function AppSidebar() {
   const user = useSession((s) => s.user);
   const workContext = useSession((s) => s.workContext);
 
-  const { data: projects = [] } = useProjects();
-  const { data: accounts = [] } = useAccounts();
-  const { data: geos = [] } = useGeos();
-
   // The role whose menu applies right now: the chosen Work Context, else the
   // real role. `realRole` still governs which accounts/projects the user may
   // touch — a Geo Head "acting as PM" is still bounded by their own geo(s).
   const realRole = user?.role.code;
   const effectiveRole = workContext ?? realRole;
-  const isAdmin = realRole === "ADMIN";
 
   // The user's real patch — the accounts / geo(s) / projects they own,
   // independent of the chosen context (Geo Head: everything in their geo;
-  // Account Head: their accounts; PM/Admin: everything).
-  const patchGeoIds = React.useMemo(
-    () => new Set(realRole === "GEO_HEAD" ? (user?.geo_ids ?? []) : []),
-    [realRole, user]
-  );
-  const patchAccountIds = React.useMemo<Set<string> | null>(() => {
-    if (isAdmin) return null; // null = every account
-    if (realRole === "GEO_HEAD")
-      return new Set(accounts.filter((a) => a.geo_id && patchGeoIds.has(a.geo_id)).map((a) => a.id));
-    return new Set(user?.account_ids ?? []);
-  }, [isAdmin, realRole, user, accounts, patchGeoIds]);
-  const patchProjects = React.useMemo(() => {
-    if (isAdmin) return projects;
-    // A PM only sees the projects allocated to them (Provide Project Details /
-    // Amend Project Details / Report Project Status / Project Dashboard all
-    // derive from this list). The server enforces the same scope on GET /projects.
-    if (realRole === "PROJECT_MANAGER") return projects.filter((p) => p.project_manager_id === user?.id);
-    return projects.filter(
-      (p) =>
-        (!!p.account_id && !!patchAccountIds && patchAccountIds.has(p.account_id)) ||
-        (!!p.geo_id && patchGeoIds.has(p.geo_id))
-    );
-  }, [projects, isAdmin, realRole, user, patchAccountIds, patchGeoIds]);
+  // Account Head: their accounts; PM/Admin/CDO: everything). Shared with the
+  // standalone Actions page — see use-patch-scope.ts.
+  const { patchProjects, reportingAccounts, reportingGeos } = usePatchScope();
 
   const maintainProjects = patchProjects.filter((p) => !isApproved(p.project_status));
   const reportingProjects = patchProjects.filter((p) => isApproved(p.project_status));
   const statusReportProjects = patchProjects.filter((p) => canReport(p.project_status));
-
-  const inPatchAccounts = (id: string | null | undefined) =>
-    !id ? false : patchAccountIds === null || patchAccountIds.has(id);
-  const reportingAccounts = isAdmin ? accounts : accounts.filter((a) => inPatchAccounts(a.id));
-  const reportingGeos =
-    isAdmin || realRole === "CDO" ? geos : geos.filter((g) => patchGeoIds.has(g.id));
 
   // The "review" (one level up) lists — now that every list is already
   // patch-scoped, review and reporting scopes coincide.
@@ -291,11 +261,12 @@ export function AppSidebar() {
   const menu: MenuEntryId[] = effectiveRole ? (ROLE_MENUS[effectiveRole] ?? []) : [];
   const has = (id: MenuEntryId) => menu.includes(id);
 
-  // Geo Head wants "Account Dashboard" below "Geo Reporting" instead of
-  // grouped with the other one-click Dashboard shortcuts up top (where every
-  // other role that has it — Account Manager, Admin — keeps it).
+  // Geo Head wants "Delivery Status Report - Account" below "Delivery Status
+  // Report - Geo" instead of grouped with the other one-click Dashboard
+  // shortcuts up top (where every other role that has it — Account Manager,
+  // Admin — keeps it).
   const accountDashboardGroup = (
-    <CollapsibleGroup icon={ShieldCheck} label="Account Dashboard" active={isAccountReview} defaultOpen={isAccountReview}>
+    <CollapsibleGroup icon={ShieldCheck} label="Delivery Status Report - Account" active={isAccountReview} defaultOpen={isAccountReview}>
       {reviewAccounts.map((account) => {
         const active = account.id === reviewAccountId;
         return (
@@ -319,11 +290,11 @@ export function AppSidebar() {
   );
   const isGeoHead = effectiveRole === "GEO_HEAD";
 
-  // Account Manager and Project Manager want "Project Dashboard" last instead
-  // of grouped with the other one-click Dashboard shortcuts up top (where
-  // Admin keeps it).
+  // Account Manager and Project Manager want "Delivery Status Report -
+  // Project" last instead of grouped with the other one-click Dashboard
+  // shortcuts up top (where Admin keeps it).
   const projectDashboardGroup = (
-    <CollapsibleGroup icon={ClipboardCheck} label="Project Dashboard" active={isProjectReview} defaultOpen={isProjectReview}>
+    <CollapsibleGroup icon={ClipboardCheck} label="Delivery Status Report - Project" active={isProjectReview} defaultOpen={isProjectReview}>
       <ProjectNavList
         projects={reviewProjects}
         activeId={reviewProjectId}
@@ -332,13 +303,13 @@ export function AppSidebar() {
       />
     </CollapsibleGroup>
   );
-  // Account Manager only — a read-only rollup of Measurements/Commitments/
-  // Payment Milestones/RAIDO per project (no review/approval process, unlike
-  // Project Dashboard above).
+  // Account Manager and Project Manager — a read-only rollup of Measurements/
+  // Commitments/Payment Milestones/RAIDO per project (no review/approval
+  // process, unlike Delivery Status Report - Project above).
   const projectPerformanceGroup = (
     <CollapsibleGroup
       icon={ChartColumn}
-      label="Project Performance Dashboard"
+      label="Project Performance Report"
       active={isProjectPerformance}
       defaultOpen={isProjectPerformance}
     >
@@ -351,8 +322,8 @@ export function AppSidebar() {
     </CollapsibleGroup>
   );
   const isAccountManager = effectiveRole === "ACCOUNT_MANAGER";
-  // Project Manager also wants "Project Dashboard" last — see the Account
-  // Manager comment above the group's definition.
+  // Project Manager also wants "Delivery Status Report - Project" last —
+  // see the Account Manager comment above the group's definition.
   const isProjectManager = effectiveRole === "PROJECT_MANAGER";
   // Delivery Excellence and CDO get "View …" labels on the shared read-only
   // screens ("Projects", "Project Health") to distinguish them from the
@@ -488,6 +459,68 @@ export function AppSidebar() {
           />
         ) : null}
 
+        {has("geo-reporting") ? (
+          <CollapsibleGroup
+            icon={Globe}
+            label="Report Geo Status"
+            active={isGeoReporting}
+            defaultOpen={isGeoReporting}
+          >
+            {reportingGeos.map((geo) => {
+              const active = geo.id === reportingGeoId;
+              return (
+                <Link
+                  key={geo.id}
+                  href={`/geo-reporting/${geo.id}`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "block w-full rounded-md px-3 py-2 text-left text-[13px] transition-colors",
+                    active
+                      ? "bg-white/15 font-semibold text-white"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  {geo.name}
+                </Link>
+              );
+            })}
+            {reportingGeos.length === 0 ? (
+              <p className="px-3 py-2 text-[13px] text-slate-400">No geos assigned yet.</p>
+            ) : null}
+          </CollapsibleGroup>
+        ) : null}
+
+        {has("account-reporting") ? (
+          <CollapsibleGroup
+            icon={Building2}
+            label="Report Account Status"
+            active={isAccountReporting}
+            defaultOpen={isAccountReporting}
+          >
+            {reportingAccounts.map((account) => {
+              const active = account.id === reportingAccountId;
+              return (
+                <Link
+                  key={account.id}
+                  href={`/account-reporting/${account.id}`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "block w-full rounded-md px-3 py-2 text-left text-[13px] transition-colors",
+                    active
+                      ? "bg-white/15 font-semibold text-white"
+                      : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  {account.name}
+                </Link>
+              );
+            })}
+            {reportingAccounts.length === 0 ? (
+              <p className="px-3 py-2 text-[13px] text-slate-400">No accounts assigned yet.</p>
+            ) : null}
+          </CollapsibleGroup>
+        ) : null}
+
         {has("maintain-project") ? (
           <CollapsibleGroup
             icon={Wrench}
@@ -536,24 +569,8 @@ export function AppSidebar() {
           </CollapsibleGroup>
         ) : null}
 
-        {has("de-assessment-report") ? (
-          <CollapsibleGroup
-            icon={ShieldCheck}
-            label="DE Assessment Report"
-            active={isDeAssessmentReport}
-            defaultOpen={isDeAssessmentReport}
-          >
-            <ProjectNavList
-              projects={statusReportProjects}
-              activeId={deAssessmentReportProjectId}
-              hrefFor={(project) => `/de-assessment/${project.id}`}
-              emptyLabel="No approved projects yet."
-            />
-          </CollapsibleGroup>
-        ) : null}
-
         {has("geo-review") ? (
-          <CollapsibleGroup icon={CheckCircle2} label="Geo Dashboard" active={isGeoReview} defaultOpen={isGeoReview}>
+          <CollapsibleGroup icon={CheckCircle2} label="Delivery Status Report - Geo" active={isGeoReview} defaultOpen={isGeoReview}>
             {reviewGeos.map((geo) => {
               const active = geo.id === reviewGeoId;
               return (
@@ -582,76 +599,7 @@ export function AppSidebar() {
 
         {has("project-review") && !isAccountManager && !isProjectManager ? projectDashboardGroup : null}
 
-        {has("account-reporting") ? (
-          <CollapsibleGroup
-            icon={Building2}
-            label="Account Reporting"
-            active={isAccountReporting}
-            defaultOpen={isAccountReporting}
-          >
-            {reportingAccounts.map((account) => {
-              const active = account.id === reportingAccountId;
-              return (
-                <Link
-                  key={account.id}
-                  href={`/account-reporting/${account.id}`}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "block w-full rounded-md px-3 py-2 text-left text-[13px] transition-colors",
-                    active
-                      ? "bg-white/15 font-semibold text-white"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {account.name}
-                </Link>
-              );
-            })}
-            {reportingAccounts.length === 0 ? (
-              <p className="px-3 py-2 text-[13px] text-slate-400">No accounts assigned yet.</p>
-            ) : null}
-          </CollapsibleGroup>
-        ) : null}
-
-        {has("geo-reporting") ? (
-          <CollapsibleGroup
-            icon={Globe}
-            label="Geo Reporting"
-            active={isGeoReporting}
-            defaultOpen={isGeoReporting}
-          >
-            {reportingGeos.map((geo) => {
-              const active = geo.id === reportingGeoId;
-              return (
-                <Link
-                  key={geo.id}
-                  href={`/geo-reporting/${geo.id}`}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "block w-full rounded-md px-3 py-2 text-left text-[13px] transition-colors",
-                    active
-                      ? "bg-white/15 font-semibold text-white"
-                      : "text-slate-300 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {geo.name}
-                </Link>
-              );
-            })}
-            {reportingGeos.length === 0 ? (
-              <p className="px-3 py-2 text-[13px] text-slate-400">No geos assigned yet.</p>
-            ) : null}
-          </CollapsibleGroup>
-        ) : null}
-
         {has("account-review") && isGeoHead ? accountDashboardGroup : null}
-
-        {has("system-health") ? (
-          <Link href="#" className={cn(itemClass, idleClass)}>
-            <ChartColumn className="size-5 shrink-0" />
-            System Health
-          </Link>
-        ) : null}
 
         {has("admin-users-roles") ? (
           <SimpleLink
@@ -691,7 +639,29 @@ export function AppSidebar() {
 
         {has("project-review") && (isAccountManager || isProjectManager) ? projectDashboardGroup : null}
 
-        {has("project-performance") && isAccountManager ? projectPerformanceGroup : null}
+        {has("project-performance") && (isAccountManager || isProjectManager) ? projectPerformanceGroup : null}
+
+        {/* Standalone Level+Value Actions screen — PM/Account Manager/Geo
+            Head/CDO; not DE or Admin (see menu-config.ts). */}
+        {has("actions") ? (
+          <SimpleLink href="/actions" icon={ListChecks} label="Actions" active={pathname.startsWith("/actions")} />
+        ) : null}
+
+        {has("de-assessment-report") ? (
+          <CollapsibleGroup
+            icon={ShieldCheck}
+            label="DE Assessment Report"
+            active={isDeAssessmentReport}
+            defaultOpen={isDeAssessmentReport}
+          >
+            <ProjectNavList
+              projects={statusReportProjects}
+              activeId={deAssessmentReportProjectId}
+              hrefFor={(project) => `/de-assessment/${project.id}`}
+              emptyLabel="No approved projects yet."
+            />
+          </CollapsibleGroup>
+        ) : null}
 
         {has("pm-findings") ? (
           <SimpleLink

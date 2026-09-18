@@ -4,7 +4,7 @@ import { RaidoTabs } from "@/components/raido/raido-tabs";
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "Project RAIDO Register | Project Governance Tool",
+  title: "Project RAIDO Register | Governance One",
 };
 
 export default function RaidoPage() {

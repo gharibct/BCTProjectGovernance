@@ -4,7 +4,7 @@ import { GovernanceModuleView } from "@/components/de-approval/module-views/gove
 import { ContractualView } from "@/components/de-approval/module-views/contractual-view";
 
 export const metadata: Metadata = {
-  title: "Contractual Compliance — Governance Review | Project Governance Tool",
+  title: "Contractual Compliance — Governance Review | Governance One",
 };
 
 export default function DeApprovalContractualPage() {

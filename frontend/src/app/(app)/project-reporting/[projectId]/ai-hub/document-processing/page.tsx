@@ -4,7 +4,7 @@ import { DocumentProcessing } from "@/components/ai-hub/document-processing";
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "Document Processing | Project Governance Tool",
+  title: "Document Processing | Governance One",
 };
 
 export default function DocumentProcessingPage() {

@@ -4,7 +4,7 @@ import { GovernanceModuleView } from "@/components/de-approval/module-views/gove
 import { MeasurementView } from "@/components/de-approval/module-views/measurement-view";
 
 export const metadata: Metadata = {
-  title: "Measurement — Governance Review | Project Governance Tool",
+  title: "Measurement — Governance Review | Governance One",
 };
 
 export default function DeApprovalMeasurementPage() {

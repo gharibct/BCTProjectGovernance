@@ -42,10 +42,14 @@ export function ActionCreateView({
   const { data: projects = [] } = useProjects();
   const sessionUser = useSession((s) => s.user);
 
-  // Action creation is open to any authenticated user at any level: the Level
-  // combo offers all three (Geo / Account / Project) on every screen and each
-  // level lists every entity. The screen context only decides which level +
-  // entity are pre-selected (see initialLevel / initialId).
+  // Level/Value are locked to the screen's context (initialLevel/initialId),
+  // not user-editable: the list/summary the user lands back on after creating
+  // (ActionListView, via ActionTrackerDrawer) is always scoped to that same
+  // fixed level+id, never to whatever the form's combos are set to. Letting
+  // them diverge meant an action created for a different level/entity than
+  // the screen's context would post under that other entity and never show
+  // up in the list the user just came from. So both combos below render
+  // disabled, always reflecting the screen's own context.
   const geoOptions: ValueOption[] = geos.map((g) => ({ id: g.id, name: g.name }));
   const accountOptions: ValueOption[] = accounts.map((a) => ({ id: a.id, name: a.name }));
   const projectOptions: ValueOption[] = projects.map((p) => ({ id: p.id, name: p.project_name || p.project_code }));
@@ -53,8 +57,6 @@ export function ActionCreateView({
   const optionsForLevel = (l: ActionLevel): ValueOption[] =>
     l === "GEO" ? geoOptions : l === "ACCOUNT" ? accountOptions : projectOptions;
 
-  const [selectedLevel, setSelectedLevel] = React.useState<ActionLevel>(initialLevel);
-  const [selectedValueId, setSelectedValueId] = React.useState<string>(initialId);
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
   // "" = follow derivedOwnerId; ownerTouched flips once the user picks someone.
@@ -64,21 +66,13 @@ export function ActionCreateView({
   const [priority, setPriority] = React.useState<ActionPriority>("HIGH");
   const [errors, setErrors] = React.useState<{ title?: string; due_date?: string; value?: string }>({});
 
-  const currentOptions = optionsForLevel(selectedLevel);
-  const selectedValue = currentOptions.find((o) => o.id === selectedValueId);
+  const currentOptions = optionsForLevel(initialLevel);
+  const selectedValue = currentOptions.find((o) => o.id === initialId);
 
-  const changeLevel = (nextLevel: ActionLevel) => {
-    setSelectedLevel(nextLevel);
-    setSelectedValueId(optionsForLevel(nextLevel)[0]?.id ?? "");
-    // Let the new level's derived owner take over (unless the user re-picks).
-    setOwnerId("");
-    setOwnerTouched(false);
-  };
-
-  const { data: project } = useProject(selectedLevel === "PROJECT" ? selectedValueId || null : null);
-  const { data: geoHead } = useGeoHead(selectedLevel === "GEO" ? selectedValueId || null : null);
-  const { data: accountHead } = useAccountHead(selectedLevel === "ACCOUNT" ? selectedValueId || null : null);
-  const createAction = useCreateAction(selectedLevel, selectedValueId || null);
+  const { data: project } = useProject(initialLevel === "PROJECT" ? initialId || null : null);
+  const { data: geoHead } = useGeoHead(initialLevel === "GEO" ? initialId || null : null);
+  const { data: accountHead } = useAccountHead(initialLevel === "ACCOUNT" ? initialId || null : null);
+  const createAction = useCreateAction(initialLevel, initialId || null);
   const showError = usePageBanner((s) => s.showError);
   const showSuccess = usePageBanner((s) => s.showSuccess);
 
@@ -87,9 +81,9 @@ export function ActionCreateView({
   // Geo Owner (GEO) / Account Head (ACCOUNT) / Project Manager (PROJECT) —
   // falling back to the creator when that role isn't mapped yet. Overridable.
   const derivedOwnerId =
-    (selectedLevel === "PROJECT"
+    (initialLevel === "PROJECT"
       ? project?.project_manager_id
-      : selectedLevel === "GEO"
+      : initialLevel === "GEO"
         ? geoHead?.id
         : accountHead?.id) ||
     sessionUser?.id ||
@@ -106,7 +100,7 @@ export function ActionCreateView({
     const nextErrors: typeof errors = {};
     if (!title.trim()) nextErrors.title = "Title is required.";
     if (!dueDate) nextErrors.due_date = "Due date is required.";
-    if (!selectedValueId) nextErrors.value = `Pick a ${LEVEL_LABEL[selectedLevel]} entity.`;
+    if (!initialId) nextErrors.value = `Pick a ${LEVEL_LABEL[initialLevel]} entity.`;
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -131,16 +125,12 @@ export function ActionCreateView({
   return (
     <div className="flex flex-col gap-5 p-6">
       <p className="text-xs text-slate-400">
-        Source: {LEVEL_LABEL[selectedLevel]} <span className="mx-1">›</span> {selectedValue?.name ?? "—"}
+        Source: {LEVEL_LABEL[initialLevel]} <span className="mx-1">›</span> {selectedValue?.name ?? "—"}
       </p>
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Level" htmlFor="action-level" badge={<MandatoryBadge />}>
-          <NativeSelect
-            id="action-level"
-            value={selectedLevel}
-            onChange={(e) => changeLevel(e.target.value as ActionLevel)}
-          >
+          <NativeSelect id="action-level" value={initialLevel} disabled>
             {LEVELS.map((l) => (
               <option key={l} value={l}>
                 {l.charAt(0) + l.slice(1).toLowerCase()}
@@ -148,8 +138,8 @@ export function ActionCreateView({
             ))}
           </NativeSelect>
         </Field>
-        <Field label={LEVEL_LABEL[selectedLevel].replace(" Review", "")} htmlFor="action-value" badge={<MandatoryBadge />} error={errors.value}>
-          <NativeSelect id="action-value" value={selectedValueId} onChange={(e) => setSelectedValueId(e.target.value)}>
+        <Field label={LEVEL_LABEL[initialLevel].replace(" Review", "")} htmlFor="action-value" badge={<MandatoryBadge />} error={errors.value}>
+          <NativeSelect id="action-value" value={initialId} disabled>
             {currentOptions.length === 0 ? <option value="">None available</option> : null}
             {currentOptions.map((o) => (
               <option key={o.id} value={o.id}>
@@ -208,7 +198,7 @@ export function ActionCreateView({
         </Button>
         <Button
           onClick={submit}
-          disabled={createAction.isPending || !selectedValueId}
+          disabled={createAction.isPending || !initialId}
           className="gap-2"
         >
           {createAction.isPending ? <ButtonSpinner /> : null}

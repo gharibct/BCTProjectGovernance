@@ -4,7 +4,7 @@ import { Sparkles } from "lucide-react";
 import { RegionalHeader } from "@/components/regional-reporting/regional-header";
 
 export const metadata: Metadata = {
-  title: "Geo Reporting — Document Processing | Project Governance Tool",
+  title: "Geo Reporting — Document Processing | Governance One",
 };
 
 // Placeholder — AI Document Processing for Geo Reporting is a real feature

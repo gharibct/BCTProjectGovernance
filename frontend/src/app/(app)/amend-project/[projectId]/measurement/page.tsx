@@ -4,7 +4,7 @@ import { MeasurementTabs } from "@/components/new-project/measurement/measuremen
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — Measurement | Project Governance Tool",
+  title: "Amend Project — Measurement | Governance One",
 };
 
 export default function AmendProjectMeasurementPage() {

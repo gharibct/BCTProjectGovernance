@@ -4,7 +4,7 @@ import { ContractualComplianceForm } from "@/components/new-project/contractual-
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — Contractual Compliance | Project Governance Tool",
+  title: "Amend Project — Contractual Compliance | Governance One",
 };
 
 export default function AmendProjectContractualCompliancePage() {

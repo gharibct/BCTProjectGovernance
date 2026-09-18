@@ -4,7 +4,7 @@ import { ProjectProfileForm } from "@/components/project-charter/charter-form";
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "Project Charter — Project Profile | Project Governance Tool",
+  title: "Project Charter — Project Profile | Governance One",
 };
 
 export default function ProjectCharterPage() {

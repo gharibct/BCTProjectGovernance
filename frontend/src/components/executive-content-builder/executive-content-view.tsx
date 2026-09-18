@@ -18,12 +18,12 @@ import {
 // Read-only counterpart to ExecutiveContentBuilder — same section/block
 // structure, no editing chrome (no ⋮ menu, no move/delete, no toolbars).
 // Used to display a saved Executive Update wherever it's reviewed (e.g. the
-// Geo Dashboard), as opposed to the editable form at
+// Delivery Status Report - Geo), as opposed to the editable form at
 // components/regional-reporting/executive-update-view.tsx.
 
 // Each section gets a colored header band, PPT-section-divider style — all
 // sections share the same blue (sectionAccentColor(0), lib/section-accent-colors.ts),
-// matching the Geo Dashboard's Summary header directly above these sections.
+// matching the Delivery Status Report - Geo's Summary header directly above these sections.
 
 // A fitting icon for each default section name; anything renamed/custom
 // falls back to a generic one.

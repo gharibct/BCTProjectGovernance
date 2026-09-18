@@ -243,6 +243,8 @@ export type DataIntegrityRow = {
 export type ReportSubmissionDetailRow = {
   row_key: string;
   report_type: string;
+  entity_id: string;
+  period_id: string;
   geo_name: string | null;
   account_name: string | null;
   project_label: string | null;

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
@@ -50,12 +51,37 @@ function StatusPill({ value }: { value: string }) {
 
 const dash = (value: string | null | undefined) => (value && value.trim() ? value : "—");
 
+// Where "View" on a Submitted row opens the actual report content — the
+// read-only viewer routes (project-review / account-review / geo-review /
+// project-performance), not the PM's own editable Reporting Hub. Those
+// viewers have no PM reporting nav rail (see status-review-page.tsx /
+// project-performance-page.tsx), which fits a cross-portfolio drill-down
+// grid better than the hub's full edit-checklist nav. `backPath` rides
+// along as `?back=` so the report screen's breadcrumb can point back here
+// instead of its usual default — see those components' `back` handling.
+function reportHref(row: Row, backPath: string): string | null {
+  const back = `&back=${encodeURIComponent(backPath)}`;
+  switch (row.report_type) {
+    case "Delivery Status - Project":
+      return `/project-review/${row.entity_id}?period=${row.period_id}${back}`;
+    case "Metrics - Project":
+      return `/project-performance/${row.entity_id}?period=${row.period_id}${back}`;
+    case "Delivery Status - Account":
+      return `/account-review/${row.entity_id}?period=${row.period_id}${back}`;
+    case "Delivery Status - Geo":
+      return `/geo-review/${row.entity_id}?period=${row.period_id}${back}`;
+    default:
+      return null;
+  }
+}
+
 // Shared by the combined "Report Submissions" screen (no `kpi`) and its four
 // KPI-scoped sub screens. A `kpi` narrows the grid to one report stream, seeds
 // the status filter to Pending (the "who hasn't filed" rows), and swaps the
 // heading + stat tiles for that stream.
 export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmissionStreamKey }) {
   const stream = kpi ? REPORT_SUBMISSION_STREAMS[kpi] : null;
+  const backPath = stream ? stream.route : "/project-health/report-submissions";
 
   const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>(stream ? "pending" : "all");
@@ -81,7 +107,7 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
     { key: "account_name", label: "Account", render: (row) => dash(row.account_name), excelValue: (row) => row.account_name ?? "" },
     { key: "project_label", label: "Project", render: (row) => dash(row.project_label), excelValue: (row) => row.project_label ?? "" },
     { key: "project_manager_name", label: "PM", render: (row) => dash(row.project_manager_name), excelValue: (row) => row.project_manager_name ?? "" },
-    { key: "account_head_name", label: "Account Head", render: (row) => dash(row.account_head_name), excelValue: (row) => row.account_head_name ?? "" },
+    { key: "account_head_name", label: "Account Manager", render: (row) => dash(row.account_head_name), excelValue: (row) => row.account_head_name ?? "" },
     { key: "geo_head_name", label: "Geo Head", render: (row) => dash(row.geo_head_name), excelValue: (row) => row.geo_head_name ?? "" },
     { key: "period_label", label: "Period" },
     { key: "status", label: "Status", render: (row) => <StatusPill value={row.status} />, excelValue: (row) => row.status },
@@ -90,6 +116,20 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
       label: "Submission Date",
       render: (row) => formatDate(row.submission_date),
       excelValue: (row) => row.submission_date ?? "",
+    },
+    {
+      key: "view",
+      label: "",
+      excelValue: () => "",
+      render: (row) => {
+        if (row.status !== "Submitted") return null;
+        const href = reportHref(row, backPath);
+        return href ? (
+          <Link href={href} className="text-sm font-semibold text-[#1a6fc4] hover:underline">
+            View
+          </Link>
+        ) : null;
+      },
     },
   ];
 

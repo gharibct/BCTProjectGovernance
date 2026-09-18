@@ -4,7 +4,7 @@ import { AccountRagStatusForm } from "@/components/account-reporting/rag-status-
 import { RegionalHeader } from "@/components/regional-reporting/regional-header";
 
 export const metadata: Metadata = {
-  title: "Account Reporting — RAG Status | Project Governance Tool",
+  title: "Account Reporting — RAG Status | Governance One",
 };
 
 export default function AccountRagStatusPage() {
