@@ -27,6 +27,7 @@ from app.api.v1.endpoints import (
     notifications,
     pm_findings,
     project_creation_requests,
+    project_owned_reference,
     project_performance,
     project_status,
     projects,
@@ -44,6 +45,7 @@ api_router = APIRouter()
 # without an existing session — login/callback/config).
 api_router.include_router(reference_data.router)
 api_router.include_router(metric_reference.router)
+api_router.include_router(project_owned_reference.router)
 api_router.include_router(users.router)
 api_router.include_router(projects.router)
 api_router.include_router(project_creation_requests.router)

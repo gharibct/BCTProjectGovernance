@@ -72,9 +72,9 @@ REGIONS = [
 ]
 
 PROJECT_TYPES = [
-    ProjectTypeCreate(code="DEVELOPMENT", name="Development"),
+    ProjectTypeCreate(code="DEVELOPMENT", name="Development/ Enhancement"),
     ProjectTypeCreate(code="PROFESSIONAL_STAFFING", name="Professional Staffing"),
-    ProjectTypeCreate(code="SUPPORT", name="Support"),
+    ProjectTypeCreate(code="SUPPORT", name="Support/ Managed Services"),
     ProjectTypeCreate(code="TESTING", name="Testing"),
     ProjectTypeCreate(code="CLOUD_MAINTENANCE", name="Cloud Maintenance"),
     ProjectTypeCreate(code="CLOUD_MIGRATION", name="Cloud Migration"),

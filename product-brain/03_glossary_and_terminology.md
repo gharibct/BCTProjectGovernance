@@ -55,7 +55,7 @@
 | **Defaulter** | A project (or tier) that has not submitted / updated a required data point for the current period. Surfaced by Data Integrity and defaulter tracking. | Data Integrity checklist |
 | **Delivery-Declared Health** | The 6-category RAG self-assessment authored by the `PROJECT_MANAGER`. | DE-Assessed Health, Health category |
 | **Delivery Manager (DM)** | A Charter attribute (a named person); not a distinct system role in the current eight-role model. | Role |
-| **Engagement type** | The delivery model that selects a project's Measurement tab: Development, Support, Professional Staffing, Testing, Consulting, Cloud Maintenance, Cloud Migration. | Measurement, Project Type |
+| **Engagement type** | The delivery model that selects a project's Measurement tab: Development/ Enhancement, Support/ Managed Services, Professional Staffing, Testing, Consulting, Cloud Maintenance, Cloud Migration. | Measurement, Project Type |
 | **Evidence** | The exact supporting text and source location (page / sheet / paragraph) an AI suggestion cites. | AI suggestion |
 | **Executive Update** | Structured CDO-facing content (Delivery / People / Financials / Operations sections; rich-text / image / table blocks) prepared by a `GEO_HEAD`. Draft only — no approval step. | — |
 | **Finding (DE)** | A Key Finding in a DE Assessment: sequence #, Classification, description, severity, action taken, dates, and a lifecycle status. | Alert, DE Assessment |

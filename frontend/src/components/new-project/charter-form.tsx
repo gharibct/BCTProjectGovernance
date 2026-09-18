@@ -45,10 +45,12 @@ import {
   AutoBadge,
   ButtonSpinner,
   Field,
+  FieldInfoButton,
   MandatoryBadge,
   SectionCard,
   Segmented,
 } from "@/components/forms/form-primitives";
+import { useProjectOwnedReference } from "@/lib/api/project-owned-reference";
 import type { useAiReview } from "@/components/ai/use-ai-review";
 import { useAiFieldBinding, type FieldAi } from "@/components/ai/use-ai-field-binding";
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
@@ -205,10 +207,19 @@ function ProjectDescriptionTab({
   const { data: products } = useProducts();
   const { data: accounts } = useAccounts();
   const { data: users } = useUsers();
+  const { data: projectOwnedReference } = useProjectOwnedReference();
+  const projectOwnedInfoEntries = React.useMemo(
+    () =>
+      PROJECT_OWNED_OPTIONS.map((owned) => ({
+        label: owned,
+        description: projectOwnedReference?.[owned]?.description ?? "",
+      })).filter((entry) => entry.description),
+    [projectOwnedReference]
+  );
   const { data: geoHead } = useGeoHead(values.geo_id ?? null);
   const { data: accountHead, isLoading: accountHeadLoading } = useAccountHead(values.account_id ?? null);
 
-  // Delivery Manager is read-only, defaulted from the Account Head mapping
+  // Account Manager is read-only, defaulted from the Account Head mapping
   // for the selected account rather than picked manually. Skipped while the
   // lookup is still in flight so an existing project's saved value isn't
   // blanked out for a frame before the mapping resolves.
@@ -322,7 +333,17 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Project Owned" htmlFor="project-owned" required ai={fieldAi("project_owned")}>
+            <Field
+              label="Project Owned"
+              htmlFor="project-owned"
+              required
+              ai={fieldAi("project_owned")}
+              badge={
+                projectOwnedInfoEntries.length ? (
+                  <FieldInfoButton ariaLabel="What does Project Owned mean?" entries={projectOwnedInfoEntries} />
+                ) : undefined
+              }
+            >
               <NativeSelect
                 id="project-owned"
                 value={values.project_owned ?? ""}
@@ -475,7 +496,7 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Delivery Manager" badge={<AutoBadge />}>
+            <Field label="Account Manager" badge={<AutoBadge />}>
               <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
                 {accountHead?.full_name ?? "Not Assigned"}
               </div>

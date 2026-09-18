@@ -22,7 +22,7 @@ CREATE TABLE issue_log (
     due_date DATE,
     actual_resolution_date DATE,
     status TEXT NOT NULL, -- New, Assigned, In Progress, Pending, Resolved, Closed
-    escalation_level TEXT, -- PM, Delivery Manager, Steering Committee
+    escalation_level TEXT, -- PM, Account Manager, Steering Committee
     escalation_date DATE,
     resolution_summary TEXT,
     lessons_learned TEXT,

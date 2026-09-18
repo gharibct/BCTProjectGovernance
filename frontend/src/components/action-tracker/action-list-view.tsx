@@ -8,13 +8,7 @@ import { EmptyState } from "@/components/forms/empty-state";
 import { Segmented } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useUsersByIds } from "@/lib/api/reference-data";
-import {
-  ACTION_PRIORITY_LABEL,
-  ACTION_STATUS_LABEL,
-  useActions,
-  type Action,
-  type ActionLevel,
-} from "@/lib/api/actions";
+import { ACTION_PRIORITY_LABEL, ACTION_STATUS_LABEL, type Action } from "@/lib/api/actions";
 
 type Filter = "active" | "overdue" | "all" | "completed";
 
@@ -44,14 +38,19 @@ function formatDate(value: string): string {
 }
 
 export function ActionListView({
-  level,
-  id,
+  actions,
+  isLoading,
   onSelect,
   onCreate,
   canCreate = true,
+  scopeLabel,
 }: {
-  level: ActionLevel;
-  id: string;
+  // Purely presentational — the caller fetches (useActions for one entity,
+  // useActionsBulk for the standalone Actions page's "All" aggregate view)
+  // and passes the result down, so this same list works for both without
+  // knowing which mode it's in.
+  actions: Action[];
+  isLoading: boolean;
   onSelect: (actionId: string) => void;
   onCreate: () => void;
   // Hides "New Action" for a role/level combo that can't write here (e.g.
@@ -60,9 +59,15 @@ export function ActionListView({
   // (ActionTrackerDrawer) never gated this client-side, relying on the
   // server to reject the POST, so existing usages are unaffected.
   canCreate?: boolean;
+  // Geo/Account/Project name for a row, shown as a solid pill distinct from
+  // the pastel status/priority badges — mainly matters on the standalone
+  // Actions page's "All" view, where one list mixes rows from several
+  // entities and each needs to say which one it's from. Omit it (as
+  // ActionTrackerDrawer does) where every row is already the same, single
+  // entity the drawer's own header names.
+  scopeLabel?: (action: Action) => string;
 }) {
   const [filter, setFilter] = React.useState<Filter>("active");
-  const { data: actions = [], isLoading } = useActions(level, id);
   const ownerIds = React.useMemo(() => actions.map((a) => a.action_by_id), [actions]);
   const { data: users = [] } = useUsersByIds(ownerIds);
 
@@ -101,6 +106,11 @@ export function ActionListView({
                   <StatusBadge value={ACTION_PRIORITY_LABEL[action.priority]} />
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                  {scopeLabel ? (
+                    <span className="inline-flex items-center rounded-full bg-[#1a6fc4] px-2.5 py-0.5 text-[11px] font-bold text-white">
+                      {scopeLabel(action)}
+                    </span>
+                  ) : null}
                   <StatusBadge value={ACTION_STATUS_LABEL[action.status]} />
                   <span className="inline-flex items-center gap-1">
                     <UserIcon className="size-3" />

@@ -170,7 +170,7 @@ class IssueStatus(StrEnum):
 
 class IssueEscalationLevel(StrEnum):
     PM = "PM"
-    DELIVERY_MANAGER = "Delivery Manager"
+    DELIVERY_MANAGER = "Account Manager"
     STEERING_COMMITTEE = "Steering Committee"
 
 
@@ -206,7 +206,7 @@ class ProbabilityOfDelay(StrEnum):
 
 class DependencyEscalationLevel(StrEnum):
     PROJECT_MANAGER = "Project Manager"
-    DELIVERY_MANAGER = "Delivery Manager"
+    DELIVERY_MANAGER = "Account Manager"
     STEERING_COMMITTEE = "Steering Committee"
 
 

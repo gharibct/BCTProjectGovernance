@@ -20,7 +20,7 @@ CREATE TABLE dependency_log (
     probability_of_delay TEXT, -- Low, Medium, High
     mitigation_plan TEXT,
     escalation_required BOOLEAN NOT NULL,
-    escalation_level TEXT, -- Project Manager, Delivery Manager, Steering Committee
+    escalation_level TEXT, -- Project Manager, Account Manager, Steering Committee
     actual_completion_date DATE,
     last_updated DATE,
     remarks TEXT,

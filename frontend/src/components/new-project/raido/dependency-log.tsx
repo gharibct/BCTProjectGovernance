@@ -93,7 +93,7 @@ function useDependencyFields(): FieldDef[] {
       key: "escalation_level",
       label: "Escalation Level",
       kind: "select",
-      options: ["Project Manager", "Delivery Manager", "Steering Committee"],
+      options: ["Project Manager", "Account Manager", "Steering Committee"],
     },
     { key: "last_review_date", label: "Last Review Date", kind: "date" },
     { key: "next_review_date", label: "Next Review Date", kind: "date" },

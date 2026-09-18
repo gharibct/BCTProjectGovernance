@@ -1343,6 +1343,14 @@ def health_split(project_matrix: list[HealthMatrixRow]) -> tuple[int, int, int, 
     return green, amber, potential_red, red
 
 
+def health_not_assessed(project_matrix: list[HealthMatrixRow]) -> int:
+    """Projects with no health declaration at all (overall_rating is None) —
+    health_split's 4 buckets only cover declared projects, so this is the
+    gap between len(project_matrix) and their sum. Used by PM "My Summary"
+    only, so it doesn't need to be one of health_split's own return values."""
+    return sum(1 for row in project_matrix if row.overall_rating is None)
+
+
 def to_my_project_health_rows(
     matrix: list[HealthMatrixRow], report_status: dict[UUID, str]
 ) -> list[MyProjectHealthRow]:

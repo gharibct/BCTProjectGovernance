@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { KeyRound, LogOut } from "lucide-react";
 
@@ -149,6 +150,7 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
 
 export function ProfileMenu() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useSession((s) => s.user);
   const signOut = useSession((s) => s.signOut);
   const logout = useLogout();
@@ -163,6 +165,12 @@ export function ProfileMenu() {
     logout.mutate(undefined, {
       onSettled: (data) => {
         signOut();
+        // The QueryClient lives for the whole SPA session and is keyed by
+        // query name only, not by user — without this, a different person
+        // signing in right after (same tab, no full reload) can still be
+        // served this user's cached data (e.g. their own rejected project
+        // creation requests) until each query happens to refetch.
+        queryClient.clear();
         if (data?.logout_url) {
           window.location.href = data.logout_url;
         } else {

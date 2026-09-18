@@ -25,11 +25,16 @@ import {
 } from "@/components/ui/dialog";
 
 // DE Project Creation Approval queue. Lists pending creation requests submitted
-// by Account / Geo Heads; Approve creates the real Draft project, Reject deletes
-// the request. Separate from /de-approval (governance-completeness review of an
-// already-created project).
+// by Account / Geo Heads; Approve creates the real Draft project, Reject keeps
+// the request as Rejected (with remarks) for the requester to see. Separate
+// from /de-approval (governance-completeness review of an already-created
+// project).
 export function DeProjectRequestsQueue() {
-  const { data: rows = [], isLoading, isError, error, refetch } = useProjectCreationRequests();
+  const { data: allRows = [], isLoading, isError, error, refetch } = useProjectCreationRequests();
+  // The list endpoint also returns an Admin's own already-decided requests
+  // (so the Create Project screen can offer them for resubmission) — this
+  // queue only ever acts on Pending requests, so filter to those here.
+  const rows = React.useMemo(() => allRows.filter((row) => row.status === "Pending"), [allRows]);
   const userId = useSession((s) => s.user?.id ?? null);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);

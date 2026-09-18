@@ -187,6 +187,10 @@ class MyDashboardSummary(BaseModel):
     health_amber: int
     health_potential_red: int
     health_red: int
+    # Projects with no health declaration yet at all — health_green/amber/
+    # potential_red/red only cover declared projects, so this is what closes
+    # the gap between them and my_projects_count.
+    health_not_assessed: int
     reports_due: ReportsDueSummary
     open_actions_count: int
     open_actions_overdue_count: int

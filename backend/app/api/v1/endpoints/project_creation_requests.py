@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -169,13 +169,25 @@ async def list_requests(
         .outerjoin(requester, requester.id == ProjectCreationRequest.requested_by)
         .order_by(ProjectCreationRequest.created_at.desc())
     )
-    # DE / Admin get the action queue — only Pending. Account / Geo Head see only
-    # what they submitted, and also their Rejected requests (with the reason).
+    # DE get the action queue — only Pending. Account / Geo Head see only what
+    # they submitted, and also their Rejected requests (with the reason). Admin
+    # can both review the Pending queue AND submit requests directly (e.g. via
+    # the "Work as" Account/Geo Head context — a client-only concept the
+    # backend never sees, so `current_user` is always the real Admin account),
+    # so Admin gets the full Pending queue plus their own Rejected requests.
     role_code = await _role_code(db, current_user)
     if role_code in (RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD):
         stmt = stmt.where(
             ProjectCreationRequest.requested_by == current_user.id,
             ProjectCreationRequest.status.in_((_STATUS_PENDING, _STATUS_REJECTED)),
+        )
+    elif role_code == RoleCode.ADMIN:
+        stmt = stmt.where(
+            or_(
+                ProjectCreationRequest.status == _STATUS_PENDING,
+                (ProjectCreationRequest.requested_by == current_user.id)
+                & (ProjectCreationRequest.status == _STATUS_REJECTED),
+            )
         )
     else:
         stmt = stmt.where(ProjectCreationRequest.status == _STATUS_PENDING)

@@ -1,0 +1,22 @@
+# Single source of truth for the Project Profile "Project Owned" field's
+# info tooltip. Keyed by the ProjectOwned enum value (see
+# app/schemas/enums.py) — edit the `description` text here to change what the
+# tooltip shows; no code change or deploy needed.
+
+Fully Owned:
+  description: >-
+    BCT is End-to-end responsible for delivering the solution, including
+    planning, execution, resource management, delivery, quality, and project
+    governance. Accountable for project success and delivery.
+
+Co-Owned:
+  description: >-
+    Jointly responsible for delivery. Typically, PM assigned from customer
+    however the deliverables and project tracking expectations are from BCT.
+    Shared accountability for project success and delivery.
+
+Customer Driven:
+  description: >-
+    Customer owns and manages the project, and BCT provides resources,
+    expertise, or development services as directed. Accountable only for
+    resource quality and assigned deliverables.

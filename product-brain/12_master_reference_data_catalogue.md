@@ -111,7 +111,7 @@ All seven have a `POST/PUT/DELETE` REST API (`/organizations`, `/geos`, `/region
 | Attribute | Value |
 | --- | --- |
 | Purpose | The delivery model that selects a project's **Measurement tab** and its `metric_target_*` family. |
-| Key attributes | `id`, `name`, `description`. Values map to the 7 engagement types: Development, Support, Professional Staffing, Testing, **Consulting**, Cloud Maintenance, Cloud Migration (Consulting seeded by `add_consulting_project_type.sql`). |
+| Key attributes | `id`, `name`, `description`. Values map to the 7 engagement types: Development/ Enhancement, Support/ Managed Services, Professional Staffing, Testing, **Consulting**, Cloud Maintenance, Cloud Migration (Consulting seeded by `add_consulting_project_type.sql`). |
 | Owner | `ADMIN` (MOD-REF). |
 | Used by | MOD-PROJ (`project_type_id`), MOD-MEAS (tab selection), MOD-TARGET, MOD-DASH ("Projects by Type"). |
 | Validation | `name` unique; description used as the dropdown help text. |

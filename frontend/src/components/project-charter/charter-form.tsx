@@ -22,6 +22,7 @@ import {
   AutoBadge,
   ButtonSpinner,
   Field,
+  FieldInfoButton,
   MandatoryBadge,
   SectionCard,
   Segmented,
@@ -30,6 +31,7 @@ import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/e
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { usePageBanner } from "@/stores/page-banner";
+import { useProjectOwnedReference } from "@/lib/api/project-owned-reference";
 import {
   useAccounts,
   useGeos,
@@ -56,6 +58,7 @@ import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaratio
 
 const inputClass = "h-11";
 const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700";
+const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
 const YES_NO_OPTIONS = [
   { value: "Yes", label: "Yes" },
   { value: "No", label: "No" },
@@ -70,6 +73,15 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
   const { data: accounts } = useAccounts();
   const { data: users } = useUsers();
   const { data: geoHead } = useGeoHead(project?.geo_id ?? null);
+  const { data: projectOwnedReference } = useProjectOwnedReference();
+  const projectOwnedInfoEntries = React.useMemo(
+    () =>
+      PROJECT_OWNED_OPTIONS.map((owned) => ({
+        label: owned,
+        description: projectOwnedReference?.[owned]?.description ?? "",
+      })).filter((entry) => entry.description),
+    [projectOwnedReference]
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -97,12 +109,20 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Project Owned" htmlFor="project-owned">
+          <Field
+            label="Project Owned"
+            htmlFor="project-owned"
+            badge={
+              projectOwnedInfoEntries.length ? (
+                <FieldInfoButton ariaLabel="What does Project Owned mean?" entries={projectOwnedInfoEntries} />
+              ) : undefined
+            }
+          >
             <NativeSelect id="project-owned" value={project?.project_owned ?? ""} disabled>
               <option value="" disabled>
                 Select…
               </option>
-              {["Fully Owned", "Co-Owned", "Customer Driven"].map((owned) => (
+              {PROJECT_OWNED_OPTIONS.map((owned) => (
                 <option key={owned}>{owned}</option>
               ))}
             </NativeSelect>
@@ -198,7 +218,7 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Delivery Manager" htmlFor="delivery-manager">
+          <Field label="Account Manager" htmlFor="delivery-manager">
             <NativeSelect id="delivery-manager" value={project?.delivery_manager_id ?? ""} disabled>
               <option value="" disabled>
                 Select…

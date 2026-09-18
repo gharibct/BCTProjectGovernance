@@ -447,3 +447,27 @@ ACTION_LEVEL_CONFIGS = [
 router = APIRouter()
 for _cfg in ACTION_LEVEL_CONFIGS:
     router.include_router(build_action_router(_cfg))
+
+
+@router.get("/actions/bulk", response_model=list[ActionRead])
+async def list_actions_bulk(
+    level: ActionLevel = Query(...),
+    ids: list[UUID] = Query(default=[]),
+    db: AsyncSession = Depends(get_db),
+):
+    """Combined actions across several entities at one level — backs the
+    standalone Actions page's "All" option (frontend/src/components/actions/
+    actions-view.tsx), which needs every Project's (or Account's/Geo's)
+    actions in one list instead of drilling into them one at a time. Not
+    scoped by path like the per-entity routers above: the caller already
+    knows (and has already patch-scoped, client-side) which ids to include,
+    the same trust model the per-entity GETs above already use."""
+    if not ids:
+        return []
+    result = await db.execute(
+        select(Action)
+        .where(Action.level == level, Action.level_value.in_([str(i) for i in ids]))
+        .order_by(Action.due_date.asc())
+        .limit(1000)
+    )
+    return result.scalars().all()

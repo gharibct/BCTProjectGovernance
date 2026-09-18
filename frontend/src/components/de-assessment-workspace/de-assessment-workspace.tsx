@@ -223,7 +223,7 @@ function WorkspaceInner() {
       : "No Assessment Recorded Yet";
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <Link

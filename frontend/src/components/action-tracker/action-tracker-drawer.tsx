@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import type { ActionLevel } from "@/lib/api/actions";
+import { useActions, type ActionLevel } from "@/lib/api/actions";
 import { ActionCreateView } from "./action-create-view";
 import { ActionDetailView } from "./action-detail-view";
 import { ActionListView } from "./action-list-view";
@@ -29,6 +29,7 @@ export function ActionTrackerDrawer({
 }) {
   const [view, setView] = React.useState<View>("list");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const { data: actions = [], isLoading } = useActions(level, id);
 
   React.useEffect(() => {
     if (!open) {
@@ -46,8 +47,8 @@ export function ActionTrackerDrawer({
       <div className="flex-1 overflow-y-auto">
         {view === "list" ? (
           <ActionListView
-            level={level}
-            id={id}
+            actions={actions}
+            isLoading={isLoading}
             onSelect={(actionId) => {
               setSelectedId(actionId);
               setView("detail");

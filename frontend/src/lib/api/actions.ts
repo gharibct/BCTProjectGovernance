@@ -96,6 +96,23 @@ export function useActions(level: ActionLevel, id: string | null) {
   });
 }
 
+// Combined actions across every entity in `ids` at once — the standalone
+// Actions page's "All" option (actions-view.tsx), so the user isn't forced
+// to pick one Project/Account/Geo at a time. Backed by a dedicated bulk
+// endpoint (not N per-entity requests): `ids` is already patch-scoped
+// client-side by the caller, same trust model as useActions above.
+export function useActionsBulk(level: ActionLevel, ids: string[]) {
+  return useQuery({
+    queryKey: ["actions", "bulk", level, [...ids].sort()] as const,
+    queryFn: () => {
+      const params = new URLSearchParams({ level });
+      ids.forEach((id) => params.append("ids", id));
+      return api.get<Action[]>(`/actions/bulk?${params.toString()}`);
+    },
+    enabled: ids.length > 0,
+  });
+}
+
 export function useActionHistory(level: ActionLevel, id: string | null, actionId: string | null) {
   return useQuery({
     queryKey: [...actionsQueryKey(level, id), actionId, "history"] as const,

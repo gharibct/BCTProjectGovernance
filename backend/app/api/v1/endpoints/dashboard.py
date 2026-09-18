@@ -166,6 +166,7 @@ async def get_my_dashboard_summary(
     open_actions = await dashboard_service.my_open_actions(db, filters, projects, current_user.id)
 
     green, amber, potential_red, red = dashboard_service.health_split(project_matrix)
+    not_assessed = dashboard_service.health_not_assessed(project_matrix)
     actions_high, actions_medium, actions_low = dashboard_service.open_action_priority_split(open_actions)
 
     return MyDashboardSummary(
@@ -175,6 +176,7 @@ async def get_my_dashboard_summary(
         health_amber=amber,
         health_potential_red=potential_red,
         health_red=red,
+        health_not_assessed=not_assessed,
         reports_due=reports_due,
         open_actions_count=len(open_actions),
         open_actions_overdue_count=sum(1 for a in open_actions if a.overdue),

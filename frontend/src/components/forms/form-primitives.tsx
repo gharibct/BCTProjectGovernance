@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Lock, type LucideIcon } from "lucide-react";
+import { Info, Loader2, Lock, type LucideIcon } from "lucide-react";
 
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { AiFieldBadge } from "@/components/ai/ai-field-badge";
 import type { AiSuggestion } from "@/lib/api/ai-suggestions";
@@ -109,6 +110,43 @@ export function MandatoryBadge() {
     <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-slate-600 uppercase">
       Mandatory
     </span>
+  );
+}
+
+// "(i)" icon that opens a popover explaining a field's options — content is
+// passed in (e.g. from a YAML-backed reference endpoint like
+// GET /project-owned-reference) so it can change without a code deploy.
+export function FieldInfoButton({
+  ariaLabel,
+  entries,
+}: {
+  ariaLabel: string;
+  entries: { label: string; description: string }[];
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={ariaLabel}
+          className="shrink-0 text-slate-300 transition-colors hover:text-slate-500"
+        >
+          <Info className="size-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-96 text-xs text-slate-600">
+        <dl className="flex flex-col gap-3">
+          {entries.map((entry) => (
+            <div key={entry.label}>
+              <dt className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+                {entry.label}
+              </dt>
+              <dd className="mt-0.5">{entry.description}</dd>
+            </div>
+          ))}
+        </dl>
+      </PopoverContent>
+    </Popover>
   );
 }
 

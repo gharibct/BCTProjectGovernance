@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, FolderOpen, ListChecks } from "lucide-react";
+import { AlertTriangle, FolderOpen, ListChecks, type LucideIcon } from "lucide-react";
 
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -21,11 +21,13 @@ function StatCard({
   value,
   hint,
   accent,
+  icon: Icon,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
   accent?: "amber";
+  icon?: LucideIcon;
 }) {
   return (
     <div
@@ -34,7 +36,10 @@ function StatCard({
         accent === "amber" && "border-l-4 border-l-amber-400"
       )}
     >
-      <div className="text-xs font-bold tracking-wide text-slate-500 uppercase">{label}</div>
+      <div className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-slate-500 uppercase">
+        {Icon ? <Icon className="size-3.5" /> : null}
+        {label}
+      </div>
       <div className="mt-1 text-3xl font-bold text-slate-900">{value}</div>
       {hint ? <div className="mt-1 text-sm text-slate-400">{hint}</div> : null}
     </div>
@@ -96,6 +101,16 @@ export function PmMySummary() {
                   <span className="text-orange-600">{data.health_potential_red}</span>
                   <span className="text-red-600">{data.health_red}</span>
                 </span>
+              }
+              hint={
+                data.health_not_assessed > 0 ? (
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <AlertTriangle className="size-3.5" />
+                    {data.health_not_assessed} Awaiting declaration
+                  </span>
+                ) : (
+                  "All projects declared"
+                )
               }
             />
             <StatCard

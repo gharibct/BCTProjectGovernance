@@ -20,7 +20,11 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole } from "@/stores/session";
 import { ROLE_LANDING_ROUTE } from "@/lib/menu-config";
-import { useCreateProjectCreationRequest } from "@/lib/api/project-creation-requests";
+import {
+  useCreateProjectCreationRequest,
+  useProjectCreationRequests,
+  type ProjectCreationRequestRow,
+} from "@/lib/api/project-creation-requests";
 import {
   PM_CANDIDATE_ROLES,
   useAccounts,
@@ -51,9 +55,21 @@ export function ProjectCreationForm() {
   const { data: geos } = useGeos();
   const { data: regions } = useRegions();
   const { data: accounts } = useAccounts();
+  const { data: creationRequests } = useProjectCreationRequests();
+
+  const rejectedRequests = React.useMemo(
+    () => (creationRequests ?? []).filter((request) => request.status === "Rejected"),
+    [creationRequests]
+  );
 
   const [projectName, setProjectName] = React.useState("");
   const [projectNameError, setProjectNameError] = React.useState<string | null>(null);
+
+  const [selectedRejectedId, setSelectedRejectedId] = React.useState("");
+  const selectedRejected = React.useMemo(
+    () => rejectedRequests.find((request) => request.id === selectedRejectedId) ?? null,
+    [rejectedRequests, selectedRejectedId]
+  );
 
   const [projectManagerId, setProjectManagerId] = React.useState<string | null>(null);
   const [projectManagerError, setProjectManagerError] = React.useState<string | null>(null);
@@ -88,6 +104,28 @@ export function ProjectCreationForm() {
 
   const removeOracleId = (item: PendingOracleId) => {
     setPendingOracleIds((prev) => prev.filter((entry) => entry.id !== item.id));
+  };
+
+  // Picking a prior Rejected request reloads it into the form so the same
+  // request can be reviewed, tweaked, and resubmitted as a fresh request
+  // (rejected rows are kept for their reason, not resubmitted in place).
+  const loadRejectedRequest = (request: ProjectCreationRequestRow) => {
+    setProjectName(request.project_name);
+    setProjectNameError(null);
+    setProjectManagerId(request.project_manager_id);
+    setProjectManagerError(null);
+    setOrganizationId(request.organization_id);
+    setGeoId(request.geo_id);
+    setRegionId(request.region_id);
+    setAccountId(request.account_id);
+    setProfileError(null);
+    setPendingOracleIds(
+      request.oracle_project_ids.map((oracleProjectId, index) => ({
+        id: `${Date.now()}-${index}-${oracleProjectId}`,
+        oracle_project_id: oracleProjectId,
+      }))
+    );
+    setOracleListError(null);
   };
 
   const handleSubmit = async () => {
@@ -143,23 +181,57 @@ export function ProjectCreationForm() {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={IdCard} title="Project Identity">
-        <Field
-          label="Project Name"
-          htmlFor="project-name"
-          badge={<MandatoryBadge />}
-          error={projectNameError ?? undefined}
-        >
-          <Input
-            id="project-name"
-            placeholder="e.g. Core Banking Modernization"
-            value={projectName}
-            onChange={(e) => {
-              setProjectName(e.target.value);
-              if (projectNameError) setProjectNameError(null);
-            }}
-            className={inputClass}
-          />
-        </Field>
+        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+          <Field
+            label="Project Name"
+            htmlFor="project-name"
+            badge={<MandatoryBadge />}
+            error={projectNameError ?? undefined}
+          >
+            <Input
+              id="project-name"
+              placeholder="e.g. Core Banking Modernization"
+              value={projectName}
+              onChange={(e) => {
+                setProjectName(e.target.value);
+                if (projectNameError) setProjectNameError(null);
+              }}
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="Resubmit a Rejected Request"
+            htmlFor="rejected-request"
+            hint={
+              selectedRejected?.review_remarks
+                ? `Rejection reason: ${selectedRejected.review_remarks}`
+                : rejectedRequests.length === 0
+                  ? "No rejected requests to resubmit."
+                  : "Load a rejected request's details into the form below."
+            }
+          >
+            <NativeSelect
+              id="rejected-request"
+              value={selectedRejectedId}
+              disabled={rejectedRequests.length === 0}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSelectedRejectedId(id);
+                const request = rejectedRequests.find((item) => item.id === id);
+                if (request) loadRejectedRequest(request);
+              }}
+            >
+              <option value="">
+                {rejectedRequests.length === 0 ? "No rejected requests" : "Select a rejected request…"}
+              </option>
+              {rejectedRequests.map((request) => (
+                <option key={request.id} value={request.id}>
+                  {request.project_name}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        </div>
       </SectionCard>
 
       <SectionCard icon={UserRound} title="Project Manager">
