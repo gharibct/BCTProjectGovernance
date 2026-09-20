@@ -337,6 +337,7 @@ export function ProjectCreationForm() {
               onChange={(v) => {
                 setGeoId(v || null);
                 setRegionId(null);
+                setAccountId(null);
                 if (profileError) setProfileError(null);
               }}
               activeClassName={segmentedActiveClass}
@@ -348,6 +349,7 @@ export function ProjectCreationForm() {
               value={regionId ?? ""}
               onChange={(e) => {
                 setRegionId(e.target.value || null);
+                setAccountId(null);
                 if (profileError) setProfileError(null);
               }}
               disabled={!geoId}
@@ -372,11 +374,14 @@ export function ProjectCreationForm() {
                 setAccountId(e.target.value || null);
                 if (profileError) setProfileError(null);
               }}
+              disabled={!regionId}
             >
               <option value="" disabled>
-                Select…
+                {regionId ? "Select…" : "Select a Region first"}
               </option>
-              {(accounts ?? []).map((account) => (
+              {(accounts ?? [])
+                .filter((account) => account.geo_id === geoId && account.region_id === regionId)
+                .map((account) => (
                 <option key={account.id} value={account.id}>
                   {account.name}
                 </option>

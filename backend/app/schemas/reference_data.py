@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.schemas.enums import PeriodType
 
@@ -169,3 +170,33 @@ class ReportingPeriodUpdate(BaseModel):
 class ReportingPeriodRead(ReportingPeriodBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
+
+
+class ExchangeRateWrite(BaseModel):
+    currency: str
+    rate_to_usd: Decimal
+
+    @field_validator("currency")
+    @classmethod
+    def _currency_code(cls, value: str) -> str:
+        code = value.strip().upper()
+        if len(code) != 3 or not code.isalpha():
+            raise ValueError("Currency must be a 3-letter code")
+        if code == "USD":
+            raise ValueError("USD needs no exchange rate")
+        return code
+
+    @field_validator("rate_to_usd")
+    @classmethod
+    def _positive_rate(cls, value: Decimal) -> Decimal:
+        if value <= 0:
+            raise ValueError("Exchange rate must be greater than 0")
+        return value
+
+
+class ExchangeRateRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    currency: str
+    rate_to_usd: Decimal
+    updated_at: datetime

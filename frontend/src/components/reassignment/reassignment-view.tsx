@@ -366,7 +366,7 @@ export function ReassignmentView() {
   );
 
   return (
-    <div className="mx-auto flex max-w-[1200px] flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="border-b border-slate-200 pb-5">
         <h1 className="flex items-center gap-3 text-4xl font-bold tracking-tight text-slate-900">
           <UserCog className="size-8 text-slate-700" />

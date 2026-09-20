@@ -37,7 +37,11 @@ export type MenuEntryId =
   | "geo-review"
   | "admin-users-roles"
   | "admin-integrations"
-  | "admin-regions";
+  | "admin-regions"
+  | "admin-exchange-rates"
+  | "admin-bulk-projects"
+  | "admin-bulk-status-projects"
+  | "admin-bulk-status-accounts";
 
 const PROJECT_MANAGER_MENU: MenuEntryId[] = [
   "project-manager-dashboard",
@@ -123,6 +127,10 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
     "admin-users-roles",
     "admin-integrations",
     "admin-regions",
+    "admin-exchange-rates",
+    "admin-bulk-projects",
+    "admin-bulk-status-projects",
+    "admin-bulk-status-accounts",
     // Reassign Owners is reachable org-wide for Admin without a "Work as"
     // switch. Rendered last in the sidebar — see app-sidebar.tsx.
     "reassignment",

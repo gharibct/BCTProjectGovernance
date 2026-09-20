@@ -10,6 +10,7 @@ import { OpenNcSection } from "@/components/status-review/open-nc-section";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
 import { currentPeriod } from "@/lib/period-utils";
+import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
 import { SubmitReportAction } from "./submit-report-action";
 
 // The Project Manager's read-first counterpart to /project-review — same
@@ -28,8 +29,9 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
   // any report has picked a period yet — same "no ?period= yet" fallback
   // StarterCards/Document Processing use — so this page isn't a dead end on a
   // PM's very first visit, before anything has ever been submitted.
+  const defaultPeriodId = useProjectDefaultPeriodId(projectId, "weekly");
   const urlPeriodId = searchParams.get("period");
-  const periodId = urlPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
+  const periodId = urlPeriodId ?? defaultPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
   const report = reports.find((r) => r.period_id === periodId);
 
   return (

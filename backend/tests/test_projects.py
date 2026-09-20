@@ -85,3 +85,24 @@ async def test_get_project_not_found_returns_404_not_403(client, override_auth):
     headers = override_auth(RoleCode.TEAM_MEMBER)
     response = await client.get(f"/api/v1/projects/{uuid4()}", headers=headers)
     assert response.status_code == 404
+
+
+async def test_bulk_create_project_is_admin_only(client, override_auth):
+    headers = override_auth(RoleCode.PROJECT_MANAGER)
+    response = await client.post(
+        "/api/v1/projects/bulk",
+        json={
+            "project_name": "Bulk P",
+            "project_manager_email": "pm@example.com",
+            "oracle_project_id": "ORA-1",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("path", ["project-status-reports", "account-status-reports"])
+async def test_bulk_delivery_status_is_admin_only(client, override_auth, path):
+    headers = override_auth(RoleCode.PROJECT_MANAGER)
+    response = await client.post(f"/api/v1/bulk/{path}", json={"period": "2026-07"}, headers=headers)
+    assert response.status_code == 403

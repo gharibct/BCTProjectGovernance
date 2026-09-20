@@ -135,7 +135,7 @@ export function ReportingProgressCard({
                 </option>
                 {options.map((option) => (
                   <option key={option.period_id} value={option.period_id}>
-                    {option.period_id === currentId ? `${option.label} (Current)` : option.label}
+                    {option.period_id === currentId ? `${option.label} (Next Due)` : option.label}
                   </option>
                 ))}
               </>

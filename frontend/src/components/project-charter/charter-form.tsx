@@ -273,6 +273,15 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
+          <Field label="Revenue in USD" htmlFor="project-revenue-usd">
+            <Input
+              id="project-revenue-usd"
+              value={project?.project_revenue_usd ?? ""}
+              placeholder="Set from the Admin exchange rate"
+              className={inputClass}
+              disabled
+            />
+          </Field>
         </div>
       </SectionCard>
     </div>

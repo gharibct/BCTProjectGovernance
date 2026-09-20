@@ -56,6 +56,8 @@ export type Project = {
   // avoid float precision loss.
   project_revenue: string | null;
   project_currency: string | null;
+  // project_revenue converted to USD at the Admin exchange rate; null until a rate exists.
+  project_revenue_usd: string | null;
   billing_type: BillingType | null;
   engagement_type: EngagementType | null;
   critical_flag: YesNo | null;
@@ -177,6 +179,24 @@ export function useCreateProject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ProjectPayload) => api.post<Project>("/projects", payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+}
+
+// One row of the Admin bulk project import — see POST /projects/bulk. The PM is
+// named by email (resolved server-side) and exactly one Oracle Project ID maps.
+export type ProjectBulkPayload = ProjectPayload & {
+  project_name: string;
+  project_manager_email: string;
+  oracle_project_id: string;
+};
+
+export function useBulkCreateProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ProjectBulkPayload) => api.post<Project>("/projects/bulk", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
     },

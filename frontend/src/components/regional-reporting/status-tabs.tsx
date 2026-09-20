@@ -186,7 +186,7 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
             </p>
           ) : null}
           <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
-            <Field label="Revenue" htmlFor="revenue">
+            <Field label="Revenue (USD)" htmlFor="revenue">
               <Input
                 id="revenue"
                 type="number"

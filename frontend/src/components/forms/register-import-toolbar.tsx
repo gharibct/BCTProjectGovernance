@@ -8,7 +8,7 @@ import type { UseMutationResult } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ClipboardPermissionError, readClipboardTableSource } from "@/lib/clipboard-api";
 import { parseClipboardTable } from "@/lib/clipboard-table-parse";
-import { exportTemplate, parseExcelFile } from "@/lib/excel-io";
+import { exportTemplate, fetchCustomTemplate, parseExcelFile, saveBlob } from "@/lib/excel-io";
 import { matchAndValidateRows, type MatchedRow, type ParsedGrid } from "@/lib/register-import-match";
 import type { FieldDef } from "./entry-form";
 import { RegisterImportDialog } from "./register-import-dialog";
@@ -72,8 +72,20 @@ export function RegisterImportToolbar<TPayload>({
     }
   };
 
-  const handleExportTemplate = () => {
-    exportTemplate(`${itemLabelPlural}-template.xlsx`, defs.map((d) => d.label));
+  // Prefer a hand-formatted template kept on the server; fall back to the
+  // auto-generated headers-only one when there is none or it's out of date.
+  const handleExportTemplate = async () => {
+    const labels = defs.map((d) => d.label);
+    const filename = `${itemLabelPlural}-template.xlsx`;
+    const custom = await fetchCustomTemplate(itemLabelPlural, labels);
+    if (custom.kind === "custom") {
+      saveBlob(custom.blob, filename);
+      return;
+    }
+    if (custom.kind === "stale") {
+      toast.warning("Custom template is out of date — downloaded the default template instead.");
+    }
+    exportTemplate(filename, labels);
   };
 
   return (

@@ -8,7 +8,7 @@ import type { FieldDef } from "@/components/forms/entry-form";
 export type ParsedGrid = { columns: string[]; rows: string[][] };
 export type MatchedRow = { values: Record<string, string>; errors: Record<string, string> };
 
-function normalize(s: string): string {
+export function normalize(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 

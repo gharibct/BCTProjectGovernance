@@ -19,6 +19,7 @@ CREATE TABLE projects (
     project_scope_description TEXT,
     project_revenue NUMERIC(18, 2),
     project_currency CHAR(3),
+    project_revenue_usd NUMERIC(18, 2), -- project_revenue x exchange_rates.rate_to_usd; maintained by the app
     billing_type TEXT, -- FPP, FB, T&M, Product, Unit Based Billing, Others
     engagement_type TEXT, -- Implementation, Support
     critical_flag TEXT, -- Yes, No

@@ -53,10 +53,12 @@ function distinct(values: (string | null)[]): string[] {
 export function deriveProjectAttrOptions(rows: ProjectAttrRow[], value: ProjectAttrValue) {
   // Region options cascade off the selected Geo — mirrors ProjectHealthFilterBar.
   const regionRows = value.geo ? rows.filter((r) => r.geo_name === value.geo) : rows;
+  // Account options cascade off the selected Geo and Region.
+  const accountRows = regionRows.filter((r) => !value.region || r.region_name === value.region);
   return {
     geos: distinct(rows.map((r) => r.geo_name)),
     regions: distinct(regionRows.map((r) => r.region_name)),
-    accounts: distinct(rows.map((r) => r.account_name)),
+    accounts: distinct(accountRows.map((r) => r.account_name)),
     projectTypes: distinct(rows.map((r) => r.project_type_name)),
     ownerships: distinct(rows.map((r) => r.project_owned)),
   };
@@ -80,7 +82,7 @@ export function ProjectAttrFilters({
           aria-label="Geo filter"
           className="h-9 text-sm"
           value={value.geo ?? ""}
-          onChange={(e) => onChange({ ...value, geo: e.target.value || undefined, region: undefined })}
+          onChange={(e) => onChange({ ...value, geo: e.target.value || undefined, region: undefined, account: undefined })}
         >
           <option value="">Geo [All]</option>
           {options.geos.map((name) => (
@@ -96,7 +98,7 @@ export function ProjectAttrFilters({
           aria-label="Region filter"
           className="h-9 text-sm"
           value={value.region ?? ""}
-          onChange={(e) => onChange({ ...value, region: e.target.value || undefined })}
+          onChange={(e) => onChange({ ...value, region: e.target.value || undefined, account: undefined })}
         >
           <option value="">Region [All]</option>
           {options.regions.map((name) => (

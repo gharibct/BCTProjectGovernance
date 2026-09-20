@@ -86,11 +86,15 @@ export function comboPeriods(items: PeriodActivityItem[]): PeriodActivityItem[] 
     .reverse();
 }
 
-// The period each combo defaults to: the most recent selectable one (the
-// latest to have ended). undefined when nothing is selectable yet — the hubs
-// then disable the combo and its action button.
+// The period each combo (and every report screen without a ?period=) defaults
+// to: the OLDEST selectable period whose report has not been submitted yet, so
+// reporting is caught up in order. When everything selectable is submitted it
+// falls back to the most recent one. undefined when nothing is selectable yet
+// — the hubs then disable the combo and its action button.
 export function currentActivityPeriodId(items: PeriodActivityItem[]): string | undefined {
-  return comboPeriods(items)[0]?.period_id;
+  const options = comboPeriods(items); // newest first
+  const oldestPending = [...options].reverse().find((i) => i.status === "pending");
+  return (oldestPending ?? options[0])?.period_id;
 }
 
 // 0-11 month index of an activity item, from its period start date.

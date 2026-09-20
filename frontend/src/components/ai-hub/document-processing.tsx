@@ -22,6 +22,7 @@ import { StatusBadge } from "@/components/forms/status-badge";
 import { cn } from "@/lib/utils";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { currentPeriod } from "@/lib/period-utils";
+import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   downloadDocument,
@@ -55,7 +56,9 @@ function hasAiOutput(status: ProjectDocument["ai_status"]): boolean {
 function DocumentProcessingInner({ projectId }: { projectId: string }) {
   const searchParams = useSearchParams();
   const { data: periods } = useReportingPeriods();
-  const resolvedPeriodId = searchParams.get("period") ?? currentPeriod(periods ?? [], "Weekly")?.id ?? null;
+  const defaultPeriodId = useProjectDefaultPeriodId(projectId, "weekly");
+  const resolvedPeriodId =
+    searchParams.get("period") ?? defaultPeriodId ?? currentPeriod(periods ?? [], "Weekly")?.id ?? null;
 
   const { data: documents = [] } = useProjectDocuments(projectId);
   const uploadDocument = useUploadDocument(projectId);

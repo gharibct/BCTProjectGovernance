@@ -105,7 +105,7 @@ export function OverviewSection({
       </h2>
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
-        <SnapshotStat label="Revenue" value={report?.revenue ?? "—"} />
+        <SnapshotStat label="Revenue (USD)" value={report?.revenue ?? "—"} />
         <SnapshotStat label="Projects" value={report?.projects_count ?? "—"} />
         <SnapshotStat label="ON:OFF FTE" value={fteRatio} />
         <SnapshotStat

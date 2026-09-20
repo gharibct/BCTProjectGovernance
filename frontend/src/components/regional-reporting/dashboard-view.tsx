@@ -13,6 +13,7 @@ import { OpenNcSection } from "@/components/status-review/open-nc-section";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useRegionalStatusReports, type RegionalScope } from "@/lib/api/regional-status";
 import { currentPeriod } from "@/lib/period-utils";
+import { useRegionalDefaultPeriodId } from "@/lib/use-default-period";
 
 // The Account Manager's / Geo Head's read-first counterpart to
 // /account-review /geo-review — same OverviewSection/RagStatusSection the
@@ -32,8 +33,9 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
   // Delivery Status Report - Project / StarterCards use — so this page isn't
   // a dead end on a manager's very first visit, before anything has ever
   // been submitted.
+  const defaultPeriodId = useRegionalDefaultPeriodId(scope, scopeId);
   const urlPeriodId = searchParams.get("period");
-  const periodId = urlPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
+  const periodId = urlPeriodId ?? defaultPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
   const report = reports.find((r) => r.period_id === periodId);
 
   return (

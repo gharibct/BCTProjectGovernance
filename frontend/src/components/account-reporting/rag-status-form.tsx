@@ -10,6 +10,7 @@ import { ButtonSpinner } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { currentPeriod } from "@/lib/period-utils";
+import { useRegionalDefaultPeriodId } from "@/lib/use-default-period";
 import { isReportFrozen } from "@/lib/api/project-status";
 import { useRegionalStatusReports } from "@/lib/api/regional-status";
 import {
@@ -72,8 +73,9 @@ function useAccountHealthDeclarationForm() {
   // fallback is synced back into the URL below so AccountHealthItemsTab
   // (which reads ?period= directly, same convention as StatusItemsTab)
   // agrees with what the rating section above it is using.
+  const defaultPeriodId = useRegionalDefaultPeriodId("account", accountId);
   const urlPeriodId = useSearchParams().get("period");
-  const periodId = urlPeriodId ?? currentPeriod(periods, "Monthly")?.id ?? "";
+  const periodId = urlPeriodId ?? defaultPeriodId ?? currentPeriod(periods, "Monthly")?.id ?? "";
   const existing = declarations?.find((d) => d.period_id === periodId);
 
   // RAG Status is filed as part of the Account Status Report package (see

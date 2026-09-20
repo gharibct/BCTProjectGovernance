@@ -376,6 +376,7 @@ function ProjectDescriptionTab({
                 onChange={(v) => {
                   setAndClear("geo_id")(v);
                   setAndClear("region_id")(undefined);
+                  setAndClear("account_id")(undefined);
                 }}
                 activeClassName={segmentedActiveClass}
                 disabled={locked}
@@ -385,7 +386,10 @@ function ProjectDescriptionTab({
               <NativeSelect
                 id="region"
                 value={values.region_id ?? ""}
-                onChange={(e) => setAndClear("region_id")(e.target.value)}
+                onChange={(e) => {
+                  setAndClear("region_id")(e.target.value);
+                  setAndClear("account_id")(undefined);
+                }}
                 disabled={locked || !values.geo_id}
               >
                 <option value="" disabled>
@@ -405,12 +409,18 @@ function ProjectDescriptionTab({
                 id="account-name"
                 value={values.account_id ?? ""}
                 onChange={(e) => setAndClear("account_id")(e.target.value)}
-                disabled={locked}
+                disabled={locked || !values.region_id}
               >
                 <option value="" disabled>
-                  Select…
+                  {values.region_id ? "Select…" : "Select a Region first"}
                 </option>
-                {(accounts ?? []).map((account) => (
+                {(accounts ?? [])
+                  .filter(
+                    (account) =>
+                      account.id === values.account_id ||
+                      (account.geo_id === values.geo_id && account.region_id === values.region_id)
+                  )
+                  .map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}
                   </option>
@@ -542,6 +552,15 @@ function ProjectDescriptionTab({
                   <option key={currency}>{currency}</option>
                 ))}
               </NativeSelect>
+            </Field>
+            <Field label="Revenue in USD" htmlFor="project-revenue-usd">
+              <Input
+                id="project-revenue-usd"
+                value={project?.project_revenue_usd ?? ""}
+                placeholder="Set from the Admin exchange rate"
+                className={inputClass}
+                disabled
+              />
             </Field>
           </div>
         </SectionCard>

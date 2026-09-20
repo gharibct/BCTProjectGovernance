@@ -40,11 +40,11 @@ export function NotificationsView() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
+    <div className="mx-auto max-w-[1400px]">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900">Notifications</h1>
+          <p className="mt-1 text-sm text-slate-500">
             {unread > 0 ? `${unread} unread` : "All caught up"}
           </p>
         </div>

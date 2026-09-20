@@ -9,6 +9,7 @@ import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageBanner } from "@/stores/page-banner";
+import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import {
   isReportFrozen,
@@ -31,6 +32,7 @@ export function ProjectStatusTabs() {
   const [tab, setTab] = React.useState<(typeof TABS)[number]["label"]>(TABS[0].label);
   const active = TABS.find((t) => t.label === tab)!;
 
+  const { data: project } = useProject(projectId ?? null);
   const { data: reports } = useStatusReports(projectId ?? null);
   const { data: periods = [] } = useReportingPeriods();
   const createReport = useCreateStatusReport(projectId ?? null);
@@ -55,7 +57,10 @@ export function ProjectStatusTabs() {
   // review separately, from the Dashboard.
   const [metrics, setMetrics] = React.useState(BLANK_METRICS);
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
-  const key = existing ? existing.id : `blank:${carriedFrom?.id ?? "none"}:${periodId}`;
+  // First report for the project → Revenue defaults from the project's
+  // Revenue in USD (still editable); later periods carry the previous report.
+  const projectRevenueUsd = project?.project_revenue_usd ?? "";
+  const key = existing ? existing.id : `blank:${carriedFrom?.id ?? "none"}:${periodId}:${projectRevenueUsd}`;
   if (key !== syncedFor) {
     setSyncedFor(key);
     setMetrics(
@@ -63,7 +68,7 @@ export function ProjectStatusTabs() {
         ? statusMetricsFromReport(existing)
         : carriedFrom
           ? statusMetricsFromReport(carriedFrom)
-          : BLANK_METRICS
+          : { ...BLANK_METRICS, revenue: projectRevenueUsd }
     );
   }
 
@@ -112,7 +117,7 @@ export function ProjectStatusTabs() {
               </p>
             ) : null}
             <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
-              <Field label="Revenue" htmlFor="revenue">
+              <Field label="Revenue (USD)" htmlFor="revenue">
                 <Input
                   id="revenue"
                   type="number"

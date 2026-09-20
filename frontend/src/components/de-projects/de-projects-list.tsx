@@ -54,6 +54,10 @@ export function DeProjectsList() {
 
   // Cascade the Region list off the selected Geo, matching ProjectHealthFilterBar.
   const regionOptions = geoId ? regions.filter((r) => r.geo_id === geoId) : regions;
+  // Account list cascades off the selected Geo and Region.
+  const accountOptions = accounts.filter(
+    (a) => (!geoId || a.geo_id === geoId) && (!regionId || a.region_id === regionId),
+  );
 
   const rows = projects.filter((p) => {
     const q = search.trim().toLowerCase();
@@ -106,6 +110,7 @@ export function DeProjectsList() {
                 onChange={(e) => {
                   setGeoId(e.target.value);
                   setRegionId("");
+                  setAccountId("");
                 }}
               >
                 <option value="">Geo [All]</option>
@@ -121,7 +126,10 @@ export function DeProjectsList() {
                 aria-label="Region filter"
                 className="h-9 text-sm"
                 value={regionId}
-                onChange={(e) => setRegionId(e.target.value)}
+                onChange={(e) => {
+                  setRegionId(e.target.value);
+                  setAccountId("");
+                }}
               >
                 <option value="">Region [All]</option>
                 {regionOptions.map((region) => (
@@ -139,7 +147,7 @@ export function DeProjectsList() {
                 onChange={(e) => setAccountId(e.target.value)}
               >
                 <option value="">Account [All]</option>
-                {accounts.map((account) => (
+                {accountOptions.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}
                   </option>

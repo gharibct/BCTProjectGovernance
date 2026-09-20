@@ -1,7 +1,8 @@
 import uuid
 from datetime import date
+from decimal import Decimal
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -75,3 +76,10 @@ class ReportingPeriod(Base, UUIDPrimaryKey, TimestampColumns):
     start_date: Mapped[date]
     end_date: Mapped[date]
     is_active: Mapped[bool]
+
+
+class ExchangeRate(Base, UUIDPrimaryKey, TimestampColumns):
+    __tablename__ = "exchange_rates"
+
+    currency: Mapped[str] = mapped_column(unique=True)  # ISO code, e.g. EUR
+    rate_to_usd: Mapped[Decimal] = mapped_column(Numeric)  # USD per 1 unit of `currency`

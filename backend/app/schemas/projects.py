@@ -79,6 +79,16 @@ class ProjectCreate(ProjectBase):
     created_by: UUID | None = None
 
 
+class ProjectBulkCreate(ProjectBase):
+    """One row of the Admin bulk project import. Same fields as Create Project +
+    Project Profile + Scope & Schedule, but the Project Manager is named by
+    email (resolved server-side — the user directory is too large to pre-load
+    in the browser) and exactly one Oracle Project ID is mapped."""
+
+    project_manager_email: str
+    oracle_project_id: str
+
+
 class ProjectUpdate(BaseModel):
     project_name: str | None = None
     contract_type: ContractType | None = None
@@ -120,6 +130,8 @@ class ProjectRead(ProjectBase):
     project_code: str
     project_status: ProjectStatus
     lifecycle_status: ProjectLifecycleStatus | None = None
+    # project_revenue converted to USD at the Admin exchange rate (None until a rate exists).
+    project_revenue_usd: Decimal | None = None
     planned_duration_days: int | None = None  # DB-computed
     actual_duration_days: int | None = None  # DB-computed
     delivery_declared_overall_health: HealthRating | None = None

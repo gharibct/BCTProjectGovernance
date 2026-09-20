@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { currentPeriod } from "@/lib/period-utils";
+import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
 import {
   useCreateHealthDeclaration,
   useHealthDeclarations,
@@ -165,7 +166,8 @@ export function useHealthDeclarationForm() {
   // whichever period is selected (?period=, forwarded by ProjectNav same as
   // every other reporting screen), falling back to the current month when
   // reached with no period in the URL (e.g. a direct/bookmarked visit).
-  const periodId = useSearchParams().get("period") ?? currentPeriod(periods, "Monthly")?.id ?? "";
+  const defaultPeriodId = useProjectDefaultPeriodId(projectId, "weekly");
+  const periodId = useSearchParams().get("period") ?? defaultPeriodId ?? currentPeriod(periods, "Monthly")?.id ?? "";
   const existing = declarations?.find((d) => d.period_id === periodId);
 
   const [ratings, setRatings] = React.useState<Record<CategoryKey, HealthRating>>(DEFAULT_RATINGS);

@@ -12,11 +12,13 @@ import {
   Eye,
   FilePlus2,
   FileSearch,
+  ClipboardList,
   FolderOpen,
   Globe,
   HeartPulse,
   LayoutGrid,
   ListChecks,
+  Coins,
   Map as MapIcon,
   Plug,
   Plus,
@@ -634,6 +636,42 @@ export function AppSidebar() {
             icon={MapIcon}
             label="Regions"
             active={pathname.startsWith("/admin/regions")}
+          />
+        ) : null}
+
+        {has("admin-exchange-rates") ? (
+          <SimpleLink
+            href="/admin/exchange-rates"
+            icon={Coins}
+            label="Exchange Rates"
+            active={pathname.startsWith("/admin/exchange-rates")}
+          />
+        ) : null}
+
+        {has("admin-bulk-projects") ? (
+          <SimpleLink
+            href="/admin/projects/bulk"
+            icon={FolderOpen}
+            label="Bulk Projects"
+            active={pathname.startsWith("/admin/projects/bulk")}
+          />
+        ) : null}
+
+        {has("admin-bulk-status-projects") ? (
+          <SimpleLink
+            href="/admin/delivery-status/projects"
+            icon={ClipboardList}
+            label="Bulk DSR - Projects"
+            active={pathname.startsWith("/admin/delivery-status/projects")}
+          />
+        ) : null}
+
+        {has("admin-bulk-status-accounts") ? (
+          <SimpleLink
+            href="/admin/delivery-status/accounts"
+            icon={ClipboardList}
+            label="Bulk DSR - Accounts"
+            active={pathname.startsWith("/admin/delivery-status/accounts")}
           />
         ) : null}
 

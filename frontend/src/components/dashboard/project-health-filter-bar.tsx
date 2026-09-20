@@ -51,6 +51,13 @@ export function ProjectHealthFilterBar({
   // Cascade the Region list off the selected Geo when one is chosen.
   const regionOptions = filters.geoId ? regions.filter((region) => region.geo_id === filters.geoId) : regions;
 
+  // Account list cascades off the selected Geo (and Region, when shown).
+  const accountOptions = accounts.filter(
+    (account) =>
+      (!filters.geoId || account.geo_id === filters.geoId) &&
+      (!showRegion || !filters.regionId || account.region_id === filters.regionId),
+  );
+
   const hasFilters = Boolean(
     filters.geoId ||
       (showRegion && filters.regionId) ||
@@ -69,7 +76,7 @@ export function ProjectHealthFilterBar({
           aria-label="Geo"
           className="h-9 bg-white text-sm"
           value={filters.geoId ?? ""}
-          onChange={(e) => onChange({ ...filters, geoId: e.target.value || undefined, regionId: undefined })}
+          onChange={(e) => onChange({ ...filters, geoId: e.target.value || undefined, regionId: undefined, accountId: undefined })}
         >
           <option value="">Geo [All]</option>
           {geos.map((geo) => (
@@ -86,7 +93,7 @@ export function ProjectHealthFilterBar({
             aria-label="Region"
             className="h-9 bg-white text-sm"
             value={filters.regionId ?? ""}
-            onChange={(e) => onChange({ ...filters, regionId: e.target.value || undefined })}
+            onChange={(e) => onChange({ ...filters, regionId: e.target.value || undefined, accountId: undefined })}
           >
             <option value="">Region [All]</option>
             {regionOptions.map((region) => (
@@ -106,7 +113,7 @@ export function ProjectHealthFilterBar({
           onChange={(e) => onChange({ ...filters, accountId: e.target.value || undefined })}
         >
           <option value="">Account [All]</option>
-          {accounts.map((account) => (
+          {accountOptions.map((account) => (
             <option key={account.id} value={account.id}>
               {account.name}
             </option>

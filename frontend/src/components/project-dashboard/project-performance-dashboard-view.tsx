@@ -22,6 +22,7 @@ import { REPORT_PAGE_TYPE_LABEL, type PageCompletionStatus } from "@/lib/api/rep
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
 import { currentPeriod } from "@/lib/period-utils";
+import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
 import { cn } from "@/lib/utils";
 import { SubmitReportAction } from "./submit-report-action";
 
@@ -246,8 +247,9 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
   const { data: periods = [] } = useReportingPeriods();
   const { data: reports = [] } = useStatusReports(projectId);
 
+  const defaultPeriodId = useProjectDefaultPeriodId(projectId, "monthly");
   const urlPeriodId = searchParams.get("period");
-  const periodId = urlPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
+  const periodId = urlPeriodId ?? defaultPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">

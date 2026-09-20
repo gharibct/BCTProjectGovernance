@@ -16,11 +16,13 @@ from app.api.deps import (
 from app.core.db import get_db
 from app.crud.projects import project_crud, project_oracle_id_crud, project_resource_crud
 from app.models.projects import Project, ProjectOracleId, ProjectResource
-from app.models.users import User
+from app.models.reference_data import Account, Region
+from app.models.users import User, UserAccount
 from app.schemas.approval_readiness import ApprovalReadiness
 from app.schemas.common import Page
-from app.schemas.enums import ProjectLifecycleStatus, ProjectStatus, RoleCode
+from app.schemas.enums import ProjectLifecycleStatus, ProjectStatus, RoleCode, YesNo
 from app.schemas.projects import (
+    ProjectBulkCreate,
     ProjectCreate,
     ProjectOracleIdCreate,
     ProjectOracleIdRead,
@@ -110,6 +112,65 @@ async def list_projects(
 async def create_project(payload: ProjectCreate, db: AsyncSession = Depends(get_db)):
     code = await generate_code(db, "PROJECT")
     return await project_crud.create(db, payload, project_code=code, project_status=ProjectStatus.DRAFT)
+
+
+@router.post("/bulk", response_model=ProjectRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_create)
+async def bulk_create_project(
+    payload: ProjectBulkCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin bulk import: create one Draft project with its Oracle Project
+    mapping. Called once per import row, so each row commits (or fails) on its
+    own. Account Manager (delivery_manager_id) is defaulted from the account's
+    Account Head, as the charter screen does."""
+    email = payload.project_manager_email.strip().lower()
+    manager = (
+        await db.execute(select(User).where(func.lower(User.email) == email))
+    ).scalar_one_or_none()
+    if manager is None or not manager.is_active:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, f"No active user with email {payload.project_manager_email!r}."
+        )
+    oracle_project_id = payload.oracle_project_id.strip()
+    if not oracle_project_id:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Oracle Project ID is required.")
+    if payload.region_id is not None and payload.geo_id is not None:
+        region = await db.get(Region, payload.region_id)
+        if region is None or region.geo_id != payload.geo_id:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Region does not belong to the selected Geo.")
+    if payload.account_id is not None:
+        account = await db.get(Account, payload.account_id)
+        if account is None or (
+            (account.geo_id is not None and account.geo_id != payload.geo_id)
+            or (account.region_id is not None and account.region_id != payload.region_id)
+        ):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, "Account does not belong to the selected Geo and Region."
+            )
+    if payload.product_flag == YesNo.YES and payload.product_id is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Product is required when Product Flag is Yes.")
+
+    data = payload.model_dump(exclude={"project_manager_email", "oracle_project_id"})
+    data["project_manager_id"] = manager.id
+    if payload.product_flag != YesNo.YES:
+        data["product_id"] = None
+    if payload.account_id is not None:
+        data["delivery_manager_id"] = (
+            await db.execute(
+                select(UserAccount.user_id).where(UserAccount.account_id == payload.account_id).limit(1)
+            )
+        ).scalar_one_or_none()
+    data["created_by"] = current_user.id
+
+    code = await generate_code(db, "PROJECT")
+    project = await project_crud.create(
+        db, ProjectCreate(**data), project_code=code, project_status=ProjectStatus.DRAFT
+    )
+    await project_oracle_id_crud.create(
+        db, ProjectOracleIdCreate(oracle_project_id=oracle_project_id), project_id=project.id
+    )
+    return project
 
 
 @router.get("/{project_id}", response_model=ProjectRead)

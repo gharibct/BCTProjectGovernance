@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
 import { currentPeriod } from "@/lib/period-utils";
+import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
 import { ProjectDashboardView } from "./project-dashboard-view";
 import { ProjectPerformanceDashboardView } from "./project-performance-dashboard-view";
 
@@ -20,8 +21,9 @@ function PeriodTypeRouter({ projectId }: { projectId: string }) {
   const { data: periods = [] } = useReportingPeriods();
   const { data: reports = [] } = useStatusReports(projectId);
 
+  const defaultPeriodId = useProjectDefaultPeriodId(projectId, "weekly");
   const urlPeriodId = searchParams.get("period");
-  const periodId = urlPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
+  const periodId = urlPeriodId ?? defaultPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
   const period = periods.find((p) => p.id === periodId);
 
   if (period?.period_type === "Weekly") return <ProjectDashboardView />;

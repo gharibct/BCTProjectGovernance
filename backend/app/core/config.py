@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     api_key: str = "change-me-local-dev-key"
     cors_origins: str = "http://localhost:3000"
     document_storage_dir: str = "./storage/documents"
+    # Hand-formatted Excel import templates ("<slug>-template.xlsx"); a screen
+    # falls back to its auto-generated template when the file is absent.
+    import_template_dir: str = "./import_templates"
 
     # "no_password" (dev-only identifier lookup), "password" (identifier + a
     # local scrypt-hashed password, see app/core/security.py), or "onelogin"

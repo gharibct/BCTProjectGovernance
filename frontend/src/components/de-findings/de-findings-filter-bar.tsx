@@ -40,7 +40,7 @@ export function DeFindingsFilterBar({
           aria-label="Geo"
           className="h-9 bg-white text-sm"
           value={filters.geoId ?? ""}
-          onChange={(e) => set({ geoId: e.target.value || undefined })}
+          onChange={(e) => set({ geoId: e.target.value || undefined, accountId: undefined })}
         >
           <option value="">Geo [All]</option>
           {geos.map((g) => (
@@ -59,7 +59,9 @@ export function DeFindingsFilterBar({
           onChange={(e) => set({ accountId: e.target.value || undefined })}
         >
           <option value="">Account [All]</option>
-          {accounts.map((a) => (
+          {accounts
+            .filter((a) => !filters.geoId || a.geo_id === filters.geoId)
+            .map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
             </option>

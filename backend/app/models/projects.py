@@ -29,6 +29,8 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
     project_scope_description: Mapped[str | None]
     project_revenue: Mapped[Decimal | None] = mapped_column(Numeric)
     project_currency: Mapped[str | None]
+    # project_revenue converted at exchange_rates.rate_to_usd; see services/exchange_rates.py.
+    project_revenue_usd: Mapped[Decimal | None] = mapped_column(Numeric)
     billing_type: Mapped[str | None]  # FPP, FB, T&M, Product, Unit Based Billing, Others
     engagement_type: Mapped[str | None]  # Implementation, Support
     critical_flag: Mapped[str | None]  # Yes, No

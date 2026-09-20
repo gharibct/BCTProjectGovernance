@@ -131,6 +131,12 @@ async def create_status_report(
         }
         if carried:
             payload = payload.model_copy(update=carried)
+    elif payload.revenue is None:
+        # First report for the project: default Revenue from the project's
+        # Revenue in USD (the PM may still change it).
+        project = await project_crud.get(db, project_id)
+        if project is not None and project.project_revenue_usd is not None:
+            payload = payload.model_copy(update={"revenue": project.project_revenue_usd})
 
     alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
         db, scope="project", scope_id=project_id

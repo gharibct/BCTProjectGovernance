@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     ai_row_suggestions,
     ai_suggestions,
     audit,
+    bulk_delivery_status,
     contractual,
     dashboard,
     data_integrity,
@@ -16,8 +17,10 @@ from app.api.v1.endpoints import (
     de_assessment,
     de_findings,
     documents,
+    exchange_rates,
     executive_updates,
     geo_health_declarations,
+    import_templates,
     geo_rollup,
     health_declarations,
     integrations,
@@ -44,6 +47,7 @@ api_router = APIRouter()
 # auth.router is mounted separately in app.main (it must stay reachable
 # without an existing session — login/callback/config).
 api_router.include_router(reference_data.router)
+api_router.include_router(exchange_rates.router)
 api_router.include_router(metric_reference.router)
 api_router.include_router(project_owned_reference.router)
 api_router.include_router(users.router)
@@ -54,6 +58,8 @@ api_router.include_router(ai_row_suggestions.router)
 api_router.include_router(documents.router)
 api_router.include_router(health_declarations.router)
 api_router.include_router(health_declarations.items_router)
+api_router.include_router(bulk_delivery_status.router)
+api_router.include_router(import_templates.router)
 api_router.include_router(project_status.router)
 api_router.include_router(project_status.items_router)
 api_router.include_router(project_status.activity_router)
