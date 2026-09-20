@@ -69,14 +69,16 @@ export const COMBO_PERIOD_LIMIT = 15;
 // Local YYYY-MM-DD "today" — same string form as PeriodActivityItem.end_date,
 // so a lexicographic compare is a date compare.
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-// A period is selectable in a combo only once it has fully ended (end_date
-// strictly before today) and a report was owed for it (status !== "n/a").
+// A period is selectable in a combo once it is complete — reporting happens on
+// its end date, so end_date <= today — and a report was owed for it (status !== "n/a").
 // The still-running period stays in the activity heatmap, just not the combo.
 export function isSelectablePeriod(item: PeriodActivityItem, today: string = todayISO()): boolean {
-  return item.status !== "n/a" && item.end_date < today;
+  return item.status !== "n/a" && item.end_date <= today;
 }
 
 export function comboPeriods(items: PeriodActivityItem[]): PeriodActivityItem[] {

@@ -3,8 +3,8 @@
 import { type ReactNode } from "react";
 
 import { NativeSelect } from "@/components/ui/native-select";
-import { useAccounts, useGeos, useProjectTypes, useRegions, useReportingPeriods } from "@/lib/api/reference-data";
-import type { ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { useAccounts, useGeos, useProjectTypes, useRegions } from "@/lib/api/reference-data";
+import { useProjectHealthPeriods, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
 
 // Ownership model values — mirrors backend schemas.enums.ProjectOwned and the
 // Project Charter's "Project Owned" dropdown.
@@ -46,7 +46,7 @@ export function ProjectHealthFilterBar({
   const { data: regions = [] } = useRegions();
   const { data: accounts = [] } = useAccounts();
   const { data: projectTypes = [] } = useProjectTypes();
-  const { data: periods = [] } = useReportingPeriods();
+  const { data: periods = [] } = useProjectHealthPeriods();
 
   // Cascade the Region list off the selected Geo when one is chosen.
   const regionOptions = filters.geoId ? regions.filter((region) => region.geo_id === filters.geoId) : regions;
@@ -64,7 +64,7 @@ export function ProjectHealthFilterBar({
       filters.accountId ||
       filters.projectTypeId ||
       (showOwnership && filters.projectOwned) ||
-      (showPeriod && filters.periodId)
+      (showPeriod && filters.periodId && filters.periodId !== periods[0]?.id)
   );
 
   return (
@@ -160,13 +160,12 @@ export function ProjectHealthFilterBar({
           <NativeSelect
             aria-label="Period"
             className="h-9 bg-white text-sm"
-            value={filters.periodId ?? ""}
+            value={filters.periodId ?? periods[0]?.id ?? ""}
             onChange={(e) => onChange({ ...filters, periodId: e.target.value || undefined })}
           >
-            <option value="">Period [Current]</option>
             {periods.map((period) => (
               <option key={period.id} value={period.id}>
-                {period.label}
+                {period.is_current ? `${period.label} (Current)` : period.label}
               </option>
             ))}
           </NativeSelect>

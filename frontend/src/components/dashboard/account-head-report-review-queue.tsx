@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
+import { HEALTH_RATING_COLORS_BY_API_LABEL } from "@/lib/health-rating-colors";
 import type { ReportReviewQueueRow } from "@/lib/api/account-head-dashboard";
 import type { HealthRating } from "@/lib/api/projects";
 
@@ -11,13 +12,6 @@ import type { HealthRating } from "@/lib/api/projects";
 // (StatusReviewPage, scope="project") rather than duplicating its
 // approve/reject controls here.
 
-const HEALTH_BADGE_CLASS: Record<HealthRating, string> = {
-  Red: "bg-red-50 text-red-700 ring-red-200",
-  "Potential Red": "bg-orange-50 text-orange-700 ring-orange-200",
-  Amber: "bg-amber-50 text-amber-700 ring-amber-200",
-  Green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-};
-
 function HealthBadge({ health }: { health: HealthRating | null }) {
   if (!health) {
     return <span className="text-sm text-slate-400">—</span>;
@@ -25,8 +19,8 @@ function HealthBadge({ health }: { health: HealthRating | null }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset",
-        HEALTH_BADGE_CLASS[health]
+        "inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold",
+        HEALTH_RATING_COLORS_BY_API_LABEL[health].solid
       )}
     >
       {health}

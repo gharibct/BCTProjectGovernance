@@ -530,27 +530,44 @@ class ActionsCardSummary(BaseModel):
     open_count: int
     in_progress_count: int
     overdue_count: int
-    due_this_week_count: int
 
 
 class FindingsCardSummary(BaseModel):
     open_count: int
-    new_this_period_count: int
     overdue_count: int
     awaiting_closure_count: int
 
 
+# Project-level DE assessment buckets off the previous month's latest Submitted
+# assessment; green + need_attention + not_assessed == Active Projects.
 class DEAssessmentsCardSummary(BaseModel):
-    completed_count: int
-    avg_pci_score: Decimal | None
-    due_count: int
-    red_amber_count: int
+    green_count: int
+    need_attention_count: int  # Amber / Potential Red / Red
+    not_assessed_count: int
 
 
-class DataIntegrityCardSummary(BaseModel):
-    overall_compliance_pct: int
-    projects_with_gaps_count: int
-    critical_gaps_count: int
+# Weekly Project / Account health buckets for the selected week; the five counts
+# always sum to Active Projects / Active Accounts.
+class WeeklyHealthBuckets(BaseModel):
+    green_count: int
+    amber_count: int
+    potential_red_count: int
+    red_count: int
+    not_submitted_count: int
+
+
+# Project-level buckets off the previous month's Project Performance report;
+# each sums to Active Projects.
+class MetricsBucketSummary(BaseModel):
+    compliant_count: int
+    critical_variance_count: int
+    not_reported_count: int
+
+
+class CommitmentsBucketSummary(BaseModel):
+    met_count: int
+    not_met_count: int
+    not_reported_count: int
 
 
 # "Data Integrity / Report Submissions" section — per-scope report-submission
@@ -826,22 +843,39 @@ class ReportSubmissionDetailRow(BaseModel):
     submission_date: date | None = None
 
 
+# Weekly Delivery Status (Projects / Account / Geo) and the monthly Project
+# Performance report — Submitted vs Not Submitted (expected - submitted).
+class ReportSubmissionsWeekSummary(BaseModel):
+    delivery_status_projects: ReportSubmissionKpi
+    project_performance: ReportSubmissionKpi
+    delivery_status_accounts: ReportSubmissionKpi
+    delivery_status_geos: ReportSubmissionKpi
+
+
 class ProjectHealthDashboardSummary(BaseModel):
     portfolio: ProjectPortfolioSummary
-    health: ProjectHealthCardSummary
-    account_health: AccountRagCardSummary
+    health: WeeklyHealthBuckets
+    account_health: WeeklyHealthBuckets
     risks: RiskCardSummary
     issues: IssueCardSummary
     dependencies: DependencyCardSummary
     assumptions: AssumptionCardSummary
     opportunities: OpportunityCardSummary
-    metrics: MetricsComplianceSummary
-    commitments: CommitmentsCardSummary
+    metrics: MetricsBucketSummary
+    commitments: CommitmentsBucketSummary
     payment_milestones: PaymentMilestonesCardSummary
     actions: ActionsCardSummary
     findings: FindingsCardSummary
     de_assessments: DEAssessmentsCardSummary
-    data_integrity: DataIntegrityCardSummary
-    report_submissions: ReportSubmissionsSummary
+    report_submissions: ReportSubmissionsWeekSummary
     period_id: UUID | None
     period_label: str | None
+
+
+# One entry of the Project Health Period combo (Weekly periods only).
+class ProjectHealthPeriod(BaseModel):
+    id: UUID
+    label: str
+    start_date: date
+    end_date: date
+    is_current: bool

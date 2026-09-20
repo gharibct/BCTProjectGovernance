@@ -78,8 +78,8 @@ export function ProjectHealthAccountRag() {
         />
         <StatTile label="Red" value={summary?.account_health.red_count ?? "—"} accentClassName="border-t-red-500" />
         <StatTile
-          label="Reporting Overdue"
-          value={summary?.account_health.reporting_overdue_count ?? "—"}
+          label="Not Submitted"
+          value={summary?.account_health.not_submitted_count ?? "—"}
           accentClassName="border-t-slate-400"
         />
       </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { HEALTH_RATING_COLORS_BY_API_LABEL } from "@/lib/health-rating-colors";
 import type { DEAssessmentWorkQueueRow } from "@/lib/api/de-dashboard";
 import type { HealthRating } from "@/lib/api/projects";
 
@@ -10,18 +11,11 @@ import type { HealthRating } from "@/lib/api/projects";
 // Submitted assessment this month), Draft, or Due (nothing this month). See
 // services/dashboard.py's de_assessment_work_queue.
 
-const HEALTH_DOT_CLASS: Record<HealthRating, string> = {
-  Red: "bg-red-600",
-  "Potential Red": "bg-orange-500",
-  Amber: "bg-amber-500",
-  Green: "bg-emerald-500",
-};
-
 function HealthDot({ health }: { health: HealthRating | null }) {
   if (!health) {
     return <span className="text-sm text-slate-400">—</span>;
   }
-  return <span className={cn("inline-block size-2.5 rounded-full", HEALTH_DOT_CLASS[health])} />;
+  return <span className={cn("inline-block size-2.5 rounded-full", HEALTH_RATING_COLORS_BY_API_LABEL[health].dot)} />;
 }
 
 const STATUS_BADGE_CLASS: Record<DEAssessmentWorkQueueRow["status"], string> = {

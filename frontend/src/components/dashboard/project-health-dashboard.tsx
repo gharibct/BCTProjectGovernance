@@ -6,7 +6,6 @@ import {
   BarChart3,
   Bug,
   ClipboardCheck,
-  Database,
   FolderOpen,
   GitBranch,
   Handshake,
@@ -62,20 +61,20 @@ function SectionHeader({
   );
 }
 
-// Compact Green/Amber/Pot. Red/Red/Overdue count strip shared by the Project
+// Compact Green/Amber/Pot. Red/Red/Not Submitted count strip shared by the Project
 // Health and Account Health cards — kept small so all three cards sit in one row.
 function RagCounts({
   green,
   amber,
   potentialRed,
   red,
-  overdue,
+  notSubmitted,
 }: {
   green: React.ReactNode;
   amber: React.ReactNode;
   potentialRed: React.ReactNode;
   red: React.ReactNode;
-  overdue: React.ReactNode;
+  notSubmitted: React.ReactNode;
 }) {
   return (
     <div className="grid grid-cols-5 gap-1">
@@ -83,7 +82,7 @@ function RagCounts({
       <RagCell label="Amber" value={amber} className="border-amber-100 bg-amber-50 text-amber-700" valueClassName="text-amber-500" />
       <RagCell label="Pot. Red" value={potentialRed} className="border-orange-100 bg-orange-50 text-orange-700" valueClassName="text-orange-600" />
       <RagCell label="Red" value={red} className="border-red-100 bg-red-50 text-red-700" valueClassName="text-red-600" />
-      <RagCell label="Overdue" value={overdue} className="border-slate-200 bg-slate-50 text-slate-500" valueClassName="text-slate-900" />
+      <RagCell label="Not Sub." value={notSubmitted} className="border-slate-200 bg-slate-50 text-slate-500" valueClassName="text-slate-900" />
     </div>
   );
 }
@@ -123,7 +122,7 @@ function ReportSubmissionCard({
   kpi: { submitted_count: number; expected_count: number; adherence_pct: number };
   href: string;
 }) {
-  const missing = Math.max(kpi.expected_count - kpi.submitted_count, 0);
+  const notSubmitted = Math.max(kpi.expected_count - kpi.submitted_count, 0);
   return (
     <Card
       title={title}
@@ -139,8 +138,7 @@ function ReportSubmissionCard({
       />
       <div className="flex flex-col gap-1">
         <SubStat label="Submitted" value={kpi.submitted_count} />
-        <SubStat label="Expected" value={kpi.expected_count} />
-        <SubStat label="Missing" value={missing} valueClass={missing > 0 ? "text-red-600" : undefined} />
+        <SubStat label="Not Submitted" value={notSubmitted} valueClass={notSubmitted > 0 ? "text-red-600" : undefined} />
       </div>
     </Card>
   );
@@ -199,6 +197,7 @@ export function ProjectHealthDashboard() {
                 <BigStat value={data.portfolio.total_count} label="Total" />
                 <div className="flex flex-col gap-1 pb-3 text-right">
                   <SubStat label="Active" value={data.portfolio.active_count} />
+                  <SubStat label="Hold" value={data.portfolio.on_hold_count} valueClass="text-amber-600" />
                   <SubStat label="Completed" value={data.portfolio.completed_count} />
                 </div>
               </div>
@@ -216,7 +215,7 @@ export function ProjectHealthDashboard() {
                 amber={data.health.amber_count}
                 potentialRed={data.health.potential_red_count}
                 red={data.health.red_count}
-                overdue={data.health.reporting_overdue_count}
+                notSubmitted={data.health.not_submitted_count}
               />
             </Card>
 
@@ -232,7 +231,7 @@ export function ProjectHealthDashboard() {
                 amber={data.account_health.amber_count}
                 potentialRed={data.account_health.potential_red_count}
                 red={data.account_health.red_count}
-                overdue={data.account_health.reporting_overdue_count}
+                notSubmitted={data.account_health.not_submitted_count}
               />
             </Card>
           </div>
@@ -240,7 +239,7 @@ export function ProjectHealthDashboard() {
 
           <section className="flex flex-col gap-3">
             <SectionHeader
-              title="RAIDO"
+              title="RAIDO (as of today)"
               icon={ShieldAlert}
               className="border-red-200 bg-red-50 text-red-700"
             />
@@ -305,42 +304,33 @@ export function ProjectHealthDashboard() {
             />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Card title="Metrics" icon={BarChart3} iconClassName="text-[#1a6fc4]" href="/project-health/metrics">
-              <div className="mb-3 flex items-center gap-4">
-                <div className="flex size-16 shrink-0 items-center justify-center rounded-full border-4 border-emerald-500">
-                  <span className="text-lg font-bold text-emerald-700">{data.metrics.compliant_pct}%</span>
+              <BigStat
+                value={data.metrics.compliant_count}
+                label="Compliant Projects"
+                valueClass="text-emerald-600"
+              />
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                  <span className="text-sm font-medium text-red-700">Critical Variance</span>
+                  <span className="font-bold text-red-700">{data.metrics.critical_variance_count}</span>
                 </div>
-                <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">Compliant</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                  <p className="text-xl font-bold text-amber-600">{data.metrics.below_target_count}</p>
-                  <p className="text-[10px] tracking-wide text-slate-500 uppercase">Below Target</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                  <p className="text-xl font-bold text-slate-500">{data.metrics.not_reported_count}</p>
-                  <p className="text-[10px] tracking-wide text-slate-500 uppercase">Not Reported</p>
-                </div>
-                <div className="col-span-2 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-2">
-                  <p className="text-[10px] font-semibold tracking-wide text-red-700 uppercase">Critical Variance</p>
-                  <p className="text-xl font-bold text-red-700">{data.metrics.critical_variance_count}</p>
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <span className="text-sm font-medium text-slate-700">Not Reported</span>
+                  <span className="font-bold text-slate-900">{data.metrics.not_reported_count}</span>
                 </div>
               </div>
             </Card>
 
             <Card title="Commitments" icon={Handshake} iconClassName="text-teal-600" href="/project-health/commitments">
-              <BigStat value={data.commitments.open_count} label="Open Commitments" />
+              <BigStat value={data.commitments.met_count} label="Met Projects" valueClass="text-emerald-600" />
               <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-                  <span className="text-sm font-medium text-amber-700">Due Soon</span>
-                  <span className="font-bold text-amber-700">{data.commitments.due_soon_count}</span>
-                </div>
                 <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                  <span className="text-sm font-medium text-red-700">Overdue</span>
-                  <span className="font-bold text-red-700">{data.commitments.overdue_count}</span>
+                  <span className="text-sm font-medium text-red-700">Not Met</span>
+                  <span className="font-bold text-red-700">{data.commitments.not_met_count}</span>
                 </div>
-                <div className="flex items-center justify-between rounded-lg border border-red-300 bg-red-100 px-3 py-2">
-                  <span className="text-sm font-medium text-red-800">Breached</span>
-                  <span className="font-bold text-red-800">{data.commitments.breached_count}</span>
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <span className="text-sm font-medium text-slate-700">Not Reported</span>
+                  <span className="font-bold text-slate-900">{data.commitments.not_reported_count}</span>
                 </div>
               </div>
             </Card>
@@ -376,15 +366,10 @@ export function ProjectHealthDashboard() {
               icon={ShieldCheck}
               className="border-emerald-200 bg-emerald-50 text-emerald-700"
             />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Card title="Findings" icon={Search} iconClassName="text-purple-600" href="/project-health/findings">
               <BigStat value={data.findings.open_count} label="Open Findings" />
               <div className="flex flex-col gap-1">
-                <SubStat
-                  label="New This Period"
-                  value={data.findings.new_this_period_count}
-                  valueClass="text-purple-600"
-                />
                 <SubStat label="Overdue" value={data.findings.overdue_count} valueClass="text-red-600" />
                 <SubStat label="Awaiting Closure" value={data.findings.awaiting_closure_count} />
               </div>
@@ -396,18 +381,14 @@ export function ProjectHealthDashboard() {
               iconClassName="text-[#1a6fc4]"
               href="/project-health/assessments"
             >
-              <div className="mb-3 flex items-end justify-between">
-                <BigStat value={data.de_assessments.completed_count} label="Completed" />
-                <div className="pb-3 text-right">
-                  <p className="text-[10px] tracking-wide text-slate-400 uppercase">Avg PCI</p>
-                  <p className="text-xl font-bold text-emerald-600">
-                    {data.de_assessments.avg_pci_score ? `${data.de_assessments.avg_pci_score}%` : "—"}
-                  </p>
-                </div>
-              </div>
+              <BigStat value={data.de_assessments.green_count} label="Green" valueClass="text-emerald-600" />
               <div className="flex flex-col gap-1">
-                <SubStat label="Due" value={data.de_assessments.due_count} />
-                <SubStat label="Red/Amber" value={data.de_assessments.red_amber_count} valueClass="text-red-600" />
+                <SubStat
+                  label="Need Attention"
+                  value={data.de_assessments.need_attention_count}
+                  valueClass="text-red-600"
+                />
+                <SubStat label="Not Assessed" value={data.de_assessments.not_assessed_count} />
               </div>
             </Card>
 
@@ -416,7 +397,6 @@ export function ProjectHealthDashboard() {
               <div className="flex flex-col gap-1">
                 <SubStat label="In Progress" value={data.actions.in_progress_count} />
                 <SubStat label="Overdue" value={data.actions.overdue_count} valueClass="text-red-600" />
-                <SubStat label="Due This Week" value={data.actions.due_this_week_count} valueClass="text-amber-600" />
               </div>
               {isFiltered ? (
                 <p className="mt-3 text-[11px] text-slate-400">
@@ -424,43 +404,18 @@ export function ProjectHealthDashboard() {
                 </p>
               ) : null}
             </Card>
-
-            <Card
-              title="Data Integrity"
-              icon={Database}
-              iconClassName="text-slate-500"
-              href="/project-health/data-integrity"
-            >
-              <BigStat
-                value={`${data.data_integrity.overall_compliance_pct}%`}
-                label="Overall Compliance"
-                valueClass="text-emerald-600"
-              />
-              <div className="flex flex-col gap-1">
-                <SubStat
-                  label="Projects With Gaps"
-                  value={data.data_integrity.projects_with_gaps_count}
-                  valueClass="text-amber-600"
-                />
-                <SubStat
-                  label="Critical Gaps"
-                  value={data.data_integrity.critical_gaps_count}
-                  valueClass="text-red-600"
-                />
-              </div>
-            </Card>
           </div>
           </section>
 
           <section className="flex flex-col gap-3">
             <SectionHeader
-              title="Data Integrity / Report Submissions"
+              title="Report Submissions"
               icon={ClipboardCheck}
               className="border-slate-200 bg-slate-50 text-slate-600"
             />
             <p className="text-xs text-slate-400">
-              Reports filed vs. reports owed (each in-scope project / account / geo × every started
-              reporting period since it was onboarded) — surfaces who has not submitted.
+              Delivery Status is the selected week&apos;s weekly report; Project Performance is the
+              monthly report for the month before the selected week. Draft reports count as Not Submitted.
             </p>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               <ReportSubmissionCard
@@ -469,8 +424,8 @@ export function ProjectHealthDashboard() {
                 href={REPORT_SUBMISSION_STREAMS["delivery-status-projects"].route}
               />
               <ReportSubmissionCard
-                title="Metrics — Projects"
-                kpi={data.report_submissions.metrics_projects}
+                title="Project Performance"
+                kpi={data.report_submissions.project_performance}
                 href={REPORT_SUBMISSION_STREAMS["metrics-projects"].route}
               />
               <ReportSubmissionCard

@@ -3,25 +3,19 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { HEALTH_RATING_COLORS_BY_API_LABEL } from "@/lib/health-rating-colors";
 import type { HealthRating } from "@/lib/api/projects";
 
 // Small read-only building blocks shared by the DE Assessment queue and
 // workspace (design-reference/de-assessments). Kept local to this feature so
 // the existing dashboard components stay untouched.
 
-export const HEALTH_DOT_CLASS: Record<HealthRating, string> = {
-  Red: "bg-red-600",
-  "Potential Red": "bg-orange-500",
-  Amber: "bg-amber-500",
-  Green: "bg-emerald-500",
-};
-
 export function HealthDot({ health }: { health: HealthRating | null }) {
   if (!health) return <span className="text-sm text-slate-400">—</span>;
   return (
     <span
       title={health}
-      className={cn("inline-block size-2.5 rounded-full", HEALTH_DOT_CLASS[health])}
+      className={cn("inline-block size-2.5 rounded-full", HEALTH_RATING_COLORS_BY_API_LABEL[health].dot)}
     />
   );
 }

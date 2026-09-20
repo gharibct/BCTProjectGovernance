@@ -14,22 +14,14 @@ export type ProjectPortfolioSummary = {
   on_hold_count: number;
 };
 
-export type ProjectHealthCardSummary = {
+// Project / Account health for the selected weekly period. The five counts sum
+// to Active Projects / Active Accounts.
+export type WeeklyHealthBuckets = {
   green_count: number;
   amber_count: number;
   potential_red_count: number;
   red_count: number;
-  reporting_overdue_count: number;
-};
-
-// Account-level RAG rollup — same shape as ProjectHealthCardSummary, but off
-// the latest Account Health Declaration per in-scope account.
-export type AccountRagCardSummary = {
-  green_count: number;
-  amber_count: number;
-  potential_red_count: number;
-  red_count: number;
-  reporting_overdue_count: number;
+  not_submitted_count: number;
 };
 
 export type RiskCardSummary = {
@@ -64,6 +56,8 @@ export type OpportunityCardSummary = {
   pending_approval_count: number;
 };
 
+// Per-project Performance dashboard shapes (project-performance.ts) — the
+// Project Health dashboard itself uses the bucket types below instead.
 export type MetricsComplianceSummary = {
   compliant_pct: number;
   below_target_count: number;
@@ -78,6 +72,20 @@ export type CommitmentsCardSummary = {
   breached_count: number;
 };
 
+// Project-level buckets off the previous month's Project Performance report;
+// each sums to Active Projects.
+export type MetricsBucketSummary = {
+  compliant_count: number;
+  critical_variance_count: number;
+  not_reported_count: number;
+};
+
+export type CommitmentsBucketSummary = {
+  met_count: number;
+  not_met_count: number;
+  not_reported_count: number;
+};
+
 export type PaymentMilestonesCardSummary = {
   value_due: string;
   due_count: number;
@@ -88,32 +96,25 @@ export type ActionsCardSummary = {
   open_count: number;
   in_progress_count: number;
   overdue_count: number;
-  due_this_week_count: number;
 };
 
 export type FindingsCardSummary = {
   open_count: number;
-  new_this_period_count: number;
   overdue_count: number;
   awaiting_closure_count: number;
 };
 
+// Project-level DE assessment buckets (previous month's latest Submitted
+// assessment); sums to Active Projects.
 export type DEAssessmentsCardSummary = {
-  completed_count: number;
-  avg_pci_score: string | null;
-  due_count: number;
-  red_amber_count: number;
+  green_count: number;
+  need_attention_count: number;
+  not_assessed_count: number;
 };
 
-export type DataIntegrityCardSummary = {
-  overall_compliance_pct: number;
-  projects_with_gaps_count: number;
-  critical_gaps_count: number;
-};
-
-// "Data Integrity / Report Submissions" section — submission adherence per
-// scope: reports filed vs reports owed (entity × every started, post-onboarding
-// active reporting period).
+// "Report Submissions" section — Submitted vs Not Submitted (expected − submitted)
+// for the selected week's Delivery Status reports and the previous month's
+// Project Performance report.
 export type ReportSubmissionKpi = {
   submitted_count: number;
   expected_count: number;
@@ -122,27 +123,26 @@ export type ReportSubmissionKpi = {
 
 export type ReportSubmissionsSummary = {
   delivery_status_projects: ReportSubmissionKpi;
-  metrics_projects: ReportSubmissionKpi;
+  project_performance: ReportSubmissionKpi;
   delivery_status_accounts: ReportSubmissionKpi;
   delivery_status_geos: ReportSubmissionKpi;
 };
 
 export type ProjectHealthDashboardSummary = {
   portfolio: ProjectPortfolioSummary;
-  health: ProjectHealthCardSummary;
-  account_health: AccountRagCardSummary;
+  health: WeeklyHealthBuckets;
+  account_health: WeeklyHealthBuckets;
   risks: RiskCardSummary;
   issues: IssueCardSummary;
   dependencies: DependencyCardSummary;
   assumptions: AssumptionCardSummary;
   opportunities: OpportunityCardSummary;
-  metrics: MetricsComplianceSummary;
-  commitments: CommitmentsCardSummary;
+  metrics: MetricsBucketSummary;
+  commitments: CommitmentsBucketSummary;
   payment_milestones: PaymentMilestonesCardSummary;
   actions: ActionsCardSummary;
   findings: FindingsCardSummary;
   de_assessments: DEAssessmentsCardSummary;
-  data_integrity: DataIntegrityCardSummary;
   report_submissions: ReportSubmissionsSummary;
   period_id: string | null;
   period_label: string | null;
@@ -158,6 +158,24 @@ export type ProjectHealthDashboardFilters = {
   projectOwned?: string;
   periodId?: string;
 };
+
+// One entry of the Period combo — Weekly periods only, last 10 incl. the
+// current one (newest first, so index 0 is the current week).
+export type ProjectHealthPeriod = {
+  id: string;
+  label: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+};
+
+export function useProjectHealthPeriods() {
+  return useQuery({
+    queryKey: ["dashboard-project-health-periods"],
+    queryFn: () => api.get<ProjectHealthPeriod[]>("/dashboard/project-health/periods"),
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
 export function useProjectHealthDashboardSummary(filters: ProjectHealthDashboardFilters) {
   const params = new URLSearchParams();

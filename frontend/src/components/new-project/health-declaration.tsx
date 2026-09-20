@@ -18,6 +18,7 @@ import {
   type HealthRating as ApiHealthRating,
 } from "@/lib/api/health-declarations";
 import { HEALTH_CATEGORIES } from "@/lib/health-categories";
+import { HEALTH_RATING_COLORS } from "@/lib/health-rating-colors";
 import { HealthItemsTab } from "@/components/project-charter/health-items-tab";
 
 import { AiFieldBadge } from "@/components/ai/ai-field-badge";
@@ -35,30 +36,30 @@ const HEALTH_LEVELS: {
   {
     value: "green",
     label: "Green",
-    activeClass: "bg-emerald-600 text-white",
-    pillClass: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    dotClass: "bg-emerald-500",
+    activeClass: HEALTH_RATING_COLORS.green.solid,
+    pillClass: HEALTH_RATING_COLORS.green.solid,
+    dotClass: HEALTH_RATING_COLORS.green.dot,
   },
   {
     value: "amber",
     label: "Amber",
-    activeClass: "bg-amber-500 text-white",
-    pillClass: "bg-amber-50 text-amber-700 ring-amber-200",
-    dotClass: "bg-amber-400",
+    activeClass: HEALTH_RATING_COLORS.amber.solid,
+    pillClass: HEALTH_RATING_COLORS.amber.solid,
+    dotClass: HEALTH_RATING_COLORS.amber.dot,
   },
   {
     value: "potential-red",
     label: "Potential Red",
-    activeClass: "bg-orange-600 text-white",
-    pillClass: "bg-orange-50 text-orange-700 ring-orange-200",
-    dotClass: "bg-orange-500",
+    activeClass: HEALTH_RATING_COLORS["potential-red"].solid,
+    pillClass: HEALTH_RATING_COLORS["potential-red"].solid,
+    dotClass: HEALTH_RATING_COLORS["potential-red"].dot,
   },
   {
     value: "red",
     label: "Red",
-    activeClass: "bg-red-600 text-white",
-    pillClass: "bg-red-50 text-red-700 ring-red-200",
-    dotClass: "bg-red-500",
+    activeClass: HEALTH_RATING_COLORS.red.solid,
+    pillClass: HEALTH_RATING_COLORS.red.solid,
+    dotClass: HEALTH_RATING_COLORS.red.dot,
   },
 ];
 
@@ -322,11 +323,11 @@ export function HealthPill({ rating }: { rating: HealthRating }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ring-1",
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold",
         level.pillClass
       )}
     >
-      <span className={cn("size-2 rounded-full", level.dotClass)} />
+      <span className={cn("size-2 rounded-full", rating === "amber" ? "bg-amber-950/70" : "bg-white/80")} />
       {level.label}
     </span>
   );

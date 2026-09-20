@@ -314,9 +314,9 @@ export const REPORT_SUBMISSION_STREAMS: Record<
     route: "/project-health/report-submissions/delivery-status-projects",
   },
   "metrics-projects": {
-    heading: "Metrics (Projects) — Submission Reporting",
+    heading: "Project Performance — Submission Reporting",
     reportType: "Metrics - Project",
-    summaryKey: "metrics_projects",
+    summaryKey: "project_performance",
     route: "/project-health/report-submissions/metrics-projects",
   },
   "delivery-status-account": {

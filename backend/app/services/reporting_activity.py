@@ -11,8 +11,8 @@ against that scope's status reports, plus the rolled-up counts.
 - "n/a"      — nothing is/was owed: the period ends before the project's start
                date (entirely over before the project existed), starts after
                the reporting window closes (min of today and the project's
-               end date), or hasn't fully ended yet (still running — nothing
-               is due until it's over, unless already reported early). Shown
+               end date), or hasn't ended yet (still running — reporting happens
+               ON the period's end date, so a period ending today is complete). Shown
                as a plain box, excluded from the ring totals / percentage.
 - "on-time"  — a Submitted/Approved report whose updated_at date is on or
                before the period end (updated_at stands in for submit time;
@@ -68,8 +68,8 @@ def _classify(
         return "n/a"  # future, or past the scope's end date — not owed
     if report is not None and report.status in _SUBMITTED:
         return "on-time" if report.updated_at.date() <= period.end_date else "late"
-    if period.end_date >= today:
-        return "n/a"  # still running — nothing due until it fully ends
+    if period.end_date > today:
+        return "n/a"  # still running — a period is complete (and reportable) on its end date
     return "pending"
 
 

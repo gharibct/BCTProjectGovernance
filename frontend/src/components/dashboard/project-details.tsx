@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
+import { HEALTH_RATING_COLORS } from "@/lib/health-rating-colors";
 import {
   projectCount,
   type Health,
@@ -10,30 +11,11 @@ import {
   type ProjectRow,
 } from "./data";
 
-const HEALTH_STYLES: Record<
-  Health,
-  { label: string; dot: string; badge: string }
-> = {
-  red: {
-    label: "Red",
-    dot: "bg-red-500",
-    badge: "bg-red-100 text-red-700",
-  },
-  "potential-red": {
-    label: "Potential Red",
-    dot: "bg-orange-500",
-    badge: "bg-orange-100 text-orange-700",
-  },
-  amber: {
-    label: "Amber",
-    dot: "bg-amber-400",
-    badge: "bg-amber-100 text-amber-700",
-  },
-  green: {
-    label: "Green",
-    dot: "bg-emerald-500",
-    badge: "bg-emerald-100 text-emerald-700",
-  },
+const HEALTH_STYLES: Record<Health, { label: string; badge: string }> = {
+  red: { label: "Red", badge: HEALTH_RATING_COLORS.red.solid },
+  "potential-red": { label: "Potential Red", badge: HEALTH_RATING_COLORS["potential-red"].solid },
+  amber: { label: "Amber", badge: HEALTH_RATING_COLORS.amber.solid },
+  green: { label: "Green", badge: HEALTH_RATING_COLORS.green.solid },
 };
 
 const FILTER_LABELS: Record<ProjectFilter, string> = {

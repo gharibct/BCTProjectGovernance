@@ -67,15 +67,10 @@ export function ProjectHealthActions() {
         showPeriod={false}
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatTile label="Open" value={summary?.actions.open_count ?? "—"} />
         <StatTile label="In Progress" value={summary?.actions.in_progress_count ?? "—"} />
         <StatTile label="Overdue" value={summary?.actions.overdue_count ?? "—"} accentClassName="border-t-red-500" />
-        <StatTile
-          label="Due This Week"
-          value={summary?.actions.due_this_week_count ?? "—"}
-          accentClassName="border-t-amber-500"
-        />
       </div>
       {isFiltered ? (
         <p className="-mt-3 text-[11px] text-slate-400">Geo/Account-level actions are excluded while a filter is active.</p>

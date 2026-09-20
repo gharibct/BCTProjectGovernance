@@ -5,7 +5,7 @@ import * as React from "react";
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { cn } from "@/lib/utils";
-import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import type { ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
 import {
   fetchAllProjectHealthRows,
   formatGeoRegion,
@@ -15,7 +15,7 @@ import {
 } from "@/lib/api/project-health-lists";
 import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
-import { BackToProjectHealth, ErrorBlock, formatDate, StatTile } from "./project-health-kpi";
+import { BackToProjectHealth, ErrorBlock, formatDate } from "./project-health-kpi";
 
 const PAGE_SIZE = 10;
 
@@ -39,7 +39,6 @@ export function ProjectHealthDataIntegrity() {
   const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
   const [skip, setSkip] = React.useState(0);
 
-  const { data: summary } = useProjectHealthDashboardSummary(filters);
   const {
     data,
     isLoading,
@@ -86,24 +85,6 @@ export function ProjectHealthDataIntegrity() {
         }}
         showPeriod={false}
       />
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <StatTile
-          label="Overall Compliance"
-          value={summary ? `${summary.data_integrity.overall_compliance_pct}%` : "—"}
-          accentClassName="border-t-emerald-500"
-        />
-        <StatTile
-          label="Projects With Gaps"
-          value={summary?.data_integrity.projects_with_gaps_count ?? "—"}
-          accentClassName="border-t-amber-500"
-        />
-        <StatTile
-          label="Critical Gaps"
-          value={summary?.data_integrity.critical_gaps_count ?? "—"}
-          accentClassName="border-t-red-500"
-        />
-      </div>
 
       {isError ? (
         <ErrorBlock title="Couldn't load data integrity." error={error} onRetry={() => refetch()} />

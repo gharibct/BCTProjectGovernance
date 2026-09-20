@@ -134,13 +134,8 @@ export function ProjectHealthFindings() {
         </div>
       </ProjectHealthFilterBar>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatTile label="Open Findings" value={summary?.findings.open_count ?? "—"} />
-        <StatTile
-          label="New This Period"
-          value={summary?.findings.new_this_period_count ?? "—"}
-          accentClassName="border-t-purple-500"
-        />
         <StatTile label="Overdue" value={summary?.findings.overdue_count ?? "—"} accentClassName="border-t-red-500" />
         <StatTile
           label="Awaiting Closure"

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -165,11 +165,11 @@ def _now():
 
 
 async def _make_project(session, **overrides):
+    overrides.setdefault("project_status", "Draft")
     project = Project(
         id=uuid4(),
         project_code=f"P-{uuid4().hex[:8]}",
         project_name="Test Project",
-        project_status="Draft",
         created_at=_now(),
         updated_at=_now(),
         **overrides,
@@ -478,3 +478,99 @@ async def test_reporting_readiness_excludes_not_yet_onboarded_project(session_fa
         assert readiness.total_count == 1
         assert readiness.approved_count == 1
         assert readiness.not_submitted_count == 0
+
+
+# --- Project Health dashboard: scoping + bucket rules ----------------------------
+
+
+async def test_portfolio_excludes_draft_and_splits_active_hold_completed(session_factory):
+    async with session_factory() as session:
+        await _make_project(session, project_status="Approved", lifecycle_status="Ongoing")
+        await _make_project(session, project_status="Approved", lifecycle_status=None)
+        await _make_project(session, project_status="Approved", lifecycle_status="Hold")
+        await _make_project(session, project_status="Approved", lifecycle_status="Closed")
+        await _make_project(session, project_status="Draft")
+        await _make_project(session, project_status="Pending Approval")
+
+        summary = await dashboard_service.project_portfolio_summary(session, DashboardFilters(approved_only=True))
+
+        assert (summary.total_count, summary.active_count, summary.on_hold_count, summary.completed_count) == (4, 2, 1, 1)
+        assert summary.active_count + summary.on_hold_count + summary.completed_count == summary.total_count
+
+
+async def test_project_health_week_summary_buckets_sum_to_active(session_factory):
+    from app.models.health_declarations import HealthDeclaration
+
+    async with session_factory() as session:
+        week = await _make_period(session, date(2026, 9, 14), date(2026, 9, 20))
+        green = await _make_project(session, project_status="Approved")
+        draft_report = await _make_project(session, project_status="Approved")
+        no_report = await _make_project(session, project_status="Approved")
+        await _make_status_report(session, green, week)
+        await _make_status_report(session, draft_report, week, status=ReportStatus.DRAFT)
+        session.add(
+            HealthDeclaration(
+                id=uuid4(), project_id=green.id, period_id=week.id, overall_rating="Green",
+                core_delivery_rating="Green", people_rating="Green", operational_rating="Green",
+                customer_rating="Green", financial_rating="Green", compliance_rating="Green",
+                created_at=_now(),
+            )
+        )
+        await session.commit()
+
+        ids = [green.id, draft_report.id, no_report.id]
+        buckets = await dashboard_service.project_health_week_summary(session, ids, week)
+
+        assert buckets.green_count == 1
+        assert buckets.not_submitted_count == 2  # Draft report and missing report both count as Not Submitted
+        assert (
+            buckets.green_count + buckets.amber_count + buckets.potential_red_count + buckets.red_count
+            + buckets.not_submitted_count
+        ) == len(ids)
+
+
+async def test_commitments_bucket_summary_any_not_met_makes_project_not_met(session_factory):
+    from app.models.contractual import ContractualCommitment, ContractualCommitmentActual
+
+    async with session_factory() as session:
+        met = await _make_project(session, project_status="Approved")
+        not_met = await _make_project(session, project_status="Approved")
+        silent = await _make_project(session, project_status="Approved")
+        for project, statuses in ((met, ["Met", "Met"]), (not_met, ["Met", "Not Met"])):
+            for i, status in enumerate(statuses):
+                commitment = ContractualCommitment(
+                    id=uuid4(), project_id=project.id, commitment_name=f"c{i}", frequency="Monthly", penalty_applicable=False,
+                    created_at=_now(), updated_at=_now(),
+                )
+                session.add(commitment)
+                await session.flush()
+                session.add(
+                    ContractualCommitmentActual(
+                        id=uuid4(), commitment_id=commitment.id, period_date=date(2026, 8, 15),
+                        met_status=status, created_at=_now(),
+                    )
+                )
+        await session.commit()
+
+        month = dashboard_service.MonthRange(date(2026, 8, 1), date(2026, 8, 31))
+        summary = await dashboard_service.commitments_bucket_summary(session, [met.id, not_met.id, silent.id], month)
+
+        assert (summary.met_count, summary.not_met_count, summary.not_reported_count) == (1, 1, 1)
+
+
+async def test_previous_month_window_and_recent_weekly_periods(session_factory):
+    week = SimpleNamespace(start_date=date(2026, 1, 5))
+    assert tuple(dashboard_service.previous_month_window(week)) == (date(2025, 12, 1), date(2025, 12, 31))
+
+    async with session_factory() as session:
+        for i in range(12):
+            start = date(2026, 6, 1) + timedelta(days=7 * i)
+            await _make_period(session, start, start + timedelta(days=6))
+        await _make_period(session, date(2026, 6, 1), date(2026, 6, 30), period_type="Monthly")
+
+        periods = await dashboard_service.recent_weekly_periods(session, today=date(2026, 8, 20))
+
+        assert len(periods) == 10
+        assert all(p.period_type == "Weekly" for p in periods)
+        assert periods[0].end_date == max(p.end_date for p in periods)
+        assert periods[0].end_date <= date(2026, 8, 20)  # only completed periods

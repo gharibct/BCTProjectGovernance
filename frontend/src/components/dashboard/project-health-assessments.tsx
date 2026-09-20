@@ -78,17 +78,17 @@ export function ProjectHealthAssessments() {
         showPeriod={false}
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatTile label="Completed" value={summary?.de_assessments.completed_count ?? "—"} accentClassName="border-t-emerald-500" />
-        <StatTile label="Due" value={summary?.de_assessments.due_count ?? "—"} accentClassName="border-t-amber-500" />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <StatTile label="Green" value={summary?.de_assessments.green_count ?? "—"} accentClassName="border-t-emerald-500" />
         <StatTile
-          label="Red/Amber"
-          value={summary?.de_assessments.red_amber_count ?? "—"}
+          label="Need Attention"
+          value={summary?.de_assessments.need_attention_count ?? "—"}
           accentClassName="border-t-red-500"
         />
         <StatTile
-          label="Average PCI"
-          value={summary?.de_assessments.avg_pci_score ? `${summary.de_assessments.avg_pci_score}%` : "—"}
+          label="Not Assessed"
+          value={summary?.de_assessments.not_assessed_count ?? "—"}
+          accentClassName="border-t-slate-400"
         />
       </div>
 

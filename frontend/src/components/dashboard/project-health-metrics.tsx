@@ -66,12 +66,11 @@ export function ProjectHealthMetrics() {
         }}
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatTile label="Meeting Target %" value={summary ? `${summary.metrics.compliant_pct}%` : "—"} accentClassName="border-t-emerald-500" />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatTile
-          label="Below Target"
-          value={summary?.metrics.below_target_count ?? "—"}
-          accentClassName="border-t-amber-500"
+          label="Compliant"
+          value={summary?.metrics.compliant_count ?? "—"}
+          accentClassName="border-t-emerald-500"
         />
         <StatTile
           label="Not Reported"

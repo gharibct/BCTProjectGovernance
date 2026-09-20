@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { ApiError } from "@/lib/api/client";
+import { HEALTH_RATING_COLORS } from "@/lib/health-rating-colors";
 import { cn } from "@/lib/utils";
 
 // Back-to-overview link for every drill-down list screen's header — the main
@@ -125,11 +126,13 @@ export function formatDateTime(value: string | null | undefined): string {
   return new Date(value).toLocaleString(undefined, { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+// Sourced from the shared RAG palette (lib/health-rating-colors.ts) so this
+// stays in sync with the Governance Matrix, health declaration pills, etc.
 const HEALTH_TONE: Record<string, string> = {
-  green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  amber: "bg-amber-50 text-amber-700 ring-amber-200",
-  red: "bg-red-50 text-red-700 ring-red-200",
-  "potential red": "bg-orange-50 text-orange-700 ring-orange-200",
+  green: HEALTH_RATING_COLORS.green.solid,
+  amber: HEALTH_RATING_COLORS.amber.solid,
+  red: HEALTH_RATING_COLORS.red.solid,
+  "potential red": HEALTH_RATING_COLORS["potential-red"].solid,
 };
 
 // RAG-value pill (Green/Amber/Red/Potential Red) — StatusBadge's TONE_MAP
@@ -139,7 +142,7 @@ export function HealthBadge({ value }: { value: string | null | undefined }) {
   if (!value?.trim()) return <span className="text-slate-300">—</span>;
   const tone = HEALTH_TONE[value.trim().toLowerCase()] ?? "bg-slate-100 text-slate-600 ring-slate-200";
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ring-1", tone)}>
+    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap", tone)}>
       {value}
     </span>
   );

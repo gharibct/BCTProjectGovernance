@@ -6,7 +6,7 @@ after a narrow query, since portfolio sizes for an internal PMO tool are small.
 
 from calendar import monthrange
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import NamedTuple
@@ -65,7 +65,7 @@ from app.schemas.dashboard import (
     CommitmentRow,
     CommitmentsCardSummary,
     ContractualComplianceSummary,
-    DataIntegrityCardSummary,
+    CommitmentsBucketSummary,
     DataIntegrityRow,
     DEAssessmentCompletionSummary,
     DEAssessmentsCardSummary,
@@ -85,6 +85,7 @@ from app.schemas.dashboard import (
     IssueCardSummary,
     IssueRow,
     MetricRow,
+    MetricsBucketSummary,
     MetricsComplianceSummary,
     MilestonePaymentSummary,
     MyOpenActionRow,
@@ -109,8 +110,10 @@ from app.schemas.dashboard import (
     ReportSubmissionDetailRow,
     ReportSubmissionKpi,
     ReportSubmissionsSummary,
+    ReportSubmissionsWeekSummary,
     RiskCardSummary,
     RiskRow,
+    WeeklyHealthBuckets,
 )
 from app.schemas.enums import (
     ActionLevel,
@@ -135,6 +138,7 @@ from app.schemas.enums import (
 )
 from app.services import data_integrity_rollup
 from app.services.health_rollup import compute_overall_rating
+from app.services.monthly_completion import compute_monthly_completion
 
 
 @dataclass
@@ -165,6 +169,13 @@ class DashboardFilters:
     # limits to projects that have *any* DE allocated
     # (Project.delivery_excellence_id IS NOT NULL).
     de_allocated: bool | None = None
+    # Project Health dashboard scoping: drop Draft / Pending Approval projects
+    # (approved_only) and, on top of that, Hold / Closed ones (active_only).
+    approved_only: bool = False
+    active_only: bool = False
+
+
+_APPROVED_PROJECT_STATUSES = ("Approved", "Under Amendment")
 
 
 def _project_conditions(filters: DashboardFilters) -> list:
@@ -191,6 +202,17 @@ def _project_conditions(filters: DashboardFilters) -> list:
         conditions.append(Project.project_manager_id == filters.project_manager_id)
     if filters.de_allocated:
         conditions.append(Project.delivery_excellence_id.is_not(None))
+    if filters.approved_only or filters.active_only:
+        conditions.append(Project.project_status.in_(_APPROVED_PROJECT_STATUSES))
+    if filters.active_only:
+        conditions.append(
+            or_(
+                Project.lifecycle_status.is_(None),
+                Project.lifecycle_status.not_in(
+                    [ProjectLifecycleStatus.CLOSED.value, ProjectLifecycleStatus.HOLD.value]
+                ),
+            )
+        )
     return conditions
 
 
@@ -2792,7 +2814,13 @@ async def pmo_governance_exceptions(
 async def project_portfolio_summary(db: AsyncSession, filters: DashboardFilters) -> ProjectPortfolioSummary:
     base_conditions = _project_conditions(filters)
     total_count = (await db.execute(select(func.count()).select_from(Project).where(*base_conditions))).scalar_one()
-    active_count = await count_active_projects(db, filters)
+    # Active = not Closed and not Hold, so Active + Hold + Completed == Total
+    # (every "= Active Projects" bucket rule on the dashboard anchors on this).
+    active_count = (
+        await db.execute(
+            select(func.count()).select_from(Project).where(*_project_conditions(replace(filters, active_only=True)))
+        )
+    ).scalar_one()
     completed_count = (
         await db.execute(
             select(func.count())
@@ -3593,7 +3621,6 @@ async def actions_card_summary(
     db: AsyncSession, filters: DashboardFilters, project_ids: list[UUID]
 ) -> ActionsCardSummary:
     today = date.today()
-    week_out = today + timedelta(days=7)
     is_filtered = filters.geo_id is not None or filters.account_id is not None or filters.project_type_id is not None
 
     conditions = [Action.status.not_in([ActionStatus.COMPLETED, ActionStatus.CLOSED, ActionStatus.CANCELLED])]
@@ -3605,14 +3632,8 @@ async def actions_card_summary(
     open_count = len(rows)
     in_progress_count = sum(1 for status, _ in rows if status == ActionStatus.IN_PROGRESS)
     overdue_count = sum(1 for _, due_date in rows if due_date < today)
-    due_this_week_count = sum(1 for _, due_date in rows if today <= due_date <= week_out)
 
-    return ActionsCardSummary(
-        open_count=open_count,
-        in_progress_count=in_progress_count,
-        overdue_count=overdue_count,
-        due_this_week_count=due_this_week_count,
-    )
+    return ActionsCardSummary(open_count=open_count, in_progress_count=in_progress_count, overdue_count=overdue_count)
 
 
 # Action.level_value is a raw string id (see actions_card_summary's own
@@ -3692,24 +3713,20 @@ async def list_actions_for_health(
     return items, total
 
 
-async def findings_card_summary(
-    db: AsyncSession, filters: DashboardFilters, period: ReportingPeriod | None
-) -> FindingsCardSummary:
+async def findings_card_summary(db: AsyncSession, filters: DashboardFilters) -> FindingsCardSummary:
+    # Snapshot as of today — not period dependent.
     findings_by_project = await de_findings_by_project(db, filters)
     findings = [f for project_findings in findings_by_project.values() for f in project_findings]
+    today = date.today()
+
+    open_findings = [f for f in findings if f.status == FindingStatus.OPEN]
+    overdue_count = sum(
+        1 for f in open_findings if f.finding_date is not None and (today - f.finding_date).days > _FINDING_OVERDUE_DAYS
+    )
     awaiting_closure_count = sum(1 for f in findings if f.status in (FindingStatus.ON_HOLD, FindingStatus.DEFERRED))
 
-    if period is None:
-        return FindingsCardSummary(
-            open_count=0, new_this_period_count=0, overdue_count=0, awaiting_closure_count=awaiting_closure_count
-        )
-
-    base = de_findings_summary(findings_by_project, period)
     return FindingsCardSummary(
-        open_count=base.open_count,
-        new_this_period_count=base.new_this_period_count,
-        overdue_count=base.overdue_count,
-        awaiting_closure_count=awaiting_closure_count,
+        open_count=len(open_findings), overdue_count=overdue_count, awaiting_closure_count=awaiting_closure_count
     )
 
 
@@ -3792,40 +3809,36 @@ async def list_findings_for_health(
     return items, total
 
 
+# Project-level DE Assessment buckets — each project lands in exactly one, so
+# Green + Need Attention + Not Assessed == len(project_ids). Source: the
+# project's latest Submitted assessment dated within `month` (the calendar month
+# before the selected week — see previous_month_window).
 async def de_assessments_card_summary(
-    db: AsyncSession, filters: DashboardFilters, project_ids: list[UUID], period: ReportingPeriod | None
+    db: AsyncSession, project_ids: list[UUID], month: "MonthRange"
 ) -> DEAssessmentsCardSummary:
-    due_count = await count_assessments_overdue(db, project_ids)
-    if period is None:
-        return DEAssessmentsCardSummary(completed_count=0, avg_pci_score=None, due_count=due_count, red_amber_count=0)
-
-    assessments = (
-        await db.execute(
-            select(DEAssessment).where(
-                DEAssessment.project_id.in_(project_ids),
-                DEAssessment.assessment_date >= period.start_date,
-                DEAssessment.assessment_date <= period.end_date,
-            )
-        )
-    ).scalars().all()
     latest_by_project: dict[UUID, DEAssessment] = {}
-    for a in assessments:
-        current = latest_by_project.get(a.project_id)
-        if current is None or a.assessment_date > current.assessment_date:
-            latest_by_project[a.project_id] = a
+    if project_ids:
+        assessments = (
+            await db.execute(
+                select(DEAssessment).where(
+                    DEAssessment.project_id.in_(project_ids),
+                    DEAssessment.status == "Submitted",
+                    DEAssessment.assessment_date >= month.start,
+                    DEAssessment.assessment_date <= month.end,
+                )
+            )
+        ).scalars().all()
+        for a in assessments:
+            current = latest_by_project.get(a.project_id)
+            if current is None or a.assessment_date > current.assessment_date:
+                latest_by_project[a.project_id] = a
 
-    scores = [a.pci_score for a in latest_by_project.values() if a.pci_score is not None]
-    red_amber_count = sum(
-        1
-        for a in latest_by_project.values()
-        if a.de_assessed_project_health in (HealthRating.AMBER, HealthRating.RED, HealthRating.POTENTIAL_RED)
-    )
-
+    green = sum(1 for a in latest_by_project.values() if a.de_assessed_project_health == HealthRating.GREEN)
+    need_attention = len(latest_by_project) - green
     return DEAssessmentsCardSummary(
-        completed_count=len(latest_by_project),
-        avg_pci_score=round(sum(scores) / len(scores), 1) if scores else None,
-        due_count=due_count,
-        red_amber_count=red_amber_count,
+        green_count=green,
+        need_attention_count=need_attention,
+        not_assessed_count=len(project_ids) - len(latest_by_project),
     )
 
 
@@ -3971,9 +3984,13 @@ def _metric_field_status(actual: Decimal | None, target: Decimal | None, directi
 # set also counts as Not Reported — there's nothing to assess compliance
 # against). A project absent from the returned dict submitted no measurement
 # at all for the period.
-async def _project_metrics_status(
+async def _project_field_statuses(
     db: AsyncSession, project_ids: list[UUID], period: ReportingPeriod
-) -> dict[UUID, str]:
+) -> dict[UUID, list[str]]:
+    """project_id -> every comparable metric field's status (Compliant / Below
+    Target / Critical Variance) across ALL disciplines the project reported in
+    `period`. A project that reported but has nothing comparable maps to []; a
+    project that reported nothing is absent."""
     if not project_ids:
         return {}
 
@@ -3986,7 +4003,7 @@ async def _project_metrics_status(
         ("cloud_migration", MeasurementCloudMigration, MetricTargetCloudMigration, "as_of_date"),
     ]
 
-    statuses: dict[UUID, str] = {}
+    statuses: dict[UUID, list[str]] = {}
     for key, measurement_model, target_model, date_mode in discipline_tables:
         if date_mode == "period":
             measurement_stmt = select(measurement_model).where(
@@ -4020,11 +4037,19 @@ async def _project_metrics_status(
                 )
                 is not None
             ]
-            statuses[measurement.project_id] = (
-                min(field_statuses, key=lambda s: _METRIC_STATUS_SEVERITY[s]) if field_statuses else "Not Reported"
-            )
+            statuses.setdefault(measurement.project_id, []).extend(field_statuses)
 
     return statuses
+
+
+async def _project_metrics_status(
+    db: AsyncSession, project_ids: list[UUID], period: ReportingPeriod
+) -> dict[UUID, str]:
+    field_statuses = await _project_field_statuses(db, project_ids, period)
+    return {
+        pid: min(fs, key=lambda s: _METRIC_STATUS_SEVERITY[s]) if fs else "Not Reported"
+        for pid, fs in field_statuses.items()
+    }
 
 
 async def metrics_compliance_summary(
@@ -4168,45 +4193,8 @@ async def list_metrics_for_health(
     return rows
 
 
-# Data Integrity card — an org-wide rollup of services/data_integrity_rollup.py's
-# per-project compute_status_row, via its bulk sibling compute_status_rows_bulk
-# (one batched query per distinct checklist module across every in-scope
-# project, not one query per (project, item) pair).
-async def data_integrity_card_summary(
-    db: AsyncSession, filters: DashboardFilters, project_ids: list[UUID]
-) -> DataIntegrityCardSummary:
-    if not project_ids:
-        return DataIntegrityCardSummary(overall_compliance_pct=0, projects_with_gaps_count=0, critical_gaps_count=0)
-
-    items = (
-        await db.execute(select(DataIntegrityChecklistItem).where(DataIntegrityChecklistItem.is_active.is_(True)))
-    ).scalars().all()
-    if not items:
-        return DataIntegrityCardSummary(overall_compliance_pct=100, projects_with_gaps_count=0, critical_gaps_count=0)
-
-    rows = await data_integrity_rollup.compute_status_rows_bulk(db, project_ids, items)
-    items_by_id = {item.id: item for item in items}
-
-    total = len(rows)
-    updated = sum(1 for is_updated, _ in rows.values() if is_updated)
-    projects_with_gaps: set[UUID] = set()
-    critical_gaps_count = 0
-    for (project_id, item_id), (is_updated, last_updated) in rows.items():
-        if is_updated:
-            continue
-        projects_with_gaps.add(project_id)
-        if data_integrity_rollup.is_critical_gap(last_updated, items_by_id[item_id].expected_cadence):
-            critical_gaps_count += 1
-
-    return DataIntegrityCardSummary(
-        overall_compliance_pct=round((updated / total) * 100) if total else 0,
-        projects_with_gaps_count=len(projects_with_gaps),
-        critical_gaps_count=critical_gaps_count,
-    )
-
-
 # Full project x checklist-item compliance grid — same compute_status_rows_bulk
-# call data_integrity_card_summary uses, just flattened to rows instead of
+# call the (removed) card summary used to, flattened to rows instead of
 # rolled up to 3 counts. Paginated in Python like list_rag_rows/
 # list_metrics_for_health (small portfolio sizes).
 async def list_data_integrity_for_health(
@@ -4274,3 +4262,321 @@ async def nearest_active_period(db: AsyncSession) -> ReportingPeriod | None:
     if not periods:
         return None
     return min(periods, key=lambda p: p.end_date)
+
+
+# --- Project Health dashboard: weekly period + previous-month helpers --------
+#
+# The dashboard's Period combo lists Weekly periods only (last 10, current
+# first). Anything monthly (Project Performance report, DE assessments) is read
+# from "the calendar month before the selected week".
+
+WEEKLY_PERIOD_LIMIT = 10
+
+
+class MonthRange(NamedTuple):
+    start: date
+    end: date
+
+
+async def recent_weekly_periods(db: AsyncSession, today: date | None = None) -> list[ReportingPeriod]:
+    """Active, COMPLETED Weekly periods (end_date <= today — reporting happens on
+    the end date), newest first, capped at 10. The first row is the "current"
+    period: the most recent completed week."""
+    today = today or date.today()
+    stmt = (
+        select(ReportingPeriod)
+        .where(
+            ReportingPeriod.period_type == "Weekly",
+            ReportingPeriod.is_active.is_(True),
+            ReportingPeriod.end_date <= today,
+        )
+        .order_by(ReportingPeriod.end_date.desc())
+        .limit(WEEKLY_PERIOD_LIMIT)
+    )
+    return list((await db.execute(stmt)).scalars().all())
+
+
+async def current_weekly_period(db: AsyncSession) -> ReportingPeriod | None:
+    periods = await recent_weekly_periods(db)
+    return periods[0] if periods else None
+
+
+def previous_month_window(week: ReportingPeriod | None) -> MonthRange:
+    """Calendar month before the month containing the week's start date."""
+    anchor = week.start_date if week is not None else date.today()
+    last_of_previous = anchor.replace(day=1) - timedelta(days=1)
+    return MonthRange(last_of_previous.replace(day=1), last_of_previous)
+
+
+async def monthly_period_for(db: AsyncSession, month: MonthRange) -> ReportingPeriod | None:
+    """The Monthly reporting period covering `month`, if one exists."""
+    stmt = select(ReportingPeriod).where(
+        ReportingPeriod.period_type == "Monthly",
+        ReportingPeriod.start_date <= month.start,
+        ReportingPeriod.end_date >= month.start,
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return rows[0] if rows else None
+
+
+# --- Project Health dashboard: bucketed, project-level cards ---------------------
+
+
+async def _weekly_health_buckets(
+    db: AsyncSession,
+    entity_ids: list[UUID],
+    period: ReportingPeriod | None,
+    *,
+    report_model,
+    report_fk,
+    declaration_model,
+    declaration_fk,
+) -> WeeklyHealthBuckets:
+    """Green / Amber / Pot. Red / Red / Not Submitted for `entity_ids` in one
+    weekly period. An entity is rated only if its weekly status report is
+    Submitted/Approved AND it has a health declaration for that period;
+    everything else is Not Submitted, so the buckets always sum to
+    len(entity_ids)."""
+    counts: Counter = Counter()
+    rated: dict[UUID, str] = {}
+    if entity_ids and period is not None:
+        filed = set(
+            (
+                await db.execute(
+                    select(report_fk).where(
+                        report_fk.in_(entity_ids),
+                        report_model.period_id == period.id,
+                        report_model.status.in_(_SUBMITTED_REPORT_STATUSES),
+                    )
+                )
+            ).scalars()
+        )
+        declarations = (
+            await db.execute(
+                select(declaration_model).where(
+                    declaration_fk.in_(filed), declaration_model.period_id == period.id
+                )
+            )
+        ).scalars().all()
+        latest: dict[UUID, object] = {}
+        for decl in declarations:
+            key = getattr(decl, declaration_fk.key)
+            current = latest.get(key)
+            if current is None or decl.created_at > current.created_at:
+                latest[key] = decl
+        rated = {key: decl.overall_rating for key, decl in latest.items()}
+
+    for entity_id in entity_ids:
+        rating = rated.get(entity_id)
+        if rating == HealthRating.GREEN:
+            counts["green"] += 1
+        elif rating == HealthRating.AMBER:
+            counts["amber"] += 1
+        elif rating == HealthRating.POTENTIAL_RED:
+            counts["potential_red"] += 1
+        elif rating == HealthRating.RED:
+            counts["red"] += 1
+        else:
+            counts["not_submitted"] += 1
+    return WeeklyHealthBuckets(
+        green_count=counts["green"],
+        amber_count=counts["amber"],
+        potential_red_count=counts["potential_red"],
+        red_count=counts["red"],
+        not_submitted_count=counts["not_submitted"],
+    )
+
+
+async def active_account_ids(db: AsyncSession, filters: DashboardFilters) -> list[UUID]:
+    """Active accounts in the Geo/Account filter — independent of projects, since
+    small engagements are reported at account level only."""
+    stmt = select(Account.id).where(Account.is_active.is_(True), *_account_conditions(filters))
+    return list((await db.execute(stmt)).scalars().all())
+
+
+async def project_health_week_summary(
+    db: AsyncSession, project_ids: list[UUID], period: ReportingPeriod | None
+) -> WeeklyHealthBuckets:
+    return await _weekly_health_buckets(
+        db,
+        project_ids,
+        period,
+        report_model=ProjectStatusReport,
+        report_fk=ProjectStatusReport.project_id,
+        declaration_model=HealthDeclaration,
+        declaration_fk=HealthDeclaration.project_id,
+    )
+
+
+async def account_health_week_summary(
+    db: AsyncSession, account_ids: list[UUID], period: ReportingPeriod | None
+) -> WeeklyHealthBuckets:
+    return await _weekly_health_buckets(
+        db,
+        account_ids,
+        period,
+        report_model=AccountStatusReport,
+        report_fk=AccountStatusReport.account_id,
+        declaration_model=AccountHealthDeclaration,
+        declaration_fk=AccountHealthDeclaration.account_id,
+    )
+
+
+async def project_metrics_bucket_summary(
+    db: AsyncSession, project_ids: list[UUID], month_period: ReportingPeriod | None
+) -> MetricsBucketSummary:
+    """Compliant / Critical Variance / Not Reported per project, from the
+    previous month's Project Performance report. Any single metric missing its
+    target makes the project Critical Variance; no comparable metric at all
+    (or no report) is Not Reported. Sums to len(project_ids)."""
+    field_statuses = await _project_field_statuses(db, project_ids, month_period) if month_period else {}
+    compliant = critical = 0
+    for pid in project_ids:
+        fs = field_statuses.get(pid)
+        if not fs:
+            continue
+        if any(s != "Compliant" for s in fs):
+            critical += 1
+        else:
+            compliant += 1
+    return MetricsBucketSummary(
+        compliant_count=compliant,
+        critical_variance_count=critical,
+        not_reported_count=len(project_ids) - compliant - critical,
+    )
+
+
+async def commitments_bucket_summary(
+    db: AsyncSession, project_ids: list[UUID], month: MonthRange
+) -> CommitmentsBucketSummary:
+    """Met / Not Met / Not Reported per project, from commitment actuals dated
+    within the previous month. Each commitment counts by its latest actual in
+    that month; a project is Not Met if any of those is not Met. Sums to
+    len(project_ids)."""
+    statuses_by_project: dict[UUID, list[str | None]] = defaultdict(list)
+    if project_ids:
+        rows = (
+            await db.execute(
+                select(
+                    ContractualCommitment.project_id,
+                    ContractualCommitment.id,
+                    ContractualCommitmentActual.period_date,
+                    ContractualCommitmentActual.created_at,
+                    ContractualCommitmentActual.met_status,
+                )
+                .join(ContractualCommitmentActual, ContractualCommitmentActual.commitment_id == ContractualCommitment.id)
+                .where(
+                    ContractualCommitment.project_id.in_(project_ids),
+                    ContractualCommitmentActual.period_date >= month.start,
+                    ContractualCommitmentActual.period_date <= month.end,
+                )
+            )
+        ).all()
+        latest: dict[UUID, tuple] = {}
+        for project_id, commitment_id, period_date, created_at, met_status in rows:
+            current = latest.get(commitment_id)
+            if current is None or (period_date, created_at) > (current[1], current[2]):
+                latest[commitment_id] = (project_id, period_date, created_at, met_status)
+        for project_id, _, _, met_status in latest.values():
+            statuses_by_project[project_id].append(met_status)
+
+    met = not_met = 0
+    for pid in project_ids:
+        statuses = statuses_by_project.get(pid)
+        if not statuses:
+            continue
+        if all(s == "Met" for s in statuses):
+            met += 1
+        else:
+            not_met += 1
+    return CommitmentsBucketSummary(
+        met_count=met, not_met_count=not_met, not_reported_count=len(project_ids) - met - not_met
+    )
+
+
+async def _submitted_pairs(db: AsyncSession, model, entity_fk, entity_ids: list[UUID], week: ReportingPeriod) -> set:
+    rows = (
+        await db.execute(
+            select(entity_fk, model.period_id).where(
+                entity_fk.in_(entity_ids),
+                model.period_id == week.id,
+                model.status.in_(_SUBMITTED_REPORT_STATUSES),
+            )
+        )
+    ).all()
+    return {(entity_id, period_id) for entity_id, period_id in rows}
+
+
+async def report_submissions_week_summary(
+    db: AsyncSession,
+    filters: DashboardFilters,
+    active_project_ids: list[UUID],
+    week: ReportingPeriod | None,
+    month_period: ReportingPeriod | None,
+) -> ReportSubmissionsWeekSummary:
+    """Submitted vs Not Submitted for the selected week (Delivery Status —
+    Projects / Account / Geo, Weekly only) and for the previous month's Project
+    Performance report. Draft / Rejected reports count as Not Submitted."""
+    empty = _submission_kpi(0, 0)
+    today = date.today()
+    delivery_projects = delivery_accounts = delivery_geos = performance = empty
+
+    if week is not None:
+        if active_project_ids:
+            start_by_project: dict[UUID, date | None] = dict(
+                (
+                    await db.execute(
+                        select(
+                            Project.id,
+                            func.coalesce(
+                                Project.tool_effective_date, Project.actual_start_date, Project.planned_start_date
+                            ),
+                        ).where(Project.id.in_(active_project_ids))
+                    )
+                ).all()
+            )
+            owed = _owed_pairs(active_project_ids, start_by_project, [week], today)
+            filed = await _submitted_pairs(db, ProjectStatusReport, ProjectStatusReport.project_id, active_project_ids, week)
+            delivery_projects = _submission_kpi(sum(1 for pair in owed if pair in filed), len(owed))
+
+        account_ids = await active_account_ids(db, filters)
+        if account_ids:
+            start_by_account: dict[UUID, date | None] = dict(
+                (await db.execute(select(Account.id, Account.tool_effective_date).where(Account.id.in_(account_ids)))).all()
+            )
+            owed_acc = _owed_pairs(account_ids, start_by_account, [week], today)
+            filed_acc = await _submitted_pairs(db, AccountStatusReport, AccountStatusReport.account_id, account_ids, week)
+            delivery_accounts = _submission_kpi(sum(1 for pair in owed_acc if pair in filed_acc), len(owed_acc))
+
+        if filters.geo_id is not None:
+            geo_ids = [filters.geo_id]
+        elif filters.geo_ids is not None:
+            geo_ids = list(filters.geo_ids)
+        else:
+            geo_ids = list((await db.execute(select(Geo.id))).scalars().all())
+        if geo_ids:
+            start_by_geo: dict[UUID, date | None] = dict(
+                (await db.execute(select(Geo.id, Geo.tool_effective_date).where(Geo.id.in_(geo_ids)))).all()
+            )
+            owed_geo = _owed_pairs(geo_ids, start_by_geo, [week], today)
+            filed_geo = await _submitted_pairs(db, GeoStatusReport, GeoStatusReport.geo_id, geo_ids, week)
+            delivery_geos = _submission_kpi(sum(1 for pair in owed_geo if pair in filed_geo), len(owed_geo))
+
+    # Project Performance is the monthly report. "Submitted" = every section of
+    # the previous month's report is complete (saved, or attested "Reviewed -
+    # No Changes"); the report has no Draft/Submitted status of its own.
+    if active_project_ids:
+        submitted = 0
+        if month_period is not None:
+            for pid in active_project_ids:
+                completion = await compute_monthly_completion(db, pid, month_period)
+                if completion and all(item.complete for item in completion):
+                    submitted += 1
+        performance = _submission_kpi(submitted, len(active_project_ids))
+
+    return ReportSubmissionsWeekSummary(
+        delivery_status_projects=delivery_projects,
+        project_performance=performance,
+        delivery_status_accounts=delivery_accounts,
+        delivery_status_geos=delivery_geos,
+    )

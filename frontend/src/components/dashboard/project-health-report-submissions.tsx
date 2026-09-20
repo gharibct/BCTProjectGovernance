@@ -214,8 +214,8 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
             accentClassName="border-t-[#1a6fc4]"
           />
           <StatTile
-            label="Metrics — Projects"
-            value={rs ? `${rs.metrics_projects.adherence_pct}%` : "—"}
+            label="Project Performance"
+            value={rs ? `${rs.project_performance.adherence_pct}%` : "—"}
             accentClassName="border-t-indigo-500"
           />
           <StatTile

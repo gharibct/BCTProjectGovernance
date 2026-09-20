@@ -75,13 +75,13 @@ export function ProjectHealthCommitments() {
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <StatTile label="Open Commitments" value={summary?.commitments.open_count ?? "—"} />
+        <StatTile label="Met" value={summary?.commitments.met_count ?? "—"} accentClassName="border-t-emerald-500" />
+        <StatTile label="Not Met" value={summary?.commitments.not_met_count ?? "—"} accentClassName="border-t-red-500" />
         <StatTile
-          label="Due Soon"
-          value={summary?.commitments.due_soon_count ?? "—"}
-          accentClassName="border-t-amber-500"
+          label="Not Reported"
+          value={summary?.commitments.not_reported_count ?? "—"}
+          accentClassName="border-t-slate-400"
         />
-        <StatTile label="Overdue" value={summary?.commitments.overdue_count ?? "—"} accentClassName="border-t-red-500" />
       </div>
 
       {isError ? (

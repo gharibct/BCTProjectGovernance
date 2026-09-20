@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dataclasses import replace
+
 from app.api.deps import PaginationParams, _role_code, get_current_user, pagination_params, require_role
 from app.core.db import get_db
 from app.models.reference_data import Account, ReportingPeriod
@@ -34,6 +36,7 @@ from app.schemas.dashboard import (
     PmoDashboardSummary,
     ProjectHealthCardSummary,
     ProjectHealthDashboardSummary,
+    ProjectHealthPeriod,
     ProjectListRow,
     RagRow,
     RaidoSummary,
@@ -408,6 +411,28 @@ async def get_pmo_dashboard_summary(db: AsyncSession = Depends(get_db)):
     )
 
 
+def _health_filters(
+    geo_id: UUID | None, account_id: UUID | None, project_type_id: UUID | None, **extra
+) -> DashboardFilters:
+    """Project Health scope: Geo/Account/Type filters, minus Draft / Pending
+    Approval projects."""
+    return DashboardFilters(
+        geo_id=geo_id, account_id=account_id, project_type_id=project_type_id, approved_only=True, **extra
+    )
+
+
+async def _weekly_period_or_current(db: AsyncSession, period_id: UUID | None) -> ReportingPeriod | None:
+    """The selected Weekly period, or the current week when none is selected."""
+    if period_id is None:
+        return await dashboard_service.current_weekly_period(db)
+    period = await db.get(ReportingPeriod, period_id)
+    if period is None:
+        raise HTTPException(status_code=404, detail="Reporting period not found.")
+    if period.period_type != "Weekly":
+        raise HTTPException(status_code=400, detail="Project Health periods are Weekly only.")
+    return period
+
+
 # Project Health dashboard (design-reference/Project-Health.html) — a new,
 # additional org-wide portfolio page for PMO/Admin/CDO/Delivery Excellence
 # (not a replacement of their existing landing summaries above), with a real
@@ -431,47 +456,61 @@ async def get_project_health_dashboard(
     period_id: UUID | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    # Portfolio + RAIDO-adjacent cards use every approved project; the bucketed
+    # cards (health / metrics / commitments / DE / submissions) use Active only,
+    # so each of their bucket sets sums to the Active Projects count.
+    filters = _health_filters(geo_id, account_id, project_type_id)
+    active_filters = replace(filters, active_only=True)
     projects = await dashboard_service.project_health_rows(db, filters)
     project_ids = [p.project_id for p in projects]
+    active_projects = await dashboard_service.project_health_rows(db, active_filters)
+    active_project_ids = [p.project_id for p in active_projects]
+    active_account_ids = await dashboard_service.active_account_ids(db, active_filters)
 
-    if period_id is not None:
-        period = await db.get(ReportingPeriod, period_id)
-        if period is None:
-            raise HTTPException(status_code=404, detail="Reporting period not found.")
-    else:
-        period = await dashboard_service.nearest_active_period(db)
-
-    project_matrix = await dashboard_service.project_health_matrix(db, filters)
-    green, amber, potential_red, red = dashboard_service.health_split(project_matrix)
-    reports_due = await dashboard_service.reports_due_summary(db, filters, projects)
+    week = await _weekly_period_or_current(db, period_id)
+    month = dashboard_service.previous_month_window(week)
+    month_period = await dashboard_service.monthly_period_for(db, month)
 
     return ProjectHealthDashboardSummary(
         portfolio=await dashboard_service.project_portfolio_summary(db, filters),
-        health=ProjectHealthCardSummary(
-            green_count=green,
-            amber_count=amber,
-            potential_red_count=potential_red,
-            red_count=red,
-            reporting_overdue_count=reports_due.overdue_count,
-        ),
-        account_health=await dashboard_service.account_rag_card_summary(db, filters),
-        risks=await dashboard_service.risk_card_summary(db, filters),
-        issues=await dashboard_service.issue_card_summary(db, filters),
-        dependencies=await dashboard_service.dependency_card_summary(db, filters),
-        assumptions=await dashboard_service.assumption_card_summary(db, filters),
-        opportunities=await dashboard_service.opportunity_card_summary(db, filters),
-        metrics=await dashboard_service.metrics_compliance_summary(db, filters, project_ids, period),
-        commitments=await dashboard_service.commitments_card_summary(db, filters),
+        health=await dashboard_service.project_health_week_summary(db, active_project_ids, week),
+        account_health=await dashboard_service.account_health_week_summary(db, active_account_ids, week),
+        risks=await dashboard_service.risk_card_summary(db, active_filters),
+        issues=await dashboard_service.issue_card_summary(db, active_filters),
+        dependencies=await dashboard_service.dependency_card_summary(db, active_filters),
+        assumptions=await dashboard_service.assumption_card_summary(db, active_filters),
+        opportunities=await dashboard_service.opportunity_card_summary(db, active_filters),
+        metrics=await dashboard_service.project_metrics_bucket_summary(db, active_project_ids, month_period),
+        commitments=await dashboard_service.commitments_bucket_summary(db, active_project_ids, month),
         payment_milestones=await dashboard_service.payment_milestones_card_summary(db, filters),
         actions=await dashboard_service.actions_card_summary(db, filters, project_ids),
-        findings=await dashboard_service.findings_card_summary(db, filters, period),
-        de_assessments=await dashboard_service.de_assessments_card_summary(db, filters, project_ids, period),
-        data_integrity=await dashboard_service.data_integrity_card_summary(db, filters, project_ids),
-        report_submissions=await dashboard_service.report_submissions_summary(db, filters, projects),
-        period_id=period.id if period else None,
-        period_label=period.label if period else None,
+        findings=await dashboard_service.findings_card_summary(db, filters),
+        de_assessments=await dashboard_service.de_assessments_card_summary(db, active_project_ids, month),
+        report_submissions=await dashboard_service.report_submissions_week_summary(
+            db, active_filters, active_project_ids, week, month_period
+        ),
+        period_id=week.id if week else None,
+        period_label=week.label if week else None,
     )
+
+
+# Period combo source: Weekly periods only, the last 10 including the current
+# one, newest (= current) first.
+@router.get(
+    "/project-health/periods",
+    response_model=list[ProjectHealthPeriod],
+    dependencies=[
+        Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE))
+    ],
+)
+async def get_project_health_periods(db: AsyncSession = Depends(get_db)):
+    periods = await dashboard_service.recent_weekly_periods(db)
+    return [
+        ProjectHealthPeriod(
+            id=p.id, label=p.label, start_date=p.start_date, end_date=p.end_date, is_current=(i == 0)
+        )
+        for i, p in enumerate(periods)
+    ]
 
 
 _project_health_role = [
@@ -499,6 +538,7 @@ async def get_project_health_project_list(
         account_id=account_id,
         project_type_id=project_type_id,
         project_owned=project_owned,
+        approved_only=True,
     )
     items, total = await dashboard_service.list_projects_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
@@ -515,8 +555,9 @@ async def get_project_health_rag(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
-    rows = await dashboard_service.list_rag_rows(db, filters, period_id=period_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True)
+    week = await _weekly_period_or_current(db, period_id)
+    rows = await dashboard_service.list_rag_rows(db, filters, period_id=week.id if week else None)
     page = rows[pagination.skip : pagination.skip + pagination.limit]
     return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
 
@@ -530,8 +571,9 @@ async def get_project_health_account_rag(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
-    rows = await dashboard_service.list_account_rag_rows(db, filters, period_id=period_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True)
+    week = await _weekly_period_or_current(db, period_id)
+    rows = await dashboard_service.list_account_rag_rows(db, filters, period_id=week.id if week else None)
     page = rows[pagination.skip : pagination.skip + pagination.limit]
     return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
 
@@ -545,7 +587,7 @@ async def get_project_health_risks(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_risks_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -561,7 +603,7 @@ async def get_project_health_issues(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_issues_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -577,7 +619,7 @@ async def get_project_health_dependencies(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_dependencies_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -593,7 +635,7 @@ async def get_project_health_assumptions(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_assumptions_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -609,7 +651,7 @@ async def get_project_health_opportunities(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_opportunities_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -625,16 +667,13 @@ async def get_project_health_metrics(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True)
     projects = await dashboard_service.project_health_rows(db, filters)
     project_ids = [p.project_id for p in projects]
 
-    if period_id is not None:
-        period = await db.get(ReportingPeriod, period_id)
-        if period is None:
-            raise HTTPException(status_code=404, detail="Reporting period not found.")
-    else:
-        period = await dashboard_service.nearest_active_period(db)
+    # Project Performance is monthly: read the month before the selected week.
+    week = await _weekly_period_or_current(db, period_id)
+    period = await dashboard_service.monthly_period_for(db, dashboard_service.previous_month_window(week))
 
     rows = await dashboard_service.list_metrics_for_health(db, filters, project_ids, period)
     page = rows[pagination.skip : pagination.skip + pagination.limit]
@@ -650,7 +689,7 @@ async def get_project_health_commitments(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_commitments_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -668,7 +707,7 @@ async def get_project_health_payment_milestones(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_payment_milestones_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -683,7 +722,7 @@ async def get_project_health_assessments(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_assessments_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit
     )
@@ -700,7 +739,7 @@ async def get_project_health_findings(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     items, total = await dashboard_service.list_findings_for_health(
         db,
         filters,
@@ -721,7 +760,7 @@ async def get_project_health_actions(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     projects = await dashboard_service.project_health_rows(db, filters)
     project_ids = [p.project_id for p in projects]
     items, total = await dashboard_service.list_actions_for_health(
@@ -738,7 +777,7 @@ async def get_project_health_data_integrity(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     projects = await dashboard_service.project_health_rows(db, filters)
     project_ids = [p.project_id for p in projects]
     items, total = await dashboard_service.list_data_integrity_for_health(
@@ -765,7 +804,7 @@ async def get_project_health_report_submissions(
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DashboardFilters(geo_id=geo_id, account_id=account_id, project_type_id=project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id)
     projects = await dashboard_service.project_health_rows(db, filters)
     items, total = await dashboard_service.list_report_submissions_for_health(
         db,
