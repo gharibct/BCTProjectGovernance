@@ -13,9 +13,10 @@ from app.services import geo_rollup as geo_rollup_service
 router = APIRouter(prefix="/geos/{geo_id}/rollup", tags=["Geo Reporting"])
 
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_geo_read = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CDO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CDO)))]
 
 
-@router.get("", response_model=GeoRollupResponse)
+@router.get("", response_model=GeoRollupResponse, dependencies=_geo_read)
 async def get_geo_rollup(geo_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
     return await geo_rollup_service.compute_geo_rollup(db, geo_id, period_id)
 

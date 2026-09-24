@@ -55,3 +55,4 @@
 \ir tables/50_project_creation_requests.sql
 \ir tables/51_notifications.sql
 \ir tables/53_exchange_rates.sql
+\ir tables/54_account_customer_communications.sql

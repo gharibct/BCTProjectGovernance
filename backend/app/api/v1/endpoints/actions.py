@@ -18,7 +18,13 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, require_account_or_geo_scope, require_geo_scope, require_role
+from app.api.deps import (
+    get_current_user,
+    require_account_or_geo_scope,
+    require_geo_scope,
+    require_project_access,
+    require_project_read_access,
+)
 from app.core.db import get_db
 from app.crud.actions import action_crud, action_history_crud
 from app.models.actions import Action, ActionHistory
@@ -61,7 +67,34 @@ _TRANSITION_DENIED = "Only the action's owner or an authorized manager can do th
 
 _account_or_geo_scope = require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN)
 _geo_scope = require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CDO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CDO))
-_project_role = require_role(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN)
+# Per-record project ownership (PM/AM own the project, or ADMIN) — unlike the
+# geo/account scopes above, this used to be require_role only (no ownership
+# check at all: any PM/AM could edit any project's actions). require_project_access
+# already expects a `project_id` path param, matching this level's path_param.
+_project_scope = require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN)
+_project_read = require_project_read_access()
+# Read-only extensions of the geo/account write scopes above, adding Delivery
+# Excellence (whose "My Reports" Actions entry is read+create only — see
+# menu-config.ts; DE is deliberately not in write_dependency/transition_check
+# above, relying on the owner-bypass in _owner_or for actions DE created
+# itself). Both bypass ownership scoping entirely for DE (and CDO, already
+# unrestricted at GEO level via _geo_scope, extended to ACCOUNT level here
+# too for consistency).
+_geo_read = require_geo_scope(
+    RoleCode.GEO_HEAD,
+    RoleCode.CDO,
+    RoleCode.DELIVERY_EXCELLENCE,
+    RoleCode.ADMIN,
+    bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+)
+_account_read = require_account_or_geo_scope(
+    RoleCode.ACCOUNT_MANAGER,
+    RoleCode.GEO_HEAD,
+    RoleCode.CDO,
+    RoleCode.DELIVERY_EXCELLENCE,
+    RoleCode.ADMIN,
+    bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+)
 
 
 async def _account_write_check(db: AsyncSession, entity_id: UUID, current_user: User) -> None:
@@ -73,7 +106,7 @@ async def _geo_write_check(db: AsyncSession, entity_id: UUID, current_user: User
 
 
 async def _project_write_check(db: AsyncSession, entity_id: UUID, current_user: User) -> None:
-    await _project_role(current_user=current_user, db=db)
+    await _project_scope(project_id=entity_id, current_user=current_user, db=db)
 
 
 def _owner_or(write_check: Callable[[AsyncSession, UUID, User], Awaitable[None]]):
@@ -128,6 +161,7 @@ class ActionLevelConfig:
     url_prefix: str  # "geos" | "accounts" | "projects"
     path_param: str  # "geo_id" | "account_id" | "project_id" — must match write_dependency's own param name
     write_dependency: Callable  # raw deps.py dependency, used via Depends() on create/update
+    read_dependency: Callable  # raw deps.py dependency, used via Depends() on the GET routes below
     transition_check: Callable[[AsyncSession, UUID, Action, User], Awaitable[None]]
     default_owner: Callable[[AsyncSession, UUID], Awaitable[UUID | None]] | None = None
 
@@ -168,7 +202,7 @@ def build_action_router(cfg: ActionLevelConfig) -> APIRouter:
     def entity_id_param() -> UUID:
         return Path(alias=cfg.path_param)
 
-    @router.get("", response_model=list[ActionRead])
+    @router.get("", response_model=list[ActionRead], dependencies=[Depends(cfg.read_dependency)])
     async def list_actions(
         entity_id: UUID = entity_id_param(),
         status_filter: ActionStatus | None = Query(default=None, alias="status"),
@@ -183,11 +217,13 @@ def build_action_router(cfg: ActionLevelConfig) -> APIRouter:
         items, _ = await action_crud.list(db, filters=filters, order_by=Action.due_date.asc(), limit=200)
         return items
 
-    @router.get("/{action_id}", response_model=ActionRead)
+    @router.get("/{action_id}", response_model=ActionRead, dependencies=[Depends(cfg.read_dependency)])
     async def get_action(action_id: UUID, entity_id: UUID = entity_id_param(), db: AsyncSession = Depends(get_db)):
         return await _get_scoped(db, cfg, entity_id, action_id)
 
-    @router.get("/{action_id}/history", response_model=list[ActionHistoryRead])
+    @router.get(
+        "/{action_id}/history", response_model=list[ActionHistoryRead], dependencies=[Depends(cfg.read_dependency)]
+    )
     async def get_action_history(
         action_id: UUID, entity_id: UUID = entity_id_param(), db: AsyncSession = Depends(get_db)
     ):
@@ -423,6 +459,7 @@ ACTION_LEVEL_CONFIGS = [
         url_prefix="geos",
         path_param="geo_id",
         write_dependency=_geo_scope,
+        read_dependency=_geo_read,
         transition_check=_owner_or(_geo_write_check),
         default_owner=_geo_head_default,
     ),
@@ -431,6 +468,7 @@ ACTION_LEVEL_CONFIGS = [
         url_prefix="accounts",
         path_param="account_id",
         write_dependency=_account_or_geo_scope,
+        read_dependency=_account_read,
         transition_check=_owner_or(_account_write_check),
         default_owner=_account_head_default,
     ),
@@ -438,7 +476,8 @@ ACTION_LEVEL_CONFIGS = [
         level=ActionLevel.PROJECT,
         url_prefix="projects",
         path_param="project_id",
-        write_dependency=_project_role,
+        write_dependency=_project_scope,
+        read_dependency=_project_read,
         transition_check=_owner_or(_project_write_check),
         default_owner=_project_manager_default,
     ),

@@ -15,7 +15,7 @@ router = APIRouter(prefix="/accounts/{account_id}/health-rollup", tags=["Account
 _account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
-@router.get("", response_model=AccountHealthRollupResponse)
+@router.get("", response_model=AccountHealthRollupResponse, dependencies=_account_manager_write)
 async def get_account_health_rollup(account_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
     return await account_health_rollup_service.compute_account_health_rollup(db, account_id, period_id)
 

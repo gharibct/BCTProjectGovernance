@@ -19,13 +19,15 @@ const SCOPE_ACTION_LEVEL: Record<ReviewScope, ActionLevel> = {
 };
 import { GeoAccountMatrixSection } from "./geo-account-matrix-section";
 import { OverviewSection } from "./overview-section";
+import type { ProjectStatusReport } from "@/lib/api/project-status";
+import { CustomerCommunicationSection } from "./customer-communication-section";
 import { RagStatusSection } from "./rag-status-section";
 import { OpenNcSection } from "./open-nc-section";
 import { ReviewActions } from "./review-actions";
 import { ExecutiveUpdateSection } from "@/components/regional-reporting/executive-update-section";
 
 const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
-  project: "Delivery Status Report - Project",
+  project: "Project Delivery Status",
   account: "Delivery Status Report - Account",
   geo: "Delivery Status Report - Geo",
 };
@@ -128,6 +130,10 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
             <>
               <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
               <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
+              {scope === "project" ? (
+                // Under scope "project" the reports are ProjectStatusReports.
+                <CustomerCommunicationSection projectId={scopeId} report={report as ProjectStatusReport | undefined} />
+              ) : null}
             </>
           )}
           <OpenNcSection scope={scope} scopeId={scopeId} report={report} />

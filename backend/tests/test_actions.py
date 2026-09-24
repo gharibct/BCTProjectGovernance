@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -56,16 +57,42 @@ def _clear_overrides():
     app.dependency_overrides.clear()
 
 
-# --- List (open to any authenticated user, all three levels) ---
+# --- List: scoped like the write gates (Geo/Account already were; Project
+# used to have none at all — see test_project_actions_write_requires_project_ownership
+# below for the write-side regression this closes too) ---
+
+
+def _project_get_map(project_id=_PROJECT_ID, account_id=None, geo_id=None):
+    return {(Project, project_id): SimpleNamespace(account_id=account_id, geo_id=geo_id)}
 
 
 @pytest.mark.parametrize(
     "prefix,entity_id",
     [("geos", _GEO_ID), ("accounts", _ACCOUNT_ID), ("projects", _PROJECT_ID)],
 )
-async def test_list_actions_returns_200_for_any_role(client, prefix, entity_id):
-    headers = _override(make_user(), FakeDB(RoleCode.TEAM_MEMBER))
+async def test_list_actions_returns_200_for_admin_at_every_level(client, prefix, entity_id):
+    get_map = _project_get_map() if prefix == "projects" else {}
+    headers = _override(make_user(), FakeDB(RoleCode.ADMIN, get_map=get_map))
     response = await client.get(f"/api/v1/{prefix}/{entity_id}/actions", headers=headers)
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "prefix,entity_id",
+    [("geos", _GEO_ID), ("accounts", _ACCOUNT_ID), ("projects", _PROJECT_ID)],
+)
+async def test_list_actions_rejects_team_member_with_no_ownership(client, prefix, entity_id):
+    get_map = _project_get_map() if prefix == "projects" else {}
+    headers = _override(make_user(), FakeDB(RoleCode.TEAM_MEMBER, get_map=get_map))
+    response = await client.get(f"/api/v1/{prefix}/{entity_id}/actions", headers=headers)
+    assert response.status_code == 403
+
+
+async def test_list_project_actions_allows_owning_pm(client):
+    headers = _override(
+        make_user(), FakeDB(RoleCode.PROJECT_MANAGER, get_map=_project_get_map())
+    )
+    response = await client.get(f"/api/v1/projects/{_PROJECT_ID}/actions", headers=headers)
     assert response.status_code == 200
 
 
@@ -282,3 +309,51 @@ async def test_update_action_logs_owner_and_due_date_changes(client):
     assert response.status_code == 200
     assert response.json()["action_by_id"] == str(new_owner)
     assert response.json()["due_date"] == "2026-02-01"
+
+
+# --- Project-level write scoping (regression guard: this used to be
+# role-only — require_role(PM, AM, ADMIN) with no per-project ownership
+# check at all, so any PM/AM could edit or transition ANY project's actions.
+# _project_scope (require_project_access) now checks ownership like every
+# other project-scoped write in the codebase.) ---
+
+
+async def test_update_project_action_rejects_non_owning_account_manager(client):
+    action_id = uuid4()
+    action = _make_action(action_by_id=uuid4(), level="PROJECT", level_value=str(_PROJECT_ID))
+    get_map = _project_get_map(account_id=uuid4())
+    get_map[(Action, action_id)] = action
+    headers = _override(
+        make_user(), FakeDB(RoleCode.ACCOUNT_MANAGER, owned_account_ids=[uuid4()], get_map=get_map)
+    )
+    response = await client.put(
+        f"/api/v1/projects/{_PROJECT_ID}/actions/{action_id}", json={"priority": "LOW"}, headers=headers
+    )
+    assert response.status_code == 403
+
+
+async def test_update_project_action_allows_owning_account_manager(client):
+    action_id = uuid4()
+    action = _make_action(action_by_id=uuid4(), level="PROJECT", level_value=str(_PROJECT_ID), priority="LOW")
+    account_id = uuid4()
+    get_map = _project_get_map(account_id=account_id)
+    get_map[(Action, action_id)] = action
+    headers = _override(
+        make_user(), FakeDB(RoleCode.ACCOUNT_MANAGER, owned_account_ids=[account_id], get_map=get_map)
+    )
+    response = await client.put(
+        f"/api/v1/projects/{_PROJECT_ID}/actions/{action_id}", json={"priority": "HIGH"}, headers=headers
+    )
+    assert response.status_code == 200
+
+
+async def test_start_project_action_rejects_non_owning_account_manager(client):
+    action_id = uuid4()
+    action = _make_action(action_by_id=uuid4(), level="PROJECT", level_value=str(_PROJECT_ID), status="OPEN")
+    get_map = _project_get_map(account_id=uuid4())
+    get_map[(Action, action_id)] = action
+    headers = _override(
+        make_user(), FakeDB(RoleCode.ACCOUNT_MANAGER, owned_account_ids=[uuid4()], get_map=get_map)
+    )
+    response = await client.patch(f"/api/v1/projects/{_PROJECT_ID}/actions/{action_id}/start", headers=headers)
+    assert response.status_code == 403

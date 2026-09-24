@@ -1,8 +1,10 @@
 """Portfolio-wide DE Findings API — a cross-project list + KPI read and a
 body-carries-project create/update over the project-level
-`de_assessment_findings` register. Role-gated to DELIVERY_EXCELLENCE / ADMIN
-(no DE-allocation scoping on reads — DE sees every project's findings). The
-project-scoped register lives at /projects/{id}/de-assessment-findings
+`de_assessment_findings` register. Reads are open to DELIVERY_EXCELLENCE /
+ADMIN / CDO (unrestricted, portfolio-wide) and to GEO_HEAD / ACCOUNT_MANAGER
+(patch-scoped to their own geos/accounts — see
+require_de_findings_read_scope). Writes stay DELIVERY_EXCELLENCE / ADMIN only.
+The project-scoped register lives at /projects/{id}/de-assessment-findings
 (de_assessment.py) and shares the create helper.
 """
 
@@ -13,10 +15,13 @@ from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
+    DEFindingReadScope,
     PaginationParams,
+    check_de_finding_history_access,
+    get_current_user,
     pagination_params,
+    require_de_findings_read_scope,
     require_de_findings_write,
-    require_role,
 )
 from app.core.db import get_db
 from app.crud.de_assessment import de_assessment_finding_crud
@@ -50,14 +55,10 @@ from app.services.de_findings import (
 
 router = APIRouter(prefix="/de-findings", tags=["DE Findings"])
 
-_read_gate = [Depends(require_role(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN))]
 
-
-@router.get("", response_model=Page[DEFindingListRow], dependencies=_read_gate)
+@router.get("", response_model=Page[DEFindingListRow])
 async def list_findings(
-    geo_id: UUID | None = None,
-    account_id: UUID | None = None,
-    project_id: UUID | None = None,
+    scope: DEFindingReadScope = Depends(require_de_findings_read_scope),
     classification: str | None = None,
     status: str | None = "Active",
     search: str | None = None,
@@ -66,9 +67,11 @@ async def list_findings(
     db: AsyncSession = Depends(get_db),
 ):
     filters = DEFindingFilters(
-        geo_id=geo_id,
-        account_id=account_id,
-        project_id=project_id,
+        geo_id=scope.geo_id,
+        account_id=scope.account_id,
+        project_id=scope.project_id,
+        restrict_geo_ids=scope.restrict_geo_ids,
+        restrict_account_ids=scope.restrict_account_ids,
         classification=classification,
         status=status,
         search=search,
@@ -78,14 +81,18 @@ async def list_findings(
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/kpis", response_model=DEFindingsKpis, dependencies=_read_gate)
+@router.get("/kpis", response_model=DEFindingsKpis)
 async def findings_kpis(
-    geo_id: UUID | None = None,
-    account_id: UUID | None = None,
-    project_id: UUID | None = None,
+    scope: DEFindingReadScope = Depends(require_de_findings_read_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = DEFindingFilters(geo_id=geo_id, account_id=account_id, project_id=project_id)
+    filters = DEFindingFilters(
+        geo_id=scope.geo_id,
+        account_id=scope.account_id,
+        project_id=scope.project_id,
+        restrict_geo_ids=scope.restrict_geo_ids,
+        restrict_account_ids=scope.restrict_account_ids,
+    )
     return await de_findings_kpis(db, filters)
 
 
@@ -167,13 +174,15 @@ async def update_finding(
     return updated
 
 
-@router.get(
-    "/{finding_id}/history",
-    response_model=list[DEFindingHistoryRead],
-    dependencies=_read_gate,
-)
-async def get_finding_history(finding_id: UUID, db: AsyncSession = Depends(get_db)):
+@router.get("/{finding_id}/history", response_model=list[DEFindingHistoryRead])
+async def get_finding_history(
+    finding_id: UUID,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     obj = await de_assessment_finding_crud.get(db, finding_id)
     if obj is None:
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Finding not found")
+    project = await project_crud.get(db, obj.project_id)
+    await check_de_finding_history_access(db, current_user, project)
     return await list_finding_history(db, finding_id)

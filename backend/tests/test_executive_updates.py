@@ -15,11 +15,17 @@ async def test_list_requires_auth(client):
     assert response.status_code == 401
 
 
-async def test_list_returns_200_for_any_role(client, override_auth):
-    headers = override_auth(RoleCode.TEAM_MEMBER)
+async def test_list_returns_200_for_cdo_regardless_of_ownership(client, override_auth):
+    headers = override_auth(RoleCode.CDO)
     response = await client.get(f"/api/v1/geos/{_GEO_ID}/executive-updates", headers=headers)
     assert response.status_code == 200
     assert response.json() == []
+
+
+async def test_list_rejects_team_member_with_no_ownership(client, override_auth):
+    headers = override_auth(RoleCode.TEAM_MEMBER)
+    response = await client.get(f"/api/v1/geos/{_GEO_ID}/executive-updates", headers=headers)
+    assert response.status_code == 403
 
 
 async def test_create_rejects_wrong_role(client, override_auth):

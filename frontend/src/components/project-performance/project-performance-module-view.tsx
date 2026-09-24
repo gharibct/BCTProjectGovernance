@@ -38,7 +38,7 @@ export function ProjectPerformanceModuleView({
       className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
     >
       <ArrowLeft className="size-4" />
-      Back to Project Performance Dashboard
+      Back to Project Performance
     </Link>
   );
 

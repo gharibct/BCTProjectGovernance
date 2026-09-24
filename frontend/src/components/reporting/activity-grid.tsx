@@ -18,12 +18,22 @@ const CELL_CLASS: Record<ActivityDisplayStatus, string> = {
   "n/a": "border border-slate-200",
 };
 
-function Legend() {
+// "reporting" is the report-submission legend; "communications" (Customer
+// Communications heatmap) has a single state — a green box per month in which
+// a communication was shared.
+function Legend({ kind }: { kind: "reporting" | "communications" }) {
+  const entries: { label: string; status: ActivityDisplayStatus }[] =
+    kind === "communications"
+      ? [{ label: "Communication Shared", status: "submitted" }]
+      : (["n/a", "not-submitted", "submitted"] as ActivityDisplayStatus[]).map((status) => ({
+          label: ACTIVITY_DISPLAY_LABEL[status],
+          status,
+        }));
   return (
-    <div className="mt-4 flex items-center justify-end gap-3 text-xs text-slate-500">
-      {(["n/a", "not-submitted", "submitted"] as ActivityDisplayStatus[]).map((status) => (
+    <div className="mt-auto flex items-center justify-end gap-3 pt-4 text-xs text-slate-500">
+      {entries.map(({ label, status }) => (
         <span key={status} className="flex items-center gap-1.5">
-          {ACTIVITY_DISPLAY_LABEL[status]}
+          {label}
           <span className={cn("size-3 rounded-sm", CELL_CLASS[status])} />
         </span>
       ))}
@@ -35,10 +45,12 @@ export function ReportingActivityGrid({
   title,
   items,
   variant,
+  legend = "reporting",
 }: {
   title?: string;
   items: PeriodActivityItem[];
   variant: "weekly" | "monthly";
+  legend?: "reporting" | "communications";
 }) {
   // Weekly: one small square per week, grouped under its month (a week is
   // filed by the month its Monday falls in). A calendar month has at most 5
@@ -48,7 +60,7 @@ export function ReportingActivityGrid({
   for (const item of items) weeksByMonth[monthOfItem(item)].push(item);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       {title ? <h3 className="mb-4 font-bold text-slate-900">{title}</h3> : null}
 
       {items.length === 0 ? (
@@ -84,7 +96,7 @@ export function ReportingActivityGrid({
         </div>
       )}
 
-      <Legend />
+      <Legend kind={legend} />
     </div>
   );
 }

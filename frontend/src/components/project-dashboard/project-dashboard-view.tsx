@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { ProjectHeader } from "@/components/shell/project-header";
 import { OverviewSection } from "@/components/status-review/overview-section";
 import { RagStatusSection } from "@/components/status-review/rag-status-section";
+import { CustomerCommunicationSection } from "@/components/status-review/customer-communication-section";
 import { OpenNcSection } from "@/components/status-review/open-nc-section";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
@@ -36,7 +37,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <ProjectHeader subheading="Delivery Status Report - Project" periodId={periodId} showActionTracker />
+      <ProjectHeader subheading="Project Delivery Status" periodId={periodId} showActionTracker />
 
       {!periodId ? (
         <p className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-slate-400">
@@ -46,6 +47,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
         <>
           <OverviewSection scope="project" scopeId={projectId} periodId={periodId} />
           <RagStatusSection scope="project" scopeId={projectId} periodId={periodId} />
+          <CustomerCommunicationSection projectId={projectId} report={report} />
           <OpenNcSection scope="project" scopeId={projectId} report={report} />
           <SubmitReportAction projectId={projectId} periodId={periodId} report={report} />
         </>

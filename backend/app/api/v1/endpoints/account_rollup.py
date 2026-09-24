@@ -15,7 +15,7 @@ router = APIRouter(prefix="/accounts/{account_id}/rollup", tags=["Account Report
 _account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 
 
-@router.get("", response_model=AccountRollupResponse)
+@router.get("", response_model=AccountRollupResponse, dependencies=_account_manager_write)
 async def get_account_rollup(account_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
     return await account_rollup_service.compute_account_rollup(db, account_id, period_id)
 

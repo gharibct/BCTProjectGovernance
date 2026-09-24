@@ -55,11 +55,17 @@ async def test_list_assessments_requires_auth(client):
     assert response.status_code == 401
 
 
-async def test_list_assessments_returns_200_for_any_role(client, override_auth):
-    headers = override_auth(RoleCode.TEAM_MEMBER)
+async def test_list_assessments_returns_200_for_de_regardless_of_ownership(client, override_auth):
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map={(Project, _PROJECT_ID): _fake_project()})
     response = await client.get(f"/api/v1/projects/{_PROJECT_ID}/de-assessments", headers=headers)
     assert response.status_code == 200
     assert response.json() == []
+
+
+async def test_list_assessments_rejects_team_member_with_no_ownership(client, override_auth):
+    headers = override_auth(RoleCode.TEAM_MEMBER, get_map={(Project, _PROJECT_ID): _fake_project()})
+    response = await client.get(f"/api/v1/projects/{_PROJECT_ID}/de-assessments", headers=headers)
+    assert response.status_code == 403
 
 
 async def test_create_assessment_rejects_non_de(client, override_auth):

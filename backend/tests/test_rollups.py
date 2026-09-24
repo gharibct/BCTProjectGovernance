@@ -20,11 +20,16 @@ class TestAccountStatusReports:
         response = await client.get(f"/api/v1/accounts/{_ACCOUNT_ID}/status-reports")
         assert response.status_code == 401
 
-    async def test_list_returns_200_for_any_role(self, client, override_auth):
-        headers = override_auth(RoleCode.TEAM_MEMBER)
+    async def test_list_returns_200_for_admin_regardless_of_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.ADMIN)
         response = await client.get(f"/api/v1/accounts/{_ACCOUNT_ID}/status-reports", headers=headers)
         assert response.status_code == 200
         assert response.json() == []
+
+    async def test_list_rejects_team_member_with_no_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.TEAM_MEMBER)
+        response = await client.get(f"/api/v1/accounts/{_ACCOUNT_ID}/status-reports", headers=headers)
+        assert response.status_code == 403
 
     async def test_create_rejects_wrong_role(self, client, override_auth):
         headers = override_auth(RoleCode.TEAM_MEMBER)
@@ -52,7 +57,7 @@ class TestAccountStatusReports:
         assert response.status_code != 403
 
     async def test_list_status_items_returns_200(self, client, override_auth):
-        headers = override_auth(RoleCode.TEAM_MEMBER)
+        headers = override_auth(RoleCode.ADMIN)
         response = await client.get(
             f"/api/v1/accounts/{_ACCOUNT_ID}/status-items",
             params={"period_id": str(uuid4()), "category": ProjectStatusCategory.KEY_ACCOMPLISHMENTS.value},
@@ -67,11 +72,16 @@ class TestGeoStatusReports:
         response = await client.get(f"/api/v1/geos/{_GEO_ID}/status-reports")
         assert response.status_code == 401
 
-    async def test_list_returns_200_for_any_role(self, client, override_auth):
-        headers = override_auth(RoleCode.TEAM_MEMBER)
+    async def test_list_returns_200_for_cdo_regardless_of_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.CDO)
         response = await client.get(f"/api/v1/geos/{_GEO_ID}/status-reports", headers=headers)
         assert response.status_code == 200
         assert response.json() == []
+
+    async def test_list_rejects_team_member_with_no_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.TEAM_MEMBER)
+        response = await client.get(f"/api/v1/geos/{_GEO_ID}/status-reports", headers=headers)
+        assert response.status_code == 403
 
     async def test_create_rejects_wrong_role(self, client, override_auth):
         headers = override_auth(RoleCode.TEAM_MEMBER)
@@ -104,8 +114,8 @@ class TestAccountRollup:
         response = await client.get(f"/api/v1/accounts/{_ACCOUNT_ID}/rollup", params={"period_id": str(uuid4())})
         assert response.status_code == 401
 
-    async def test_get_returns_200_for_any_role(self, client, override_auth):
-        headers = override_auth(RoleCode.TEAM_MEMBER)
+    async def test_get_returns_200_for_admin_regardless_of_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.ADMIN)
         response = await client.get(
             f"/api/v1/accounts/{_ACCOUNT_ID}/rollup", params={"period_id": str(uuid4())}, headers=headers
         )
@@ -120,6 +130,13 @@ class TestAccountRollup:
             },
             "items": [],
         }
+
+    async def test_get_rejects_team_member_with_no_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.TEAM_MEMBER)
+        response = await client.get(
+            f"/api/v1/accounts/{_ACCOUNT_ID}/rollup", params={"period_id": str(uuid4())}, headers=headers
+        )
+        assert response.status_code == 403
 
     async def test_pull_rejects_wrong_role(self, client, override_auth):
         headers = override_auth(RoleCode.TEAM_MEMBER)
@@ -137,13 +154,20 @@ class TestAccountRollup:
 
 
 class TestAccountHealthRollup:
-    async def test_get_returns_200_for_any_role(self, client, override_auth):
-        headers = override_auth(RoleCode.TEAM_MEMBER)
+    async def test_get_returns_200_for_admin_regardless_of_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.ADMIN)
         response = await client.get(
             f"/api/v1/accounts/{_ACCOUNT_ID}/health-rollup", params={"period_id": str(uuid4())}, headers=headers
         )
         assert response.status_code == 200
         assert response.json() == {"items": []}
+
+    async def test_get_rejects_team_member_with_no_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.TEAM_MEMBER)
+        response = await client.get(
+            f"/api/v1/accounts/{_ACCOUNT_ID}/health-rollup", params={"period_id": str(uuid4())}, headers=headers
+        )
+        assert response.status_code == 403
 
     async def test_pull_rejects_wrong_role(self, client, override_auth):
         headers = override_auth(RoleCode.TEAM_MEMBER)
@@ -156,8 +180,8 @@ class TestAccountHealthRollup:
 
 
 class TestGeoRollup:
-    async def test_get_returns_200_for_any_role(self, client, override_auth):
-        headers = override_auth(RoleCode.TEAM_MEMBER)
+    async def test_get_returns_200_for_cdo_regardless_of_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.CDO)
         response = await client.get(
             f"/api/v1/geos/{_GEO_ID}/rollup", params={"period_id": str(uuid4())}, headers=headers
         )
@@ -172,6 +196,13 @@ class TestGeoRollup:
             },
             "items": [],
         }
+
+    async def test_get_rejects_team_member_with_no_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.TEAM_MEMBER)
+        response = await client.get(
+            f"/api/v1/geos/{_GEO_ID}/rollup", params={"period_id": str(uuid4())}, headers=headers
+        )
+        assert response.status_code == 403
 
     async def test_pull_rejects_wrong_role(self, client, override_auth):
         headers = override_auth(RoleCode.TEAM_MEMBER)

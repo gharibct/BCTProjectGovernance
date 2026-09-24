@@ -26,6 +26,9 @@ from app.schemas.executive_updates import ExecutiveUpdateCreate, ExecutiveUpdate
 router = APIRouter(prefix="/geos/{geo_id}/executive-updates", tags=["Executive Update"])
 
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+# Reads: same as write plus CDO — these updates are written *for* CDO (see
+# module docstring above), so CDO needs to read them without owning the geo.
+_geo_read = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CDO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CDO)))]
 
 _IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
 
@@ -39,7 +42,7 @@ def _by_period_start() -> Any:
     )
 
 
-@router.get("", response_model=list[ExecutiveUpdateRead])
+@router.get("", response_model=list[ExecutiveUpdateRead], dependencies=_geo_read)
 async def list_executive_updates(geo_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await executive_update_crud.list(
         db,
@@ -105,7 +108,7 @@ async def upload_executive_update_image(
     return ExecutiveUpdateImageUploaded(path=relative_path)
 
 
-@router.get("/images/{filename}")
+@router.get("/images/{filename}", dependencies=_geo_read)
 async def get_executive_update_image(geo_id: UUID, filename: str):
     geo_dir = (Path(settings.document_storage_dir) / "executive_updates" / str(geo_id)).resolve()
     file_path = (geo_dir / filename).resolve()

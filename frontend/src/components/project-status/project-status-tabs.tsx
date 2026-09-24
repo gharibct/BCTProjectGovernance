@@ -12,14 +12,23 @@ import { usePageBanner } from "@/stores/page-banner";
 import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import {
+  downloadCustomerReportFile,
   isReportFrozen,
   previousPeriodReport,
   statusMetricsFromReport,
   useCreateStatusReport,
   useStatusReports,
   useUpdateStatusReport,
+  useUploadCustomerReportFile,
 } from "@/lib/api/project-status";
 import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
+import {
+  BLANK_CUSTOMER_COMMUNICATION,
+  CustomerCommunicationSection,
+  customerCommunicationFromReport,
+  validateCustomerCommunication,
+  type CustomerCommunicationErrors,
+} from "./customer-communication-section";
 import { StatusItemsTab } from "./status-items-tab";
 
 // Same plain client-state tab bar as raido/raido-tabs.tsx — no route/query-param sync.
@@ -37,6 +46,7 @@ export function ProjectStatusTabs() {
   const { data: periods = [] } = useReportingPeriods();
   const createReport = useCreateStatusReport(projectId ?? null);
   const updateReport = useUpdateStatusReport(projectId ?? null);
+  const uploadCustomerFile = useUploadCustomerReportFile(projectId ?? null);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
@@ -56,6 +66,8 @@ export function ProjectStatusTabs() {
   // rather than immediately like the grid rows. The report is submitted for
   // review separately, from the Dashboard.
   const [metrics, setMetrics] = React.useState(BLANK_METRICS);
+  const [customer, setCustomer] = React.useState(BLANK_CUSTOMER_COMMUNICATION);
+  const [customerErrors, setCustomerErrors] = React.useState<CustomerCommunicationErrors>({});
   const [syncedFor, setSyncedFor] = React.useState<string | null>(null);
   // First report for the project → Revenue defaults from the project's
   // Revenue in USD (still editable); later periods carry the previous report.
@@ -63,6 +75,9 @@ export function ProjectStatusTabs() {
   const key = existing ? existing.id : `blank:${carriedFrom?.id ?? "none"}:${periodId}:${projectRevenueUsd}`;
   if (key !== syncedFor) {
     setSyncedFor(key);
+    // Customer Communication is per report — never carried forward.
+    setCustomer(existing ? customerCommunicationFromReport(existing) : BLANK_CUSTOMER_COMMUNICATION);
+    setCustomerErrors({});
     setMetrics(
       existing
         ? statusMetricsFromReport(existing)
@@ -75,7 +90,7 @@ export function ProjectStatusTabs() {
   const setMetric = (key: keyof typeof metrics) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setMetrics((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const isSaving = createReport.isPending || updateReport.isPending;
+  const isSaving = createReport.isPending || updateReport.isPending || uploadCustomerFile.isPending;
 
   // Persists Key Metrics for this period without submitting — the report is
   // only moved Draft -> Submitted from the Dashboard
@@ -84,18 +99,33 @@ export function ProjectStatusTabs() {
   // (status-items-tab.tsx), so after this the whole page is saved.
   const saveDetails = async () => {
     if (!periodId) return;
+    const errors = validateCustomerCommunication(customer, !!existing?.customer_report_file_name);
+    setCustomerErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      showError("Complete the mandatory Customer Communication fields.");
+      return;
+    }
+    const sharedWithCustomer = customer.shared === "Yes";
     const fields = {
       revenue: metrics.revenue || undefined,
       onsite_fte: metrics.onsite_fte || undefined,
       offshore_fte: metrics.offshore_fte || undefined,
       projects_count: metrics.projects_count ? Number(metrics.projects_count) : undefined,
+      customer_report_shared: sharedWithCustomer,
+      // The server drops the date and file when the answer is No.
+      customer_report_date: sharedWithCustomer ? customer.date : undefined,
     };
     try {
-      await (existing
+      const saved = await (existing
         ? // No status in the payload — a Draft stays Draft, and an already
           // Submitted/Approved report keeps its status.
           updateReport.mutateAsync({ id: existing.id, payload: { ...fields } })
         : createReport.mutateAsync({ period_id: periodId, status: "Draft", ...fields }));
+      // The file needs the report's id, so it's uploaded after the save.
+      if (sharedWithCustomer && customer.file) {
+        await uploadCustomerFile.mutateAsync({ reportId: saved.id, file: customer.file });
+        setCustomer((prev) => ({ ...prev, file: null }));
+      }
       showSuccess("Details Saved Successfully");
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to save details.");
@@ -159,6 +189,24 @@ export function ProjectStatusTabs() {
               </Field>
             </div>
           </SectionCard>
+
+          <CustomerCommunicationSection
+            value={customer}
+            onChange={(next) => {
+              setCustomer(next);
+              setCustomerErrors({});
+            }}
+            errors={customerErrors}
+            uploadedFileName={existing?.customer_report_file_name ?? null}
+            onDownload={() => {
+              if (existing && projectId) {
+                downloadCustomerReportFile(projectId, existing).catch((err) =>
+                  showError(err instanceof Error ? err.message : "Failed to download the file.")
+                );
+              }
+            }}
+            disabled={frozen}
+          />
         </div>
       ) : null}
 

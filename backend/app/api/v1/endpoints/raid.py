@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import PaginationParams, pagination_params, require_project_access
+from app.api.deps import PaginationParams, pagination_params, require_project_access, require_project_read_access
 from app.core.db import get_db
 from app.crud.base import CRUDBase
 from app.crud.raid import (
@@ -68,6 +68,7 @@ class RaidConfig:
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
 _pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_read = [Depends(require_project_read_access())]
 
 
 def build_raid_router(cfg: RaidConfig) -> APIRouter:
@@ -75,7 +76,7 @@ def build_raid_router(cfg: RaidConfig) -> APIRouter:
     model = cfg.model
     crud = cfg.crud
 
-    @router.get("", response_model=Page[cfg.read_schema])
+    @router.get("", response_model=Page[cfg.read_schema], dependencies=_pm_read)
     async def list_items(
         project_id: UUID,
         status_filter: str | None = Query(default=None, alias="status"),
@@ -108,7 +109,7 @@ def build_raid_router(cfg: RaidConfig) -> APIRouter:
         code = await generate_code(db, cfg.entity_code)
         return await crud.create(db, payload, project_id=project_id, **{cfg.code_field: code}, **cfg.default_values)
 
-    @router.get("/{item_id}", response_model=cfg.read_schema)
+    @router.get("/{item_id}", response_model=cfg.read_schema, dependencies=_pm_read)
     async def get_item(project_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
         obj = await crud.get(db, item_id)
         if obj is None or obj.project_id != project_id:

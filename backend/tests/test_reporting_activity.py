@@ -18,6 +18,7 @@ from tests.test_authorization import override_auth
 
 _PROJECT_ID = uuid4()
 _TODAY = date(2026, 8, 24)
+_PROJECT_GET_MAP = {(Project, _PROJECT_ID): SimpleNamespace(account_id=None, geo_id=None)}
 
 
 def _period(pid, start, end):
@@ -38,8 +39,8 @@ async def test_requires_auth(client):
 
 
 @pytest.mark.asyncio
-async def test_returns_shape_for_any_role(client, override_auth):
-    headers = override_auth(RoleCode.TEAM_MEMBER)
+async def test_returns_shape_for_de_regardless_of_ownership(client, override_auth):
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map=_PROJECT_GET_MAP)
     response = await client.get(f"/api/v1/projects/{_PROJECT_ID}/reporting-activity", headers=headers)
     assert response.status_code == 200
     body = response.json()
@@ -54,6 +55,13 @@ async def test_returns_shape_for_any_role(client, override_auth):
             "submitted",
             "total",
         }
+
+
+@pytest.mark.asyncio
+async def test_returns_403_for_team_member_with_no_ownership(client, override_auth):
+    headers = override_auth(RoleCode.TEAM_MEMBER, get_map=_PROJECT_GET_MAP)
+    response = await client.get(f"/api/v1/projects/{_PROJECT_ID}/reporting-activity", headers=headers)
+    assert response.status_code == 403
 
 
 # --- classification -------------------------------------------------------
@@ -190,12 +198,20 @@ async def test_regional_activity_requires_auth(client, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("path", [f"accounts/{_ACCOUNT_ID}", f"geos/{_GEO_ID}"])
 async def test_regional_activity_weekly_only_shape(client, override_auth, path):
-    headers = override_auth(RoleCode.TEAM_MEMBER)
+    headers = override_auth(RoleCode.ADMIN)
     response = await client.get(f"/api/v1/{path}/reporting-activity", headers=headers)
     assert response.status_code == 200
     body = response.json()
     assert set(body) == {"year", "weekly"}  # no "monthly"
     assert set(body["weekly"]) == {"items", "counts", "pct"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", [f"accounts/{_ACCOUNT_ID}", f"geos/{_GEO_ID}"])
+async def test_regional_activity_rejects_team_member_with_no_ownership(client, override_auth, path):
+    headers = override_auth(RoleCode.TEAM_MEMBER)
+    response = await client.get(f"/api/v1/{path}/reporting-activity", headers=headers)
+    assert response.status_code == 403
 
 
 # --- tool_effective_date wiring (DB-backed) --------------------------------

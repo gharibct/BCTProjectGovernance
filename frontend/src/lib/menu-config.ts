@@ -43,123 +43,186 @@ export type MenuEntryId =
   | "admin-bulk-status-projects"
   | "admin-bulk-status-accounts";
 
-const PROJECT_MANAGER_MENU: MenuEntryId[] = [
-  "project-manager-dashboard",
-  "project-review",
-  // "new-project" (Create Project) moved to Account Head / Geo Head — a project
-  // now starts as a creation request they submit and Delivery Excellence
-  // approves. The PM picks it up from "Provide Project Details" once approved.
-  "maintain-project",
-  "project-reporting",
-  // Read-only — the DE Assessment workspace itself already renders every
-  // field disabled for a PM (see de-assessment-workspace.tsx); this just
-  // gives PM a proper entry point, listing the same projects as
-  // "project-reporting".
-  "de-assessment-report",
-  "view-amend-projects",
-  // View-only monthly Measurements/Commitments/Payment Milestones/RAIDO
-  // rollup — same /project-performance route the Account Manager uses (see
-  // app-sidebar.tsx), no review/approval process, unlike project-review above.
-  "project-performance",
-  // Standalone Level+Value Actions screen (frontend/src/components/actions/
-  // actions-view.tsx) — PM only ever gets Project as a Level (see
-  // action-permissions.ts's actionLevelsForRole).
-  "actions",
-  // Rendered last in the sidebar (after "Delivery Status Report - Project") — see app-sidebar.tsx.
-  "pm-findings",
-];
-
 const DASHBOARD_ONLY_MENU: MenuEntryId[] = ["dashboard"];
 
-export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = {
-  PROJECT_MANAGER: PROJECT_MANAGER_MENU,
-  TEAM_MEMBER: DASHBOARD_ONLY_MENU,
+// A labeled, collapsible group of sidebar items ("My Work", "Project
+// Oversight"), or an ungrouped item list when `heading` is omitted (rendered
+// bare, same as before this existed). Every RoleCode gets an entry — roles
+// out of scope for grouping (ADMIN, PMO, TEAM_MEMBER) just get one
+// heading-less section wrapping their flat list, so app-sidebar.tsx has a
+// single render path for every role. See docs/ux-requirements.md and the
+// left-nav regrouping plan for the source of this shape per role.
+export type MenuSection = {
+  heading?: string;
+  items: MenuEntryId[];
+};
+
+export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
+  PROJECT_MANAGER: [
+    { items: ["project-manager-dashboard"] },
+    {
+      heading: "My Work",
+      items: ["maintain-project", "view-amend-projects", "project-reporting"],
+    },
+    {
+      heading: "My Reports",
+      items: ["project-review", "project-performance", "de-assessment-report", "pm-findings", "actions"],
+    },
+  ],
+  TEAM_MEMBER: [{ items: DASHBOARD_ONLY_MENU }],
   DELIVERY_EXCELLENCE: [
-    "delivery-excellence-dashboard",
-    "de-project-requests",
-    "de-allocation",
-    "de-approval",
-    "de-assessment",
-    "de-findings",
-    "de-projects",
-    "reassignment",
-    "project-health",
+    { items: ["delivery-excellence-dashboard"] },
+    {
+      heading: "My Work",
+      items: [
+        "de-project-requests",
+        "de-allocation",
+        "de-approval",
+        "de-assessment",
+        "de-findings",
+        "de-projects",
+        "reassignment",
+      ],
+    },
+    {
+      heading: "My Reports",
+      items: ["geo-review", "account-review", "project-review", "project-performance", "actions"],
+    },
   ],
   // No PMO login exists yet — this is wired the same way as every other
   // role's My Summary, ready for when a PMO user can sign in (see
-  // pmo-my-summary.tsx).
-  PMO: ["pmo-dashboard", "project-health"],
+  // pmo-my-summary.tsx). Out of scope for grouping.
+  PMO: [{ items: ["project-health"] }],
   ACCOUNT_MANAGER: [
-    "account-manager-dashboard",
-    "new-project",
-    "account-review",
-    "account-reporting",
-    "project-review",
-    // View-only monthly Measurements/Commitments/Payment Milestones/RAIDO
-    // rollup — no review/approval process, unlike project-review above.
-    "project-performance",
-    // Standalone Level+Value Actions screen — Account Manager gets Account
-    // and Project as Levels (see action-permissions.ts's actionLevelsForRole).
-    "actions",
-    // Rendered last in the sidebar — see app-sidebar.tsx.
-    "reassignment",
+    { items: ["account-manager-dashboard"] },
+    {
+      heading: "My Work",
+      items: ["new-project", "account-reporting", "reassignment"],
+    },
+    {
+      heading: "My Reports",
+      items: [
+        "account-review",
+        "project-review",
+        "project-performance",
+        "de-assessment-report",
+        "de-findings",
+        "actions",
+      ],
+    },
+    {
+      heading: "Team Worklist",
+      items: ["maintain-project", "view-amend-projects", "project-reporting"],
+    },
   ],
   GEO_HEAD: [
-    "geo-head-dashboard",
-    "new-project",
-    "geo-review",
-    "geo-reporting",
-    "account-review",
-    // Standalone Level+Value Actions screen — Geo Head gets all three Levels
-    // (see action-permissions.ts's actionLevelsForRole).
-    "actions",
-    // Rendered last in the sidebar — see app-sidebar.tsx.
-    "reassignment",
+    { items: ["geo-head-dashboard"] },
+    {
+      heading: "My Work",
+      items: ["geo-reporting", "reassignment"],
+    },
+    {
+      heading: "My Reports",
+      items: [
+        "geo-review",
+        "account-review",
+        "project-review",
+        "project-performance",
+        "de-assessment-report",
+        "de-findings",
+        "actions",
+      ],
+    },
+    {
+      heading: "Team Worklist",
+      items: [
+        "new-project",
+        "maintain-project",
+        "view-amend-projects",
+        "project-reporting",
+        "account-reporting",
+      ],
+    },
   ],
-  // Standalone Level+Value Actions screen — CDO gets all three Levels too
-  // (see action-permissions.ts's actionLevelsForRole).
-  CDO: ["cdo-dashboard", "project-health", "geo-review", "actions"],
+  CDO: [
+    { items: ["cdo-dashboard"] },
+    {
+      heading: "My Reports",
+      items: [
+        "geo-review",
+        "account-review",
+        "project-review",
+        "project-performance",
+        "de-assessment-report",
+        "de-findings",
+        "actions",
+      ],
+    },
+  ],
   // Admin-only screens. Everything else (PM / Account Head / Geo Head / DE /
   // CDO work) is reached via the top-bar "Work as" combo — see WORK_CONTEXTS.
+  // Out of scope for grouping.
   ADMIN: [
-    "admin-dashboard",
-    "pmo-dashboard",
-    "admin-users-roles",
-    "admin-integrations",
-    "admin-regions",
-    "admin-exchange-rates",
-    "admin-bulk-projects",
-    "admin-bulk-status-projects",
-    "admin-bulk-status-accounts",
-    // Reassign Owners is reachable org-wide for Admin without a "Work as"
-    // switch. Rendered last in the sidebar — see app-sidebar.tsx.
-    "reassignment",
+    {
+      items: [
+        "admin-dashboard",
+        "admin-users-roles",
+        "admin-integrations",
+        "admin-regions",
+        "admin-exchange-rates",
+        "admin-bulk-projects",
+        "admin-bulk-status-projects",
+        "admin-bulk-status-accounts",
+        // Reassign Owners is reachable org-wide for Admin without a "Work as"
+        // switch. Rendered last in the sidebar — see app-sidebar.tsx.
+        "reassignment",
+      ],
+    },
   ],
+};
+
+// Flat, ordered fallback derived from ROLE_MENU_SECTIONS — kept for any
+// caller that just wants "does this role have id X" / "in what order",
+// without caring about section grouping.
+export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = Object.fromEntries(
+  Object.entries(ROLE_MENU_SECTIONS).map(([role, sections]) => [
+    role,
+    sections.flatMap((s) => s.items),
+  ])
+) as Record<RoleCode, MenuEntryId[]>;
+
+// Per-role label overrides for ids whose display label depends on the
+// viewing role — every other id's label is fixed in app-sidebar.tsx's
+// MENU_ITEMS registry regardless of role.
+export const MENU_LABEL_OVERRIDES: Partial<Record<RoleCode, Partial<Record<MenuEntryId, string>>>> = {
+  ACCOUNT_MANAGER: { reassignment: "Assign Role" },
+  GEO_HEAD: { reassignment: "Assign Role" },
+  DELIVERY_EXCELLENCE: { reassignment: "Assign Role", "de-findings": "Create DE Finding" },
 };
 
 // Where a successful login sends each role — the first/primary item in
 // their menu. Also where the top-bar Work Context switch navigates to
 // (ROLE_LANDING_ROUTE[effectiveRole]).
 export const ROLE_LANDING_ROUTE: Record<RoleCode, string> = {
-  PROJECT_MANAGER: "/dashboard/project-manager",
+  PROJECT_MANAGER: "/project-health",
   TEAM_MEMBER: "/dashboard",
-  DELIVERY_EXCELLENCE: "/dashboard/delivery-excellence",
-  PMO: "/dashboard/pmo",
-  ACCOUNT_MANAGER: "/dashboard/account-manager",
-  GEO_HEAD: "/dashboard/geo-head",
-  CDO: "/dashboard/cdo",
+  DELIVERY_EXCELLENCE: "/project-health",
+  PMO: "/project-health",
+  ACCOUNT_MANAGER: "/project-health",
+  GEO_HEAD: "/project-health",
+  CDO: "/project-health",
   ADMIN: "/dashboard/admin",
 };
 
-// Which lower roles each role may "act as" via the top-bar Work Context combo.
+// Which roles each role may "act as" via the top-bar Work Context combo.
 // The first entry is that role's own role — the default when workContext is null.
-// Roles not listed here get no combo. The backend independently permits an
-// Account/Geo Head to do the lower role's writes within their own accounts/geo
-// (see backend require_project_access / require_account_or_geo_scope), so this
-// map only drives the menu + list scoping + landing route on the client.
+// Roles not listed here get no combo. Only Admin gets one now: Account Manager
+// and Geo Head reach the PM-level work through their "Team Worklist" menu
+// section instead. The backend independently permits an Account/Geo Head to do
+// the lower role's writes within their own accounts/geo (see backend
+// require_project_access / require_account_or_geo_scope), so this map only
+// drives the menu + list scoping + landing route on the client.
 export const WORK_CONTEXTS: Partial<Record<RoleCode, RoleCode[]>> = {
-  ACCOUNT_MANAGER: ["ACCOUNT_MANAGER", "PROJECT_MANAGER"],
-  GEO_HEAD: ["GEO_HEAD", "ACCOUNT_MANAGER", "PROJECT_MANAGER"],
   ADMIN: [
     "ADMIN",
     "PROJECT_MANAGER",

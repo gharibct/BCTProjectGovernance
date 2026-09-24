@@ -63,6 +63,12 @@ function ImageBlockView({
         <div className="flex h-40 w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
           <Loader2 className="size-5 animate-spin text-slate-400" />
         </div>
+      ) : !src ? (
+        // The authenticated fetch failed (e.g. the file is gone from storage) —
+        // an <img src=""> would re-request the whole page, so show a placeholder.
+        <div className="flex h-40 w-full items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-400">
+          Image unavailable
+        </div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- resolved via an authenticated fetch, not an optimizable remote image.
         <img

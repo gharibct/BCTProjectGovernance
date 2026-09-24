@@ -26,6 +26,12 @@ CREATE TABLE project_status_reports (
     -- end_date) — see db/add_status_report_open_alerts_snapshot.sql.
     open_alerts_count INTEGER NOT NULL DEFAULT 0,
     open_alerts_snapshot JSONB,
+    -- Customer Communication — see db/add_status_report_customer_communication.sql.
+    customer_report_shared BOOLEAN,
+    customer_report_date DATE,
+    customer_report_file_name TEXT,
+    customer_report_file_path TEXT,
+    customer_remarks TEXT,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
 

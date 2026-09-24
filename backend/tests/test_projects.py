@@ -1,7 +1,10 @@
+from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 
+from app.models.projects import Project
 from app.schemas.enums import RoleCode
 from tests.test_authorization import override_auth
 
@@ -85,6 +88,40 @@ async def test_get_project_not_found_returns_404_not_403(client, override_auth):
     headers = override_auth(RoleCode.TEAM_MEMBER)
     response = await client.get(f"/api/v1/projects/{uuid4()}", headers=headers)
     assert response.status_code == 404
+
+
+async def test_get_project_rejects_non_owning_account_manager(client, override_auth):
+    """Regression guard for the direct-URL ownership gap: copying a project's
+    URL used to bypass the left-nav's ownership filtering entirely, since GET
+    /projects/{id} had no scope check at all (unlike the list endpoint)."""
+    project_id = uuid4()
+    project = SimpleNamespace(account_id=uuid4(), geo_id=None)
+    headers = override_auth(
+        RoleCode.ACCOUNT_MANAGER, owned_account_ids=[uuid4()], get_map={(Project, project_id): project}
+    )
+    response = await client.get(f"/api/v1/projects/{project_id}", headers=headers)
+    assert response.status_code == 403
+
+
+async def test_get_project_allows_owning_account_manager(client, override_auth):
+    project_id = uuid4()
+    account_id = uuid4()
+    now = datetime.now(UTC)
+    project = SimpleNamespace(
+        id=project_id,
+        account_id=account_id,
+        geo_id=None,
+        project_name="Test Project",
+        project_code="PRJ-0001",
+        project_status="Draft",
+        created_at=now,
+        updated_at=now,
+    )
+    headers = override_auth(
+        RoleCode.ACCOUNT_MANAGER, owned_account_ids=[account_id], get_map={(Project, project_id): project}
+    )
+    response = await client.get(f"/api/v1/projects/{project_id}", headers=headers)
+    assert response.status_code == 200
 
 
 async def test_bulk_create_project_is_admin_only(client, override_auth):

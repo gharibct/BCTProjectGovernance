@@ -47,6 +47,12 @@ export type ProjectStatusReport = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_comment: string | null;
+  // Customer Communication — null = not answered yet. The uploaded file is
+  // fetched through downloadCustomerReportFile; only its name is on the report.
+  customer_report_shared: boolean | null;
+  customer_report_date: string | null;
+  customer_report_file_name: string | null;
+  customer_remarks: string | null;
   // Open Alerts as of this period's end date, snapshotted server-side on
   // every save. Kept for history, but the dashboard/Review "Open Alerts"
   // sections no longer read it — they always show the live, unfiltered set
@@ -67,6 +73,9 @@ export type ProjectStatusReportPayload = {
   key_accomplishments?: string;
   upcoming_key_releases?: string;
   leadership_support_required?: string;
+  customer_report_shared?: boolean;
+  customer_report_date?: string;
+  customer_remarks?: string;
 };
 
 export type ProjectStatusReportUpdatePayload = Partial<Omit<ProjectStatusReportPayload, "period_id">>;
@@ -176,6 +185,35 @@ export function useUpdateStatusReport(projectId: string | null) {
       api.put<ProjectStatusReport>(`/projects/${projectId}/status-reports/${id}`, payload),
     onSuccess: () => invalidateStatusReports(queryClient, projectId),
   });
+}
+
+// Customer Communication's "Presentation / Status Report" — one file per
+// report, uploading again replaces it (the backend drops the old one).
+export function useUploadCustomerReportFile(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reportId, file }: { reportId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return api.postForm<ProjectStatusReport>(
+        `/projects/${projectId}/status-reports/${reportId}/customer-report-file`,
+        formData
+      );
+    },
+    onSuccess: () => invalidateStatusReports(queryClient, projectId),
+  });
+}
+
+// Fetches the file as a Blob and triggers the browser's Save dialog — a plain
+// <a href> can't attach the X-API-Key header this backend requires.
+export async function downloadCustomerReportFile(projectId: string, report: ProjectStatusReport): Promise<void> {
+  const blob = await api.getBlob(`/projects/${projectId}/status-reports/${report.id}/customer-report-file`);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = report.customer_report_file_name ?? "customer-report";
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 // Project Review (for Account Heads): approve/reject a Submitted report.

@@ -1,12 +1,16 @@
+import re
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access
+from app.api.deps import require_project_access, require_project_read_access
+from app.core.config import settings
 from app.core.db import get_db
 from app.crud.project_status import project_status_item_crud, project_status_report_crud
 from app.crud.projects import project_crud
@@ -37,6 +41,7 @@ router = APIRouter(prefix="/projects/{project_id}/status-reports", tags=["Projec
 # top-bar Work Context, scoped to projects in the caller's own accounts/geo.
 _pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _account_manager_review = [Depends(require_project_access(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_read = [Depends(require_project_read_access())]
 
 
 # Reports are keyed off a reporting_periods row rather than a raw date (see
@@ -84,7 +89,38 @@ async def _previous_period_report(
     return rows[0] if rows else None
 
 
-@router.get("", response_model=list[ProjectStatusReportRead])
+# Customer Communication (Project Status screen). "Shared with customer?" is
+# mandatory to submit; answering Yes also requires the date shared and the
+# uploaded presentation / status report. Answering No drops both (the PM may
+# have changed their mind after filling them in).
+_CUSTOMER_REPORT_EXTENSIONS = {"pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx"}
+_UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9_-]+")
+
+
+def _sanitize_segment(value: str) -> str:
+    return _UNSAFE_CHARS.sub("_", value.strip()).strip("_") or "untitled"
+
+
+def _customer_communication_problem(
+    shared: bool | None, date_shared: date | None, file_path: str | None
+) -> str | None:
+    if shared is None:
+        return "Customer Communication: state whether the status report was shared with the customer."
+    if shared and date_shared is None:
+        return "Customer Communication: Date Shared is required when the report was shared with the customer."
+    if shared and not file_path:
+        return "Customer Communication: upload the Presentation / Status Report that was shared."
+    return None
+
+
+def _delete_customer_report_file(report: ProjectStatusReport) -> None:
+    if report.customer_report_file_path:
+        (Path(settings.document_storage_dir) / report.customer_report_file_path).unlink(missing_ok=True)
+    report.customer_report_file_name = None
+    report.customer_report_file_path = None
+
+
+@router.get("", response_model=list[ProjectStatusReportRead], dependencies=_pm_read)
 async def list_status_reports(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await project_status_report_crud.list(
         db,
@@ -95,7 +131,7 @@ async def list_status_reports(project_id: UUID, db: AsyncSession = Depends(get_d
     return items
 
 
-@router.get("/latest", response_model=ProjectStatusReportRead)
+@router.get("/latest", response_model=ProjectStatusReportRead, dependencies=_pm_read)
 async def get_latest_status_report(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await project_status_report_crud.list(
         db,
@@ -138,6 +174,16 @@ async def create_status_report(
         if project is not None and project.project_revenue_usd is not None:
             payload = payload.model_copy(update={"revenue": project.project_revenue_usd})
 
+    if payload.status == ReportStatus.SUBMITTED:
+        # A brand-new report has no uploaded file yet, so only "No" can pass.
+        problem = _customer_communication_problem(
+            payload.customer_report_shared, payload.customer_report_date, None
+        )
+        if problem:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, problem)
+    if payload.customer_report_shared is False:
+        payload = payload.model_copy(update={"customer_report_date": None})
+
     alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
         db, scope="project", scope_id=project_id
     )
@@ -166,6 +212,18 @@ async def update_status_report(
     assert_report_editable(obj.status)
     was_rejected = obj.status == ReportStatus.REJECTED
     updated = await project_status_report_crud.update(db, obj, payload)
+
+    if updated.customer_report_shared is False:
+        updated.customer_report_date = None
+        _delete_customer_report_file(updated)
+    if updated.status == ReportStatus.SUBMITTED:
+        # Raising rolls the whole request back (see get_db), so the report
+        # stays as it was and the PM can complete the section first.
+        problem = _customer_communication_problem(
+            updated.customer_report_shared, updated.customer_report_date, updated.customer_report_file_path
+        )
+        if problem:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, problem)
 
     # Re-snapshot Open Alerts on every edit while the report is still
     # editable, so it stays current right up to the moment it's frozen by
@@ -205,6 +263,66 @@ async def update_status_report(
                 data={"project_code": project.project_code},
             )
     return updated
+
+
+# Customer Communication file — the presentation / status report shared with
+# the customer. One file per report; uploading again replaces it. Stored on
+# local disk like documents.py's uploads, under
+# "<project_code>_<period.code>/customer_report/".
+async def _get_report_or_404(db: AsyncSession, project_id: UUID, report_id: UUID) -> ProjectStatusReport:
+    obj = await project_status_report_crud.get(db, report_id)
+    if obj is None or obj.project_id != project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
+    return obj
+
+
+@router.post("/{report_id}/customer-report-file", response_model=ProjectStatusReportRead, dependencies=_pm_write)
+async def upload_customer_report_file(
+    project_id: UUID,
+    report_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    obj = await _get_report_or_404(db, project_id, report_id)
+    assert_report_editable(obj.status)
+
+    original_name = file.filename or "untitled"
+    ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
+    if ext not in _CUSTOMER_REPORT_EXTENSIONS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Only {', '.join(sorted(_CUSTOMER_REPORT_EXTENSIONS))} files are allowed",
+        )
+
+    project = await project_crud.get(db, project_id)
+    period = await db.get(ReportingPeriod, obj.period_id)
+    if project is None or period is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Project or reporting period not found")
+
+    stem = _sanitize_segment(original_name.rsplit(".", 1)[0])
+    folder = f"{_sanitize_segment(project.project_code)}_{_sanitize_segment(period.code)}/customer_report"
+    relative_path = f"{folder}/{uuid4()}_{stem}.{ext}"
+    base_dir = Path(settings.document_storage_dir)
+    (base_dir / folder).mkdir(parents=True, exist_ok=True)
+    (base_dir / relative_path).write_bytes(await file.read())
+
+    _delete_customer_report_file(obj)  # replaces any earlier upload
+    obj.customer_report_file_name = original_name
+    obj.customer_report_file_path = relative_path
+    await db.flush()
+    await db.refresh(obj)
+    return obj
+
+
+@router.get("/{report_id}/customer-report-file", dependencies=_pm_read)
+async def download_customer_report_file(project_id: UUID, report_id: UUID, db: AsyncSession = Depends(get_db)):
+    obj = await _get_report_or_404(db, project_id, report_id)
+    if not obj.customer_report_file_path:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No customer report file uploaded")
+    file_path = Path(settings.document_storage_dir) / obj.customer_report_file_path
+    if not file_path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found on disk")
+    return FileResponse(file_path, filename=obj.customer_report_file_name)
 
 
 # Review/sign-off (Project Review, for Account Heads): a Submitted report
@@ -267,7 +385,7 @@ async def _assert_period_editable(db: AsyncSession, project_id: UUID, period_id:
     assert_report_editable(report_status)
 
 
-@items_router.get("", response_model=list[ProjectStatusItemRead])
+@items_router.get("", response_model=list[ProjectStatusItemRead], dependencies=_pm_read)
 async def list_status_items(
     project_id: UUID,
     period_id: UUID,
@@ -333,12 +451,12 @@ async def update_status_item_rollup_status(
 
 # Reporting Hub (design-reference/project-reporting-dashboard) — the per-period
 # Weekly/Monthly submission timeline behind the two progress rings and the two
-# activity heatmaps. Read-only aggregation; no role gate beyond the global
-# auth the other GETs in this file rely on.
+# activity heatmaps. Read-only aggregation, scoped like every other GET in
+# this file via _pm_read.
 activity_router = APIRouter(prefix="/projects/{project_id}/reporting-activity", tags=["Project Status"])
 
 
-@activity_router.get("", response_model=ReportingActivityResponse)
+@activity_router.get("", response_model=ReportingActivityResponse, dependencies=_pm_read)
 async def get_reporting_activity(
     project_id: UUID,
     year: int | None = None,

@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/forms/status-badge";
 import { ErrorBlock, formatDate, StatTile } from "@/components/dashboard/project-health-kpi";
 import { cn } from "@/lib/utils";
 import { canWriteDeAssessment } from "@/lib/api/de-assessment-permissions";
+import { usePatchScope } from "@/hooks/use-patch-scope";
 import { useEffectiveRole } from "@/stores/session";
 import {
   useDeFindings,
@@ -53,7 +54,11 @@ export function DeFindingsView() {
   const [skip, setSkip] = React.useState(0);
   const [drawer, setDrawer] = React.useState<DrawerState | null>(null);
 
-  const canWrite = canWriteDeAssessment(useEffectiveRole());
+  const role = useEffectiveRole();
+  const canWrite = canWriteDeAssessment(role);
+  const { reportingAccounts, reportingGeos } = usePatchScope();
+  const geosOverride = role === "GEO_HEAD" ? reportingGeos : undefined;
+  const accountsOverride = role === "ACCOUNT_MANAGER" ? reportingAccounts : undefined;
 
   const kpis = useDeFindingsKpis({
     geoId: filters.geoId,
@@ -137,6 +142,8 @@ export function DeFindingsView() {
           setFilters(next);
           setSkip(0);
         }}
+        geos={geosOverride}
+        accounts={accountsOverride}
       />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

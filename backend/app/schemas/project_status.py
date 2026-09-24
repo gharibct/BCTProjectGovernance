@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
@@ -19,6 +19,9 @@ class ProjectStatusReportCreate(BaseModel):
     key_accomplishments: str | None = None
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
+    customer_report_shared: bool | None = None
+    customer_report_date: date | None = None
+    customer_remarks: str | None = None
     created_by: UUID | None = None
 
 
@@ -31,6 +34,9 @@ class ProjectStatusReportUpdate(BaseModel):
     key_accomplishments: str | None = None
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
+    customer_report_shared: bool | None = None
+    customer_report_date: date | None = None
+    customer_remarks: str | None = None
 
 
 class ProjectStatusReportRead(BaseModel):
@@ -50,6 +56,12 @@ class ProjectStatusReportRead(BaseModel):
     reviewed_by: UUID | None = None
     reviewed_at: datetime | None = None
     review_comment: str | None = None
+    # Customer Communication. The file itself is uploaded/downloaded through
+    # /customer-report-file; only its original name is exposed here.
+    customer_report_shared: bool | None = None
+    customer_report_date: date | None = None
+    customer_report_file_name: str | None = None
+    customer_remarks: str | None = None
     # Open Alerts as of this period's end date, snapshotted server-side on
     # every save (see project_status.py) so a Submitted/Approved report keeps
     # showing exactly what was open when it was filed. Server-set only —

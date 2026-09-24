@@ -16,7 +16,7 @@ import type { PageCompletionStatus } from "./reporting-attestation";
 // The Project Performance Dashboard — Measurement/Commitments/Payment
 // Milestones/RAIDO summaries for one project, scoped to one Monthly period,
 // plus the monthly completion checklist. Backs both the PM's own monthly
-// Delivery Status Report - Project and the Account Manager's read-only
+// Project Performance and the Account Manager's read-only
 // /project-performance/[projectId] view.
 export type ProjectPerformanceDashboardSummary = {
   period_id: string;

@@ -30,7 +30,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
   // Reports are ordered by the period's start_date desc, so the first row is
   // the latest one. Falls back to the current month when neither the URL nor
   // any report has picked a period yet — same "no ?period= yet" fallback
-  // Delivery Status Report - Project / StarterCards use — so this page isn't
+  // Project Delivery Status / StarterCards use — so this page isn't
   // a dead end on a manager's very first visit, before anything has ever
   // been submitted.
   const defaultPeriodId = useRegionalDefaultPeriodId(scope, scopeId);

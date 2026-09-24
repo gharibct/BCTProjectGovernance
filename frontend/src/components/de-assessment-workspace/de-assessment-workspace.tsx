@@ -37,6 +37,15 @@ import {
 import { HealthDot } from "./shared";
 import { FindingsDrawerTrigger } from "./findings-drawer/findings-drawer-trigger";
 
+// Where a read-only viewer's "Back" link goes — see the backHref comment
+// below for why this varies by role.
+const READ_ONLY_BACK_SEGMENT: Partial<Record<string, string>> = {
+  PROJECT_MANAGER: "project-reporting",
+  ACCOUNT_MANAGER: "project-review",
+  GEO_HEAD: "project-review",
+  CDO: "project-review",
+};
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -204,10 +213,15 @@ function WorkspaceInner() {
     (f) => f.classification === "Alert" && f.status !== "Closed" && f.status !== "Cancelled"
   ).length;
 
-  // A PM (or any other read-only viewer) never has a queue to return to — the
-  // DE-only /de-assessment queue 403s for them (require_role DELIVERY_EXCELLENCE
-  // /ADMIN on /dashboard/de-summary) — so they go back to the project instead.
-  const backHref = roleCanWrite ? "/de-assessment" : `/project-reporting/${projectId}`;
+  // A read-only viewer never has a queue to return to — the DE-only
+  // /de-assessment queue 403s for them (require_role DELIVERY_EXCELLENCE
+  // /ADMIN on /dashboard/de-summary) — so they go back to their own project
+  // report screen instead. PM lands on /project-reporting; Account
+  // Manager/Geo Head/CDO land on /project-review, which is what their menu
+  // actually gives them (see menu-config.ts).
+  const backHref = roleCanWrite
+    ? "/de-assessment"
+    : `/${READ_ONLY_BACK_SEGMENT[role ?? ""] ?? "project-reporting"}/${projectId}`;
   const backLabel = roleCanWrite ? "Back to Queue" : "Back to Project";
 
   const subtitle = roleCanWrite

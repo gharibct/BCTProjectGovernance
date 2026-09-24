@@ -16,6 +16,7 @@ from app.api.deps import (
     require_account_scope,
     require_geo_scope,
     require_project_account_scope,
+    require_project_read_access,
     require_role,
 )
 from app.models.projects import Project
@@ -201,6 +202,116 @@ async def test_require_project_account_scope_rejects_when_project_in_other_accou
         get_map={(Project, project_id): project},
     )
     dep = require_project_account_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN)
+    with pytest.raises(HTTPException) as exc:
+        await dep(project_id=project_id, current_user=user, db=db)
+    assert exc.value.status_code == 403
+
+
+# --- require_project_read_access: the project/account/geo direct-URL fix's
+# core dependency — see deps.py's docstring for why this can't just reuse
+# require_project_access verbatim (PMO/CDO bypass, existence-before-role). ---
+
+
+async def test_require_project_read_access_404s_for_nonexistent_project_every_role():
+    project_id = uuid4()
+    dep = require_project_read_access()
+    for role in (
+        RoleCode.ADMIN,
+        RoleCode.PROJECT_MANAGER,
+        RoleCode.DELIVERY_EXCELLENCE,
+        RoleCode.PMO,
+        RoleCode.CDO,
+        RoleCode.ACCOUNT_MANAGER,
+        RoleCode.GEO_HEAD,
+        RoleCode.TEAM_MEMBER,
+    ):
+        user = make_user()
+        db = FakeDB(role, get_map={})
+        with pytest.raises(HTTPException) as exc:
+            await dep(project_id=project_id, current_user=user, db=db)
+        assert exc.value.status_code == 404
+
+
+async def test_require_project_read_access_bypasses_for_portfolio_roles():
+    project_id = uuid4()
+    project = SimpleNamespace(account_id=uuid4(), geo_id=uuid4())
+    dep = require_project_read_access()
+    for role in (
+        RoleCode.ADMIN,
+        RoleCode.PROJECT_MANAGER,
+        RoleCode.DELIVERY_EXCELLENCE,
+        RoleCode.PMO,
+        RoleCode.CDO,
+    ):
+        user = make_user()
+        db = FakeDB(role, get_map={(Project, project_id): project})
+        assert await dep(project_id=project_id, current_user=user, db=db) is user
+
+
+async def test_require_project_read_access_scopes_account_manager_to_owned_account():
+    project_id = uuid4()
+    account_id = uuid4()
+    project = SimpleNamespace(account_id=account_id, geo_id=None)
+    user = make_user()
+    db = FakeDB(RoleCode.ACCOUNT_MANAGER, owned_account_ids=[account_id], get_map={(Project, project_id): project})
+    dep = require_project_read_access()
+    assert await dep(project_id=project_id, current_user=user, db=db) is user
+
+
+async def test_require_project_read_access_rejects_account_manager_without_ownership():
+    project_id = uuid4()
+    project = SimpleNamespace(account_id=uuid4(), geo_id=None)
+    user = make_user()
+    db = FakeDB(RoleCode.ACCOUNT_MANAGER, owned_account_ids=[uuid4()], get_map={(Project, project_id): project})
+    dep = require_project_read_access()
+    with pytest.raises(HTTPException) as exc:
+        await dep(project_id=project_id, current_user=user, db=db)
+    assert exc.value.status_code == 403
+
+
+async def test_require_project_read_access_scopes_geo_head_to_owned_geo():
+    project_id = uuid4()
+    geo_id = uuid4()
+    project = SimpleNamespace(account_id=None, geo_id=geo_id)
+    user = make_user()
+    db = FakeDB(RoleCode.GEO_HEAD, owned_geo_ids=[geo_id], get_map={(Project, project_id): project})
+    dep = require_project_read_access()
+    assert await dep(project_id=project_id, current_user=user, db=db) is user
+
+
+async def test_require_project_read_access_scopes_geo_head_via_account_geo():
+    project_id = uuid4()
+    geo_id = uuid4()
+    account_id = uuid4()
+    project = SimpleNamespace(account_id=account_id, geo_id=uuid4())  # project's own geo differs
+    account = SimpleNamespace(geo_id=geo_id)
+    user = make_user()
+    db = FakeDB(
+        RoleCode.GEO_HEAD,
+        owned_geo_ids=[geo_id],
+        get_map={(Project, project_id): project, (Account, account_id): account},
+    )
+    dep = require_project_read_access()
+    assert await dep(project_id=project_id, current_user=user, db=db) is user
+
+
+async def test_require_project_read_access_rejects_geo_head_without_ownership():
+    project_id = uuid4()
+    project = SimpleNamespace(account_id=None, geo_id=uuid4())
+    user = make_user()
+    db = FakeDB(RoleCode.GEO_HEAD, owned_geo_ids=[uuid4()], get_map={(Project, project_id): project})
+    dep = require_project_read_access()
+    with pytest.raises(HTTPException) as exc:
+        await dep(project_id=project_id, current_user=user, db=db)
+    assert exc.value.status_code == 403
+
+
+async def test_require_project_read_access_rejects_team_member():
+    project_id = uuid4()
+    project = SimpleNamespace(account_id=None, geo_id=None)
+    user = make_user()
+    db = FakeDB(RoleCode.TEAM_MEMBER, get_map={(Project, project_id): project})
+    dep = require_project_read_access()
     with pytest.raises(HTTPException) as exc:
         await dep(project_id=project_id, current_user=user, db=db)
     assert exc.value.status_code == 403

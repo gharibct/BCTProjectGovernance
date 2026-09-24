@@ -1,8 +1,9 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Briefcase, Menu } from "lucide-react";
+import { Briefcase } from "lucide-react";
 
 import type { RoleCode } from "@/lib/api/auth";
 import {
@@ -24,6 +25,15 @@ export function AppHeader() {
 
   const contextOptions = user ? WORK_CONTEXTS[user.role.code] : undefined;
 
+  // A context persisted from before a role lost its "Work as" combo (Account
+  // Manager / Geo Head) would otherwise leave the user stuck in it with no way
+  // to switch back — drop any context the role may no longer pick.
+  React.useEffect(() => {
+    if (workContext && !contextOptions?.includes(workContext)) {
+      setWorkContext(null);
+    }
+  }, [workContext, contextOptions, setWorkContext]);
+
   const onContextChange = (value: string) => {
     if (!user) return;
     const next = value === user.role.code ? null : (value as RoleCode);
@@ -34,13 +44,6 @@ export function AppHeader() {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5">
       <div className="flex items-center gap-4">
-        <button
-          type="button"
-          aria-label="Toggle menu"
-          className="rounded-lg p-2 text-slate-800 hover:bg-slate-100"
-        >
-          <Menu className="size-6" />
-        </button>
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="Governance One" width={32} height={32} className="size-8" />
           <div className="flex flex-col leading-tight">

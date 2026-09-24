@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_de_assessment_access
+from app.api.deps import require_project_de_assessment_access, require_project_read_access
 from app.core.db import get_db
 from app.crud.de_assessment import de_assessment_crud, de_assessment_finding_crud
 from app.crud.projects import project_crud
@@ -39,6 +39,10 @@ router = APIRouter(prefix="/projects/{project_id}/de-assessments", tags=["DE Ass
 # user (or ADMIN) may assess a project that has a DE allocated. It is not gated
 # on PM reporting and not restricted to the project's specific allocated DE.
 _de_write = require_project_de_assessment_access(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
+# Reads don't require a DE to actually be allocated yet (unlike _de_write) —
+# a PM/AM/GEO_HEAD viewing their own project's DE tab should just see an
+# empty list, not a 403, and DE/PMO/CDO/ADMIN read unconditionally as usual.
+_de_read = [Depends(require_project_read_access())]
 
 
 def _finalize_assessment(project: Project, assessment: DEAssessment) -> None:
@@ -52,7 +56,7 @@ def _finalize_assessment(project: Project, assessment: DEAssessment) -> None:
     )
 
 
-@router.get("", response_model=list[DEAssessmentRead])
+@router.get("", response_model=list[DEAssessmentRead], dependencies=_de_read)
 async def list_assessments(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await de_assessment_crud.list(
         db,
@@ -63,7 +67,7 @@ async def list_assessments(project_id: UUID, db: AsyncSession = Depends(get_db))
     return items
 
 
-@router.get("/latest", response_model=DEAssessmentRead)
+@router.get("/latest", response_model=DEAssessmentRead, dependencies=_de_read)
 async def get_latest_assessment(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await de_assessment_crud.list(
         db,
@@ -76,7 +80,7 @@ async def get_latest_assessment(project_id: UUID, db: AsyncSession = Depends(get
     return items[0]
 
 
-@router.get("/{assessment_id}", response_model=DEAssessmentRead)
+@router.get("/{assessment_id}", response_model=DEAssessmentRead, dependencies=_de_read)
 async def get_assessment(project_id: UUID, assessment_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await de_assessment_crud.get(db, assessment_id)
     if obj is None or obj.project_id != project_id:
@@ -158,7 +162,7 @@ async def update_assessment(
 findings_router = APIRouter(prefix="/projects/{project_id}/de-assessment-findings", tags=["DE Assessment Findings"])
 
 
-@findings_router.get("", response_model=list[DEAssessmentFindingRead])
+@findings_router.get("", response_model=list[DEAssessmentFindingRead], dependencies=_de_read)
 async def list_findings(project_id: UUID, db: AsyncSession = Depends(get_db)):
     rows = (
         await db.execute(
@@ -212,7 +216,7 @@ async def add_finding(
     return obj
 
 
-@findings_router.get("/{finding_id}/history", response_model=list[DEFindingHistoryRead])
+@findings_router.get("/{finding_id}/history", response_model=list[DEFindingHistoryRead], dependencies=_de_read)
 async def finding_history(project_id: UUID, finding_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await de_assessment_finding_crud.get(db, finding_id)
     if obj is None or obj.project_id != project_id:

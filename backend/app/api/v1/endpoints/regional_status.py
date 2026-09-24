@@ -51,6 +51,35 @@ _account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_
 _geo_head_review = [Depends(require_account_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _cdo_review = [Depends(require_role(RoleCode.CDO, RoleCode.ADMIN))]
+# Reads: an owning Account Manager or reviewing Geo Head is ownership-scoped
+# same as the write gate, but CDO and Delivery Excellence also get read
+# access here (both view across every geo/account by design — CDO already
+# reviews geo-level reports unconditionally via _cdo_review, and DE's "My
+# Reports" menu section needs the same cross-portfolio visibility — see
+# menu-config.ts), so they bypass the ownership check entirely.
+_account_read = [
+    Depends(
+        require_account_or_geo_scope(
+            RoleCode.ACCOUNT_MANAGER,
+            RoleCode.GEO_HEAD,
+            RoleCode.CDO,
+            RoleCode.DELIVERY_EXCELLENCE,
+            RoleCode.ADMIN,
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+        )
+    )
+]
+_geo_read = [
+    Depends(
+        require_geo_scope(
+            RoleCode.GEO_HEAD,
+            RoleCode.CDO,
+            RoleCode.DELIVERY_EXCELLENCE,
+            RoleCode.ADMIN,
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+        )
+    )
+]
 
 
 def _by_period_start(model: type) -> Any:
@@ -70,7 +99,7 @@ async def _clear_prior_review_on_resubmit(db: AsyncSession, prior_status: str, u
         await db.refresh(updated)
 
 
-@account_status_router.get("", response_model=list[AccountStatusReportRead])
+@account_status_router.get("", response_model=list[AccountStatusReportRead], dependencies=_account_read)
 async def list_account_status_reports(account_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await account_status_report_crud.list(
         db,
@@ -81,7 +110,7 @@ async def list_account_status_reports(account_id: UUID, db: AsyncSession = Depen
     return items
 
 
-@account_status_router.get("/latest", response_model=AccountStatusReportRead)
+@account_status_router.get("/latest", response_model=AccountStatusReportRead, dependencies=_account_read)
 async def get_latest_account_status_report(account_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await account_status_report_crud.list(
         db,
@@ -172,7 +201,7 @@ async def review_account_status_report(
     return obj
 
 
-@geo_status_router.get("", response_model=list[GeoStatusReportRead])
+@geo_status_router.get("", response_model=list[GeoStatusReportRead], dependencies=_geo_read)
 async def list_geo_status_reports(geo_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await geo_status_report_crud.list(
         db,
@@ -183,7 +212,7 @@ async def list_geo_status_reports(geo_id: UUID, db: AsyncSession = Depends(get_d
     return items
 
 
-@geo_status_router.get("/latest", response_model=GeoStatusReportRead)
+@geo_status_router.get("/latest", response_model=GeoStatusReportRead, dependencies=_geo_read)
 async def get_latest_geo_status_report(geo_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await geo_status_report_crud.list(
         db,
@@ -276,14 +305,14 @@ account_activity_router = APIRouter(
 geo_activity_router = APIRouter(prefix="/geos/{geo_id}/reporting-activity", tags=["Geo Reporting"])
 
 
-@account_activity_router.get("", response_model=WeeklyReportingActivityResponse)
+@account_activity_router.get("", response_model=WeeklyReportingActivityResponse, dependencies=_account_read)
 async def get_account_reporting_activity(
     account_id: UUID, year: int | None = None, db: AsyncSession = Depends(get_db)
 ):
     return await build_weekly_reporting_activity(db, "account", account_id, year or date.today().year)
 
 
-@geo_activity_router.get("", response_model=WeeklyReportingActivityResponse)
+@geo_activity_router.get("", response_model=WeeklyReportingActivityResponse, dependencies=_geo_read)
 async def get_geo_reporting_activity(
     geo_id: UUID, year: int | None = None, db: AsyncSession = Depends(get_db)
 ):
@@ -313,7 +342,7 @@ async def _assert_geo_period_editable(db: AsyncSession, geo_id: UUID, period_id:
     assert_report_editable((await db.execute(stmt)).scalars().first())
 
 
-@account_status_items_router.get("", response_model=list[AccountStatusItemRead])
+@account_status_items_router.get("", response_model=list[AccountStatusItemRead], dependencies=_account_read)
 async def list_account_status_items(
     account_id: UUID,
     period_id: UUID,
@@ -385,7 +414,7 @@ async def update_account_status_item_rollup_status(
     return obj
 
 
-@geo_status_items_router.get("", response_model=list[GeoStatusItemRead])
+@geo_status_items_router.get("", response_model=list[GeoStatusItemRead], dependencies=_geo_read)
 async def list_geo_status_items(
     geo_id: UUID,
     period_id: UUID,

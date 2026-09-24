@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access
+from app.api.deps import require_project_access, require_project_read_access
 from app.core.db import get_db
 from app.crud.health_declarations import health_declaration_crud, project_health_item_crud
 from app.crud.projects import project_crud
@@ -31,6 +31,7 @@ router = APIRouter(prefix="/projects/{project_id}/health-declarations", tags=["H
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
 _pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_read = [Depends(require_project_read_access())]
 
 
 # Declarations are keyed off a reporting_periods row rather than a raw date
@@ -43,7 +44,7 @@ def _by_period_start(model: type) -> Any:
     )
 
 
-@router.get("", response_model=list[HealthDeclarationRead])
+@router.get("", response_model=list[HealthDeclarationRead], dependencies=_pm_read)
 async def list_health_declarations(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await health_declaration_crud.list(
         db,
@@ -54,7 +55,7 @@ async def list_health_declarations(project_id: UUID, db: AsyncSession = Depends(
     return items
 
 
-@router.get("/latest", response_model=HealthDeclarationRead)
+@router.get("/latest", response_model=HealthDeclarationRead, dependencies=_pm_read)
 async def get_latest_health_declaration(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await health_declaration_crud.list(
         db,
@@ -141,7 +142,7 @@ async def update_health_declaration(
 items_router = APIRouter(prefix="/projects/{project_id}/health-items", tags=["Health Declarations"])
 
 
-@items_router.get("", response_model=list[ProjectHealthItemRead])
+@items_router.get("", response_model=list[ProjectHealthItemRead], dependencies=_pm_read)
 async def list_health_items(
     project_id: UUID,
     period_id: UUID,

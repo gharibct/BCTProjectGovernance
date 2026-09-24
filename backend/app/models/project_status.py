@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric
+from sqlalchemy import Date, DateTime, ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -38,6 +38,15 @@ class ProjectStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     # date, refreshed on every save while the report is still editable.
     open_alerts_count: Mapped[int] = mapped_column(default=0, server_default="0")
     open_alerts_snapshot: Mapped[list | None] = mapped_column(PortableJSON)
+    # Customer Communication — was the status report shared with the customer?
+    # NULL = not answered yet. When True, the date shared and the uploaded
+    # presentation / status report are required to submit (see
+    # api/v1/endpoints/project_status.py); flipping to False clears them.
+    customer_report_shared: Mapped[bool | None]
+    customer_report_date: Mapped[date | None] = mapped_column(Date)
+    customer_report_file_name: Mapped[str | None]
+    customer_report_file_path: Mapped[str | None]  # relative to settings.document_storage_dir
+    customer_remarks: Mapped[str | None]
 
 
 # One row per line item in a Project Status grid (see

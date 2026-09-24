@@ -50,10 +50,10 @@ async def test_project_list_requires_auth(client):
     assert response.status_code == 401
 
 
-async def test_project_list_rejects_unprivileged_role(client, override_auth):
+async def test_project_list_is_open_to_every_role(client, override_auth):
     headers = override_auth(RoleCode.TEAM_MEMBER)
     response = await client.get(_URL, headers=headers)
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 async def test_project_list_accepts_region_and_ownership_filters(client, override_auth):
@@ -80,7 +80,7 @@ async def test_project_list_rejects_non_uuid_region(client, override_auth):
 # --- every Project Health drill-down list endpoint ---------------------------
 # These 15 grids back the Project Health dashboard's report cards
 # (design-reference/project-health-screens.md). They share one role gate
-# (_project_health_role = PMO / ADMIN / CDO / DELIVERY_EXCELLENCE) and the {items,total,skip,limit}
+# (any signed-in user; results are role-scoped) and the {items,total,skip,limit}
 # Page shape. FakeDB seeds nothing, so each returns an empty page — enough to
 # lock in that the route is mounted, gated, and doesn't raise.
 
@@ -112,15 +112,15 @@ async def test_drilldown_requires_auth(client, path):
     assert (await client.get(_drilldown_url(path))).status_code == 401
 
 
+# Project Health is open to every signed-in user (results are role-scoped, not
+# role-gated), so even a Team Member gets a 200 — just with nothing in scope.
 @pytest.mark.parametrize("path", _DRILLDOWN_PATHS)
-async def test_drilldown_rejects_unprivileged_role(client, override_auth, path):
+async def test_drilldown_is_open_to_every_role(client, override_auth, path):
     headers = override_auth(RoleCode.TEAM_MEMBER)
-    assert (await client.get(_drilldown_url(path), headers=headers)).status_code == 403
+    assert (await client.get(_drilldown_url(path), headers=headers)).status_code == 200
 
 
-@pytest.mark.parametrize(
-    "role", [RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE]
-)
+@pytest.mark.parametrize("role", list(RoleCode))
 @pytest.mark.parametrize("path", _DRILLDOWN_PATHS)
 async def test_drilldown_returns_empty_page_for_privileged_role(client, override_auth, path, role):
     headers = override_auth(role)
@@ -132,13 +132,33 @@ async def test_drilldown_returns_empty_page_for_privileged_role(client, override
     assert {"items", "total", "skip", "limit"} <= body.keys()
 
 
+@pytest.mark.parametrize("path", ["", "/periods"])
+async def test_geo_head_can_open_project_health_dashboard(client, override_auth, path):
+    headers = override_auth(RoleCode.GEO_HEAD)
+    response = await client.get(f"/api/v1/dashboard/project-health{path}", headers=headers)
+    assert response.status_code == 200
+
+
+async def test_geo_head_cannot_filter_to_a_geo_they_do_not_own(client, override_auth):
+    headers = override_auth(RoleCode.GEO_HEAD)
+    response = await client.get(_URL, params={"geo_id": str(uuid4())}, headers=headers)
+    assert response.status_code == 403
+
+
+async def test_account_manager_cannot_filter_to_an_account_they_do_not_own(client, override_auth):
+    headers = override_auth(RoleCode.ACCOUNT_MANAGER)
+    response = await client.get(_URL, params={"account_id": str(uuid4())}, headers=headers)
+    assert response.status_code == 403
+
+
 async def test_project_health_summary_requires_auth(client):
     assert (await client.get("/api/v1/dashboard/project-health")).status_code == 401
 
 
-async def test_project_health_summary_rejects_unprivileged_role(client, override_auth):
-    headers = override_auth(RoleCode.TEAM_MEMBER)
-    assert (await client.get("/api/v1/dashboard/project-health", headers=headers)).status_code == 403
+@pytest.mark.parametrize("role", list(RoleCode))
+async def test_project_health_summary_is_open_to_every_role(client, override_auth, role):
+    headers = override_auth(role)
+    assert (await client.get("/api/v1/dashboard/project-health", headers=headers)).status_code == 200
 
 
 @pytest.mark.parametrize(

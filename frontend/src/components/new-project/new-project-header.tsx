@@ -4,6 +4,7 @@ import { useNewProjectId } from "@/stores/new-project-ui";
 import { effectiveProjectStatus, useProject } from "@/lib/api/projects";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { PageBanner } from "@/components/shell/page-banner";
+import { QueryErrorState } from "@/components/shared/query-error-state";
 
 // Matches the "{CODE} - Screen Name" heading convention used elsewhere
 // (see project-reporting/reporting-hub.tsx). Every New Project screen is its
@@ -14,7 +15,14 @@ export function NewProjectHeader({
   subheading?: string;
 } = {}) {
   const projectId = useNewProjectId();
-  const { data: project } = useProject(projectId);
+  const projectQuery = useProject(projectId);
+  const { data: project } = projectQuery;
+
+  // Shared across every New Project / Amend Project sub-page — see the same
+  // note on ProjectHeader (project-header.tsx).
+  if (projectQuery.isError) {
+    return <QueryErrorState error={projectQuery.error} onRetry={() => projectQuery.refetch()} />;
+  }
 
   const base = project?.project_code?.trim() || "New Project";
   const heading = subheading ? `${base} - ${subheading}` : base;

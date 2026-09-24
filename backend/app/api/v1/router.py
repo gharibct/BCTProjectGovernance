@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     audit,
     bulk_delivery_status,
     contractual,
+    customer_communications,
     dashboard,
     data_integrity,
     de_allocation,
@@ -93,5 +94,6 @@ api_router.include_router(account_rollup.router)
 api_router.include_router(account_health_rollup.router)
 api_router.include_router(geo_rollup.router)
 api_router.include_router(executive_updates.router)
+api_router.include_router(customer_communications.router)
 api_router.include_router(actions.router)
 api_router.include_router(notifications.router)

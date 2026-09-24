@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.models.projects import Project
 from app.models.reference_data import ReportingPeriod
 from app.schemas.enums import ProjectStatusCategory, RoleCode
 from tests.test_authorization import override_auth
@@ -12,6 +13,7 @@ from tests.test_authorization import override_auth
 pytestmark = pytest.mark.asyncio
 
 _PROJECT_ID = uuid4()
+_PROJECT_GET_MAP = {(Project, _PROJECT_ID): SimpleNamespace(account_id=None, geo_id=None)}
 
 
 async def test_list_status_reports_requires_auth(client):
@@ -19,11 +21,17 @@ async def test_list_status_reports_requires_auth(client):
     assert response.status_code == 401
 
 
-async def test_list_status_reports_returns_200_for_any_role(client, override_auth):
-    headers = override_auth(RoleCode.TEAM_MEMBER)
+async def test_list_status_reports_returns_200_for_de_regardless_of_ownership(client, override_auth):
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map=_PROJECT_GET_MAP)
     response = await client.get(f"/api/v1/projects/{_PROJECT_ID}/status-reports", headers=headers)
     assert response.status_code == 200
     assert response.json() == []
+
+
+async def test_list_status_reports_rejects_team_member_with_no_ownership(client, override_auth):
+    headers = override_auth(RoleCode.TEAM_MEMBER, get_map=_PROJECT_GET_MAP)
+    response = await client.get(f"/api/v1/projects/{_PROJECT_ID}/status-reports", headers=headers)
+    assert response.status_code == 403
 
 
 async def test_create_status_report_rejects_non_pm_admin(client, override_auth):
@@ -127,6 +135,7 @@ async def test_resubmitting_rejected_report_clears_prior_review(client, override
         reviewed_by=uuid4(),
         reviewed_at=datetime.now(UTC),
         review_comment="Numbers don't add up",
+        customer_report_shared=False,
         open_alerts_count=0,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
@@ -147,7 +156,7 @@ async def test_resubmitting_rejected_report_clears_prior_review(client, override
 
 
 async def test_list_status_items_returns_200(client, override_auth):
-    headers = override_auth(RoleCode.TEAM_MEMBER)
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map=_PROJECT_GET_MAP)
     response = await client.get(
         f"/api/v1/projects/{_PROJECT_ID}/status-items",
         params={"period_id": str(uuid4()), "category": ProjectStatusCategory.KEY_ACCOMPLISHMENTS.value},
@@ -155,3 +164,81 @@ async def test_list_status_items_returns_200(client, override_auth):
     )
     assert response.status_code == 200
     assert response.json() == []
+
+
+# --- Customer Communication -------------------------------------------------
+
+
+def _draft_report(**overrides):
+    from datetime import UTC, datetime
+
+    from app.models.project_status import ProjectStatusReport
+
+    return ProjectStatusReport(
+        id=uuid4(),
+        project_id=_PROJECT_ID,
+        period_id=uuid4(),
+        status="Draft",
+        open_alerts_count=0,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+        **overrides,
+    )
+
+
+async def _put(client, override_auth, report, body):
+    from app.models.project_status import ProjectStatusReport
+
+    headers = override_auth(RoleCode.ADMIN, get_map={(ProjectStatusReport, report.id): report})
+    return await client.put(
+        f"/api/v1/projects/{_PROJECT_ID}/status-reports/{report.id}", json=body, headers=headers
+    )
+
+
+async def test_submit_requires_customer_communication_answer(client, override_auth):
+    response = await _put(client, override_auth, _draft_report(), {"status": "Submitted"})
+    assert response.status_code == 400
+    assert "shared with the customer" in response.json()["detail"]
+
+
+async def test_submit_shared_requires_date_and_file(client, override_auth):
+    no_date = await _put(
+        client,
+        override_auth,
+        _draft_report(customer_report_shared=True, customer_report_file_path="x/y.pdf"),
+        {"status": "Submitted"},
+    )
+    assert no_date.status_code == 400
+    assert "Date Shared" in no_date.json()["detail"]
+
+    no_file = await _put(
+        client,
+        override_auth,
+        _draft_report(customer_report_shared=True, customer_report_date=date(2026, 9, 1)),
+        {"status": "Submitted"},
+    )
+    assert no_file.status_code == 400
+    assert "Presentation / Status Report" in no_file.json()["detail"]
+
+
+async def test_submit_passes_when_shared_with_date_and_file(client, override_auth):
+    report = _draft_report(
+        customer_report_shared=True, customer_report_date=date(2026, 9, 1), customer_report_file_path="x/y.pdf"
+    )
+    response = await _put(client, override_auth, report, {"status": "Submitted"})
+    assert response.status_code == 200
+
+
+async def test_answering_no_clears_date_and_file(client, override_auth):
+    report = _draft_report(
+        customer_report_shared=True,
+        customer_report_date=date(2026, 9, 1),
+        customer_report_file_name="deck.pdf",
+        customer_report_file_path="does-not-exist/deck.pdf",
+    )
+    response = await _put(client, override_auth, report, {"customer_report_shared": False})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["customer_report_shared"] is False
+    assert body["customer_report_date"] is None
+    assert body["customer_report_file_name"] is None

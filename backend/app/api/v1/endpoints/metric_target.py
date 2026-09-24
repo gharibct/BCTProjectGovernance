@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access
+from app.api.deps import require_project_access, require_project_read_access
 from app.core.db import get_db
 from app.models.metric_target import (
     MetricTargetCloudMaintenance,
@@ -54,6 +54,7 @@ router = APIRouter()
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
 _pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_read = [Depends(require_project_read_access())]
 
 
 # --- Config range validation ---------------------------------------------------
@@ -155,7 +156,7 @@ def build_metric_target_router(cfg: MetricTargetConfig) -> APIRouter:
         stmt = select(model).where(model.project_id == project_id)
         return (await db.execute(stmt)).scalar_one_or_none()
 
-    @sub.get("", response_model=cfg.read_schema)
+    @sub.get("", response_model=cfg.read_schema, dependencies=_pm_read)
     async def get_target(project_id: UUID, db: AsyncSession = Depends(get_db)):
         obj = await _get(db, project_id)
         if obj is None:
@@ -282,7 +283,7 @@ async def _load_staffing_target_with_priorities(db: AsyncSession, target: Metric
     )
 
 
-@staffing_router.get("", response_model=MetricTargetStaffingRead)
+@staffing_router.get("", response_model=MetricTargetStaffingRead, dependencies=_pm_read)
 async def get_staffing_target(project_id: UUID, db: AsyncSession = Depends(get_db)):
     target = await _get_staffing_target(db, project_id)
     if target is None:

@@ -155,7 +155,7 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
         )}
       >
         <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
-        Delivery Status Report - Project
+        {isWeekly ? "Project Delivery Status" : "Project Performance"}
       </Link>
 
       {visibleGroups.map((group) => (

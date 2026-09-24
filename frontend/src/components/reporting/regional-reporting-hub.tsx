@@ -7,6 +7,7 @@ import { CalendarDays } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageBanner } from "@/components/shell/page-banner";
+import { QueryErrorState } from "@/components/shared/query-error-state";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-data";
 import { submissionStatusLabel } from "@/lib/api/project-status";
@@ -17,6 +18,8 @@ import {
 } from "@/lib/api/regional-status";
 import { comboPeriods, currentActivityPeriodId, EMPTY_ACTIVITY_SERIES } from "@/lib/reporting-activity";
 import { ReportingProgressCard, WEEKLY_ACCENT } from "@/components/reporting/progress-ring-card";
+import { CustomerCommunicationsCard } from "@/components/reporting/customer-communications-card";
+import { summarizeCustomerCommunications, useCustomerCommunications } from "@/lib/api/customer-communications";
 import { ReportingActivityGrid } from "@/components/reporting/activity-grid";
 
 const SCOPE_CONFIG: Record<
@@ -45,6 +48,11 @@ function formatDate(value: string): string {
 // mirroring the Project Reporting redesign but with the progress ring and the
 // weekly activity heatmap side by side on the first row. Server-computed via
 // GET /{scope}s/{id}/reporting-activity.
+//
+// Account Reporting also gets a second column, "Customer Communications" (a
+// counts / last-shared card with its monthly boxes underneath), beside the
+// Delivery Status card and its weekly boxes. Its data comes from the account's
+// Customer Communications history; Add Communication opens that page.
 export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
   const config = SCOPE_CONFIG[scope];
   const params = useParams<Record<string, string>>();
@@ -53,8 +61,12 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
   const { data: accounts = [] } = useAccounts();
   const { data: geos = [] } = useGeos();
   const { data: periods = [] } = useReportingPeriods();
-  const { data: reports = [] } = useRegionalStatusReports(scope, scopeId || null);
+  const reportsQuery = useRegionalStatusReports(scope, scopeId || null);
+  const { data: reports = [] } = reportsQuery;
   const { data: activity } = useRegionalReportingActivity(scope, scopeId || null);
+  // Customer Communications is Account-only.
+  const { data: communications = [] } = useCustomerCommunications(scope === "account" ? scopeId || null : null);
+  const communicationSummary = useMemo(() => summarizeCustomerCommunications(communications), [communications]);
 
   const name =
     (scope === "account"
@@ -71,6 +83,29 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
 
   const periodHref = (id: string) => (id ? `${entryHref}?period=${id}` : entryHref);
 
+  const deliveryCard = (
+    <ReportingProgressCard
+      title={config.reportTitle}
+      icon={CalendarDays}
+      captionNoun="Weekly Reports"
+      series={weekly}
+      accent={WEEKLY_ACCENT}
+      comboLabel="Week Selection"
+      options={weekOptions}
+      value={weekId}
+      currentId={currentWeekId}
+      onChange={setWeekOverride}
+      actionHref={periodHref(weekId)}
+      actionLabel={config.reportTitle}
+    />
+  );
+
+  // All hooks above must run unconditionally every render — this early
+  // return has to come after every one of them.
+  if (reportsQuery.isError) {
+    return <QueryErrorState error={reportsQuery.error} onRetry={() => reportsQuery.refetch()} />;
+  }
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <div>
@@ -80,23 +115,29 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
 
       <PageBanner />
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <ReportingProgressCard
-          title={config.reportTitle}
-          icon={CalendarDays}
-          captionNoun="Weekly Reports"
-          series={weekly}
-          accent={WEEKLY_ACCENT}
-          comboLabel="Week Selection"
-          options={weekOptions}
-          value={weekId}
-          currentId={currentWeekId}
-          onChange={setWeekOverride}
-          actionHref={periodHref(weekId)}
-          actionLabel={`Open ${config.reportTitle}`}
-        />
-        <ReportingActivityGrid items={weekly.items} variant="weekly" />
-      </div>
+      {scope === "account" ? (
+        // A single 2x2 grid (cards on row 1, boxes on row 2) so each row's two
+        // items stretch to the same height and line up across the columns.
+        <div className="grid gap-6 xl:grid-cols-2">
+          {deliveryCard}
+          <CustomerCommunicationsCard
+            counts={communicationSummary.counts}
+            last={communicationSummary.last}
+            addHref={`/account-reporting/${scopeId}/customer-communications`}
+          />
+          <ReportingActivityGrid items={weekly.items} variant="weekly" />
+          <ReportingActivityGrid
+            items={communicationSummary.monthItems}
+            variant="monthly"
+            legend="communications"
+          />
+        </div>
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-2">
+          {deliveryCard}
+          <ReportingActivityGrid items={weekly.items} variant="weekly" />
+        </div>
+      )}
 
       <section>
         <h2 className="text-lg font-bold text-slate-900">Reporting History</h2>

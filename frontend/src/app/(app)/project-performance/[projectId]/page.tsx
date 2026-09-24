@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { ProjectPerformancePage } from "@/components/project-performance/project-performance-page";
 
 export const metadata: Metadata = {
-  title: "Project Performance Dashboard | Governance One",
+  title: "Project Performance | Governance One",
 };
 
 export default function ProjectPerformanceRoute() {

@@ -11,6 +11,7 @@ from app.api.deps import (
     pagination_params,
     project_scope_conditions,
     require_project_access,
+    require_project_read_access,
     require_role,
 )
 from app.core.db import get_db
@@ -59,6 +60,7 @@ _pm_write = [
         )
     )
 ]
+_pm_read = [Depends(require_project_read_access())]
 
 
 @router.get("", response_model=Page[ProjectRead])
@@ -173,7 +175,7 @@ async def bulk_create_project(
     return project
 
 
-@router.get("/{project_id}", response_model=ProjectRead)
+@router.get("/{project_id}", response_model=ProjectRead, dependencies=_pm_read)
 async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await project_crud.get(db, project_id)
     if obj is None:
@@ -311,7 +313,7 @@ async def recall_approval(project_id: UUID, db: AsyncSession = Depends(get_db)):
 # --- Oracle Project ID(s) ---
 
 
-@router.get("/{project_id}/oracle-ids", response_model=list[ProjectOracleIdRead])
+@router.get("/{project_id}/oracle-ids", response_model=list[ProjectOracleIdRead], dependencies=_pm_read)
 async def list_oracle_ids(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await project_oracle_id_crud.list(
         db, filters={ProjectOracleId.project_id: project_id}, limit=200
@@ -340,7 +342,7 @@ async def delete_oracle_id(project_id: UUID, oracle_id_id: UUID, db: AsyncSessio
 # --- Resource Allocation ---
 
 
-@router.get("/{project_id}/resources/summary", response_model=ProjectResourceSummary)
+@router.get("/{project_id}/resources/summary", response_model=ProjectResourceSummary, dependencies=_pm_read)
 async def resource_summary(project_id: UUID, db: AsyncSession = Depends(get_db)):
     stmt = select(
         func.count(ProjectResource.id),
@@ -350,7 +352,7 @@ async def resource_summary(project_id: UUID, db: AsyncSession = Depends(get_db))
     return ProjectResourceSummary(head_count=head_count, total_fte=total_fte)
 
 
-@router.get("/{project_id}/resources", response_model=list[ProjectResourceRead])
+@router.get("/{project_id}/resources", response_model=list[ProjectResourceRead], dependencies=_pm_read)
 async def list_resources(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await project_resource_crud.list(
         db, filters={ProjectResource.project_id: project_id}, limit=500

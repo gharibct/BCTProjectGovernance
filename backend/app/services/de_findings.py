@@ -38,6 +38,12 @@ class DEFindingFilters:
     # Set server-side (never a query param) to scope the list to one PM's
     # projects — used by the PM Findings screen, not the portfolio DE screen.
     project_manager_id: UUID | None = None
+    # Set server-side (never a query param) to narrow a Geo Head's or Account
+    # Manager's read to their own patch, applied whether or not they also
+    # passed an explicit geo_id/account_id filter (see
+    # require_de_findings_read_scope) — DE/ADMIN/CDO leave these None.
+    restrict_geo_ids: set[UUID] | None = None
+    restrict_account_ids: set[UUID] | None = None
     classification: str | None = None
     # A concrete FindingStatus value, the sentinel "Active" (= not Closed /
     # Cancelled), or None for all.
@@ -77,6 +83,10 @@ def _conditions(filters: DEFindingFilters) -> list:
         conditions.append(DEAssessmentFinding.project_id == filters.project_id)
     if filters.project_manager_id is not None:
         conditions.append(Project.project_manager_id == filters.project_manager_id)
+    if filters.restrict_geo_ids is not None:
+        conditions.append(Project.geo_id.in_(filters.restrict_geo_ids))
+    if filters.restrict_account_ids is not None:
+        conditions.append(Project.account_id.in_(filters.restrict_account_ids))
     if filters.classification:
         conditions.append(DEAssessmentFinding.classification == filters.classification)
 
@@ -254,6 +264,10 @@ async def de_findings_kpis(db: AsyncSession, filters: DEFindingFilters) -> DEFin
         scope.append(DEAssessmentFinding.project_id == filters.project_id)
     if filters.project_manager_id is not None:
         scope.append(Project.project_manager_id == filters.project_manager_id)
+    if filters.restrict_geo_ids is not None:
+        scope.append(Project.geo_id.in_(filters.restrict_geo_ids))
+    if filters.restrict_account_ids is not None:
+        scope.append(Project.account_id.in_(filters.restrict_account_ids))
 
     stmt = select(DEAssessmentFinding).outerjoin(Project, Project.id == DEAssessmentFinding.project_id)
     if scope:

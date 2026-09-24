@@ -2,7 +2,7 @@
 
 import { NativeSelect } from "@/components/ui/native-select";
 import { ProjectPicker } from "@/components/forms/project-picker";
-import { useAccounts, useGeos } from "@/lib/api/reference-data";
+import { useAccounts, useGeos, type Account, type Geo } from "@/lib/api/reference-data";
 import {
   FINDING_CLASSIFICATION_OPTIONS,
   FINDING_STATUS_OPTIONS,
@@ -18,12 +18,23 @@ const DEFAULTS: DeFindingsFilter = { status: "Active" };
 export function DeFindingsFilterBar({
   filters,
   onChange,
+  geos: geosOverride,
+  accounts: accountsOverride,
 }: {
   filters: DeFindingsFilter;
   onChange: (next: DeFindingsFilter) => void;
+  // Restricts the Geo/Account pickers to a Geo Head's/Account Manager's own
+  // patch (see DeFindingsView) — the backend enforces this scope regardless,
+  // but without this a Geo Head/Account Manager could pick an out-of-patch
+  // id and just get a 403 instead of a filtered list. DE/ADMIN/CDO get the
+  // full portfolio list (no override passed).
+  geos?: Geo[];
+  accounts?: Account[];
 }) {
-  const { data: geos = [] } = useGeos();
-  const { data: accounts = [] } = useAccounts();
+  const { data: allGeos = [] } = useGeos();
+  const { data: allAccounts = [] } = useAccounts();
+  const geos = geosOverride ?? allGeos;
+  const accounts = accountsOverride ?? allAccounts;
 
   const set = (patch: Partial<DeFindingsFilter>) => onChange({ ...filters, ...patch });
 

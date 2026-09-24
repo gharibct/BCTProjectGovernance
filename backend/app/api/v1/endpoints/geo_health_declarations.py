@@ -22,13 +22,27 @@ from app.services.health_rollup import compute_overall_rating
 router = APIRouter(prefix="/geos/{geo_id}/health-declarations", tags=["Geo Reporting"])
 
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+# Reads: same as write plus CDO and Delivery Excellence, who both view
+# geo-level reporting without owning the geo (see regional_status.py's
+# _cdo_review / _geo_read).
+_geo_read = [
+    Depends(
+        require_geo_scope(
+            RoleCode.GEO_HEAD,
+            RoleCode.CDO,
+            RoleCode.DELIVERY_EXCELLENCE,
+            RoleCode.ADMIN,
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+        )
+    )
+]
 
 
 def _by_period_start(model: type) -> Any:
     return select(ReportingPeriod.start_date).where(ReportingPeriod.id == model.period_id).scalar_subquery().desc()
 
 
-@router.get("", response_model=list[GeoHealthDeclarationRead])
+@router.get("", response_model=list[GeoHealthDeclarationRead], dependencies=_geo_read)
 async def list_geo_health_declarations(geo_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await geo_health_declaration_crud.list(
         db,
@@ -39,7 +53,7 @@ async def list_geo_health_declarations(geo_id: UUID, db: AsyncSession = Depends(
     return items
 
 
-@router.get("/latest", response_model=GeoHealthDeclarationRead)
+@router.get("/latest", response_model=GeoHealthDeclarationRead, dependencies=_geo_read)
 async def get_latest_geo_health_declaration(geo_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await geo_health_declaration_crud.list(
         db,

@@ -411,6 +411,42 @@ async def get_pmo_dashboard_summary(db: AsyncSession = Depends(get_db)):
     )
 
 
+async def _health_scope(
+    geo_id: UUID | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Project Health is open to every signed-in user; what they can see is
+    scoped by role, as DashboardFilters kwargs (merged into the endpoint's
+    filters): Geo Head -> owned geos, Account Manager -> owned accounts,
+    Project Manager -> own projects, Team Member -> nothing. Admin / PMO / CDO /
+    Delivery Excellence are org-wide. Explicitly asking for a geo/account
+    outside one's ownership is a 403."""
+    role = await _role_code(db, current_user)
+    if role == RoleCode.GEO_HEAD:
+        owned = list(
+            (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == current_user.id))).scalars().all()
+        )
+        if geo_id is not None and geo_id not in owned:
+            raise HTTPException(status_code=403, detail="You do not have access to this geo.")
+        return {"geo_ids": owned}
+    if role == RoleCode.ACCOUNT_MANAGER:
+        owned = list(
+            (await db.execute(select(UserAccount.account_id).where(UserAccount.user_id == current_user.id)))
+            .scalars()
+            .all()
+        )
+        if account_id is not None and account_id not in owned:
+            raise HTTPException(status_code=403, detail="You do not have access to this account.")
+        return {"account_ids": owned}
+    if role == RoleCode.PROJECT_MANAGER:
+        return {"project_manager_id": current_user.id}
+    if role == RoleCode.TEAM_MEMBER:
+        return {"account_ids": []}
+    return {}
+
+
 def _health_filters(
     geo_id: UUID | None, account_id: UUID | None, project_type_id: UUID | None, **extra
 ) -> DashboardFilters:
@@ -441,25 +477,19 @@ async def _weekly_period_or_current(db: AsyncSession, period_id: UUID | None) ->
 @router.get(
     "/project-health",
     response_model=ProjectHealthDashboardSummary,
-    dependencies=[
-        Depends(
-            require_role(
-                RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE
-            )
-        )
-    ],
 )
 async def get_project_health_dashboard(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     period_id: UUID | None = Query(default=None),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
     # Portfolio + RAIDO-adjacent cards use every approved project; the bucketed
     # cards (health / metrics / commitments / DE / submissions) use Active only,
     # so each of their bucket sets sums to the Active Projects count.
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     active_filters = replace(filters, active_only=True)
     projects = await dashboard_service.project_health_rows(db, filters)
     project_ids = [p.project_id for p in projects]
@@ -499,11 +529,11 @@ async def get_project_health_dashboard(
 @router.get(
     "/project-health/periods",
     response_model=list[ProjectHealthPeriod],
-    dependencies=[
-        Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE))
-    ],
 )
-async def get_project_health_periods(db: AsyncSession = Depends(get_db)):
+async def get_project_health_periods(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     periods = await dashboard_service.recent_weekly_periods(db)
     return [
         ProjectHealthPeriod(
@@ -513,15 +543,10 @@ async def get_project_health_periods(db: AsyncSession = Depends(get_db)):
     ]
 
 
-_project_health_role = [
-    Depends(require_role(RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE))
-]
-
-
 # Project Health drill-down list screens (design-reference/project-health-screens.md)
 # — the grid data behind 4 of the dashboard's 12 report cards. Same role gate
 # and Geo/Account/Project Type filters as /project-health above, plus paging.
-@router.get("/project-health/projects", response_model=Page[ProjectListRow], dependencies=_project_health_role)
+@router.get("/project-health/projects", response_model=Page[ProjectListRow])
 async def get_project_health_project_list(
     geo_id: UUID | None = Query(default=None),
     region_id: UUID | None = Query(default=None),
@@ -530,6 +555,7 @@ async def get_project_health_project_list(
     project_owned: str | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
     filters = DashboardFilters(
@@ -539,6 +565,7 @@ async def get_project_health_project_list(
         project_type_id=project_type_id,
         project_owned=project_owned,
         approved_only=True,
+        **scope,
     )
     items, total = await dashboard_service.list_projects_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
@@ -546,128 +573,136 @@ async def get_project_health_project_list(
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/rag", response_model=Page[RagRow], dependencies=_project_health_role)
+@router.get("/project-health/rag", response_model=Page[RagRow])
 async def get_project_health_rag(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     period_id: UUID | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True)
+    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True, **scope)
     week = await _weekly_period_or_current(db, period_id)
     rows = await dashboard_service.list_rag_rows(db, filters, period_id=week.id if week else None)
     page = rows[pagination.skip : pagination.skip + pagination.limit]
     return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/account-rag", response_model=Page[AccountRagRow], dependencies=_project_health_role)
+@router.get("/project-health/account-rag", response_model=Page[AccountRagRow])
 async def get_project_health_account_rag(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     period_id: UUID | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True)
+    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True, **scope)
     week = await _weekly_period_or_current(db, period_id)
     rows = await dashboard_service.list_account_rag_rows(db, filters, period_id=week.id if week else None)
     page = rows[pagination.skip : pagination.skip + pagination.limit]
     return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/risks", response_model=Page[RiskRow], dependencies=_project_health_role)
+@router.get("/project-health/risks", response_model=Page[RiskRow])
 async def get_project_health_risks(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_risks_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/issues", response_model=Page[IssueRow], dependencies=_project_health_role)
+@router.get("/project-health/issues", response_model=Page[IssueRow])
 async def get_project_health_issues(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_issues_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/dependencies", response_model=Page[DependencyRow], dependencies=_project_health_role)
+@router.get("/project-health/dependencies", response_model=Page[DependencyRow])
 async def get_project_health_dependencies(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_dependencies_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/assumptions", response_model=Page[AssumptionRow], dependencies=_project_health_role)
+@router.get("/project-health/assumptions", response_model=Page[AssumptionRow])
 async def get_project_health_assumptions(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_assumptions_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/opportunities", response_model=Page[OpportunityRow], dependencies=_project_health_role)
+@router.get("/project-health/opportunities", response_model=Page[OpportunityRow])
 async def get_project_health_opportunities(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_opportunities_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/metrics", response_model=Page[MetricRow], dependencies=_project_health_role)
+@router.get("/project-health/metrics", response_model=Page[MetricRow])
 async def get_project_health_metrics(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     period_id: UUID | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True)
+    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True, **scope)
     projects = await dashboard_service.project_health_rows(db, filters)
     project_ids = [p.project_id for p in projects]
 
@@ -680,16 +715,17 @@ async def get_project_health_metrics(
     return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/commitments", response_model=Page[CommitmentRow], dependencies=_project_health_role)
+@router.get("/project-health/commitments", response_model=Page[CommitmentRow])
 async def get_project_health_commitments(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_commitments_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
@@ -697,7 +733,7 @@ async def get_project_health_commitments(
 
 
 @router.get(
-    "/project-health/payment-milestones", response_model=Page[PaymentMilestoneRow], dependencies=_project_health_role
+    "/project-health/payment-milestones", response_model=Page[PaymentMilestoneRow]
 )
 async def get_project_health_payment_milestones(
     geo_id: UUID | None = Query(default=None),
@@ -705,31 +741,33 @@ async def get_project_health_payment_milestones(
     project_type_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_payment_milestones_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/assessments", response_model=Page[AssessmentRow], dependencies=_project_health_role)
+@router.get("/project-health/assessments", response_model=Page[AssessmentRow])
 async def get_project_health_assessments(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_assessments_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/findings", response_model=Page[FindingRow], dependencies=_project_health_role)
+@router.get("/project-health/findings", response_model=Page[FindingRow])
 async def get_project_health_findings(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
@@ -737,9 +775,10 @@ async def get_project_health_findings(
     classification: str | None = Query(default=None),
     overdue: bool | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     items, total = await dashboard_service.list_findings_for_health(
         db,
         filters,
@@ -751,16 +790,17 @@ async def get_project_health_findings(
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/actions", response_model=Page[ActionRow], dependencies=_project_health_role)
+@router.get("/project-health/actions", response_model=Page[ActionRow])
 async def get_project_health_actions(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     search: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     projects = await dashboard_service.project_health_rows(db, filters)
     project_ids = [p.project_id for p in projects]
     items, total = await dashboard_service.list_actions_for_health(
@@ -769,15 +809,16 @@ async def get_project_health_actions(
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@router.get("/project-health/data-integrity", response_model=Page[DataIntegrityRow], dependencies=_project_health_role)
+@router.get("/project-health/data-integrity", response_model=Page[DataIntegrityRow])
 async def get_project_health_data_integrity(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     projects = await dashboard_service.project_health_rows(db, filters)
     project_ids = [p.project_id for p in projects]
     items, total = await dashboard_service.list_data_integrity_for_health(
@@ -789,7 +830,6 @@ async def get_project_health_data_integrity(
 @router.get(
     "/project-health/report-submissions",
     response_model=Page[ReportSubmissionDetailRow],
-    dependencies=_project_health_role,
 )
 async def get_project_health_report_submissions(
     geo_id: UUID | None = Query(default=None),
@@ -802,9 +842,10 @@ async def get_project_health_report_submissions(
     report_type: str | None = Query(default=None),
     pending: bool | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id)
+    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     projects = await dashboard_service.project_health_rows(db, filters)
     items, total = await dashboard_service.list_report_submissions_for_health(
         db,

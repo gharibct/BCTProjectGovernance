@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access
+from app.api.deps import require_project_access, require_project_read_access
 from app.core.config import settings
 from app.core.db import get_db
 from app.crud.documents import project_document_crud
@@ -36,6 +36,7 @@ router = APIRouter(prefix="/projects/{project_id}/documents", tags=["Documents"]
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
 _pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_read = [Depends(require_project_read_access())]
 
 _UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9_-]+")
 
@@ -81,7 +82,7 @@ async def _get_baseline_period_id(db: AsyncSession) -> UUID:
     return items[0].id
 
 
-@router.get("", response_model=list[ProjectDocumentRead])
+@router.get("", response_model=list[ProjectDocumentRead], dependencies=_pm_read)
 async def list_documents(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await project_document_crud.list(
         db,
@@ -204,7 +205,7 @@ async def delete_document(project_id: UUID, document_id: UUID, db: AsyncSession 
     )
 
 
-@router.get("/{document_id}/download")
+@router.get("/{document_id}/download", dependencies=_pm_read)
 async def download_document(project_id: UUID, document_id: UUID, db: AsyncSession = Depends(get_db)):
     doc = await _get_document_or_404(project_id, document_id, db)
     file_path = Path(settings.document_storage_dir) / doc.storage_path

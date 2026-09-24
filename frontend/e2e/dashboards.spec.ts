@@ -37,7 +37,7 @@ const ROLES = [
     slug: "project-manager",
     identifier: "pm",
     landing: "/dashboard",
-    expectMenu: ["My Summary", "Delivery Status Report - Project", "New Project", "Maintain Project", "Report Project"],
+    expectMenu: ["My Summary", "Project Delivery Status", "New Project", "Maintain Project", "Report Project"],
     avoidMenu: ["Admin Dashboard", "Users & Roles", "Accounts", "Report Account Status", "Report Geo Status"],
   },
   {
@@ -52,7 +52,7 @@ const ROLES = [
       "Admin Dashboard",
       "Report Account Status",
       "Report Geo Status",
-      "Delivery Status Report - Project",
+      "Project Delivery Status",
       "Users & Roles",
       "Accounts",
     ],
@@ -62,7 +62,7 @@ const ROLES = [
     identifier: "cdo",
     landing: "/dashboard/cdo",
     expectMenu: ["My Summary", "Delivery Status Report - Geo"],
-    avoidMenu: ["New Project", "Report Account Status", "Report Geo Status", "Admin Dashboard", "Delivery Status Report - Project"],
+    avoidMenu: ["New Project", "Report Account Status", "Report Geo Status", "Admin Dashboard", "Project Delivery Status"],
   },
   {
     slug: "account-manager",
@@ -72,7 +72,7 @@ const ROLES = [
       "My Summary",
       "Delivery Status Report - Account",
       "Report Account Status",
-      "Delivery Status Report - Project",
+      "Project Delivery Status",
       "Reassign Owners",
     ],
     avoidMenu: ["Admin Dashboard", "New Project", "Report Geo Status", "Delivery Status Report - Geo", "Maintain Project"],
@@ -82,7 +82,7 @@ const ROLES = [
     identifier: "geohead",
     landing: "/dashboard/geo-head",
     expectMenu: ["My Summary", "Delivery Status Report - Geo", "Report Geo Status", "Delivery Status Report - Account", "Reassign Owners"],
-    avoidMenu: ["Admin Dashboard", "New Project", "Report Account Status", "Delivery Status Report - Project", "Maintain Project"],
+    avoidMenu: ["Admin Dashboard", "New Project", "Report Account Status", "Project Delivery Status", "Maintain Project"],
   },
 ] as const;
 

@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access
+from app.api.deps import require_project_access, require_project_read_access
 from app.core.db import get_db
 from app.crud import ai_row_suggestions as crud
 from app.crud.projects import project_crud
@@ -22,6 +22,7 @@ router = APIRouter(prefix="/projects/{project_id}/ai-row-suggestions", tags=["AI
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
 _pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_read = [Depends(require_project_read_access())]
 
 
 async def _get_project_or_404(project_id: UUID, db: AsyncSession):
@@ -31,7 +32,7 @@ async def _get_project_or_404(project_id: UUID, db: AsyncSession):
     return project
 
 
-@router.get("", response_model=list[AiRowSuggestionRead])
+@router.get("", response_model=list[AiRowSuggestionRead], dependencies=_pm_read)
 async def list_pending_suggestions(
     project_id: UUID, screen: str, period_id: UUID, db: AsyncSession = Depends(get_db)
 ):

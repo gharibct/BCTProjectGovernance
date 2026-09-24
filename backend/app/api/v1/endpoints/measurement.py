@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import PaginationParams, pagination_params, require_project_access
+from app.api.deps import PaginationParams, pagination_params, require_project_access, require_project_read_access
 from app.core.db import get_db
 from app.crud.base import CRUDBase
 from app.crud.measurement import (
@@ -83,6 +83,7 @@ router = APIRouter()
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
 _pm_write = [Depends(require_project_access(RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+_pm_read = [Depends(require_project_read_access())]
 
 
 # Most Measurement tabs key their snapshots off a reporting_periods row rather
@@ -124,7 +125,7 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
     model = cfg.model
     crud = cfg.crud
 
-    @sub.get("", response_model=Page[cfg.read_schema])
+    @sub.get("", response_model=Page[cfg.read_schema], dependencies=_pm_read)
     async def list_items(
         project_id: UUID,
         pagination: PaginationParams = Depends(pagination_params),
@@ -139,7 +140,7 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
         )
         return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
-    @sub.get("/latest", response_model=cfg.read_schema)
+    @sub.get("/latest", response_model=cfg.read_schema, dependencies=_pm_read)
     async def get_latest(project_id: UUID, db: AsyncSession = Depends(get_db)):
         items, _ = await crud.list(
             db, filters={model.project_id: project_id}, order_by=cfg.order_by(model), limit=1
@@ -181,7 +182,7 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
             await ensure_draft_report(db, project_id, data["period_id"])
         return obj
 
-    @sub.get("/{item_id}", response_model=cfg.read_schema)
+    @sub.get("/{item_id}", response_model=cfg.read_schema, dependencies=_pm_read)
     async def get_item(project_id: UUID, item_id: UUID, db: AsyncSession = Depends(get_db)):
         obj = await crud.get(db, item_id)
         if obj is None or obj.project_id != project_id:
@@ -316,7 +317,7 @@ def _recompute_defect_leakage(measurement: MeasurementDevelopment, defects: list
     measurement.defect_leakage_pct = compute_defect_leakage_pct(total_internal, total_external)
 
 
-@dev_router.get("", response_model=Page[MeasurementDevelopmentRead])
+@dev_router.get("", response_model=Page[MeasurementDevelopmentRead], dependencies=_pm_read)
 async def list_development(
     project_id: UUID,
     pagination: PaginationParams = Depends(pagination_params),
@@ -332,7 +333,7 @@ async def list_development(
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@dev_router.get("/latest", response_model=MeasurementDevelopmentReadWithDefects)
+@dev_router.get("/latest", response_model=MeasurementDevelopmentReadWithDefects, dependencies=_pm_read)
 async def get_latest_development(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await measurement_development_crud.list(
         db,
@@ -391,7 +392,7 @@ async def create_development(project_id: UUID, payload: MeasurementDevelopmentCr
     return await _load_development_with_defects(db, measurement)
 
 
-@dev_router.get("/{measurement_id}", response_model=MeasurementDevelopmentReadWithDefects)
+@dev_router.get("/{measurement_id}", response_model=MeasurementDevelopmentReadWithDefects, dependencies=_pm_read)
 async def get_development(project_id: UUID, measurement_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await measurement_development_crud.get(db, measurement_id)
     if obj is None or obj.project_id != project_id:
@@ -484,7 +485,7 @@ async def _load_staffing_with_priorities(db: AsyncSession, measurement: Measurem
     )
 
 
-@staffing_router.get("", response_model=Page[MeasurementStaffingRead])
+@staffing_router.get("", response_model=Page[MeasurementStaffingRead], dependencies=_pm_read)
 async def list_staffing(
     project_id: UUID,
     pagination: PaginationParams = Depends(pagination_params),
@@ -500,7 +501,7 @@ async def list_staffing(
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
 
-@staffing_router.get("/latest", response_model=MeasurementStaffingReadWithPriorities)
+@staffing_router.get("/latest", response_model=MeasurementStaffingReadWithPriorities, dependencies=_pm_read)
 async def get_latest_staffing(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await measurement_staffing_crud.list(
         db,
@@ -570,7 +571,7 @@ async def create_staffing(project_id: UUID, payload: MeasurementStaffingCreate, 
     return await _load_staffing_with_priorities(db, measurement)
 
 
-@staffing_router.get("/{measurement_id}", response_model=MeasurementStaffingReadWithPriorities)
+@staffing_router.get("/{measurement_id}", response_model=MeasurementStaffingReadWithPriorities, dependencies=_pm_read)
 async def get_staffing(project_id: UUID, measurement_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await measurement_staffing_crud.get(db, measurement_id)
     if obj is None or obj.project_id != project_id:

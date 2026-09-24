@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { ReportingBreadcrumb } from "@/components/shell/reporting-breadcrumb";
 import { ReportingPeriodPill } from "@/components/shell/reporting-period-badge";
 import { PageBanner } from "@/components/shell/page-banner";
+import { QueryErrorState } from "@/components/shared/query-error-state";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { ActionTrackerTrigger } from "@/components/action-tracker/action-tracker-trigger";
 import { useProject } from "@/lib/api/projects";
@@ -21,8 +22,8 @@ type ProjectHeaderProps = {
   periodId?: string | null;
   // Project Status only: ignore `subheading`, use "{period.period_type} Report" instead.
   dynamicSubheading?: boolean;
-  // Delivery Status Report - Project only — the Action Tracker trigger
-  // lives on Delivery Status Report - Project and Project Review, not every
+  // Project Delivery Status only — the Action Tracker trigger
+  // lives on Project Delivery Status and Project Review, not every
   // other Project Reporting sub-page.
   showActionTracker?: boolean;
 };
@@ -76,7 +77,16 @@ function HeadingRow({
 // screen is its own route, so `subheading` is passed explicitly by the page.
 export function ProjectHeader({ subheading, periodId, dynamicSubheading, showActionTracker }: ProjectHeaderProps = {}) {
   const { projectId } = useParams<{ projectId?: string }>();
-  const { data: project } = useProject(projectId ?? null);
+  const projectQuery = useProject(projectId ?? null);
+  const { data: project } = projectQuery;
+
+  // ProjectHeader sits at the top of every Project Reporting sub-page (Charter,
+  // Measurement, RAID/O, Status, Contractual Compliance, ...) — gating its
+  // shared useProject() call here covers all of them from one place, instead
+  // of repeating this check in every leaf form/tab component.
+  if (projectQuery.isError) {
+    return <QueryErrorState error={projectQuery.error} onRetry={() => projectQuery.refetch()} />;
+  }
 
   const base = project?.project_code?.trim() || "Project Reporting";
 

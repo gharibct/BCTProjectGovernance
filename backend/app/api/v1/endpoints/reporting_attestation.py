@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access
+from app.api.deps import require_project_access, require_project_read_access
 from app.core.db import get_db
 from app.crud.reporting_attestation import monthly_report_attestation_crud
 from app.models.reference_data import ReportingPeriod
@@ -20,9 +20,10 @@ router = APIRouter(prefix="/projects/{project_id}/monthly-attestations", tags=["
 _write_dep = require_project_access(
     RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN
 )
+_pm_read = [Depends(require_project_read_access())]
 
 
-@router.get("", response_model=list[MonthlyReportAttestationRead])
+@router.get("", response_model=list[MonthlyReportAttestationRead], dependencies=_pm_read)
 async def list_attestations(
     project_id: UUID, period_id: UUID = Query(...), db: AsyncSession = Depends(get_db)
 ):

@@ -1,9 +1,10 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { NativeSelect } from "@/components/ui/native-select";
-import { useAccounts, useGeos, useProjectTypes, useRegions } from "@/lib/api/reference-data";
+import { useAccounts, useGeos, useRegions } from "@/lib/api/reference-data";
+import { useEffectiveRole, useSession } from "@/stores/session";
 import { useProjectHealthPeriods, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
 
 // Ownership model values — mirrors backend schemas.enums.ProjectOwned and the
@@ -11,8 +12,9 @@ import { useProjectHealthPeriods, type ProjectHealthDashboardFilters } from "@/l
 const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
 
 // Project Health dashboard (design-reference/Project-Health.html) filter bar
-// — Geo/Account/Project Type/Period, plus opt-in Region and Ownership
+// — Geo/Account/Period, plus opt-in Region and Ownership
 // (showRegion / showOwnership) used by the Project List screen. No Project
+// Type filter, and no Project
 // selector: there's no
 // existing portfolio-scale project picker in this codebase to build one
 // from, and a flat <select> enumerating every org-wide project wouldn't
@@ -23,6 +25,13 @@ const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as 
 // than stacking a second filter row. Such a page passes `extraFiltersActive`
 // so Reset stays visible while they're set, and `onReset` so Reset clears
 // them too.
+//
+// A Geo Head is locked to the geo(s) they own: the Geo combo lists only those.
+// With a single geo there's no "All" and it's preselected; with several, "All"
+// (= all their geos, enforced server-side) is available and the default. The
+// Account combo only offers accounts in the selected geo(s). An Account Manager likewise only sees their own
+// accounts (and those accounts' geos) in the combos. The backend enforces the
+// same scoping — Project Health is open to every role, results are role-scoped.
 export function ProjectHealthFilterBar({
   filters,
   onChange,
@@ -45,8 +54,29 @@ export function ProjectHealthFilterBar({
   const { data: geos = [] } = useGeos();
   const { data: regions = [] } = useRegions();
   const { data: accounts = [] } = useAccounts();
-  const { data: projectTypes = [] } = useProjectTypes();
   const { data: periods = [] } = useProjectHealthPeriods();
+
+  const effectiveRole = useEffectiveRole();
+  const isGeoHead = effectiveRole === "GEO_HEAD";
+  const isAccountManager = effectiveRole === "ACCOUNT_MANAGER";
+  const ownedGeoIds = useSession((s) => s.user?.geo_ids ?? []);
+  const ownedAccountIds = useSession((s) => s.user?.account_ids ?? []);
+  const ownedAccountGeoIds = accounts
+    .filter((account) => ownedAccountIds.includes(account.id))
+    .map((account) => account.geo_id);
+  const geoOptions = isGeoHead
+    ? geos.filter((geo) => ownedGeoIds.includes(geo.id))
+    : isAccountManager
+      ? geos.filter((geo) => ownedAccountGeoIds.includes(geo.id))
+      : geos;
+  const geoHeadHasSingleGeo = isGeoHead && geoOptions.length === 1;
+  const defaultGeoId = geoHeadHasSingleGeo ? geoOptions[0].id : undefined;
+
+  // A single-geo Geo Head always has that geo selected — apply it on load and
+  // after Reset (which clears the filters to {}).
+  useEffect(() => {
+    if (defaultGeoId && !filters.geoId) onChange({ ...filters, geoId: defaultGeoId });
+  }, [defaultGeoId, filters, onChange]);
 
   // Cascade the Region list off the selected Geo when one is chosen.
   const regionOptions = filters.geoId ? regions.filter((region) => region.geo_id === filters.geoId) : regions;
@@ -54,15 +84,16 @@ export function ProjectHealthFilterBar({
   // Account list cascades off the selected Geo (and Region, when shown).
   const accountOptions = accounts.filter(
     (account) =>
+      (!isAccountManager || ownedAccountIds.includes(account.id)) &&
+      (!isGeoHead || (account.geo_id !== null && ownedGeoIds.includes(account.geo_id))) &&
       (!filters.geoId || account.geo_id === filters.geoId) &&
       (!showRegion || !filters.regionId || account.region_id === filters.regionId),
   );
 
   const hasFilters = Boolean(
-    filters.geoId ||
+    (filters.geoId && filters.geoId !== defaultGeoId) ||
       (showRegion && filters.regionId) ||
       filters.accountId ||
-      filters.projectTypeId ||
       (showOwnership && filters.projectOwned) ||
       (showPeriod && filters.periodId && filters.periodId !== periods[0]?.id)
   );
@@ -78,8 +109,8 @@ export function ProjectHealthFilterBar({
           value={filters.geoId ?? ""}
           onChange={(e) => onChange({ ...filters, geoId: e.target.value || undefined, regionId: undefined, accountId: undefined })}
         >
-          <option value="">Geo [All]</option>
-          {geos.map((geo) => (
+          {geoHeadHasSingleGeo ? null : <option value="">Geo [All]</option>}
+          {geoOptions.map((geo) => (
             <option key={geo.id} value={geo.id}>
               {geo.name}
             </option>
@@ -116,22 +147,6 @@ export function ProjectHealthFilterBar({
           {accountOptions.map((account) => (
             <option key={account.id} value={account.id}>
               {account.name}
-            </option>
-          ))}
-        </NativeSelect>
-      </div>
-
-      <div className="w-44">
-        <NativeSelect
-          aria-label="Project Type"
-          className="h-9 bg-white text-sm"
-          value={filters.projectTypeId ?? ""}
-          onChange={(e) => onChange({ ...filters, projectTypeId: e.target.value || undefined })}
-        >
-          <option value="">Project Type [All]</option>
-          {projectTypes.map((type) => (
-            <option key={type.id} value={type.id}>
-              {type.name}
             </option>
           ))}
         </NativeSelect>

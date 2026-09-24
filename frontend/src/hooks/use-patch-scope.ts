@@ -19,6 +19,7 @@ export function usePatchScope() {
   const realRole = user?.role.code;
   const isAdmin = realRole === "ADMIN";
   const isCdo = realRole === "CDO";
+  const isDe = realRole === "DELIVERY_EXCELLENCE";
   const seesAllAccountsAndProjects = isAdmin || isCdo;
 
   const { data: projects = [] } = useProjects();
@@ -42,20 +43,43 @@ export function usePatchScope() {
     // A PM only sees the projects allocated to them. The server enforces
     // the same scope on GET /projects.
     if (realRole === "PROJECT_MANAGER") return projects.filter((p) => p.project_manager_id === user?.id);
+    // DE's allocation is per-project (delivery_excellence_id), not
+    // account/geo membership — DE has no user_accounts/user_geos rows to
+    // fall back on, unlike every other non-Admin/CDO role below.
+    if (isDe) return projects.filter((p) => p.delivery_excellence_id === user?.id);
     return projects.filter(
       (p) =>
         (!!p.account_id && !!patchAccountIds && patchAccountIds.has(p.account_id)) ||
         (!!p.geo_id && patchGeoIds.has(p.geo_id))
     );
-  }, [projects, seesAllAccountsAndProjects, realRole, user, patchAccountIds, patchGeoIds]);
+  }, [projects, seesAllAccountsAndProjects, realRole, user, patchAccountIds, patchGeoIds, isDe]);
+
+  // DE's reportingAccounts/reportingGeos derive from its own patchProjects
+  // (the accounts/geos of the projects it's allocated to), since DE has no
+  // user_accounts/user_geos rows to scope from directly.
+  const deAccountIds = React.useMemo(
+    () => new Set(patchProjects.map((p) => p.account_id).filter((id): id is string => !!id)),
+    [patchProjects]
+  );
+  const deGeoIds = React.useMemo(() => {
+    const direct = patchProjects.map((p) => p.geo_id).filter((id): id is string => !!id);
+    const viaAccount = accounts.filter((a) => deAccountIds.has(a.id) && a.geo_id).map((a) => a.geo_id as string);
+    return new Set([...direct, ...viaAccount]);
+  }, [patchProjects, accounts, deAccountIds]);
 
   const inPatchAccounts = (id: string | null | undefined) =>
     !id ? false : patchAccountIds === null || patchAccountIds.has(id);
 
   const reportingAccounts: Account[] = seesAllAccountsAndProjects
     ? accounts
-    : accounts.filter((a) => inPatchAccounts(a.id));
-  const reportingGeos: Geo[] = isAdmin || isCdo ? geos : geos.filter((g) => patchGeoIds.has(g.id));
+    : isDe
+      ? accounts.filter((a) => deAccountIds.has(a.id))
+      : accounts.filter((a) => inPatchAccounts(a.id));
+  const reportingGeos: Geo[] = isAdmin || isCdo
+    ? geos
+    : isDe
+      ? geos.filter((g) => deGeoIds.has(g.id))
+      : geos.filter((g) => patchGeoIds.has(g.id));
 
   return {
     realRole,

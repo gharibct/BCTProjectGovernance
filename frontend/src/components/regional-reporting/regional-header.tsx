@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from "next/navigation";
 
 import { ReportingPeriodPill } from "@/components/shell/reporting-period-badge";
 import { PageBanner } from "@/components/shell/page-banner";
+import { QueryErrorState } from "@/components/shared/query-error-state";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { ActionTrackerTrigger } from "@/components/action-tracker/action-tracker-trigger";
 import type { ActionLevel } from "@/lib/api/actions";
@@ -71,7 +72,15 @@ function PeriodAwareHeading({
       : (geos.find((g) => g.id === scopeId)?.name ?? SCOPE_LABEL.geo);
 
   const { data: periods = [] } = useReportingPeriods();
-  const { data: reports = [] } = useRegionalStatusReports(scope, scopeId);
+  const reportsQuery = useRegionalStatusReports(scope, scopeId);
+  const { data: reports = [] } = reportsQuery;
+
+  // RegionalHeader sits at the top of every Account/Geo Reporting sub-page —
+  // gating its shared useRegionalStatusReports() call here covers all of
+  // them from one place, same as ProjectHeader does for Project Reporting.
+  if (reportsQuery.isError) {
+    return <QueryErrorState error={reportsQuery.error} onRetry={() => reportsQuery.refetch()} />;
+  }
 
   const period = periods.find((p) => p.id === periodId);
   const report = reports.find((r) => r.period_id === periodId);

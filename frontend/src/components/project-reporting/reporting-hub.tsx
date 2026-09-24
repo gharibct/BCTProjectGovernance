@@ -8,6 +8,7 @@ import { CalendarDays, ChartColumn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageBanner } from "@/components/shell/page-banner";
+import { QueryErrorState } from "@/components/shared/query-error-state";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
@@ -30,12 +31,13 @@ function formatDate(value: string): string {
 
 export function ReportingHub() {
   const { projectId } = useParams<{ projectId: string }>();
-  const { data: project } = useProject(projectId ?? null);
+  const projectQuery = useProject(projectId ?? null);
+  const { data: project } = projectQuery;
   const { data: periods = [] } = useReportingPeriods();
   const { data: reports = [] } = useStatusReports(projectId ?? null);
   const { data: activity } = useReportingActivity(projectId ?? null);
 
-  // Delivery Status Report - Project (the consolidated preview + submit
+  // Project Delivery Status (the consolidated preview + submit
   // screen) is where entering the reporting flow for a period should land.
   const dashboardHref = `/project-reporting/${projectId}/dashboard`;
 
@@ -59,6 +61,12 @@ export function ReportingHub() {
 
   const periodHref = (periodId: string) =>
     periodId ? `${dashboardHref}?period=${periodId}` : dashboardHref;
+
+  // All hooks above must run unconditionally every render — this early
+  // return has to come after every one of them, not interspersed.
+  if (projectQuery.isError) {
+    return <QueryErrorState error={projectQuery.error} onRetry={() => projectQuery.refetch()} />;
+  }
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -86,7 +94,7 @@ export function ReportingHub() {
           currentId={currentWeekId}
           onChange={setWeekOverride}
           actionHref={periodHref(weekId)}
-          actionLabel="Open Delivery Status Reporting"
+          actionLabel="Delivery Status Reporting"
         />
         <ReportingProgressCard
           title="Project Performance Report (Monthly)"
@@ -100,7 +108,7 @@ export function ReportingHub() {
           currentId={currentMonthId}
           onChange={setMonthOverride}
           actionHref={periodHref(monthId)}
-          actionLabel="Open Project Performance Report"
+          actionLabel="Project Performance Reporting"
         />
       </div>
 
@@ -135,9 +143,9 @@ export function ReportingHub() {
                   const period = periods.find((p) => p.id === report.period_id);
                   const typeLabel =
                     period?.period_type === "Weekly"
-                      ? "Delivery Status Report"
+                      ? "Delivery Status"
                       : period?.period_type === "Monthly"
-                        ? "Metrics Report"
+                        ? "Project Performance"
                         : (period?.period_type ?? "—");
                   return (
                     <tr

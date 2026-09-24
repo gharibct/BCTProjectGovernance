@@ -31,6 +31,21 @@ router = APIRouter(prefix="/accounts/{account_id}/health-declarations", tags=["A
 # Account-Head work — also reachable by a Geo Head via the top-bar Work Context,
 # for accounts in their own geo (require_account_or_geo_scope).
 _account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
+# Reads: same ownership scoping, plus CDO/Delivery Excellence viewing across
+# every account by design (see regional_status.py's _account_read, which this
+# mirrors — RAG Status is part of the same Account Delivery Status report).
+_account_read = [
+    Depends(
+        require_account_or_geo_scope(
+            RoleCode.ACCOUNT_MANAGER,
+            RoleCode.GEO_HEAD,
+            RoleCode.CDO,
+            RoleCode.DELIVERY_EXCELLENCE,
+            RoleCode.ADMIN,
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+        )
+    )
+]
 
 
 def _by_period_start(model: type) -> Any:
@@ -48,7 +63,7 @@ async def _assert_period_editable(db: AsyncSession, account_id: UUID, period_id:
     assert_report_editable((await db.execute(stmt)).scalars().first())
 
 
-@router.get("", response_model=list[AccountHealthDeclarationRead])
+@router.get("", response_model=list[AccountHealthDeclarationRead], dependencies=_account_read)
 async def list_account_health_declarations(account_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await account_health_declaration_crud.list(
         db,
@@ -59,7 +74,7 @@ async def list_account_health_declarations(account_id: UUID, db: AsyncSession = 
     return items
 
 
-@router.get("/latest", response_model=AccountHealthDeclarationRead)
+@router.get("/latest", response_model=AccountHealthDeclarationRead, dependencies=_account_read)
 async def get_latest_account_health_declaration(account_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await account_health_declaration_crud.list(
         db,
@@ -132,7 +147,7 @@ async def update_account_health_declaration(
 items_router = APIRouter(prefix="/accounts/{account_id}/health-items", tags=["Account Reporting"])
 
 
-@items_router.get("", response_model=list[AccountHealthItemRead])
+@items_router.get("", response_model=list[AccountHealthItemRead], dependencies=_account_read)
 async def list_account_health_items(
     account_id: UUID,
     period_id: UUID,

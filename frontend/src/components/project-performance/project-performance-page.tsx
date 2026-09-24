@@ -24,7 +24,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
   const searchParams = useSearchParams();
 
   const { data: projects = [] } = useProjects();
-  const name = projects.find((p) => p.id === projectId)?.project_code ?? "Project Performance Dashboard";
+  const name = projects.find((p) => p.id === projectId)?.project_code ?? "Project Performance";
 
   const { data: periods = [] } = useReportingPeriods();
   const { data: reports = [] } = useStatusReports(projectId);
@@ -46,7 +46,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
   // bare Project Performance list (e.g. Project Health's Report
   // Submissions grid, project-health-report-submissions.tsx) can carry a
   // `?back=` path so this breadcrumb returns there instead of the plain
-  // "Project Performance Dashboard" text — mirrors status-review-page.tsx's
+  // "Project Performance" text — mirrors status-review-page.tsx's
   // `back` handling.
   const back = searchParams.get("back");
 
@@ -59,7 +59,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
               Report Submissions
             </Link>
           ) : (
-            <span className="font-semibold text-[#1a6fc4]">Project Performance Dashboard</span>
+            <span className="font-semibold text-[#1a6fc4]">Project Performance</span>
           )}
           {period ? (
             <>
