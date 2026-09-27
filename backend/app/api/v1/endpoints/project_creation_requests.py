@@ -26,6 +26,7 @@ from app.models.reference_data import Account, Geo, Organization, Region
 from app.models.users import User
 from app.schemas.enums import ProjectStatus, RoleCode
 from app.schemas.project_creation_request import (
+    OracleProjectProfile,
     ProjectCreationApproveRequest,
     ProjectCreationRejectRequest,
     ProjectCreationRequestCreate,
@@ -33,6 +34,7 @@ from app.schemas.project_creation_request import (
 )
 from app.schemas.projects import ProjectCreate, ProjectOracleIdCreate, ProjectRead
 from app.services.code_generator import generate_code
+from app.services.oracle_project_profile import resolve_oracle_project_profile
 
 router = APIRouter(prefix="/project-creation-requests", tags=["Project Creation Requests"])
 
@@ -154,6 +156,20 @@ async def create_request(
 
     await db.flush()
     return await _to_row(db, request, oracle_ids=oracle_ids)
+
+
+@router.get("/oracle-project-profile/{oracle_project_id}", response_model=OracleProjectProfile)
+async def oracle_project_profile(
+    oracle_project_id: str,
+    current_user: User = Depends(_submitter),
+    db: AsyncSession = Depends(get_db),
+):
+    """Organization / GEO / Region / Account for an Oracle Project ID, from
+    oracle_project_master — used to pre-fill the Project Profile when the first
+    Oracle Project is added. An unknown ID returns found=false (not a 404): the
+    requester can still add it and fill the profile by hand."""
+    profile = await resolve_oracle_project_profile(db, oracle_project_id)
+    return OracleProjectProfile(**vars(profile))
 
 
 @router.get("", response_model=list[ProjectCreationRequestRow])

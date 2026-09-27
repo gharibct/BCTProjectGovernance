@@ -4,11 +4,13 @@ import Link from "next/link";
 import { MessageSquare, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Account Reporting hub's "Customer Communications" card — sits beside the
 // Delivery Status card (progress-ring-card.tsx), so it copies that card's
 // chrome and its 32-unit ring: the total communications shared in the ring,
-// This Year / This Quarter / This Month counts where the legend is, the last
+// counts for the previous, current and next two quarters (as month ranges,
+// e.g. Jan-Mar) where the legend is, the last
 // communication underneath, and an Add Communication action.
 
 // Same geometry as the donut in ReportingProgressCard.
@@ -17,9 +19,7 @@ const STROKE = 14;
 
 export type CustomerCommunicationCounts = {
   total: number;
-  thisYear: number;
-  thisQuarter: number;
-  thisMonth: number;
+  quarters: { label: string; count: number; current: boolean }[];
 };
 
 export type LastCustomerCommunication = {
@@ -38,12 +38,6 @@ export function CustomerCommunicationsCard({
   // The Customer Communications (Account) page, where one is added.
   addHref: string;
 }) {
-  const breakdown = [
-    { label: "This Year", count: counts.thisYear },
-    { label: "This Quarter", count: counts.thisQuarter },
-    { label: "This Month", count: counts.thisMonth },
-  ];
-
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-2">
@@ -71,9 +65,9 @@ export function CustomerCommunicationsCard({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-slate-900">Communications Shared</div>
           <ul className="mt-3 flex flex-col gap-1.5 text-sm">
-            {breakdown.map((row) => (
+            {counts.quarters.map((row) => (
               <li key={row.label} className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-slate-600">
+                <span className={cn("flex items-center gap-2 text-slate-600", row.current && "font-semibold text-slate-900")}>
                   <span className="inline-block size-2.5 rounded-full bg-emerald-500" />
                   {row.label}
                 </span>

@@ -114,6 +114,7 @@ export function ProjectStatusTabs() {
       customer_report_shared: sharedWithCustomer,
       // The server drops the date and file when the answer is No.
       customer_report_date: sharedWithCustomer ? customer.date : undefined,
+      customer_remarks: customer.remarks.trim(),
     };
     try {
       const saved = await (existing

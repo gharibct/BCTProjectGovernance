@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { HEALTH_RATING_COLORS_BY_API_LABEL } from "@/lib/health-rating-colors";
 import type { AccountReviewQueueRow } from "@/lib/api/geo-head-dashboard";
 import type { HealthRating } from "@/lib/api/projects";
+import { ACCOUNT_MANAGER_LABEL_PLURAL } from "@/lib/role-labels";
 
 // "Account Report Review Queue" (design-reference/geohead-mysummary.jpg) —
 // Account Status Reports submitted by Account Heads and still awaiting this
@@ -35,7 +36,7 @@ export function GeoHeadAccountReviewQueue({ rows }: { rows: AccountReviewQueueRo
         <div>
           <h2 className="font-bold text-slate-900">Account Report Review Queue</h2>
           <p className="mt-0.5 text-sm text-slate-400">
-            Account Status Reports submitted by Account Managers requiring your approval.
+            Account Status Reports submitted by {ACCOUNT_MANAGER_LABEL_PLURAL} requiring your approval.
           </p>
         </div>
         {rows.length > 0 ? (

@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/forms/empty-state";
 import { MultiSelectChecklist } from "@/components/forms/multi-select-checklist";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProductOptions } from "@/components/forms/product-options";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useNewProjectId, useNewProjectUi } from "@/stores/new-project-ui";
@@ -56,6 +57,7 @@ import { useAiFieldBinding, type FieldAi } from "@/components/ai/use-ai-field-bi
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useBaselinePeriodId } from "@/lib/period-utils";
 import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaration";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 const inputClass = "h-11";
 const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700";
@@ -219,7 +221,7 @@ function ProjectDescriptionTab({
   const { data: geoHead } = useGeoHead(values.geo_id ?? null);
   const { data: accountHead, isLoading: accountHeadLoading } = useAccountHead(values.account_id ?? null);
 
-  // Account Manager is read-only, defaulted from the Account Head mapping
+  // Delivery Manager is read-only, defaulted from the Account Head mapping
   // for the selected account rather than picked manually. Skipped while the
   // lookup is still in flight so an existing project's saved value isn't
   // blanked out for a frame before the mapping resolves.
@@ -459,11 +461,7 @@ function ProjectDescriptionTab({
                   <option value="" disabled>
                     Select…
                   </option>
-                  {(products ?? []).map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
+                  <ProductOptions products={products ?? []} />
                 </NativeSelect>
               </Field>
             ) : null}
@@ -506,7 +504,7 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Account Manager" badge={<AutoBadge />}>
+            <Field label={ACCOUNT_MANAGER_LABEL} badge={<AutoBadge />}>
               <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
                 {accountHead?.full_name ?? "Not Assigned"}
               </div>

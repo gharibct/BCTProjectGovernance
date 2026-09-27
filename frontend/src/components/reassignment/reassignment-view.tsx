@@ -14,6 +14,7 @@ import {
   useReassignProjectManager,
 } from "@/lib/api/reassignment";
 import {
+  canReassignAccountManager,
   canReassignGeoHead,
   canReassignOwners,
 } from "@/lib/api/reassignment-permissions";
@@ -26,6 +27,7 @@ import { SectionCard, ButtonSpinner } from "@/components/forms/form-primitives";
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { ResourcePicker } from "@/components/forms/resource-picker";
 import { ACCOUNT_HEAD_CANDIDATE_ROLES, PM_CANDIDATE_ROLES } from "@/lib/api/reference-data";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 const GEO_HEAD_ROLES = ["GEO_HEAD"] as const;
 
@@ -33,11 +35,11 @@ const GEO_HEAD_ROLES = ["GEO_HEAD"] as const;
 const PAGE_SIZE = 15;
 
 // Reassign Owners — a Geo Head, Account Head or Delivery Excellence user
-// changes a Project's Project Manager, an Account's Account Manager, or a
+// changes a Project's Project Manager, an Account's Delivery Manager, or a
 // Geo's Geo Head at any time, independent of the project/amendment workflow.
 // The three sections are tabs; each row has its own picker + Save (no bulk
 // apply). The server scopes every list by role — a Geo Head sees its geo(s),
-// an Account Head only its own accounts (and no Geo Head tab).
+// an Account Head only its own accounts' projects (Project Manager tab only).
 
 // Sentinel option value for "no owner set" in the Current PM / Current AM
 // filters — distinct from "" (which means "All").
@@ -236,7 +238,7 @@ type TabId = "pm" | "am" | "geo";
 
 const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: "pm", label: "Project Manager", icon: FolderOpen },
-  { id: "am", label: "Account Manager", icon: Building2 },
+  { id: "am", label: ACCOUNT_MANAGER_LABEL, icon: Building2 },
   { id: "geo", label: "Geo Head", icon: Globe },
 ];
 
@@ -245,9 +247,11 @@ export function ReassignmentView() {
   const roleCode = user?.role.code;
   const canWrite = canReassignOwners(roleCode);
   const showGeoTab = canReassignGeoHead(roleCode);
+  const showAmTab = canReassignAccountManager(roleCode);
   const tabs = React.useMemo(
-    () => (showGeoTab ? TABS : TABS.filter((t) => t.id !== "geo")),
-    [showGeoTab],
+    () =>
+      TABS.filter((t) => (t.id === "geo" ? showGeoTab : t.id === "am" ? showAmTab : true)),
+    [showGeoTab, showAmTab],
   );
 
   const showSuccess = usePageBanner((s) => s.showSuccess);
@@ -311,7 +315,7 @@ export function ReassignmentView() {
     return true;
   });
 
-  // --- Account Manager tab ----------------------------------------
+  // --- Delivery Manager tab ----------------------------------------
   const allAccounts = React.useMemo(() => accounts.data ?? [], [accounts.data]);
   const amOptions = React.useMemo(
     () => ({
@@ -373,7 +377,7 @@ export function ReassignmentView() {
           Reassign Owners
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Change a project&apos;s Project Manager, an account&apos;s Account Manager, or a geo&apos;s
+          Change a project&apos;s Project Manager, an account&apos;s {ACCOUNT_MANAGER_LABEL}, or a geo&apos;s
           Geo Head — any time.
         </p>
       </header>
@@ -497,7 +501,7 @@ export function ReassignmentView() {
           </TableFrame>
         ) : null}
 
-        {tab === "am" ? (
+        {tab === "am" && showAmTab ? (
           <TableFrame
             headers={["Account", "Geo", "Current AM", "New AM"]}
             toolbar={
@@ -554,7 +558,7 @@ export function ReassignmentView() {
                     { accountId: row.account_id, userId },
                     {
                       onSuccess: () =>
-                        showSuccess(`Account Manager updated for ${row.account_name}`),
+                        showSuccess(`${ACCOUNT_MANAGER_LABEL} updated for ${row.account_name}`),
                       onError,
                       onSettled: () => setSavingId(null),
                     },

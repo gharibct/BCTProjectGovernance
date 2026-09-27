@@ -1,5 +1,5 @@
 -- Account Reporting / Geo Reporting — manually authored, period-scoped
--- narrative status reports for an Account Manager's account(s) or a Geo
+-- narrative status reports for a Delivery Manager's account(s) or a Geo
 -- Head's geo(s). Mirrors project_status_reports (05_project_status_reports.sql)
 -- exactly, just keyed by account_id/geo_id instead of project_id — there is
 -- no automatic rollup here, these are written by hand each period.

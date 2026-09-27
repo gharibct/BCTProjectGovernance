@@ -51,7 +51,7 @@ _account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_
 _geo_head_review = [Depends(require_account_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _cdo_review = [Depends(require_role(RoleCode.CDO, RoleCode.ADMIN))]
-# Reads: an owning Account Manager or reviewing Geo Head is ownership-scoped
+# Reads: an owning Delivery Manager or reviewing Geo Head is ownership-scoped
 # same as the write gate, but CDO and Delivery Excellence also get read
 # access here (both view across every geo/account by design — CDO already
 # reviews geo-level reports unconditionally via _cdo_review, and DE's "My

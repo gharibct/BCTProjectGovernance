@@ -11,7 +11,7 @@ import { useProjects } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
 
-// Read-only Project Performance Report, shared by Account Manager and PM —
+// Read-only Project Performance Report, shared by Delivery Manager and PM —
 // same Measurements/Commitments/Payment Milestones/RAIDO summary and
 // completion checklist as the PM's own monthly Project Dashboard
 // (project-reporting), but with no Submit Report or "Reviewed and No

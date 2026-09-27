@@ -21,6 +21,7 @@ import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole } from "@/stores/session";
 import { ROLE_LANDING_ROUTE } from "@/lib/menu-config";
 import {
+  fetchOracleProjectProfile,
   useCreateProjectCreationRequest,
   useProjectCreationRequests,
   type ProjectCreationRequestRow,
@@ -80,6 +81,9 @@ export function ProjectCreationForm() {
   const [regionId, setRegionId] = React.useState<string | null>(null);
   const [accountId, setAccountId] = React.useState<string | null>(null);
   const [profileError, setProfileError] = React.useState<string | null>(null);
+  // Set when the profile was filled from the first Oracle Project.
+  const [profileNotes, setProfileNotes] = React.useState<string[]>([]);
+  const [profileLoading, setProfileLoading] = React.useState(false);
 
   const [oracleInput, setOracleInput] = React.useState("");
   const [oracleInputError, setOracleInputError] = React.useState<string | null>(null);
@@ -98,8 +102,51 @@ export function ProjectCreationForm() {
     }
     setOracleInputError(null);
     setOracleListError(null);
+    const isFirst = pendingOracleIds.length === 0;
     setPendingOracleIds((prev) => [...prev, { id: `${Date.now()}-${value}`, oracle_project_id: value }]);
     setOracleInput("");
+    if (isFirst) void prefillProfile(value);
+  };
+
+  // The first Oracle Project drives the Project Profile: Organization is BCTPL,
+  // Region comes from the project's "BCT <region>" geo, GEO from that region, and
+  // Account from the project's account. Whatever can't be resolved is left for
+  // the requester to pick. An unknown ID is still accepted.
+  const prefillProfile = async (oracleProjectId: string) => {
+    setProfileLoading(true);
+    setProfileNotes([]);
+    try {
+      const profile = await fetchOracleProjectProfile(oracleProjectId);
+      if (!profile.found) {
+        setProfileNotes([
+          `Oracle Project ${oracleProjectId} was not found in the Oracle project master — select the Project Profile manually.`,
+        ]);
+        return;
+      }
+      const notes = [...profile.notes];
+      if (profile.organization_id) setOrganizationId(profile.organization_id);
+      if (profile.geo_id && profile.region_id) {
+        setGeoId(profile.geo_id);
+        setRegionId(profile.region_id);
+        // The Account list is filtered to the region, so only pre-select an
+        // account that is set up under this GEO / Region.
+        const account = (accounts ?? []).find((item) => item.id === profile.account_id);
+        if (account && account.geo_id === profile.geo_id && account.region_id === profile.region_id) {
+          setAccountId(account.id);
+        } else {
+          setAccountId(null);
+          if (profile.account_id) {
+            notes.push(`Account "${profile.oracle_account_name}" is not set up under the resolved GEO / Region.`);
+          }
+        }
+      }
+      setProfileError(null);
+      setProfileNotes(notes);
+    } catch {
+      setProfileNotes(["Couldn't fetch the Project Profile from Oracle — select it manually."]);
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
   const removeOracleId = (item: PendingOracleId) => {
@@ -119,6 +166,7 @@ export function ProjectCreationForm() {
     setRegionId(request.region_id);
     setAccountId(request.account_id);
     setProfileError(null);
+    setProfileNotes([]);
     setPendingOracleIds(
       request.oracle_project_ids.map((oracleProjectId, index) => ({
         id: `${Date.now()}-${index}-${oracleProjectId}`,
@@ -318,6 +366,14 @@ export function ProjectCreationForm() {
         {profileError ? (
           <p className="mb-4 text-sm font-medium text-red-600">{profileError}</p>
         ) : null}
+        {profileLoading ? (
+          <p className="mb-4 text-sm text-slate-500">Fetching the Project Profile from Oracle…</p>
+        ) : null}
+        {profileNotes.map((note) => (
+          <p key={note} className="mb-2 text-sm text-amber-700">
+            {note}
+          </p>
+        ))}
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
           <Field label="Organization" badge={<MandatoryBadge />}>
             <Segmented

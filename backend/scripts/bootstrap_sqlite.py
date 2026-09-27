@@ -18,6 +18,10 @@ from app.core.db import Base, engine
 # crud/__init__.py are both empty).
 from app.api.v1.router import api_router  # noqa: F401
 
+# The Oracle man-month integration has no endpoint yet (it's loaded by
+# scripts/import_man_month.py), so import its models explicitly.
+import app.models.oracle_man_month  # noqa: F401
+
 
 async def main() -> None:
     if not settings.database_url.startswith("sqlite"):

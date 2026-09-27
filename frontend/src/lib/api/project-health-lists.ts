@@ -256,7 +256,75 @@ export type ReportSubmissionDetailRow = {
   submission_date: string | null;
 };
 
+// Customer reporting drill-downs (Customer Project Status Reporting / Customer
+// Account Reporting cards) — `status` is one of the row `status` strings below.
+export const CUSTOMER_REPORT_STATUSES = {
+  shared: "Shared with Customer",
+  notShared: "Not Shared",
+  notSubmitted: "Not Submitted",
+  new: "New",
+} as const;
+
+export type CustomerProjectReportRow = {
+  project_id: string;
+  project_label: string;
+  geo_name: string | null;
+  region_name: string | null;
+  account_name: string | null;
+  project_manager_name: string | null;
+  account_head_name: string | null;
+  period_id: string;
+  period_label: string;
+  status: string; // "Shared with Customer" | "Not Shared" | "Not Submitted"
+  customer_report_date: string | null;
+  customer_remarks: string | null;
+};
+
+export type CustomerAccountReportRow = {
+  account_id: string;
+  account_name: string;
+  geo_name: string | null;
+  region_name: string | null;
+  account_head_name: string | null;
+  geo_head_name: string | null;
+  onboarded_date: string | null;
+  status: string; // "Shared with Customer" | "Not Shared" | "New"
+  last_shared_date: string | null;
+  last_title: string | null;
+  communications_count: number;
+};
+
+// Project Health -> Oracle Projects. Not for Project Managers / Team Members
+// (the endpoints 403 for them). `mapped` = a governance project carries this
+// Oracle project's number.
+export type OracleProjectMappingStatus = "unmapped" | "mapped" | "all";
+
+export type OracleProjectRow = {
+  oracle_project_id: string;
+  project_number: string;
+  project_name: string;
+  account_name: string | null;
+  project_type: string | null;
+  project_ou: string | null;
+  project_geo: string | null;
+  geo_name: string | null;
+  region_name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  last_seen_month: string;
+  mapped: boolean;
+  governance_project_code: string | null;
+};
+
+export type OracleProjectSummary = {
+  mapped_count: number;
+  unmapped_count: number;
+  unmapped_no_geo_count: number;
+};
+
 export type ProjectHealthListParams = ProjectHealthDashboardFilters & {
+  // Customer reporting drill-downs only — narrow to one status; undefined = all.
+  status?: string;
   skip?: number;
   limit?: number;
   search?: string;
@@ -291,6 +359,9 @@ export const PROJECT_HEALTH_LIST_PATHS = {
   actions: "/dashboard/project-health/actions",
   dataIntegrity: "/dashboard/project-health/data-integrity",
   reportSubmissions: "/dashboard/project-health/report-submissions",
+  customerProjectReports: "/dashboard/project-health/customer-project-reports",
+  customerAccountReports: "/dashboard/project-health/customer-account-reports",
+  oracleProjects: "/dashboard/project-health/oracle-projects",
 } as const;
 
 // The four KPI-scoped Report Submissions sub screens — each drilled into from
@@ -368,6 +439,7 @@ function buildParams(params: ProjectHealthListParams): string {
   if (params.overdue !== undefined) q.set("overdue", String(params.overdue));
   if (params.reportType) q.set("report_type", params.reportType);
   if (params.pending !== undefined) q.set("pending", String(params.pending));
+  if (params.status) q.set("status", params.status);
   q.set("skip", String(params.skip ?? 0));
   q.set("limit", String(params.limit ?? 10));
   return q.toString();
@@ -499,5 +571,49 @@ export function useProjectHealthReportSubmissions(params: ProjectHealthListParam
     queryKey: ["dashboard-project-health-report-submissions", params],
     queryFn: () =>
       api.get<Page<ReportSubmissionDetailRow>>(`${PROJECT_HEALTH_LIST_PATHS.reportSubmissions}?${query}`),
+  });
+}
+
+export function useProjectHealthCustomerProjectReports(params: ProjectHealthListParams) {
+  const query = buildParams(params);
+  return useQuery({
+    queryKey: ["dashboard-project-health-customer-project-reports", params],
+    queryFn: () =>
+      api.get<Page<CustomerProjectReportRow>>(`${PROJECT_HEALTH_LIST_PATHS.customerProjectReports}?${query}`),
+  });
+}
+
+export function useProjectHealthCustomerAccountReports(params: ProjectHealthListParams) {
+  const query = buildParams(params);
+  return useQuery({
+    queryKey: ["dashboard-project-health-customer-account-reports", params],
+    queryFn: () =>
+      api.get<Page<CustomerAccountReportRow>>(`${PROJECT_HEALTH_LIST_PATHS.customerAccountReports}?${query}`),
+  });
+}
+
+export function useProjectHealthOracleProjects(
+  params: Omit<ProjectHealthListParams, "status"> & { status: OracleProjectMappingStatus },
+  enabled = true,
+) {
+  const query = buildParams(params);
+  return useQuery({
+    queryKey: ["dashboard-project-health-oracle-projects", params],
+    queryFn: () => api.get<Page<OracleProjectRow>>(`${PROJECT_HEALTH_LIST_PATHS.oracleProjects}?${query}`),
+    enabled,
+  });
+}
+
+export function useProjectHealthOracleProjectSummary(filters: ProjectHealthDashboardFilters, enabled = true) {
+  const q = new URLSearchParams();
+  if (filters.geoId) q.set("geo_id", filters.geoId);
+  if (filters.regionId) q.set("region_id", filters.regionId);
+  if (filters.accountId) q.set("account_id", filters.accountId);
+  const query = q.toString();
+  return useQuery({
+    queryKey: ["dashboard-project-health-oracle-project-summary", filters],
+    queryFn: () =>
+      api.get<OracleProjectSummary>(`${PROJECT_HEALTH_LIST_PATHS.oracleProjects}/summary${query ? `?${query}` : ""}`),
+    enabled,
   });
 }

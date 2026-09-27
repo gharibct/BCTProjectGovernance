@@ -18,7 +18,14 @@ export function OracleMappingView() {
       <RegisterTable
         items={oracleIds}
         emptyLabel="No Oracle projects mapped."
-        columns={[{ key: "oracle_project_id", label: "Oracle Project ID" }]}
+        columns={[
+          { key: "oracle_project_id", label: "Oracle Project ID" },
+          {
+            key: "project_description",
+            label: "Project Description",
+            render: (item) => item.project_description ?? "—",
+          },
+        ]}
       />
     </SectionCard>
   );

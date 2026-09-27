@@ -51,6 +51,7 @@ class Product(Base, UUIDPrimaryKey, TimestampColumns):
 
     code: Mapped[str] = mapped_column(unique=True)
     name: Mapped[str]
+    product_group: Mapped[str | None]  # portfolio the product rolls up to; drives grouping in the Product dropdown
     is_active: Mapped[bool]
 
 

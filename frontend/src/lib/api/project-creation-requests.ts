@@ -39,6 +39,28 @@ export type ProjectCreationRequestPayload = {
   oracle_project_ids: string[];
 };
 
+// Project Profile pre-fill for an Oracle Project ID (from oracle_project_master).
+// `found` is false for an unknown ID; any id that couldn't be resolved is null
+// and explained in `notes`, so the requester picks it by hand.
+export type OracleProjectProfile = {
+  found: boolean;
+  oracle_project_id: string;
+  oracle_project_name: string | null;
+  oracle_project_geo: string | null;
+  oracle_account_name: string | null;
+  organization_id: string | null;
+  geo_id: string | null;
+  region_id: string | null;
+  account_id: string | null;
+  notes: string[];
+};
+
+export function fetchOracleProjectProfile(oracleProjectId: string) {
+  return api.get<OracleProjectProfile>(
+    `/project-creation-requests/oracle-project-profile/${encodeURIComponent(oracleProjectId)}`
+  );
+}
+
 const KEY = ["project-creation-requests"] as const;
 
 export function useProjectCreationRequests() {

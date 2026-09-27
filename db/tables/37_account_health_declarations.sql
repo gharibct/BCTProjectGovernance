@@ -1,7 +1,7 @@
 -- Account RAG Status — an account-level equivalent of health_declarations
 -- (04_health_declarations.sql), minus the two Project-only "Treatment"
 -- fields (Applicable Phase / Project Status), which don't apply to an
--- account. One row per Account Manager re-declaration cycle, keyed off a
+-- account. One row per Delivery Manager re-declaration cycle, keyed off a
 -- reporting_periods row, same pattern as project_status_reports.
 -- Rating values (all *_rating columns): Red, Potential Red, Amber, Green.
 

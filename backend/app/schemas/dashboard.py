@@ -207,7 +207,7 @@ class MyDashboardSummary(BaseModel):
 
 
 # Account Head "My Summary" (design-reference/acchead-mysummary.jpg) — the
-# Account Manager role's counterpart to MyDashboardSummary above, scoped to
+# Delivery Manager role's counterpart to MyDashboardSummary above, scoped to
 # the signed-in user's owned accounts (user_accounts) rather than a single
 # project_manager_id. Adds a Report Review Queue (Submitted reports awaiting
 # this Account Head's approve/reject) and per-account portfolio health, which
@@ -542,8 +542,70 @@ class FindingsCardSummary(BaseModel):
 # assessment; green + need_attention + not_assessed == Active Projects.
 class DEAssessmentsCardSummary(BaseModel):
     green_count: int
-    need_attention_count: int  # Amber / Potential Red / Red
+    amber_count: int
+    potential_red_count: int
+    red_count: int
+    need_attention_count: int  # Amber + Potential Red + Red
     not_assessed_count: int
+
+
+# DE Alerts card — the Alert-classified subset of findings (Observation /
+# Recommendation excluded). Same open / overdue / awaiting-closure definitions
+# as FindingsCardSummary.
+class AlertsCardSummary(BaseModel):
+    open_count: int
+    overdue_count: int
+    awaiting_closure_count: int
+
+
+# Customer project status reporting for the selected week: of the projects that
+# owed a weekly status report, how many shared it with the customer, filed it
+# without sharing, or haven't filed it (Draft / Rejected / missing). Sums to the
+# Delivery Status — Projects expected count.
+class CustomerProjectReportSummary(BaseModel):
+    shared_count: int
+    not_shared_count: int
+    not_submitted_count: int
+
+
+# Row shapes for the two customer-reporting drill-down grids.
+class CustomerProjectReportRow(BaseModel):
+    project_id: UUID
+    project_label: str
+    geo_name: str | None = None
+    region_name: str | None = None
+    account_name: str | None = None
+    project_manager_name: str | None = None
+    account_head_name: str | None = None
+    period_id: UUID
+    period_label: str
+    status: str  # "Shared with Customer" | "Not Shared" | "Not Submitted"
+    customer_report_date: date | None = None  # date shared with the customer
+    customer_remarks: str | None = None
+
+
+class CustomerAccountReportRow(BaseModel):
+    account_id: UUID
+    account_name: str
+    geo_name: str | None = None
+    region_name: str | None = None
+    account_head_name: str | None = None
+    geo_head_name: str | None = None
+    onboarded_date: date | None = None
+    status: str  # "Shared with Customer" | "Not Shared" | "New"
+    last_shared_date: date | None = None  # latest communication in the previous calendar quarter
+    last_title: str | None = None
+    communications_count: int = 0  # communications dated in the previous calendar quarter
+
+
+# Customer account reporting on a calendar-quarter cadence: active accounts that
+# shared at least one presentation with the customer in the previous completed
+# quarter (the current quarter is ignored), those that did not (no entry = not
+# shared), and accounts onboarded in the current quarter (New — not judged).
+class CustomerAccountReportSummary(BaseModel):
+    shared_count: int
+    not_shared_count: int
+    new_count: int
 
 
 # Weekly Project / Account health buckets for the selected week; the five counts
@@ -866,8 +928,11 @@ class ProjectHealthDashboardSummary(BaseModel):
     payment_milestones: PaymentMilestonesCardSummary
     actions: ActionsCardSummary
     findings: FindingsCardSummary
+    alerts: AlertsCardSummary
     de_assessments: DEAssessmentsCardSummary
     report_submissions: ReportSubmissionsWeekSummary
+    customer_project_reports: CustomerProjectReportSummary
+    customer_account_reports: CustomerAccountReportSummary
     period_id: UUID | None
     period_label: str | None
 

@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account_health_declarations import AccountHealthDeclaration
 from app.models.actions import Action
+from app.models.customer_communications import AccountCustomerCommunication
 from app.models.contractual import (
     ContractualCommitment,
     ContractualCommitmentActual,
@@ -68,6 +69,11 @@ from app.schemas.dashboard import (
     CommitmentsBucketSummary,
     DataIntegrityRow,
     DEAssessmentCompletionSummary,
+    AlertsCardSummary,
+    CustomerAccountReportRow,
+    CustomerAccountReportSummary,
+    CustomerProjectReportRow,
+    CustomerProjectReportSummary,
     DEAssessmentsCardSummary,
     DEAssessmentWorkQueueRow,
     DEFindingsSummary,
@@ -154,7 +160,7 @@ class DashboardFilters:
     # "Co-Owned", "Customer Driven"). Used by the Project Health project list.
     project_owned: str | None = None
     health_status: HealthRating | None = None
-    # Role-scoping for the Geo Head / Account Manager dashboards — a user can
+    # Role-scoping for the Geo Head / Delivery Manager dashboards — a user can
     # own more than one geo/account (see user_geos/user_accounts), so these
     # are separate from the single-value filters above used by the generic
     # Dashboard page's manual filter dropdown.
@@ -328,6 +334,8 @@ def _account_conditions(filters: DashboardFilters) -> list:
         conditions.append(Account.geo_id == filters.geo_id)
     if filters.geo_ids is not None:
         conditions.append(Account.geo_id.in_(filters.geo_ids))
+    if filters.region_id is not None:
+        conditions.append(Account.region_id == filters.region_id)
     if filters.account_id is not None:
         conditions.append(Account.id == filters.account_id)
     if filters.account_ids is not None:
@@ -437,7 +445,7 @@ async def milestone_payment_summary(db: AsyncSession, filters: DashboardFilters)
     return MilestonePaymentSummary(upcoming_count=upcoming, overdue_count=overdue, paid_count=paid)
 
 
-# Governance Matrix (CDO/Geo Head/Account Manager dashboard redesign) — full
+# Governance Matrix (CDO/Geo Head/Delivery Manager dashboard redesign) — full
 # 6-category breakdown per account/project, unlike account_health_rows'/
 # project_health_rows' single rolled-up overall_health. No bulk "latest
 # declaration per entity" query exists elsewhere, so this fetches every
@@ -679,6 +687,13 @@ async def reports_due_summary(db: AsyncSession, filters: DashboardFilters, proje
 
 _SUBMITTED_REPORT_STATUSES = (ReportStatus.SUBMITTED, ReportStatus.APPROVED)
 
+# Customer reporting cards (Project Health dashboard) — the status vocabulary
+# shared by the summary counts and the drill-down grids.
+CUSTOMER_SHARED = "Shared with Customer"
+CUSTOMER_NOT_SHARED = "Not Shared"
+CUSTOMER_NOT_SUBMITTED = "Not Submitted"
+CUSTOMER_NEW = "New"
+
 
 def _submission_kpi(submitted: int, expected: int) -> ReportSubmissionKpi:
     return ReportSubmissionKpi(
@@ -716,6 +731,19 @@ def _owed_pairs(
                 continue  # period predates onboarding — nothing was owed
             pairs.append((entity_id, period.id))
     return pairs
+
+
+async def _geo_report_scope(db: AsyncSession, filters: DashboardFilters) -> list[UUID]:
+    """Geos whose weekly Delivery Status reports are in scope for Project Health.
+    Geo reports belong to Geo Heads and above, so a Delivery Manager (scoped to
+    their accounts, with no geo scope) owes and sees none."""
+    if filters.geo_ids is None and filters.account_ids is not None:
+        return []
+    if filters.geo_id is not None:
+        return [filters.geo_id]
+    if filters.geo_ids is not None:
+        return list(filters.geo_ids)
+    return list((await db.execute(select(Geo.id))).scalars().all())
 
 
 async def report_submissions_summary(
@@ -826,12 +854,7 @@ async def report_submissions_summary(
         )
 
     # --- Geos: Delivery Status (Weekly) ---
-    if filters.geo_id is not None:
-        geo_ids = [filters.geo_id]
-    elif filters.geo_ids is not None:
-        geo_ids = list(filters.geo_ids)
-    else:
-        geo_ids = list((await db.execute(select(Geo.id))).scalars().all())
+    geo_ids = await _geo_report_scope(db, filters)
     delivery_geos = empty
     if geo_ids and weekly_periods:
         start_by_geo: dict[UUID, date | None] = dict(
@@ -1108,14 +1131,7 @@ async def list_report_submissions_for_health(
             )
 
     # --- Geos: Delivery Status (Weekly) ---
-    if not want_dsg:
-        geo_ids = []
-    elif filters.geo_id is not None:
-        geo_ids = [filters.geo_id]
-    elif filters.geo_ids is not None:
-        geo_ids = list(filters.geo_ids)
-    else:
-        geo_ids = list((await db.execute(select(Geo.id))).scalars().all())
+    geo_ids = await _geo_report_scope(db, filters) if want_dsg else []
     if geo_ids and weekly_periods:
         geo_meta = dict(
             (gid, (gname, start))
@@ -1434,7 +1450,7 @@ async def account_rag_card_summary(db: AsyncSession, filters: DashboardFilters) 
 
 # Account Head "My Summary" (design-reference/acchead-mysummary.jpg) — every
 # helper below is called with filters.account_ids set to the signed-in
-# Account Manager's owned accounts (see dashboard.py's
+# Delivery Manager's owned accounts (see dashboard.py's
 # get_account_head_dashboard_summary); project_health_rows(db, filters)
 # already returns exactly the projects under those accounts.
 
@@ -3621,7 +3637,12 @@ async def actions_card_summary(
     db: AsyncSession, filters: DashboardFilters, project_ids: list[UUID]
 ) -> ActionsCardSummary:
     today = date.today()
-    is_filtered = filters.geo_id is not None or filters.account_id is not None or filters.project_type_id is not None
+    is_filtered = (
+        filters.geo_id is not None
+        or filters.region_id is not None
+        or filters.account_id is not None
+        or filters.project_type_id is not None
+    )
 
     conditions = [Action.status.not_in([ActionStatus.COMPLETED, ActionStatus.CLOSED, ActionStatus.CANCELLED])]
     if is_filtered:
@@ -3643,7 +3664,12 @@ async def actions_card_summary(
 async def list_actions_for_health(
     db: AsyncSession, filters: DashboardFilters, project_ids: list[UUID], skip: int, limit: int, search: str | None = None
 ) -> tuple[list[ActionRow], int]:
-    is_filtered = filters.geo_id is not None or filters.account_id is not None or filters.project_type_id is not None
+    is_filtered = (
+        filters.geo_id is not None
+        or filters.region_id is not None
+        or filters.account_id is not None
+        or filters.project_type_id is not None
+    )
     conditions = [Action.status.not_in([ActionStatus.COMPLETED, ActionStatus.CLOSED, ActionStatus.CANCELLED])]
     if is_filtered:
         conditions += [Action.level == ActionLevel.PROJECT, Action.level_value.in_([str(pid) for pid in project_ids])]
@@ -3730,6 +3756,29 @@ async def findings_card_summary(db: AsyncSession, filters: DashboardFilters) -> 
     )
 
 
+# DE Alerts card: same numbers as findings_card_summary, restricted to
+# Alert-classified findings.
+async def alerts_card_summary(db: AsyncSession, filters: DashboardFilters) -> AlertsCardSummary:
+    findings_by_project = await de_findings_by_project(db, filters)
+    alerts = [
+        f
+        for project_findings in findings_by_project.values()
+        for f in project_findings
+        if f.classification == FindingClassification.ALERT.value
+    ]
+    today = date.today()
+
+    open_alerts = [f for f in alerts if f.status == FindingStatus.OPEN]
+    overdue_count = sum(
+        1 for f in open_alerts if f.finding_date is not None and (today - f.finding_date).days > _FINDING_OVERDUE_DAYS
+    )
+    awaiting_closure_count = sum(1 for f in alerts if f.status in (FindingStatus.ON_HOLD, FindingStatus.DEFERRED))
+
+    return AlertsCardSummary(
+        open_count=len(open_alerts), overdue_count=overdue_count, awaiting_closure_count=awaiting_closure_count
+    )
+
+
 # "Finding" title is derived from classification + date; Owner is left blank
 # (nothing on the model to source it from). `classification` narrows to one
 # FindingClassification value; `overdue` (True/False, None = all) splits on
@@ -3810,7 +3859,7 @@ async def list_findings_for_health(
 
 
 # Project-level DE Assessment buckets — each project lands in exactly one, so
-# Green + Need Attention + Not Assessed == len(project_ids). Source: the
+# Green + Amber + Potential Red + Red + Not Assessed == len(project_ids). Source: the
 # project's latest Submitted assessment dated within `month` (the calendar month
 # before the selected week — see previous_month_window).
 async def de_assessments_card_summary(
@@ -3833,11 +3882,16 @@ async def de_assessments_card_summary(
             if current is None or a.assessment_date > current.assessment_date:
                 latest_by_project[a.project_id] = a
 
-    green = sum(1 for a in latest_by_project.values() if a.de_assessed_project_health == HealthRating.GREEN)
-    need_attention = len(latest_by_project) - green
+    def count_of(rating: HealthRating) -> int:
+        return sum(1 for a in latest_by_project.values() if a.de_assessed_project_health == rating)
+
+    green = count_of(HealthRating.GREEN)
     return DEAssessmentsCardSummary(
         green_count=green,
-        need_attention_count=need_attention,
+        amber_count=count_of(HealthRating.AMBER),
+        potential_red_count=count_of(HealthRating.POTENTIAL_RED),
+        red_count=count_of(HealthRating.RED),
+        need_attention_count=len(latest_by_project) - green,
         not_assessed_count=len(project_ids) - len(latest_by_project),
     )
 
@@ -4580,3 +4634,271 @@ async def report_submissions_week_summary(
         delivery_status_accounts=delivery_accounts,
         delivery_status_geos=delivery_geos,
     )
+
+
+async def _customer_project_report_statuses(
+    db: AsyncSession, active_project_ids: list[UUID], week: ReportingPeriod | None
+) -> dict[UUID, tuple[str, ProjectStatusReport | None]]:
+    """Customer status of every active project that owed the selected week's
+    status report (same owed set as Delivery Status — Projects): Shared = filed
+    and shared with the customer, Not Shared = filed but not shared (or the
+    question was never answered), Not Submitted = no filed report (Draft /
+    Rejected / missing). Maps project id -> (status, the filed report or None)."""
+    if week is None or not active_project_ids:
+        return {}
+
+    start_by_project: dict[UUID, date | None] = dict(
+        (
+            await db.execute(
+                select(
+                    Project.id,
+                    func.coalesce(Project.tool_effective_date, Project.actual_start_date, Project.planned_start_date),
+                ).where(Project.id.in_(active_project_ids))
+            )
+        ).all()
+    )
+    owed = [pid for pid in dict.fromkeys(p for p, _ in _owed_pairs(active_project_ids, start_by_project, [week], date.today()))]
+    filed: dict[UUID, ProjectStatusReport] = {
+        report.project_id: report
+        for report in (
+            await db.execute(
+                select(ProjectStatusReport).where(
+                    ProjectStatusReport.project_id.in_(owed),
+                    ProjectStatusReport.period_id == week.id,
+                    ProjectStatusReport.status.in_(_SUBMITTED_REPORT_STATUSES),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
+    out: dict[UUID, tuple[str, ProjectStatusReport | None]] = {}
+    for pid in owed:
+        report = filed.get(pid)
+        if report is None:
+            out[pid] = (CUSTOMER_NOT_SUBMITTED, None)
+        elif report.customer_report_shared is True:
+            out[pid] = (CUSTOMER_SHARED, report)
+        else:
+            out[pid] = (CUSTOMER_NOT_SHARED, report)
+    return out
+
+
+async def customer_project_report_summary(
+    db: AsyncSession, active_project_ids: list[UUID], week: ReportingPeriod | None
+) -> CustomerProjectReportSummary:
+    statuses = [status for status, _ in (await _customer_project_report_statuses(db, active_project_ids, week)).values()]
+    return CustomerProjectReportSummary(
+        shared_count=statuses.count(CUSTOMER_SHARED),
+        not_shared_count=statuses.count(CUSTOMER_NOT_SHARED),
+        not_submitted_count=statuses.count(CUSTOMER_NOT_SUBMITTED),
+    )
+
+
+async def list_customer_project_reports_for_health(
+    db: AsyncSession,
+    active_project_ids: list[UUID],
+    week: ReportingPeriod | None,
+    skip: int,
+    limit: int,
+    status: str | None = None,
+    search: str | None = None,
+) -> tuple[list[CustomerProjectReportRow], int]:
+    """Drill-down behind the Customer Project Status Reporting card: one row per
+    active project that owed the selected week's status report, with its
+    customer-sharing status. `status` narrows to one of the three statuses."""
+    statuses = await _customer_project_report_statuses(db, active_project_ids, week)
+    if week is None or not statuses:
+        return [], 0
+
+    meta = {
+        r[0]: r
+        for r in (
+            await db.execute(
+                select(
+                    Project.id,
+                    Project.project_code,
+                    Project.project_name,
+                    Project.account_id,
+                    Project.geo_id,
+                    Geo.name,
+                    Region.name,
+                    Account.name,
+                    User.full_name,
+                )
+                .outerjoin(Geo, Geo.id == Project.geo_id)
+                .outerjoin(Region, Region.id == Project.region_id)
+                .outerjoin(Account, Account.id == Project.account_id)
+                .outerjoin(User, User.id == Project.project_manager_id)
+                .where(Project.id.in_(list(statuses)))
+            )
+        ).all()
+    }
+    account_head_by_id = await _head_names_by_scope(db, RoleCode.ACCOUNT_MANAGER, UserAccount, UserAccount.account_id)
+
+    rows: list[CustomerProjectReportRow] = []
+    for pid, (row_status, report) in statuses.items():
+        if status and row_status != status:
+            continue
+        _, code, name, account_id, _geo_id, geo_name, region_name, account_name, pm_name = meta[pid]
+        label = f"{code} · {name}".strip(" ·")
+        if search and search.lower() not in f"{label} {account_name or ''}".lower():
+            continue
+        rows.append(
+            CustomerProjectReportRow(
+                project_id=pid,
+                project_label=label,
+                geo_name=geo_name,
+                region_name=region_name,
+                account_name=account_name,
+                project_manager_name=pm_name,
+                account_head_name=account_head_by_id.get(account_id),
+                period_id=week.id,
+                period_label=week.label,
+                status=row_status,
+                customer_report_date=report.customer_report_date if report else None,
+                customer_remarks=report.customer_remarks if report else None,
+            )
+        )
+    rows.sort(key=lambda r: (r.status != CUSTOMER_NOT_SUBMITTED, r.project_label))  # pending first
+    return rows[skip : skip + limit], len(rows)
+
+
+def _calendar_quarter_bounds(today: date) -> tuple[date, date, date]:
+    """(previous quarter start, previous quarter end, current quarter start) for
+    calendar quarters (Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec)."""
+    current_start = date(today.year, 3 * ((today.month - 1) // 3) + 1, 1)
+    previous_end = current_start - timedelta(days=1)
+    previous_start = date(previous_end.year, previous_end.month - 2, 1)
+    return previous_start, previous_end, current_start
+
+
+class _CustomerAccountStatus(NamedTuple):
+    status: str
+    last_shared_date: date | None
+    last_title: str | None
+    communications_count: int  # entries dated within the previous calendar quarter
+
+
+async def _customer_account_statuses(
+    db: AsyncSession, account_ids: list[UUID]
+) -> dict[UUID, _CustomerAccountStatus]:
+    """Customer account reporting on a calendar-quarter cadence (not
+    period-scoped). Accounts are judged on the previous completed quarter; the
+    current quarter is ignored. Shared = the account has at least one customer
+    communication dated in the previous quarter; Not Shared = none (no entry is
+    assumed not shared); New = the account was onboarded (tool effective date,
+    else created date) in the current quarter and is not judged yet."""
+    if not account_ids:
+        return {}
+
+    today = date.today()
+    window_start, window_end, current_quarter_start = _calendar_quarter_bounds(today)
+    onboarded_by_account = {
+        account_id: tool_effective_date or created_at.date()
+        for account_id, tool_effective_date, created_at in (
+            await db.execute(
+                select(Account.id, Account.tool_effective_date, Account.created_at).where(Account.id.in_(account_ids))
+            )
+        ).all()
+    }
+    latest: dict[UUID, tuple[date, str]] = {}
+    counts: Counter = Counter()
+    for account_id, reporting_date, title in (
+        await db.execute(
+            select(
+                AccountCustomerCommunication.account_id,
+                AccountCustomerCommunication.reporting_date,
+                AccountCustomerCommunication.title,
+            )
+            .where(
+                AccountCustomerCommunication.account_id.in_(account_ids),
+                AccountCustomerCommunication.reporting_date >= window_start,
+                AccountCustomerCommunication.reporting_date <= window_end,
+            )
+            .order_by(AccountCustomerCommunication.reporting_date, AccountCustomerCommunication.created_at)
+        )
+    ).all():
+        counts[account_id] += 1
+        latest[account_id] = (reporting_date, title)  # ascending order, so the last one wins
+
+    out: dict[UUID, _CustomerAccountStatus] = {}
+    for account_id in account_ids:
+        onboarded = onboarded_by_account.get(account_id)
+        last = latest.get(account_id)
+        if onboarded is not None and onboarded >= current_quarter_start:
+            status = CUSTOMER_NEW
+        elif last is not None:
+            status = CUSTOMER_SHARED
+        else:
+            status = CUSTOMER_NOT_SHARED
+        out[account_id] = _CustomerAccountStatus(
+            status, last[0] if last else None, last[1] if last else None, counts.get(account_id, 0)
+        )
+    return out
+
+
+async def customer_account_report_summary(
+    db: AsyncSession, account_ids: list[UUID]
+) -> CustomerAccountReportSummary:
+    statuses = [s.status for s in (await _customer_account_statuses(db, account_ids)).values()]
+    return CustomerAccountReportSummary(
+        shared_count=statuses.count(CUSTOMER_SHARED),
+        not_shared_count=statuses.count(CUSTOMER_NOT_SHARED),
+        new_count=statuses.count(CUSTOMER_NEW),
+    )
+
+
+async def list_customer_account_reports_for_health(
+    db: AsyncSession,
+    account_ids: list[UUID],
+    skip: int,
+    limit: int,
+    status: str | None = None,
+    search: str | None = None,
+) -> tuple[list[CustomerAccountReportRow], int]:
+    """Drill-down behind the Customer Account Reporting card: one row per active
+    account with its previous-calendar-quarter customer-sharing status."""
+    statuses = await _customer_account_statuses(db, account_ids)
+    if not statuses:
+        return [], 0
+
+    meta = {
+        r[0]: r
+        for r in (
+            await db.execute(
+                select(Account.id, Account.name, Account.geo_id, Geo.name, Region.name, Account.tool_effective_date, Account.created_at)
+                .outerjoin(Geo, Geo.id == Account.geo_id)
+                .outerjoin(Region, Region.id == Account.region_id)
+                .where(Account.id.in_(list(statuses)))
+            )
+        ).all()
+    }
+    account_head_by_id = await _head_names_by_scope(db, RoleCode.ACCOUNT_MANAGER, UserAccount, UserAccount.account_id)
+    geo_head_by_id = await _head_names_by_scope(db, RoleCode.GEO_HEAD, UserGeo, UserGeo.geo_id)
+
+    rows: list[CustomerAccountReportRow] = []
+    for account_id, info in statuses.items():
+        if status and info.status != status:
+            continue
+        _, name, geo_id, geo_name, region_name, tool_effective_date, created_at = meta[account_id]
+        if search and search.lower() not in name.lower():
+            continue
+        rows.append(
+            CustomerAccountReportRow(
+                account_id=account_id,
+                account_name=name,
+                geo_name=geo_name,
+                region_name=region_name,
+                account_head_name=account_head_by_id.get(account_id),
+                geo_head_name=geo_head_by_id.get(geo_id),
+                onboarded_date=tool_effective_date or created_at.date(),
+                status=info.status,
+                last_shared_date=info.last_shared_date,
+                last_title=info.last_title,
+                communications_count=info.communications_count,
+            )
+        )
+    order = {CUSTOMER_NOT_SHARED: 0, CUSTOMER_SHARED: 1, CUSTOMER_NEW: 2}  # pending first
+    rows.sort(key=lambda r: (order[r.status], r.account_name.lower()))
+    return rows[skip : skip + limit], len(rows)

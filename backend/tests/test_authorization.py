@@ -372,7 +372,7 @@ async def test_project_scope_conditions_account_manager_uses_owned_accounts():
 
 async def test_project_scope_conditions_blocks_role_with_no_scope():
     user = make_user()
-    # Account Manager with no owned accounts, and a dashboard-only role, both
+    # Delivery Manager with no owned accounts, and a dashboard-only role, both
     # resolve to a never-true condition rather than an unrestricted list.
     for db in (
         FakeDB(RoleCode.ACCOUNT_MANAGER, owned_account_ids=[]),

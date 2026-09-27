@@ -291,7 +291,14 @@ export function useDeleteProjectResource(projectId: string | null) {
 
 // --- Oracle Project ID mapping ---
 
-export type ProjectOracleId = { id: string; project_id: string; oracle_project_id: string; created_at: string };
+export type ProjectOracleId = {
+  id: string;
+  project_id: string;
+  oracle_project_id: string;
+  created_at: string;
+  // Oracle project name from oracle_project_master; null when the ID isn't in it.
+  project_description: string | null;
+};
 
 export function useProjectOracleIds(projectId: string | null) {
   return useQuery({

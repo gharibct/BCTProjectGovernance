@@ -3,9 +3,10 @@ import type { RoleCode } from "@/lib/api/auth";
 // Mirrors the backend role gate on /reassignment (reassignment.py's
 // _reassigner): only a Geo Head, Account Head, Delivery Excellence, or Admin
 // user may open the Reassign Owners screen and change a Project Manager /
-// Account Manager / Geo Head. Everyone else has no sidebar entry
+// Delivery Manager / Geo Head. Everyone else has no sidebar entry
 // (menu-config.ts) and gets a 403 from the API. An Account Head is scoped to
-// their own accounts and does not get the Geo Head tab.
+// their own accounts and may only change Project Managers — the Account
+// Manager and Geo Head tabs are hidden for them.
 const REASSIGN_ROLES: readonly RoleCode[] = [
   "GEO_HEAD",
   "ACCOUNT_MANAGER",
@@ -16,6 +17,12 @@ const REASSIGN_ROLES: readonly RoleCode[] = [
 // The Geo Head tab is hidden for an Account Head (backend returns [] for
 // GET /reassignment/geos and 403s the PATCH).
 export function canReassignGeoHead(roleCode: RoleCode | undefined): boolean {
+  return canReassignOwners(roleCode) && roleCode !== "ACCOUNT_MANAGER";
+}
+
+// The Delivery Manager tab is likewise hidden for an Account Head (backend
+// returns [] for GET /reassignment/accounts and 403s the PATCH).
+export function canReassignAccountManager(roleCode: RoleCode | undefined): boolean {
   return canReassignOwners(roleCode) && roleCode !== "ACCOUNT_MANAGER";
 }
 

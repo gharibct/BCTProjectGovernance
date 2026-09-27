@@ -5,6 +5,8 @@ StrEnums are the only place these are enforced.
 
 from enum import StrEnum
 
+from app.core.labels import ACCOUNT_MANAGER_LABEL
+
 
 class HealthRating(StrEnum):
     RED = "Red"
@@ -170,7 +172,7 @@ class IssueStatus(StrEnum):
 
 class IssueEscalationLevel(StrEnum):
     PM = "PM"
-    DELIVERY_MANAGER = "Account Manager"
+    DELIVERY_MANAGER = ACCOUNT_MANAGER_LABEL
     STEERING_COMMITTEE = "Steering Committee"
 
 
@@ -206,7 +208,7 @@ class ProbabilityOfDelay(StrEnum):
 
 class DependencyEscalationLevel(StrEnum):
     PROJECT_MANAGER = "Project Manager"
-    DELIVERY_MANAGER = "Account Manager"
+    DELIVERY_MANAGER = ACCOUNT_MANAGER_LABEL
     STEERING_COMMITTEE = "Steering Committee"
 
 

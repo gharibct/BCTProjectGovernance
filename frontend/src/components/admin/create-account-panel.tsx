@@ -1,194 +1,204 @@
 "use client";
 
 import * as React from "react";
-import { Building2 } from "lucide-react";
+import { Building2, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
-import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { SectionCard } from "@/components/forms/form-primitives";
+import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
-import { ResourcePicker } from "@/components/forms/resource-picker";
 import { usePageBanner } from "@/stores/page-banner";
-import {
-  ACCOUNT_HEAD_CANDIDATE_ROLES,
-  useAccounts,
-  useGeos,
-  useRegions,
-  type Account,
-} from "@/lib/api/reference-data";
-import { useCreateAccount, useDeleteAccount, useUpdateAccount, type AccountPayload } from "@/lib/api/accounts";
-import { useAccountHead, useSetAccountHead } from "@/lib/api/users";
+import { useAccounts, useGeos, useRegions, type Account } from "@/lib/api/reference-data";
+import { useCreateAccount, useDeleteAccount } from "@/lib/api/accounts";
+import { AccountFormDrawer, buildAccountFields, buildAccountPayload } from "./account-form-drawer";
 
-function toValues(account: Account): Record<string, string> {
-  return {
-    name: account.name,
-    geo_id: account.geo_id ?? "",
-    region_id: account.region_id ?? "",
-    description: account.description ?? "",
-    is_active: account.is_active ? "Yes" : "No",
-    tool_effective_date: account.tool_effective_date ?? "",
-  };
-}
+const PAGE_SIZE = 10;
 
-function buildAccountPayload(values: Record<string, string>): AccountPayload {
-  return {
-    name: values.name,
-    geo_id: values.geo_id || undefined,
-    region_id: values.region_id || undefined,
-    description: values.description || undefined,
-    is_active: values.is_active !== "No",
-    tool_effective_date: values.tool_effective_date || undefined,
-  };
-}
+type ActiveFilter = "" | "true" | "false";
+
+// `null` = drawer closed, `{ account: null }` = add, `{ account }` = edit.
+type DrawerState = { account: Account | null } | null;
 
 export function CreateAccountPanel() {
-  const { data: accounts = [] } = useAccounts();
+  const { data: accounts = [], isLoading } = useAccounts();
   const { data: geos = [] } = useGeos();
   const { data: regions = [] } = useRegions();
 
-  const { values, set, setValue, reset, load } = useEntryValues();
-  const [editingId, setEditingId] = React.useState<string | null>(null);
-  // Account Head — optional single owner, persisted via the account-head
-  // endpoint (a user_accounts link), not part of AccountPayload.
-  const [accountHeadId, setAccountHeadId] = React.useState<string | null>(null);
+  const [search, setSearch] = React.useState("");
+  const [geoId, setGeoId] = React.useState("");
+  const [regionId, setRegionId] = React.useState("");
+  const [active, setActive] = React.useState<ActiveFilter>("");
+  const [skip, setSkip] = React.useState(0);
+  const [drawer, setDrawer] = React.useState<DrawerState>(null);
+
   const createAccount = useCreateAccount();
-  const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
-  const setAccountHead = useSetAccountHead();
-  const { data: editingHead } = useAccountHead(editingId);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
-
-  // Seed the picker once the current head arrives for this editingId (setState
-  // during render, guarded by `syncedFor` — same pattern as create-user-panel).
-  const [syncedHeadFor, setSyncedHeadFor] = React.useState<string | null>(null);
-  if (editingId && editingId !== syncedHeadFor && editingHead !== undefined) {
-    setSyncedHeadFor(editingId);
-    setAccountHeadId(editingHead?.id ?? null);
-  }
 
   const geoName = (id: string | null) => geos.find((g) => g.id === id)?.name ?? "—";
   const regionName = (id: string | null) => regions.find((r) => r.id === id)?.name ?? "—";
 
-  const fields: FieldDef[] = [
-    { key: "name", label: "Account Name", kind: "text", mandatory: true },
-    {
-      key: "geo_id",
-      label: "Geo",
-      kind: "select",
-      mandatory: true,
-      choices: geos.map((g) => ({ value: g.id, label: g.name })),
-    },
-    {
-      key: "region_id",
-      label: "Region",
-      kind: "select",
-      mandatory: true,
-      hint: "Select a Geo first — regions are scoped to it.",
-      choices: regions
-        .filter((r) => r.geo_id === values.geo_id)
-        .map((r) => ({ value: r.id, label: r.name })),
-    },
-    { key: "is_active", label: "Active", kind: "select", options: ["Yes", "No"] },
-    {
-      key: "description",
-      label: "Description",
-      kind: "textarea",
-      hint: "Short summary about the customer.",
-    },
-    {
-      key: "tool_effective_date",
-      label: "Governance Tool Implementation Effective Date",
-      kind: "date",
-      hint: "When this account started being tracked in the tool. Leave blank for no restriction.",
-    },
-  ];
-
   // Bulk import runs with no Geo context, so the geo-filtered Region choices
-  // above would be empty. Give the importer the full region list to match against.
-  const importFields = fields.map((f) =>
+  // would be empty. Give the importer the full region list to match against.
+  const importFields = buildAccountFields(geos, regions).map((f) =>
     f.key === "region_id"
       ? { ...f, choices: regions.map((r) => ({ value: r.id, label: r.name })) }
       : f,
   );
 
-  // Drop a stale Region when the selected Geo no longer contains it, so the
-  // mandatory check below can't pass on a region from another geo.
-  React.useEffect(() => {
-    if (
-      values.region_id &&
-      !regions.some((r) => r.id === values.region_id && r.geo_id === values.geo_id)
-    ) {
-      setValue("region_id", "");
-    }
-  }, [values.geo_id, values.region_id, regions, setValue]);
+  // Region options cascade off the selected Geo.
+  const regionOptions = geoId ? regions.filter((r) => r.geo_id === geoId) : regions;
 
-  const startEdit = (account: Account) => {
-    setEditingId(account.id);
-    load(toValues(account));
-    setAccountHeadId(null);
-    setSyncedHeadFor(null);
-  };
+  const filtered = React.useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return accounts.filter((a) => {
+      if (term && !a.name.toLowerCase().includes(term)) return false;
+      if (geoId && a.geo_id !== geoId) return false;
+      if (regionId && a.region_id !== regionId) return false;
+      if (active && a.is_active !== (active === "true")) return false;
+      return true;
+    });
+  }, [accounts, search, geoId, regionId, active]);
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    reset();
-    setAccountHeadId(null);
-    setSyncedHeadFor(null);
+  // Clamp to the last page so deleting the final row of a page (or a refetch
+  // that shrinks the list) never strands the grid on an empty page.
+  const lastPageSkip = Math.max(0, Math.floor((filtered.length - 1) / PAGE_SIZE) * PAGE_SIZE);
+  const pageSkip = Math.min(skip, lastPageSkip);
+  const pageItems = filtered.slice(pageSkip, pageSkip + PAGE_SIZE);
+
+  const filtersActive = Boolean(search || geoId || regionId || active);
+  const resetFilters = () => {
+    setSearch("");
+    setGeoId("");
+    setRegionId("");
+    setActive("");
+    setSkip(0);
   };
 
   const handleDelete = (account: Account) => {
     deleteAccount.mutate(account.id, {
-      onSuccess: () => {
-        if (editingId === account.id) cancelEdit();
-        showSuccess("Account Deleted Successfully");
-      },
+      onSuccess: () => showSuccess("Account Deleted Successfully"),
       onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete account."),
     });
   };
 
-  const canSubmit = Boolean(values.name?.trim() && values.geo_id && values.region_id);
-
-  async function submit() {
-    if (!canSubmit) return;
-    const payload = buildAccountPayload(values);
-
-    try {
-      if (editingId) {
-        await updateAccount.mutateAsync({ id: editingId, payload });
-        await setAccountHead.mutateAsync({ accountId: editingId, userId: accountHeadId });
-        cancelEdit();
-        showSuccess("Account Updated Successfully");
-      } else {
-        const created = await createAccount.mutateAsync(payload);
-        if (accountHeadId) {
-          await setAccountHead.mutateAsync({ accountId: created.id, userId: accountHeadId });
-        }
-        reset();
-        setAccountHeadId(null);
-        showSuccess("Account Created Successfully");
-      }
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Failed to save account.");
-    }
-  }
-
-  const busy = createAccount.isPending || updateAccount.isPending || setAccountHead.isPending;
-
   return (
-    <div className="flex flex-col gap-8">
-      <SectionCard icon={Building2} title="Account Directory">
+    <>
+      <SectionCard
+        icon={Building2}
+        title="Account Directory"
+        aside={
+          <Button
+            onClick={() => setDrawer({ account: null })}
+            className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
+          >
+            <Plus className="size-4" />
+            Add Account
+          </Button>
+        }
+      >
         <RegisterImportToolbar
           defs={importFields}
           itemLabelPlural="Accounts"
           buildPayload={buildAccountPayload}
           createMutation={createAccount}
         />
+
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="relative w-72">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              aria-label="Search accounts"
+              placeholder="Search account name…"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSkip(0);
+              }}
+              className="h-9 pl-9 text-sm"
+            />
+          </div>
+
+          <div className="w-44">
+            <NativeSelect
+              aria-label="Geo filter"
+              className="h-9 text-sm"
+              value={geoId}
+              onChange={(e) => {
+                setGeoId(e.target.value);
+                setRegionId("");
+                setSkip(0);
+              }}
+            >
+              <option value="">Geo [All]</option>
+              {geos.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div className="w-44">
+            <NativeSelect
+              aria-label="Region filter"
+              className="h-9 text-sm"
+              value={regionId}
+              onChange={(e) => {
+                setRegionId(e.target.value);
+                setSkip(0);
+              }}
+            >
+              <option value="">Region [All]</option>
+              {regionOptions.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <div className="w-40">
+            <NativeSelect
+              aria-label="Active filter"
+              className="h-9 text-sm"
+              value={active}
+              onChange={(e) => {
+                setActive(e.target.value as ActiveFilter);
+                setSkip(0);
+              }}
+            >
+              <option value="">Active [All]</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </NativeSelect>
+          </div>
+
+          {filtersActive ? (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="ml-auto text-sm font-semibold text-[#1a6fc4] hover:underline"
+            >
+              Reset
+            </button>
+          ) : null}
+        </div>
+
         <RegisterTable
-          items={accounts}
-          emptyLabel="No accounts yet."
-          onEdit={startEdit}
+          items={pageItems}
+          emptyLabel={
+            isLoading
+              ? "Loading…"
+              : filtersActive
+                ? "No accounts match the current filters."
+                : "No accounts yet."
+          }
+          onEdit={(account) => setDrawer({ account })}
           onDelete={handleDelete}
           columns={[
             { key: "name", label: "Account Name" },
@@ -215,43 +225,14 @@ export function CreateAccountPanel() {
             },
           ]}
         />
+        <PaginationBar skip={pageSkip} limit={PAGE_SIZE} total={filtered.length} onPageChange={setSkip} />
       </SectionCard>
 
-      <SectionCard icon={Building2} title={editingId ? "Edit Account" : "New Account"}>
-        <EntryFields
-          defs={fields}
-          values={values}
-          set={set}
-          trailing={
-            <Field
-              label="Account Manager"
-              hint="Optional. An Account Manager or Geo Head who owns this account. Can be changed later on Reassign Owners."
-            >
-              <ResourcePicker
-                value={accountHeadId}
-                onChange={setAccountHeadId}
-                roleCodes={ACCOUNT_HEAD_CANDIDATE_ROLES}
-                placeholder="Select Account Manager…"
-              />
-            </Field>
-          }
-        />
-        <div className="mt-6 flex justify-end gap-3">
-          {editingId ? (
-            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
-              Cancel
-            </Button>
-          ) : null}
-          <Button
-            onClick={submit}
-            disabled={busy || !canSubmit}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {busy ? <ButtonSpinner /> : null}
-            {editingId ? "Save Changes" : "Add Account"}
-          </Button>
-        </div>
-      </SectionCard>
-    </div>
+      <AccountFormDrawer
+        open={drawer !== null}
+        account={drawer?.account ?? null}
+        onClose={() => setDrawer(null)}
+      />
+    </>
   );
 }

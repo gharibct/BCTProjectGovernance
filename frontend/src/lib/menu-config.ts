@@ -1,4 +1,5 @@
 import type { RoleCode } from "@/lib/api/auth";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 // Which sidebar entries each role sees, and where their login lands them.
 // Admin keeps only the admin-specific screens (plus PMO, which has no
@@ -216,7 +217,7 @@ export const ROLE_LANDING_ROUTE: Record<RoleCode, string> = {
 
 // Which roles each role may "act as" via the top-bar Work Context combo.
 // The first entry is that role's own role — the default when workContext is null.
-// Roles not listed here get no combo. Only Admin gets one now: Account Manager
+// Roles not listed here get no combo. Only Admin gets one now: Delivery Manager
 // and Geo Head reach the PM-level work through their "Team Worklist" menu
 // section instead. The backend independently permits an Account/Geo Head to do
 // the lower role's writes within their own accounts/geo (see backend
@@ -235,7 +236,7 @@ export const WORK_CONTEXTS: Partial<Record<RoleCode, RoleCode[]>> = {
 
 export const WORK_CONTEXT_LABEL: Record<RoleCode, string> = {
   PROJECT_MANAGER: "PM",
-  ACCOUNT_MANAGER: "Account Manager",
+  ACCOUNT_MANAGER: ACCOUNT_MANAGER_LABEL,
   GEO_HEAD: "Geo Head",
   CDO: "CDO",
   TEAM_MEMBER: "Team Member",

@@ -100,7 +100,7 @@ export type DashboardSummary = {
   open_ncs: OpenNcRow[];
 };
 
-// Role-scoping for the Geo Head / Account Manager dashboards (see
+// Role-scoping for the Geo Head / Delivery Manager dashboards (see
 // backend/app/services/dashboard.py's DashboardFilters.geo_ids/account_ids)
 // — undefined/empty means unfiltered (CDO/Admin dashboards).
 export type DashboardScope = {

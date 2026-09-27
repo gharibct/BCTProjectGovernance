@@ -1,7 +1,7 @@
--- User scope assignments (role rollout for Account Manager / Geo Head / Admin
+-- User scope assignments (role rollout for Delivery Manager / Geo Head / Admin
 -- dashboards): which geo(s)/account(s) a user owns, many-to-many since a
--- Geo Head or Account Manager can cover more than one. Drives the pre-
--- filtering on the Geo Head / Account Manager dashboards.
+-- Geo Head or Delivery Manager can cover more than one. Drives the pre-
+-- filtering on the Geo Head / Delivery Manager dashboards.
 --
 -- user_projects is groundwork only for now — a future project roster for
 -- Team Member RAID-item assignment scoping; not yet consumed by any

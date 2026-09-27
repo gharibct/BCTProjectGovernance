@@ -22,7 +22,7 @@ from app.schemas.enums import RoleCode
 # documents.py's uploads, under "<account_id>/customer_communications/".
 router = APIRouter(prefix="/accounts/{account_id}/customer-communications", tags=["Account Reporting"])
 
-# Same audience as the Account Reporting screens: an owning Account Manager or
+# Same audience as the Account Reporting screens: an owning Delivery Manager or
 # the reviewing Geo Head write; CDO / Delivery Excellence can also read.
 _write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _read = [

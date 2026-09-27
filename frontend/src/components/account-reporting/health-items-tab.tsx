@@ -18,7 +18,7 @@ import { RollupSourcePanel, type RollupSourceItem } from "@/components/regional-
 
 // Account-level equivalent of project-charter/health-items-tab.tsx — one
 // line-item register per RAG Status category, plus (unlike the project
-// screen) a rollup panel below it so an Account Manager can pull a
+// screen) a rollup panel below it so a Delivery Manager can pull a
 // project's own RAG notes for this category/period into the account's
 // register. Mirrors regional-reporting/status-items-tab.tsx's rollup
 // wiring, account-only (no geo generalization — RAG Status has no

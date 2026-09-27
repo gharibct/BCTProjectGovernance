@@ -56,6 +56,12 @@ export function CustomerCommunicationSection({
         ) : (
           <span className="text-slate-500">Report not shared with Customer</span>
         )}
+        {report?.customer_remarks ? (
+          <p className="mt-3 whitespace-pre-wrap border-t border-slate-100 pt-3">
+            <span className="font-semibold text-slate-900">Remarks: </span>
+            {report.customer_remarks}
+          </p>
+        ) : null}
       </div>
     </section>
   );

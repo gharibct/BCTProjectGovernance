@@ -21,6 +21,8 @@ export type FieldDef = {
   hint?: string;
   mandatory?: boolean;
   placeholder?: string;
+  // Spans the full row when EntryFields is laid out in 2 columns.
+  fullWidth?: boolean;
 };
 
 type ChangeEvent = React.ChangeEvent<
@@ -31,8 +33,8 @@ type ChangeEvent = React.ChangeEvent<
 // log's shape is just an array of FieldDefs; this renders and manages it so
 // each log file only needs to state its fields (per §4.5–4.9 of the spec),
 // not re-implement a form.
-export function useEntryValues() {
-  const [values, setValues] = React.useState<Record<string, string>>({});
+export function useEntryValues(initial: Record<string, string> = {}) {
+  const [values, setValues] = React.useState<Record<string, string>>(initial);
   // Set one field directly — for programmatic changes (e.g. clearing a
   // dependent field when its parent changes), not driven by a DOM event.
   const setValue = (key: string, value: string) =>
@@ -140,6 +142,8 @@ export function EntryFields({
   set,
   errors,
   trailing,
+  trailingAfter,
+  columns = 3,
 }: {
   defs: FieldDef[];
   values: Record<string, string>;
@@ -151,26 +155,43 @@ export function EntryFields({
   // i.e. immediately after the last non-textarea field (e.g. a ResourcePicker
   // that isn't part of the declarative FieldDef list).
   trailing?: React.ReactNode;
+  // Key of the def to place `trailing` right after, instead of at the end of
+  // the grid (which is where it goes when omitted).
+  trailingAfter?: string;
+  // 3 (default) for full-width panels; 1 or 2 for narrow containers like a
+  // drawer (2 pairs fields up, `fullWidth` defs take a whole row).
+  columns?: 1 | 2 | 3;
 }) {
   const gridDefs = defs.filter((d) => d.kind !== "textarea");
   const textDefs = defs.filter((d) => d.kind === "textarea");
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
+      <div
+        className={
+          columns === 1
+            ? "grid grid-cols-1 gap-y-6"
+            : columns === 2
+              ? "grid grid-cols-2 gap-x-4 gap-y-4"
+              : "grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3"
+        }
+      >
         {gridDefs.map((def) => (
-          <Field
-            key={def.key}
-            label={def.label}
-            htmlFor={def.key}
-            hint={def.hint}
-            badge={def.mandatory ? <MandatoryBadge /> : undefined}
-            error={errors?.[def.key]}
-          >
-            {renderControl(def, values[def.key] ?? "", set(def.key))}
-          </Field>
+          <React.Fragment key={def.key}>
+            <Field
+              label={def.label}
+              htmlFor={def.key}
+              hint={def.hint}
+              badge={def.mandatory ? <MandatoryBadge /> : undefined}
+              error={errors?.[def.key]}
+              className={columns === 2 && def.fullWidth ? "col-span-2" : undefined}
+            >
+              {renderControl(def, values[def.key] ?? "", set(def.key))}
+            </Field>
+            {trailingAfter === def.key ? trailing : null}
+          </React.Fragment>
         ))}
-        {trailing}
+        {trailingAfter === undefined ? trailing : null}
       </div>
       {textDefs.map((def) => (
         <Field

@@ -25,6 +25,7 @@ import {
   type IssueLog as IssueLogItem,
   type IssueLogPayload,
 } from "@/lib/api/raid";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 const ISSUE_PREVIEW_FIELDS = [
   { key: "issue_title", label: "Title" },
@@ -66,7 +67,7 @@ function useIssueFields(): FieldDef[] {
       key: "escalation_level",
       label: "Escalation Level",
       kind: "select",
-      options: ["PM", "Account Manager", "Steering Committee"],
+      options: ["PM", ACCOUNT_MANAGER_LABEL, "Steering Committee"],
     },
     { key: "last_review_date", label: "Last Review Date", kind: "date" },
     { key: "next_review_date", label: "Next Review Date", kind: "date" },

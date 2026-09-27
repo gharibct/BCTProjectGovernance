@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
+from app.core.labels import ACCOUNT_MANAGER_LABEL
 from app.crud.reference_data import (
     account_crud,
     geo_crud,
@@ -39,7 +40,7 @@ from app.schemas.users import UserCreate
 ROLES = [
     ("ADMIN", "Admin", "Full system administration"),
     ("CDO", "CDO", "CEO / CDO / Delivery Manager read-mostly access"),
-    ("ACCOUNT_MANAGER", "Account Manager", "Owns account-level commercial relationship and oversight"),
+    ("ACCOUNT_MANAGER", ACCOUNT_MANAGER_LABEL, "Owns account-level commercial relationship and oversight"),
     ("GEO_HEAD", "Geo Head", "Read-mostly oversight across projects in their GEO"),
     ("PROJECT_MANAGER", "Project Manager", "Owns project charter and delivery"),
     ("TEAM_MEMBER", "Team Member", "Delivery team member"),
@@ -81,13 +82,22 @@ PROJECT_TYPES = [
     ProjectTypeCreate(code="CONSULTING", name="Consulting"),
 ]
 
-# Dev-only sample values — no real product catalog was supplied, so these
-# just exercise the Project Profile "Product" dropdown locally. Admin adds
-# the real list via POST /api/v1/products.
+# Product catalog, grouped by portfolio (product_group) — drives the grouped
+# Project Profile "Product" dropdown. Admin can edit via /api/v1/products.
 PRODUCTS = [
-    ProductCreate(code="CRM", name="CRM Platform"),
-    ProductCreate(code="ERP", name="ERP Suite"),
-    ProductCreate(code="ANALYTICS", name="Analytics Suite"),
+    ProductCreate(code="dropthought", name="dropthought", product_group="Digital Experience"),
+    ProductCreate(code="dtWorks", name="dtWorks", product_group="Digital Experience"),
+    ProductCreate(code="CueTrans", name="CueTrans", product_group="Digital Supply Chain Management"),
+    ProductCreate(code="FuelTrans", name="FuelTrans", product_group="Digital Supply Chain Management"),
+    ProductCreate(code="Procure360", name="Procure360", product_group="Digital Supply Chain Management"),
+    ProductCreate(code="IVMS", name="IVMS", product_group="Digital Supply Chain Management"),
+    ProductCreate(code="retina360", name="retina360", product_group="Predictive Analytics"),
+    ProductCreate(code="rt360", name="rt360", product_group="Predictive Analytics"),
+    ProductCreate(code="Geodatafy", name="Geodatafy", product_group="Predictive Analytics"),
+    ProductCreate(code="midas360", name="midas360", product_group="Predictive Analytics"),
+    ProductCreate(code="radar360", name="radar360", product_group="Predictive Analytics"),
+    ProductCreate(code="ePAY", name="ePAY", product_group="Payments"),
+    ProductCreate(code="eREMIT", name="eREMIT", product_group="Payments"),
 ]
 
 ACCOUNTS = [
@@ -108,11 +118,11 @@ USERS = [
     # remembering a person's name.
     ("pm", "Project Manager", "pm@bahwancybertek.com", "PROJECT_MANAGER"),
     ("cdo", "CDO", "cdo@bahwancybertek.com", "CDO"),
-    ("acchead", "Account Manager", "acchead@bahwancybertek.com", "ACCOUNT_MANAGER"),
+    ("acchead", ACCOUNT_MANAGER_LABEL, "acchead@bahwancybertek.com", "ACCOUNT_MANAGER"),
     ("geohead", "Geo Head", "geohead@bahwancybertek.com", "GEO_HEAD"),
 ]
 
-# Which geo(s)/account(s) each Geo Head / Account Manager owns — many-to-many,
+# Which geo(s)/account(s) each Geo Head / Delivery Manager owns — many-to-many,
 # keyed by ldap_username / account name / geo code (resolved to ids below).
 USER_ACCOUNTS = [
     ("acchead", "Gulf National Bank"),

@@ -10,10 +10,12 @@ import {
   HeartPulse,
   ShieldAlert,
   ShieldCheck,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useEffectiveRole } from "@/stores/session";
 import { childClass, activeClass, idleClass } from "./nav-primitives";
 
 // Project Health's right-side "REPORTS" nav (design-reference/Project-Health.html,
@@ -34,6 +36,7 @@ const SECTIONS: NavSection[] = [
       { label: "Project List", href: "/project-health/project-list" },
       { label: "RAG", href: "/project-health/rag" },
       { label: "Account RAG", href: "/project-health/account-rag" },
+      { label: "Oracle Projects", href: "/project-health/oracle-projects" },
     ],
   },
   {
@@ -73,10 +76,21 @@ const SECTIONS: NavSection[] = [
       { label: "Report Submissions", href: "/project-health/report-submissions" },
     ],
   },
+  {
+    heading: "Customer Reporting",
+    icon: Users,
+    items: [
+      { label: "Project Status Reporting", href: "/project-health/customer-project-reports" },
+      { label: "Account Reporting", href: "/project-health/customer-account-reports" },
+    ],
+  },
 ];
 
 export function ProjectHealthNav() {
   const pathname = usePathname();
+  // Oracle Projects is withheld from Project Managers / Team Members (the API 403s for them).
+  const role = useEffectiveRole();
+  const hideOracleProjects = role === "PROJECT_MANAGER" || role === "TEAM_MEMBER";
 
   return (
     <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
@@ -90,7 +104,9 @@ export function ProjectHealthNav() {
               {section.heading}
             </div>
             <div className="mt-1 mb-1 ml-5 flex flex-col gap-0.5 border-l border-slate-200 pl-3">
-              {section.items.map((item) => {
+              {section.items
+                .filter((item) => !(hideOracleProjects && item.href === "/project-health/oracle-projects"))
+                .map((item) => {
                 const active = pathname === item.href;
                 return (
                   <Link

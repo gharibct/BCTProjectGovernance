@@ -18,7 +18,7 @@ export function canCreateAction(level: ActionLevel, roleCode: RoleCode | undefin
 // Which Levels the standalone Actions page (frontend/src/components/actions/
 // actions-view.tsx) offers per role — separate from WRITE_ROLES above (that
 // gates creating/editing at a level; this gates which levels are even
-// browsable). PM only ever deals with their own Projects; Account Manager
+// browsable). PM only ever deals with their own Projects; Delivery Manager
 // adds Account; Geo Head and CDO get all three. Delivery Excellence also
 // gets all three, but browse-only — DE is deliberately absent from
 // WRITE_ROLES above (its "Actions" entry sits under "My Reports", not "My

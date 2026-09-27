@@ -1,6 +1,6 @@
 """Project -> Account rollup: pre-fills an Account Weekly report's Key
 Metrics from summing its projects' own Weekly reports for the same period,
-and surfaces those projects' status items so an Account Manager can pull
+and surfaces those projects' status items so a Delivery Manager can pull
 individual ones into the account's own register (see plan: "Project ->
 Account Rollup"). Mirrors services/dashboard.py's style — narrow queries,
 grouping/summing done in Python since portfolio sizes here are small.

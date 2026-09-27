@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select, update as sa_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import PaginationParams, pagination_params, require_role
@@ -10,6 +10,7 @@ from app.api.v1.factory import build_crud_router
 from app.core.db import get_db
 from app.core.security import hash_password
 from app.crud.users import user_crud
+from app.models.projects import Project
 from app.models.reference_data import Account, Geo
 from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.common import Page
@@ -39,7 +40,8 @@ _admin_only = [Depends(require_role(RoleCode.ADMIN))]
 #
 # `include_list_route=False`: the generic factory list route only offers
 # skip/limit, but with 2000+ employees the pickers need server-side search — so
-# the list route is hand-written below.
+# the list route is hand-written below. `update_schema=None`: role changes need
+# the unallocation side-effect below, so PUT /users/{id} is hand-written too.
 router.include_router(
     build_crud_router(
         prefix="/users",
@@ -47,7 +49,7 @@ router.include_router(
         crud=user_crud,
         read_schema=UserRead,
         create_schema=UserCreate,
-        update_schema=UserUpdate,
+        update_schema=None,
         include_list_route=False,
         write_dependencies=_admin_only,
     ),
@@ -142,6 +144,37 @@ async def list_users(
 async def list_roles(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Role))
     return result.scalars().all()
+
+
+async def _unallocate_user(db: AsyncSession, user_id: UUID) -> None:
+    """A role change invalidates whatever the user was previously allocated to
+    hold — a Project Manager's project, a Delivery Manager's account(s), a Geo
+    Head's geo(s). Clear all three unconditionally; whichever applied to the
+    user's old role is the one that actually had rows."""
+    await db.execute(
+        sa_update(Project)
+        .where(Project.project_manager_id == user_id)
+        .values(project_manager_id=None)
+    )
+    await db.execute(delete(UserAccount).where(UserAccount.user_id == user_id))
+    await db.execute(delete(UserGeo).where(UserGeo.user_id == user_id))
+    await db.flush()
+
+
+@router.put("/users/{user_id}", response_model=UserRead, tags=["Users"], dependencies=_admin_only)
+async def update_user(user_id: UUID, payload: UserUpdate, db: AsyncSession = Depends(get_db)):
+    """Hand-written in place of the generic factory route: a role change must
+    unallocate the project/account/geo previously mapped to this user (see
+    `_unallocate_user`) — those mappings belonged to the old role and no
+    longer make sense under the new one."""
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    role_changed = payload.role_id is not None and payload.role_id != user.role_id
+    updated = await user_crud.update(db, user, payload)
+    if role_changed:
+        await _unallocate_user(db, user_id)
+    return updated
 
 
 @router.get("/users/{user_id}/accounts", response_model=list[UUID], tags=["Users"], dependencies=_admin_only)

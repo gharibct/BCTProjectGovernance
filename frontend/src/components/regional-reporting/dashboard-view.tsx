@@ -15,7 +15,7 @@ import { useRegionalStatusReports, type RegionalScope } from "@/lib/api/regional
 import { currentPeriod } from "@/lib/period-utils";
 import { useRegionalDefaultPeriodId } from "@/lib/use-default-period";
 
-// The Account Manager's / Geo Head's read-first counterpart to
+// The Delivery Manager's / Geo Head's read-first counterpart to
 // /account-review /geo-review — same OverviewSection/RagStatusSection the
 // reviewer sees, fitted into the regional-reporting shell (nav rail) instead
 // of the standalone review layout, with SubmitReportAction in place of

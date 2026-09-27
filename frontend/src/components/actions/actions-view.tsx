@@ -169,7 +169,7 @@ function ActionsPageBody() {
   // Which combos to even show follows the role's own browsable levels
   // (LEVELS_BY_ROLE in action-permissions.ts), not the currently selected
   // Level — a Project Manager only ever has "PROJECT", so they get just the
-  // Project combo; an Account Manager has "ACCOUNT"+"PROJECT", so Geo never
+  // Project combo; a Delivery Manager has "ACCOUNT"+"PROJECT", so Geo never
   // applies to them at all; Geo Head/CDO have all three. This mirrors the
   // sidebar's own per-role scoping (usePatchScope), it just also decides
   // combo visibility here.

@@ -15,7 +15,7 @@ import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
 import { SubmitReportAction } from "./submit-report-action";
 
 // The Project Manager's read-first counterpart to /project-review — same
-// OverviewSection/RagStatusSection the Account Manager reviews, fitted into
+// OverviewSection/RagStatusSection the Delivery Manager reviews, fitted into
 // the project-reporting shell (breadcrumb + nav rail) instead of the
 // standalone project-review layout, with SubmitReportAction in place of
 // ReviewActions.

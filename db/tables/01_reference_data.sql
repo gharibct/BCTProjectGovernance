@@ -59,6 +59,7 @@ CREATE TABLE products (
     id UUID PRIMARY KEY,
     code TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
+    product_group TEXT, -- portfolio the product rolls up to; groups the Product dropdown
     is_active BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

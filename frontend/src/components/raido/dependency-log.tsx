@@ -32,6 +32,7 @@ import {
   type DependencyLog as DependencyLogItem,
   type DependencyLogPayload,
 } from "@/lib/api/raid";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 // Fields per §4.7 Dependency Log. Keys match DependencyLogCreate/Update's
 // field names — dependency_status/last_updated/actual_completion_date
@@ -84,7 +85,7 @@ function useDependencyFields(): FieldDef[] {
       key: "escalation_level",
       label: "Escalation Level",
       kind: "select",
-      options: ["Project Manager", "Account Manager", "Steering Committee"],
+      options: ["Project Manager", ACCOUNT_MANAGER_LABEL, "Steering Committee"],
     },
     { key: "last_review_date", label: "Last Review Date", kind: "date" },
     { key: "next_review_date", label: "Next Review Date", kind: "date" },

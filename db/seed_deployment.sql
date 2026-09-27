@@ -6,7 +6,7 @@
 INSERT INTO roles (id, code, name, description) VALUES
     (gen_random_uuid(), 'ADMIN', 'Admin', 'Full system administration'),
     (gen_random_uuid(), 'CDO', 'CDO', 'CEO / CDO / Delivery Manager read-mostly access'),
-    (gen_random_uuid(), 'ACCOUNT_MANAGER', 'Account Manager', 'Owns account-level commercial relationship and oversight'),
+    (gen_random_uuid(), 'ACCOUNT_MANAGER', 'Delivery Manager', 'Owns account-level commercial relationship and oversight'),
     (gen_random_uuid(), 'GEO_HEAD', 'Geo Head', 'Read-mostly oversight across projects in their GEO'),
     (gen_random_uuid(), 'PROJECT_MANAGER', 'Project Manager', 'Owns project charter and delivery'),
     (gen_random_uuid(), 'TEAM_MEMBER', 'Team Member', 'Delivery team member'),
@@ -43,13 +43,23 @@ INSERT INTO project_types (id, code, name, description, is_active, created_at, u
     (gen_random_uuid(), 'CLOUD_MIGRATION', 'Cloud Migration', NULL, true, now(), now()),
     (gen_random_uuid(), 'CONSULTING', 'Consulting', NULL, true, now(), now());
 
--- Dev-only sample values — no real product catalog was supplied, so these
--- just exercise the Project Profile "Product" dropdown locally. Admin
--- adds the real list via POST /api/v1/products.
-INSERT INTO products (id, code, name, is_active, created_at, updated_at) VALUES
-    (gen_random_uuid(), 'CueTrans', 'CueTrans', true, now(), now()),
-    (gen_random_uuid(), 'Retina', 'Retina', true, now(), now()),
-    (gen_random_uuid(), 'FuelTrans', 'FuelTrans', true, now(), now());
+-- Product catalog, grouped by portfolio (product_group) — the Project
+-- Profile "Product" dropdown renders one group per product_group. Admin
+-- can add/change entries via /api/v1/products.
+INSERT INTO products (id, code, name, product_group, is_active, created_at, updated_at) VALUES
+    (gen_random_uuid(), 'dropthought', 'dropthought', 'Digital Experience', true, now(), now()),
+    (gen_random_uuid(), 'dtWorks', 'dtWorks', 'Digital Experience', true, now(), now()),
+    (gen_random_uuid(), 'CueTrans', 'CueTrans', 'Digital Supply Chain Management', true, now(), now()),
+    (gen_random_uuid(), 'FuelTrans', 'FuelTrans', 'Digital Supply Chain Management', true, now(), now()),
+    (gen_random_uuid(), 'Procure360', 'Procure360', 'Digital Supply Chain Management', true, now(), now()),
+    (gen_random_uuid(), 'IVMS', 'IVMS', 'Digital Supply Chain Management', true, now(), now()),
+    (gen_random_uuid(), 'retina360', 'retina360', 'Predictive Analytics', true, now(), now()),
+    (gen_random_uuid(), 'rt360', 'rt360', 'Predictive Analytics', true, now(), now()),
+    (gen_random_uuid(), 'Geodatafy', 'Geodatafy', 'Predictive Analytics', true, now(), now()),
+    (gen_random_uuid(), 'midas360', 'midas360', 'Predictive Analytics', true, now(), now()),
+    (gen_random_uuid(), 'radar360', 'radar360', 'Predictive Analytics', true, now(), now()),
+    (gen_random_uuid(), 'ePAY', 'ePAY', 'Payments', true, now(), now()),
+    (gen_random_uuid(), 'eREMIT', 'eREMIT', 'Payments', true, now(), now());
 
 INSERT INTO accounts (id, name, geo_id, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'Gulf National Bank', (SELECT id FROM geos WHERE code = 'MEA'), true, now(), now()),
@@ -69,10 +79,10 @@ INSERT INTO users (id, ldap_username, full_name, email, role_id, is_active, mfa_
     -- remembering a person's name.
     (gen_random_uuid(), 'pm', 'Project Manager', 'pm@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'PROJECT_MANAGER'), true, false, now(), now()),
     (gen_random_uuid(), 'cdo', 'CDO', 'cdo@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'CDO'), true, false, now(), now()),
-    (gen_random_uuid(), 'acchead', 'Account Manager', 'acchead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ACCOUNT_MANAGER'), true, false, now(), now()),
+    (gen_random_uuid(), 'acchead', 'Delivery Manager', 'acchead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'ACCOUNT_MANAGER'), true, false, now(), now()),
     (gen_random_uuid(), 'geohead', 'Geo Head', 'geohead@bahwancybertek.com', (SELECT id FROM roles WHERE code = 'GEO_HEAD'), true, false, now(), now());
 	*/
--- Which geo(s)/account(s) each Geo Head / Account Manager owns — many-to-many
+-- Which geo(s)/account(s) each Geo Head / Delivery Manager owns — many-to-many
 -- (see db/tables/33_user_scope_assignments.sql), drives their dashboard
 -- pre-filtering.
 /*

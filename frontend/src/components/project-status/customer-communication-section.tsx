@@ -5,20 +5,22 @@ import { Download, Presentation } from "lucide-react";
 
 import { Field, SectionCard } from "@/components/forms/form-primitives";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { ProjectStatusReport } from "@/lib/api/project-status";
 
 // Customer Communication on Project Status — was this period's status report
 // shared with the customer? Date Shared and the Presentation / Status Report
 // upload only apply (and are mandatory) when the answer is Yes. Form state is
-// owned by ProjectStatusTabs and persisted by its "Save Details". The backend
-// also has an optional Remarks field; it's deliberately not shown for now.
+// owned by ProjectStatusTabs and persisted by its "Save Details". Remarks is
+// optional and applies whichever way the question is answered.
 
 export const CUSTOMER_REPORT_ACCEPT = ".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx";
 
 export type CustomerCommunicationState = {
   shared: "" | "Yes" | "No";
   date: string;
+  remarks: string;
   // A file picked but not yet uploaded — uploaded after the report is saved.
   file: File | null;
 };
@@ -26,6 +28,7 @@ export type CustomerCommunicationState = {
 export const BLANK_CUSTOMER_COMMUNICATION: CustomerCommunicationState = {
   shared: "",
   date: "",
+  remarks: "",
   file: null,
 };
 
@@ -33,6 +36,7 @@ export function customerCommunicationFromReport(report: ProjectStatusReport): Cu
   return {
     shared: report.customer_report_shared === null ? "" : report.customer_report_shared ? "Yes" : "No",
     date: report.customer_report_date ?? "",
+    remarks: report.customer_remarks ?? "",
     file: null,
   };
 }
@@ -129,6 +133,19 @@ export function CustomerCommunicationSection({
             </div>
           </Field>
         ) : null}
+
+        <div className="md:col-span-3">
+          <Field label="Remarks" htmlFor="customer_remarks">
+            <Textarea
+              id="customer_remarks"
+              rows={3}
+              placeholder="Optional — short context"
+              value={value.remarks}
+              disabled={disabled}
+              onChange={(e) => onChange({ ...value, remarks: e.target.value })}
+            />
+          </Field>
+        </div>
       </div>
     </SectionCard>
   );

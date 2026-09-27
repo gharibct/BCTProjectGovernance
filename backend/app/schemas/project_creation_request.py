@@ -42,6 +42,23 @@ class ProjectCreationRequestRow(BaseModel):
     created_at: datetime
 
 
+class OracleProjectProfile(BaseModel):
+    """Project profile pre-fill for an Oracle Project ID (Create Project screen).
+    `found` is False when the ID isn't in oracle_project_master; any id that
+    couldn't be resolved is None and explained in `notes`."""
+
+    found: bool
+    oracle_project_id: str
+    oracle_project_name: str | None = None
+    oracle_project_geo: str | None = None
+    oracle_account_name: str | None = None
+    organization_id: UUID | None = None
+    geo_id: UUID | None = None
+    region_id: UUID | None = None
+    account_id: UUID | None = None
+    notes: list[str] = []
+
+
 class ProjectCreationApproveRequest(BaseModel):
     reviewed_by: UUID
     remarks: str | None = None

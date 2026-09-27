@@ -23,7 +23,7 @@ export function ProjectHealthActions() {
   const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
   const [search, setSearch] = React.useState("");
   const [skip, setSkip] = React.useState(0);
-  const isFiltered = Boolean(filters.geoId || filters.accountId || filters.projectTypeId);
+  const isFiltered = Boolean(filters.geoId || filters.regionId || filters.accountId || filters.projectTypeId);
 
   const { data: summary } = useProjectHealthDashboardSummary(filters);
   const {

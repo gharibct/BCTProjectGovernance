@@ -1,5 +1,5 @@
 """Schemas for the Reassign Owners screen — a Geo Head or Delivery Excellence
-user changes a Project's Project Manager, an Account's Account Manager, or a
+user changes a Project's Project Manager, an Account's Delivery Manager, or a
 Geo's Geo Head, any time, independent of the project/amendment workflow.
 
 Rows mirror the enriched shape of DeAllocationRow (schemas/de_approval.py):

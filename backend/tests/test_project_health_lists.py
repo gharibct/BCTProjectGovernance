@@ -100,6 +100,8 @@ _DRILLDOWN_PATHS = [
     "findings",
     "actions",
     "data-integrity",
+    "customer-project-reports",
+    "customer-account-reports",
 ]
 
 

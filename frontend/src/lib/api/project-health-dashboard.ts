@@ -104,10 +104,37 @@ export type FindingsCardSummary = {
   awaiting_closure_count: number;
 };
 
+// DE Alerts card — the Alert-classified subset of findings.
+export type AlertsCardSummary = {
+  open_count: number;
+  overdue_count: number;
+  awaiting_closure_count: number;
+};
+
+// Customer project status reporting for the selected week (sums to the Delivery
+// Status — Projects expected count).
+export type CustomerProjectReportSummary = {
+  shared_count: number;
+  not_shared_count: number;
+  not_submitted_count: number;
+};
+
+// Customer account reporting for the previous calendar quarter (the current
+// quarter is ignored); `new_count` = accounts onboarded in the current quarter
+// (not judged).
+export type CustomerAccountReportSummary = {
+  shared_count: number;
+  not_shared_count: number;
+  new_count: number;
+};
+
 // Project-level DE assessment buckets (previous month's latest Submitted
 // assessment); sums to Active Projects.
 export type DEAssessmentsCardSummary = {
   green_count: number;
+  amber_count: number;
+  potential_red_count: number;
+  red_count: number;
   need_attention_count: number;
   not_assessed_count: number;
 };
@@ -142,16 +169,19 @@ export type ProjectHealthDashboardSummary = {
   payment_milestones: PaymentMilestonesCardSummary;
   actions: ActionsCardSummary;
   findings: FindingsCardSummary;
+  alerts: AlertsCardSummary;
   de_assessments: DEAssessmentsCardSummary;
   report_submissions: ReportSubmissionsSummary;
+  customer_project_reports: CustomerProjectReportSummary;
+  customer_account_reports: CustomerAccountReportSummary;
   period_id: string | null;
   period_label: string | null;
 };
 
 export type ProjectHealthDashboardFilters = {
   geoId?: string;
-  // Region + ownership are only wired through the Project Health project list
-  // screen's filter bar (showRegion / showOwnership); other screens leave them unset.
+  // Project Type has no filter control on any Project Health screen (always All);
+  // ownership is only wired through the project list screen's filter bar.
   regionId?: string;
   accountId?: string;
   projectTypeId?: string;
@@ -180,6 +210,7 @@ export function useProjectHealthPeriods() {
 export function useProjectHealthDashboardSummary(filters: ProjectHealthDashboardFilters) {
   const params = new URLSearchParams();
   if (filters.geoId) params.set("geo_id", filters.geoId);
+  if (filters.regionId) params.set("region_id", filters.regionId);
   if (filters.accountId) params.set("account_id", filters.accountId);
   if (filters.projectTypeId) params.set("project_type_id", filters.projectTypeId);
   if (filters.periodId) params.set("period_id", filters.periodId);

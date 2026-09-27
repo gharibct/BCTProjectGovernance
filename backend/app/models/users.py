@@ -33,7 +33,7 @@ class User(Base, UUIDPrimaryKey, TimestampColumns):
 
 
 # Which geo(s)/account(s) a user owns — many-to-many, drives the Geo Head /
-# Account Manager dashboard pre-filtering (see services.dashboard).
+# Delivery Manager dashboard pre-filtering (see services.dashboard).
 class UserGeo(Base, UUIDPrimaryKey):
     __tablename__ = "user_geos"
 

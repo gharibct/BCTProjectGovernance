@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { HEALTH_RATING_COLORS_BY_API_LABEL } from "@/lib/health-rating-colors";
 import type { ReportReviewQueueRow } from "@/lib/api/account-head-dashboard";
 import type { HealthRating } from "@/lib/api/projects";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 // "Report Review Queue" (design-reference/acchead-mysummary.jpg) — Project
 // Status Reports submitted by PMs and still awaiting this Account Head's
@@ -53,7 +54,7 @@ export function AccountHeadReportReviewQueue({ rows }: { rows: ReportReviewQueue
         <div>
           <h2 className="font-bold text-slate-900">Report Review Queue</h2>
           <p className="mt-0.5 text-sm text-slate-400">
-            Project Status Reports submitted by PMs requiring Account Manager approval.
+            Project Status Reports submitted by PMs requiring {ACCOUNT_MANAGER_LABEL} approval.
           </p>
         </div>
         {rows.length > 0 ? (

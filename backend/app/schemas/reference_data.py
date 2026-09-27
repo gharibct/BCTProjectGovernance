@@ -100,6 +100,7 @@ class ProjectTypeRead(ProjectTypeBase):
 class ProductBase(BaseModel):
     code: str
     name: str
+    product_group: str | None = None
     is_active: bool = True
 
 
@@ -110,6 +111,7 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     code: str | None = None
     name: str | None = None
+    product_group: str | None = None
     is_active: bool | None = None
 
 

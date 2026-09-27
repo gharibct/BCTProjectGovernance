@@ -39,6 +39,7 @@ import { HEALTH_CATEGORIES } from "@/lib/health-categories";
 import { AccountHealthItemsTab } from "./health-items-tab";
 import type { RollupSourceItem } from "@/components/regional-reporting/rollup-source-panel";
 import { usePageBanner } from "@/stores/page-banner";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 // Account RAG Status — account-level equivalent of
 // project-charter/health-declaration.tsx's HealthDeclaration/
@@ -258,7 +259,7 @@ function AccountRagStatusFormInner() {
           <Lock className="size-4" />
           {frozen
             ? "This account's report has been submitted — RAG Status is now read-only."
-            : "Editable by the Account Manager while the current month is open."}
+            : `Editable by the ${ACCOUNT_MANAGER_LABEL} while the current month is open.`}
         </p>
         {!frozen ? (
           <Button

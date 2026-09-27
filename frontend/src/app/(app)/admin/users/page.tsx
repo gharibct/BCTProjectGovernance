@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CreateUserPanel } from "@/components/admin/create-user-panel";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 export const metadata: Metadata = {
   title: "Users & Roles | Governance One",
@@ -12,7 +13,7 @@ export default function AdminUsersPage() {
       <header className="border-b border-slate-200 pb-5">
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">Users & Roles</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Create users and assign their role. Account Manager / Geo Head mapping is
+          Create users and assign their role. {ACCOUNT_MANAGER_LABEL} / Geo Head mapping is
           done on the Accounts and Geos screens.
         </p>
       </header>

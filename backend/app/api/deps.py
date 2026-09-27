@@ -160,11 +160,11 @@ def require_geo_scope(*allowed_roles: RoleCode, bypass_roles: tuple[RoleCode, ..
 
 def require_account_or_geo_scope(*allowed_roles: RoleCode, bypass_roles: tuple[RoleCode, ...] = (RoleCode.ADMIN,)):
     """Role check plus: the `account_id` path param must either be owned
-    directly (user_accounts, e.g. an Account Manager) or belong to one of the
+    directly (user_accounts, e.g. a Delivery Manager) or belong to one of the
     caller's owned geos (user_geos, e.g. a Geo Head reviewing that account),
     unless the caller's role is in `bypass_roles` (defaults to ADMIN only,
     preserving every existing caller's behavior). Covers write actions on an
-    account-scoped page that both an owning Account Manager and a reviewing
+    account-scoped page that both an owning Delivery Manager and a reviewing
     Geo Head can perform — see actions.py, whose account-review "Actions"
     tracker create/edit dependency needs exactly this, unlike
     require_account_scope's ownership-only check."""

@@ -1,5 +1,5 @@
 """Project -> Account rollup for RAG Status notes: surfaces a project's own
-health items so an Account Manager can pull individual ones into the
+health items so a Delivery Manager can pull individual ones into the
 account's own register. Mirrors services/account_rollup.py, minus the Key
 Metrics summing step — HealthDeclaration has no Draft/Submitted status and
 no numeric fields to sum, so every ProjectHealthItem for the account's

@@ -15,6 +15,7 @@ import {
 import { EmptyState } from "@/components/forms/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProductOptions } from "@/components/forms/product-options";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -55,6 +56,7 @@ import {
 } from "@/lib/api/projects";
 import { useGeoHead } from "@/lib/api/users";
 import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaration";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 const inputClass = "h-11";
 const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700";
@@ -193,11 +195,7 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
                 <option value="" disabled>
                   Select…
                 </option>
-                {(products ?? []).map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
+                <ProductOptions products={products ?? []} />
               </NativeSelect>
             </Field>
           ) : null}
@@ -218,7 +216,7 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Account Manager" htmlFor="delivery-manager">
+          <Field label={ACCOUNT_MANAGER_LABEL} htmlFor="delivery-manager">
             <NativeSelect id="delivery-manager" value={project?.delivery_manager_id ?? ""} disabled>
               <option value="" disabled>
                 Select…

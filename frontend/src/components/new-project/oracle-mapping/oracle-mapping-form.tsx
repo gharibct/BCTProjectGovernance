@@ -80,9 +80,12 @@ export function OracleMappingForm() {
             {
               key: "description",
               label: "Project Description",
-              render: () => (
-                <span className="text-slate-400 italic">Pending Oracle sync…</span>
-              ),
+              render: (item: ProjectOracleId) =>
+                item.project_description ? (
+                  item.project_description
+                ) : (
+                  <span className="text-slate-400 italic">Not found in Oracle project master</span>
+                ),
             },
             {
               key: "actions",
@@ -128,7 +131,7 @@ export function OracleMappingForm() {
           >
             <Input
               id="oracle-project-description"
-              placeholder="Fetched automatically once synced"
+              placeholder="Shown in the register above once mapped"
               disabled
               className="h-11"
             />

@@ -19,6 +19,8 @@ import {
 import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDate, StatTile } from "./project-health-kpi";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
+import { useEffectiveRole } from "@/stores/session";
 
 const PAGE_SIZE = 15;
 
@@ -81,6 +83,8 @@ function reportHref(row: Row, backPath: string): string | null {
 // heading + stat tiles for that stream.
 export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmissionStreamKey }) {
   const stream = kpi ? REPORT_SUBMISSION_STREAMS[kpi] : null;
+  // Geo Delivery Status reports belong to Geo Heads and above.
+  const showGeoTile = useEffectiveRole() !== "ACCOUNT_MANAGER";
   const backPath = stream ? stream.route : "/project-health/report-submissions";
 
   const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
@@ -107,7 +111,7 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
     { key: "account_name", label: "Account", render: (row) => dash(row.account_name), excelValue: (row) => row.account_name ?? "" },
     { key: "project_label", label: "Project", render: (row) => dash(row.project_label), excelValue: (row) => row.project_label ?? "" },
     { key: "project_manager_name", label: "PM", render: (row) => dash(row.project_manager_name), excelValue: (row) => row.project_manager_name ?? "" },
-    { key: "account_head_name", label: "Account Manager", render: (row) => dash(row.account_head_name), excelValue: (row) => row.account_head_name ?? "" },
+    { key: "account_head_name", label: ACCOUNT_MANAGER_LABEL, render: (row) => dash(row.account_head_name), excelValue: (row) => row.account_head_name ?? "" },
     { key: "geo_head_name", label: "Geo Head", render: (row) => dash(row.geo_head_name), excelValue: (row) => row.geo_head_name ?? "" },
     { key: "period_label", label: "Period" },
     { key: "status", label: "Status", render: (row) => <StatusPill value={row.status} />, excelValue: (row) => row.status },
@@ -207,7 +211,7 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
           <StatTile label="Pending" value={pendingCount ?? "—"} accentClassName="border-t-amber-500" />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className={cn("grid grid-cols-2 gap-4", showGeoTile ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
           <StatTile
             label="Delivery Status — Projects"
             value={rs ? `${rs.delivery_status_projects.adherence_pct}%` : "—"}
@@ -223,11 +227,13 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
             value={rs ? `${rs.delivery_status_accounts.adherence_pct}%` : "—"}
             accentClassName="border-t-emerald-500"
           />
-          <StatTile
-            label="Delivery Status — Geo"
-            value={rs ? `${rs.delivery_status_geos.adherence_pct}%` : "—"}
-            accentClassName="border-t-amber-500"
-          />
+          {showGeoTile ? (
+            <StatTile
+              label="Delivery Status — Geo"
+              value={rs ? `${rs.delivery_status_geos.adherence_pct}%` : "—"}
+              accentClassName="border-t-amber-500"
+            />
+          ) : null}
         </div>
       )}
 

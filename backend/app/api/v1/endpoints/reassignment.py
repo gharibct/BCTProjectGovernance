@@ -1,6 +1,6 @@
 """Reassign Owners — a dedicated screen where a Geo Head, Account Head or
 Delivery Excellence user changes a Project's Project Manager, an Account's
-Account Manager, or a Geo's Geo Head at any time, with no project-status /
+Delivery Manager, or a Geo's Geo Head at any time, with no project-status /
 amendment gating.
 
 Mirrors DE Project Allocation (endpoints/de_allocation.py): a small role-gated
@@ -10,10 +10,10 @@ workflow. Scope:
 - ADMIN / DELIVERY_EXCELLENCE: org-wide reach (same as DE Allocation today).
 - GEO_HEAD: only projects / accounts / geos within their own owned geo(s)
   (user_geos), matching require_project_access / project_scope_conditions.
-- ACCOUNT_MANAGER: only projects / accounts within their own owned account(s)
-  (user_accounts); no Geo Head reassignment at all.
+- ACCOUNT_MANAGER: only Project Managers of projects within their own owned
+  account(s) (user_accounts); no Delivery Manager or Geo Head reassignment.
 
-Account Manager and Geo Head are single-owner here: a reassignment deletes any
+Delivery Manager and Geo Head are single-owner here: a reassignment deletes any
 existing user_accounts / user_geos rows for that account/geo and inserts one,
 matching how the rest of the app already assumes one AM / Geo Head per
 account/geo (GET /accounts/{id}/account-head, GET /geos/{id}/geo-head both
@@ -148,12 +148,11 @@ async def _assert_project_scope(db: AsyncSession, ctx: SimpleNamespace, project:
 
 
 async def _assert_account_scope(db: AsyncSession, ctx: SimpleNamespace, account: Account) -> None:
-    """Account Manager tab write-guard: a Geo Head is bounded by the account's
-    geo, an Account Head by their own owned account(s); DE / ADMIN skip both."""
+    """Delivery Manager tab write-guard: a Geo Head is bounded by the account's
+    geo; an Account Head may not reassign Delivery Managers at all; DE / ADMIN
+    skip the scope check."""
     if ctx.role == RoleCode.ACCOUNT_MANAGER:
-        if account.id not in await _owned_account_ids(db, ctx.user):
-            raise _NO_ACCOUNT_ACCESS
-        return
+        raise _FORBIDDEN
     if ctx.role != RoleCode.GEO_HEAD:
         return
     if account.geo_id is None or account.geo_id not in await _owned_geo_ids(db, ctx.user):
@@ -161,7 +160,7 @@ async def _assert_account_scope(db: AsyncSession, ctx: SimpleNamespace, account:
 
 
 async def _assert_geo_id_scope(db: AsyncSession, ctx: SimpleNamespace, geo_id: UUID | None) -> None:
-    # Account Managers have no Geo Head reassignment at all.
+    # Delivery Managers have no Geo Head reassignment at all.
     if ctx.role == RoleCode.ACCOUNT_MANAGER:
         raise _FORBIDDEN
     if ctx.role != RoleCode.GEO_HEAD:
@@ -240,7 +239,7 @@ async def reassign_project_manager(
     return await _project_row(db, project)
 
 
-# --- Accounts → Account Manager -------------------------------------------
+# --- Accounts → Delivery Manager -------------------------------------------
 
 
 async def _account_row(db: AsyncSession, account: Account) -> ReassignAccountRow:
@@ -261,13 +260,14 @@ async def _account_row(db: AsyncSession, account: Account) -> ReassignAccountRow
 async def list_accounts(
     ctx: SimpleNamespace = Depends(_reassigner), db: AsyncSession = Depends(get_db)
 ):
+    # Account Heads only reassign Project Managers — the Delivery Manager tab is
+    # hidden for them on the client; return nothing here too.
+    if ctx.role == RoleCode.ACCOUNT_MANAGER:
+        return []
     stmt = select(Account).order_by(Account.name)
     if ctx.role == RoleCode.GEO_HEAD:
         owned = await _owned_geo_ids(db, ctx.user)
         stmt = stmt.where(Account.geo_id.in_(owned)) if owned else stmt.where(Account.id.is_(None))
-    elif ctx.role == RoleCode.ACCOUNT_MANAGER:
-        owned = await _owned_account_ids(db, ctx.user)
-        stmt = stmt.where(Account.id.in_(owned)) if owned else stmt.where(Account.id.is_(None))
     accounts = (await db.execute(stmt)).scalars().all()
     return [await _account_row(db, account) for account in accounts]
 
@@ -303,7 +303,7 @@ async def _geo_row(db: AsyncSession, geo: Geo) -> ReassignGeoRow:
 
 @router.get("/geos", response_model=list[ReassignGeoRow])
 async def list_geos(ctx: SimpleNamespace = Depends(_reassigner), db: AsyncSession = Depends(get_db)):
-    # Account Managers do not reassign Geo Heads — the Geo Head tab is hidden
+    # Delivery Managers do not reassign Geo Heads — the Geo Head tab is hidden
     # for them on the client; return nothing here too.
     if ctx.role == RoleCode.ACCOUNT_MANAGER:
         return []

@@ -6,16 +6,16 @@ import {
   BarChart3,
   Bug,
   ClipboardCheck,
+  Database,
   FolderOpen,
-  GitBranch,
   Handshake,
   HeartPulse,
-  HelpCircle,
   Lightbulb,
   ListChecks,
   Search,
   ShieldAlert,
   ShieldCheck,
+  Users,
   Wallet,
 } from "lucide-react";
 
@@ -23,8 +23,11 @@ import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
 import { REPORT_SUBMISSION_STREAMS } from "@/lib/api/project-health-lists";
+import { useEffectiveRole } from "@/stores/session";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BigStat, Card, SubStat } from "./project-health-kpi";
+import { useCanSeeOracleProjects } from "./project-health-oracle-projects";
+import { ProjectHealthOracleProjectsSection } from "./project-health-oracle-projects-section";
 
 // Project Health dashboard (design-reference/Project-Health.html) — an
 // org-wide, portfolio-level KPI page for PMO/Admin/CDO. Restyled to this
@@ -62,19 +65,22 @@ function SectionHeader({
 }
 
 // Compact Green/Amber/Pot. Red/Red/Not Submitted count strip shared by the Project
-// Health and Account Health cards — kept small so all three cards sit in one row.
+// Health, Account Health and DE-assessed health cards — kept small so all three
+// cards sit in one row. `notLabel` renames the last cell (e.g. "Not Assessed").
 function RagCounts({
   green,
   amber,
   potentialRed,
   red,
   notSubmitted,
+  notLabel = "Not Sub.",
 }: {
   green: React.ReactNode;
   amber: React.ReactNode;
   potentialRed: React.ReactNode;
   red: React.ReactNode;
   notSubmitted: React.ReactNode;
+  notLabel?: string;
 }) {
   return (
     <div className="grid grid-cols-5 gap-1">
@@ -82,7 +88,7 @@ function RagCounts({
       <RagCell label="Amber" value={amber} className="border-amber-100 bg-amber-50 text-amber-700" valueClassName="text-amber-500" />
       <RagCell label="Pot. Red" value={potentialRed} className="border-orange-100 bg-orange-50 text-orange-700" valueClassName="text-orange-600" />
       <RagCell label="Red" value={red} className="border-red-100 bg-red-50 text-red-700" valueClassName="text-red-600" />
-      <RagCell label="Not Sub." value={notSubmitted} className="border-slate-200 bg-slate-50 text-slate-500" valueClassName="text-slate-900" />
+      <RagCell label={notLabel} value={notSubmitted} className="border-slate-200 bg-slate-50 text-slate-500" valueClassName="text-slate-900" />
     </div>
   );
 }
@@ -144,17 +150,66 @@ function ReportSubmissionCard({
   );
 }
 
+// Customer reporting cards — same shape as ReportSubmissionCard (adherence %
+// + counts). Adherence = Shared / (Shared + Not Shared + Not Submitted); the
+// accounts card has no Not Submitted, and its New accounts are left out of the
+// percentage (shown for information only).
+function CustomerReportCard({
+  title,
+  shared,
+  notShared,
+  notSubmitted,
+  newCount,
+  href,
+}: {
+  title: string;
+  href: string;
+  shared: number;
+  notShared: number;
+  notSubmitted?: number;
+  newCount?: number;
+}) {
+  const expected = shared + notShared + (notSubmitted ?? 0);
+  const adherencePct = expected > 0 ? Math.round((shared / expected) * 100) : 0;
+  return (
+    <Card title={title} icon={Users} iconClassName="text-[#1a6fc4]" href={href} footerLabel="View Details">
+      <BigStat value={`${adherencePct}%`} label="Adherence" valueClass={adherenceTone(adherencePct)} />
+      <div className="flex flex-col gap-1">
+        <SubStat label="Shared with Customer" value={shared} />
+        <SubStat label="Not Shared" value={notShared} valueClass={notShared > 0 ? "text-red-600" : undefined} />
+        {notSubmitted !== undefined ? (
+          <SubStat
+            label="Not Submitted"
+            value={notSubmitted}
+            valueClass={notSubmitted > 0 ? "text-red-600" : undefined}
+          />
+        ) : null}
+        {newCount !== undefined ? <SubStat label="New (not counted)" value={newCount} /> : null}
+      </div>
+    </Card>
+  );
+}
+
 export function ProjectHealthDashboard() {
   const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
   const { data, isLoading, isError, error, refetch } = useProjectHealthDashboardSummary(filters);
-  const isFiltered = Boolean(filters.geoId || filters.accountId || filters.projectTypeId);
+  const isFiltered = Boolean(filters.geoId || filters.regionId || filters.accountId || filters.projectTypeId);
+  // A PM only owns projects — hide every Account- and Geo-level card/filter.
+  const effectiveRole = useEffectiveRole();
+  const isPm = effectiveRole === "PROJECT_MANAGER";
+  // Geo Delivery Status reports belong to Geo Heads and above.
+  const showGeoDeliveryStatus = !isPm && effectiveRole !== "ACCOUNT_MANAGER";
+  // Oracle projects with no governance project yet — not for PMs / Team Members.
+  const showOracleProjects = useCanSeeOracleProjects();
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Project Health</h1>
-          <p className="mt-1.5 text-slate-500">Portfolio-wide delivery health across every account and geo</p>
+          <p className="mt-1.5 text-slate-500">
+            {isPm ? "Delivery health across your projects" : "Portfolio-wide delivery health across every account and geo"}
+          </p>
         </div>
         {data?.period_label ? <p className="text-sm text-slate-400">Period: {data.period_label}</p> : null}
       </header>
@@ -181,28 +236,11 @@ export function ProjectHealthDashboard() {
         <>
           <section className="flex flex-col gap-3">
             <SectionHeader
-              title="Project & Account"
+              title={isPm ? "Project" : "Project & Account"}
               icon={FolderOpen}
               className="border-blue-200 bg-blue-50 text-[#1a6fc4]"
             />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card
-              title="Project Portfolio"
-              icon={FolderOpen}
-              iconClassName="text-[#1a6fc4]"
-              href="/project-health/project-list"
-              footerLabel="View Project List"
-            >
-              <div className="flex items-end justify-between">
-                <BigStat value={data.portfolio.total_count} label="Total" />
-                <div className="flex flex-col gap-1 pb-3 text-right">
-                  <SubStat label="Active" value={data.portfolio.active_count} />
-                  <SubStat label="Hold" value={data.portfolio.on_hold_count} valueClass="text-amber-600" />
-                  <SubStat label="Completed" value={data.portfolio.completed_count} />
-                </div>
-              </div>
-            </Card>
-
+          <div className={cn("grid grid-cols-1 gap-4", isPm ? "md:grid-cols-2" : "md:grid-cols-3")}>
             <Card
               title="Project Health"
               icon={HeartPulse}
@@ -219,19 +257,38 @@ export function ProjectHealthDashboard() {
               />
             </Card>
 
+            {isPm ? null : (
+              <Card
+                title="Account Health"
+                icon={HeartPulse}
+                iconClassName="text-emerald-600"
+                href="/project-health/account-rag"
+                footerLabel="View Account RAG"
+              >
+                <RagCounts
+                  green={data.account_health.green_count}
+                  amber={data.account_health.amber_count}
+                  potentialRed={data.account_health.potential_red_count}
+                  red={data.account_health.red_count}
+                  notSubmitted={data.account_health.not_submitted_count}
+                />
+              </Card>
+            )}
+
             <Card
-              title="Account Health"
-              icon={HeartPulse}
-              iconClassName="text-emerald-600"
-              href="/project-health/account-rag"
-              footerLabel="View Account RAG"
+              title="Project Health Assessed by DE"
+              icon={ShieldCheck}
+              iconClassName="text-[#1a6fc4]"
+              href="/project-health/assessments"
+              footerLabel="View DE Assessments"
             >
               <RagCounts
-                green={data.account_health.green_count}
-                amber={data.account_health.amber_count}
-                potentialRed={data.account_health.potential_red_count}
-                red={data.account_health.red_count}
-                notSubmitted={data.account_health.not_submitted_count}
+                green={data.de_assessments.green_count}
+                amber={data.de_assessments.amber_count}
+                potentialRed={data.de_assessments.potential_red_count}
+                red={data.de_assessments.red_count}
+                notSubmitted={data.de_assessments.not_assessed_count}
+                notLabel="Not Assessed"
               />
             </Card>
           </div>
@@ -239,7 +296,7 @@ export function ProjectHealthDashboard() {
 
           <section className="flex flex-col gap-3">
             <SectionHeader
-              title="RAIDO (as of today)"
+              title="RAIDO, Alerts & Actions (as of today)"
               icon={ShieldAlert}
               className="border-red-200 bg-red-50 text-red-700"
             />
@@ -261,22 +318,6 @@ export function ProjectHealthDashboard() {
               </div>
             </Card>
 
-            <Card title="Dependencies" icon={GitBranch} iconClassName="text-purple-600" href="/project-health/dependencies">
-              <BigStat value={data.dependencies.open_count} label="Open" />
-              <div className="flex flex-col gap-1">
-                <SubStat label="Overdue" value={data.dependencies.overdue_count} />
-                <SubStat label="Critical" value={data.dependencies.critical_count} valueClass="text-red-600" />
-              </div>
-            </Card>
-
-            <Card title="Assumptions" icon={HelpCircle} iconClassName="text-blue-600" href="/project-health/assumptions">
-              <BigStat value={data.assumptions.open_count} label="Open" />
-              <div className="flex flex-col gap-1">
-                <SubStat label="Review Due" value={data.assumptions.review_due_count} valueClass="text-amber-600" />
-                <SubStat label="Overdue" value={data.assumptions.overdue_count} valueClass="text-red-600" />
-              </div>
-            </Card>
-
             <Card
               title="Opportunities"
               icon={Lightbulb}
@@ -292,6 +333,33 @@ export function ProjectHealthDashboard() {
                 />
                 <SubStat label="Pending Approval" value={data.opportunities.pending_approval_count} />
               </div>
+            </Card>
+
+            <Card
+              title="DE Alerts"
+              icon={Search}
+              iconClassName="text-purple-600"
+              href="/project-health/findings"
+              footerLabel="View Findings"
+            >
+              <BigStat value={data.alerts.open_count} label="Open Alerts" />
+              <div className="flex flex-col gap-1">
+                <SubStat label="Overdue" value={data.alerts.overdue_count} valueClass="text-red-600" />
+                <SubStat label="Awaiting Closure" value={data.alerts.awaiting_closure_count} />
+              </div>
+            </Card>
+
+            <Card title="Actions" icon={ListChecks} iconClassName="text-[#1a6fc4]" href="/project-health/actions">
+              <BigStat value={data.actions.open_count} label="Open" />
+              <div className="flex flex-col gap-1">
+                <SubStat label="In Progress" value={data.actions.in_progress_count} />
+                <SubStat label="Overdue" value={data.actions.overdue_count} valueClass="text-red-600" />
+              </div>
+              {isFiltered ? (
+                <p className="mt-3 text-[11px] text-slate-400">
+                  Geo/Account-level actions are excluded while a filter is active.
+                </p>
+              ) : null}
             </Card>
           </div>
           </section>
@@ -362,84 +430,94 @@ export function ProjectHealthDashboard() {
 
           <section className="flex flex-col gap-3">
             <SectionHeader
-              title="Delivery Excellence & Governance"
-              icon={ShieldCheck}
-              className="border-emerald-200 bg-emerald-50 text-emerald-700"
-            />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card title="Findings" icon={Search} iconClassName="text-purple-600" href="/project-health/findings">
-              <BigStat value={data.findings.open_count} label="Open Findings" />
-              <div className="flex flex-col gap-1">
-                <SubStat label="Overdue" value={data.findings.overdue_count} valueClass="text-red-600" />
-                <SubStat label="Awaiting Closure" value={data.findings.awaiting_closure_count} />
-              </div>
-            </Card>
-
-            <Card
-              title="DE Assessments"
-              icon={ShieldCheck}
-              iconClassName="text-[#1a6fc4]"
-              href="/project-health/assessments"
-            >
-              <BigStat value={data.de_assessments.green_count} label="Green" valueClass="text-emerald-600" />
-              <div className="flex flex-col gap-1">
-                <SubStat
-                  label="Need Attention"
-                  value={data.de_assessments.need_attention_count}
-                  valueClass="text-red-600"
-                />
-                <SubStat label="Not Assessed" value={data.de_assessments.not_assessed_count} />
-              </div>
-            </Card>
-
-            <Card title="Actions" icon={ListChecks} iconClassName="text-[#1a6fc4]" href="/project-health/actions">
-              <BigStat value={data.actions.open_count} label="Open" />
-              <div className="flex flex-col gap-1">
-                <SubStat label="In Progress" value={data.actions.in_progress_count} />
-                <SubStat label="Overdue" value={data.actions.overdue_count} valueClass="text-red-600" />
-              </div>
-              {isFiltered ? (
-                <p className="mt-3 text-[11px] text-slate-400">
-                  Geo/Account-level actions are excluded while a filter is active.
-                </p>
-              ) : null}
-            </Card>
-          </div>
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <SectionHeader
-              title="Report Submissions"
+              title="Delivery Status"
               icon={ClipboardCheck}
               className="border-slate-200 bg-slate-50 text-slate-600"
             />
             <p className="text-xs text-slate-400">
-              Delivery Status is the selected week&apos;s weekly report; Project Performance is the
-              monthly report for the month before the selected week. Draft reports count as Not Submitted.
+              The selected week&apos;s weekly Delivery Status report. Draft reports count as Not Submitted.
             </p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className={cn("grid grid-cols-1 gap-4", showGeoDeliveryStatus ? "md:grid-cols-3" : "md:grid-cols-2")}>
               <ReportSubmissionCard
                 title="Delivery Status — Projects"
                 kpi={data.report_submissions.delivery_status_projects}
                 href={REPORT_SUBMISSION_STREAMS["delivery-status-projects"].route}
               />
+              {isPm ? null : (
+                <>
+                  <ReportSubmissionCard
+                    title="Delivery Status — Account"
+                    kpi={data.report_submissions.delivery_status_accounts}
+                    href={REPORT_SUBMISSION_STREAMS["delivery-status-account"].route}
+                  />
+                  {showGeoDeliveryStatus ? (
+                    <ReportSubmissionCard
+                      title="Delivery Status — Geo"
+                      kpi={data.report_submissions.delivery_status_geos}
+                      href={REPORT_SUBMISSION_STREAMS["delivery-status-geo"].route}
+                    />
+                  ) : null}
+                </>
+              )}
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <SectionHeader
+              title="Project Performance & Customer Reporting"
+              icon={Users}
+              className="border-slate-200 bg-slate-50 text-slate-600"
+            />
+            <p className="text-xs text-slate-400">
+              {isPm
+                ? "Project Performance is the monthly report for the month before the selected week. Customer Project Status Reporting covers the selected week."
+                : "Project Performance is the monthly report for the month before the selected week. Customer Project Status Reporting covers the selected week; Customer Account Reporting covers the previous calendar quarter, as it is shared quarterly and the current quarter is ignored (accounts with no entry count as Not Shared; accounts onboarded this quarter are New and left out of Adherence)."}
+            </p>
+            <div className={cn("grid grid-cols-1 gap-4", isPm ? "md:grid-cols-2" : "md:grid-cols-3")}>
               <ReportSubmissionCard
                 title="Project Performance"
                 kpi={data.report_submissions.project_performance}
                 href={REPORT_SUBMISSION_STREAMS["metrics-projects"].route}
               />
-              <ReportSubmissionCard
-                title="Delivery Status — Account"
-                kpi={data.report_submissions.delivery_status_accounts}
-                href={REPORT_SUBMISSION_STREAMS["delivery-status-account"].route}
+
+              <CustomerReportCard
+                title="Customer Project Status Reporting"
+                href="/project-health/customer-project-reports"
+                shared={data.customer_project_reports.shared_count}
+                notShared={data.customer_project_reports.not_shared_count}
+                notSubmitted={data.customer_project_reports.not_submitted_count}
               />
-              <ReportSubmissionCard
-                title="Delivery Status — Geo"
-                kpi={data.report_submissions.delivery_status_geos}
-                href={REPORT_SUBMISSION_STREAMS["delivery-status-geo"].route}
-              />
+
+              {isPm ? null : (
+                <CustomerReportCard
+                  title="Customer Account Reporting"
+                  href="/project-health/customer-account-reports"
+                  shared={data.customer_account_reports.shared_count}
+                  notShared={data.customer_account_reports.not_shared_count}
+                  newCount={data.customer_account_reports.new_count}
+                />
+              )}
             </div>
           </section>
+
+          {showOracleProjects ? (
+            <section className="flex flex-col gap-3">
+              <SectionHeader
+                title="Oracle Projects"
+                icon={Database}
+                className="border-slate-200 bg-slate-50 text-slate-600"
+              />
+              <p className="text-xs text-slate-400">
+                Oracle projects that no governance project has been created for.
+                {effectiveRole === "GEO_HEAD"
+                  ? " Shows your geos' projects and those with no GEO."
+                  : effectiveRole === "ACCOUNT_MANAGER"
+                    ? " Shows your accounts' projects."
+                    : ""}
+              </p>
+              <ProjectHealthOracleProjectsSection filters={filters} />
+            </section>
+          ) : null}
         </>
       )}
     </div>

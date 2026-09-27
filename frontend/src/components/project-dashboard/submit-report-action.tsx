@@ -12,6 +12,7 @@ import {
   useUpdateStatusReport,
   type ProjectStatusReport,
 } from "@/lib/api/project-status";
+import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString(undefined, {
@@ -24,7 +25,7 @@ function formatDateTime(value: string): string {
 }
 
 // Project Manager's counterpart to status-review/review-actions.tsx's
-// ReviewActions (the Account Manager's Approve/Reject bar) — submits a report
+// ReviewActions (the Delivery Manager's Approve/Reject bar) — submits a report
 // for review instead of deciding one. Key Metrics stay editable only on
 // Project Status; this just flips Draft/none -> Submitted for whatever's
 // already been entered there and on RAG Status.
@@ -60,7 +61,7 @@ export function SubmitReportAction({
         <StatusBadge value={report.status} />
         <span>
           {report.status === "Submitted"
-            ? "Submitted — awaiting Account Manager review."
+            ? `Submitted — awaiting ${ACCOUNT_MANAGER_LABEL} review.`
             : `Reviewed${report.reviewed_at ? ` on ${formatDateTime(report.reviewed_at)}` : ""}${
                 report.review_comment ? ` — ${report.review_comment}` : ""
               }`}

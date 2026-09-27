@@ -56,3 +56,4 @@
 \ir tables/51_notifications.sql
 \ir tables/53_exchange_rates.sql
 \ir tables/54_account_customer_communications.sql
+\ir tables/55_oracle_man_month.sql

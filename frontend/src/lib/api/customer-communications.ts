@@ -66,28 +66,49 @@ export async function downloadCustomerCommunicationFile(
   URL.revokeObjectURL(url);
 }
 
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+export type CustomerCommunicationQuarter = {
+  // Month range, e.g. "Jan-Mar" (with the year appended outside the current one).
+  label: string;
+  count: number;
+  current: boolean;
+};
+
 // What the Account Reporting hub's Customer Communications card shows: totals
-// (all time / this year / quarter / month, by Reporting Date), the most recent
+// (all time, plus a rolling four calendar quarters starting from the previous
+// one, by Reporting Date), the most recent
 // communication, and one box per month of the year — green ("on-time" renders
 // as the Communication Shared colour) for a month with at least one, else the
 // plain outline.
 export function summarizeCustomerCommunications(communications: CustomerCommunication[], today = new Date()) {
   const year = today.getFullYear();
-  const month = today.getMonth(); // 0-based
-  const quarter = Math.floor(month / 3);
 
-  let thisYear = 0;
-  let thisQuarter = 0;
-  let thisMonth = 0;
+  // Quarters are counted by absolute index (year * 4 + quarter) so the window
+  // can cross a year boundary.
+  const currentQuarterIndex = year * 4 + Math.floor(today.getMonth() / 3);
+  const quarterCounts = new Map<number, number>();
   const monthsWithOne = new Set<number>();
   for (const c of communications) {
     const [y, m] = c.reporting_date.split("-").map(Number);
-    if (y !== year) continue;
-    thisYear += 1;
-    monthsWithOne.add(m - 1);
-    if (Math.floor((m - 1) / 3) === quarter) thisQuarter += 1;
-    if (m - 1 === month) thisMonth += 1;
+    const index = y * 4 + Math.floor((m - 1) / 3);
+    quarterCounts.set(index, (quarterCounts.get(index) ?? 0) + 1);
+    if (y === year) monthsWithOne.add(m - 1);
   }
+
+  // Previous quarter first, then the current one, the next, and the one after.
+  const quarters: CustomerCommunicationQuarter[] = [-1, 0, 1, 2].map((offset) => {
+    const index = currentQuarterIndex + offset;
+    const quarterYear = Math.floor(index / 4);
+    const startMonth = (index % 4) * 3;
+    const months = `${MONTH_ABBR[startMonth]}-${MONTH_ABBR[startMonth + 2]}`;
+    return {
+      // The year is only spelled out when the quarter falls outside this one.
+      label: quarterYear === year ? months : `${months} ${quarterYear}`,
+      count: quarterCounts.get(index) ?? 0,
+      current: offset === 0,
+    };
+  });
 
   // The list arrives newest first (by Reporting Date).
   const latest = communications[0];
@@ -104,7 +125,7 @@ export function summarizeCustomerCommunications(communications: CustomerCommunic
   });
 
   return {
-    counts: { total: communications.length, thisYear, thisQuarter, thisMonth },
+    counts: { total: communications.length, quarters },
     last: latest ? { date: formatDayMonYear(latest.reporting_date), title: latest.title } : null,
     monthItems,
   };

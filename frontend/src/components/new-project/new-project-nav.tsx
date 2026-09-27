@@ -95,6 +95,9 @@ function buildGroups(
           href: `${base}/project-charter/schedule`,
           done: scheduleComplete,
         },
+        // Read-only view of the Oracle allocations, not a completion task —
+        // always shown as done, like AI Document Processing above.
+        { label: "Resource Allocation", href: `${base}/resource-allocation`, done: true },
       ],
     },
     {

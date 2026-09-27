@@ -19,7 +19,13 @@ export type ProjectType = {
   description: string | null;
   is_active: boolean;
 };
-export type Product = { id: string; code: string; name: string; is_active: boolean };
+export type Product = {
+  id: string;
+  code: string;
+  name: string;
+  product_group: string | null;
+  is_active: boolean;
+};
 export type Account = {
   id: string;
   name: string;
@@ -114,6 +120,32 @@ export function useUsers() {
     queryKey: ["users"],
     queryFn: () => api.get<Page<User>>(`/users${REF_LIMIT}`),
     select: (page) => page.items,
+  });
+}
+
+export type UserDirectoryQuery = {
+  search?: string;
+  roleCode?: string;
+  isActive?: boolean;
+  skip: number;
+  limit: number;
+};
+
+// Server-paginated, filterable user directory for Admin → Users & Roles. The
+// key stays under ["users"] so the user create/update/delete mutations
+// invalidate it along with every other users query.
+export function useUserDirectory(q: UserDirectoryQuery) {
+  const search = q.search?.trim() ?? "";
+  return useQuery({
+    queryKey: ["users", "directory", search, q.roleCode ?? null, q.isActive ?? null, q.skip, q.limit],
+    queryFn: () => {
+      const params = new URLSearchParams({ skip: String(q.skip), limit: String(q.limit) });
+      if (search) params.set("search", search);
+      if (q.roleCode) params.append("role_code", q.roleCode);
+      if (q.isActive !== undefined) params.set("is_active", String(q.isActive));
+      return api.get<Page<User>>(`/users?${params.toString()}`);
+    },
+    placeholderData: keepPreviousData,
   });
 }
 

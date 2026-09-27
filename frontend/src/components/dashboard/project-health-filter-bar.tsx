@@ -12,9 +12,9 @@ import { useProjectHealthPeriods, type ProjectHealthDashboardFilters } from "@/l
 const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
 
 // Project Health dashboard (design-reference/Project-Health.html) filter bar
-// — Geo/Account/Period, plus opt-in Region and Ownership
-// (showRegion / showOwnership) used by the Project List screen. No Project
-// Type filter, and no Project
+// — Geo/Region/Account/Period (Region sits right after Geo and cascades off
+// it), plus opt-in Ownership (showOwnership) used by the Project List screen.
+// No Project Type filter (it stays unset = All), and no Project
 // selector: there's no
 // existing portfolio-scale project picker in this codebase to build one
 // from, and a flat <select> enumerating every org-wide project wouldn't
@@ -29,14 +29,15 @@ const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as 
 // A Geo Head is locked to the geo(s) they own: the Geo combo lists only those.
 // With a single geo there's no "All" and it's preselected; with several, "All"
 // (= all their geos, enforced server-side) is available and the default. The
-// Account combo only offers accounts in the selected geo(s). An Account Manager likewise only sees their own
-// accounts (and those accounts' geos) in the combos. The backend enforces the
+// Account combo only offers accounts in the selected geo(s). A Delivery Manager
+// only sees their own accounts in the Account combo and gets no Geo / Region
+// combos; a Project Manager gets none of the three. The backend enforces the
 // same scoping — Project Health is open to every role, results are role-scoped.
 export function ProjectHealthFilterBar({
   filters,
   onChange,
   showPeriod = true,
-  showRegion = false,
+  showRegion = true,
   showOwnership = false,
   children,
   extraFiltersActive = false,
@@ -59,16 +60,14 @@ export function ProjectHealthFilterBar({
   const effectiveRole = useEffectiveRole();
   const isGeoHead = effectiveRole === "GEO_HEAD";
   const isAccountManager = effectiveRole === "ACCOUNT_MANAGER";
+  // A PM only owns projects (the backend already scopes their data to them), so
+  // Geo / Region / Account filters are meaningless — hide them.
+  const isPm = effectiveRole === "PROJECT_MANAGER";
+  // A Delivery Manager is already scoped to their accounts, so Geo / Region add nothing.
+  const hideGeoRegion = isPm || isAccountManager;
   const ownedGeoIds = useSession((s) => s.user?.geo_ids ?? []);
   const ownedAccountIds = useSession((s) => s.user?.account_ids ?? []);
-  const ownedAccountGeoIds = accounts
-    .filter((account) => ownedAccountIds.includes(account.id))
-    .map((account) => account.geo_id);
-  const geoOptions = isGeoHead
-    ? geos.filter((geo) => ownedGeoIds.includes(geo.id))
-    : isAccountManager
-      ? geos.filter((geo) => ownedAccountGeoIds.includes(geo.id))
-      : geos;
+  const geoOptions = isGeoHead ? geos.filter((geo) => ownedGeoIds.includes(geo.id)) : geos;
   const geoHeadHasSingleGeo = isGeoHead && geoOptions.length === 1;
   const defaultGeoId = geoHeadHasSingleGeo ? geoOptions[0].id : undefined;
 
@@ -91,9 +90,9 @@ export function ProjectHealthFilterBar({
   );
 
   const hasFilters = Boolean(
-    (filters.geoId && filters.geoId !== defaultGeoId) ||
-      (showRegion && filters.regionId) ||
-      filters.accountId ||
+    (!hideGeoRegion && filters.geoId && filters.geoId !== defaultGeoId) ||
+      (!hideGeoRegion && showRegion && filters.regionId) ||
+      (!isPm && filters.accountId) ||
       (showOwnership && filters.projectOwned) ||
       (showPeriod && filters.periodId && filters.periodId !== periods[0]?.id)
   );
@@ -102,23 +101,25 @@ export function ProjectHealthFilterBar({
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <span className="text-xs font-bold tracking-wide text-slate-500 uppercase">Filters</span>
 
-      <div className="w-40">
-        <NativeSelect
-          aria-label="Geo"
-          className="h-9 bg-white text-sm"
-          value={filters.geoId ?? ""}
-          onChange={(e) => onChange({ ...filters, geoId: e.target.value || undefined, regionId: undefined, accountId: undefined })}
-        >
-          {geoHeadHasSingleGeo ? null : <option value="">Geo [All]</option>}
-          {geoOptions.map((geo) => (
-            <option key={geo.id} value={geo.id}>
-              {geo.name}
-            </option>
-          ))}
-        </NativeSelect>
-      </div>
+      {hideGeoRegion ? null : (
+        <div className="w-40">
+          <NativeSelect
+            aria-label="Geo"
+            className="h-9 bg-white text-sm"
+            value={filters.geoId ?? ""}
+            onChange={(e) => onChange({ ...filters, geoId: e.target.value || undefined, regionId: undefined, accountId: undefined })}
+          >
+            {geoHeadHasSingleGeo ? null : <option value="">Geo [All]</option>}
+            {geoOptions.map((geo) => (
+              <option key={geo.id} value={geo.id}>
+                {geo.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      )}
 
-      {showRegion ? (
+      {showRegion && !hideGeoRegion ? (
         <div className="w-44">
           <NativeSelect
             aria-label="Region"
@@ -136,21 +137,23 @@ export function ProjectHealthFilterBar({
         </div>
       ) : null}
 
-      <div className="w-48">
-        <NativeSelect
-          aria-label="Account"
-          className="h-9 bg-white text-sm"
-          value={filters.accountId ?? ""}
-          onChange={(e) => onChange({ ...filters, accountId: e.target.value || undefined })}
-        >
-          <option value="">Account [All]</option>
-          {accountOptions.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}
-            </option>
-          ))}
-        </NativeSelect>
-      </div>
+      {isPm ? null : (
+        <div className="w-48">
+          <NativeSelect
+            aria-label="Account"
+            className="h-9 bg-white text-sm"
+            value={filters.accountId ?? ""}
+            onChange={(e) => onChange({ ...filters, accountId: e.target.value || undefined })}
+          >
+            <option value="">Account [All]</option>
+            {accountOptions.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      )}
 
       {showOwnership ? (
         <div className="w-44">

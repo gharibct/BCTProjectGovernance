@@ -19,6 +19,8 @@ from app.schemas.dashboard import (
     ActionRow,
     AssessmentRow,
     AssumptionRow,
+    CustomerAccountReportRow,
+    CustomerProjectReportRow,
     CommitmentRow,
     DashboardSummary,
     DataIntegrityRow,
@@ -44,7 +46,9 @@ from app.schemas.dashboard import (
     RiskRow,
 )
 from app.schemas.enums import HealthRating, RoleCode
+from app.schemas.oracle_project_mapping import OracleProjectRow, OracleProjectSummary
 from app.services import dashboard as dashboard_service
+from app.services import oracle_project_mapping as oracle_mapping_service
 from app.services.dashboard import DashboardFilters
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -413,25 +417,28 @@ async def get_pmo_dashboard_summary(db: AsyncSession = Depends(get_db)):
 
 async def _health_scope(
     geo_id: UUID | None = Query(default=None),
+    region_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Project Health is open to every signed-in user; what they can see is
     scoped by role, as DashboardFilters kwargs (merged into the endpoint's
-    filters): Geo Head -> owned geos, Account Manager -> owned accounts,
+    filters): Geo Head -> owned geos, Delivery Manager -> owned accounts,
     Project Manager -> own projects, Team Member -> nothing. Admin / PMO / CDO /
     Delivery Excellence are org-wide. Explicitly asking for a geo/account
-    outside one's ownership is a 403."""
+    outside one's ownership is a 403. The optional Region filter applies on top
+    of whichever scope results."""
     role = await _role_code(db, current_user)
+    scope: dict
     if role == RoleCode.GEO_HEAD:
         owned = list(
             (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == current_user.id))).scalars().all()
         )
         if geo_id is not None and geo_id not in owned:
             raise HTTPException(status_code=403, detail="You do not have access to this geo.")
-        return {"geo_ids": owned}
-    if role == RoleCode.ACCOUNT_MANAGER:
+        scope = {"geo_ids": owned}
+    elif role == RoleCode.ACCOUNT_MANAGER:
         owned = list(
             (await db.execute(select(UserAccount.account_id).where(UserAccount.user_id == current_user.id)))
             .scalars()
@@ -439,12 +446,14 @@ async def _health_scope(
         )
         if account_id is not None and account_id not in owned:
             raise HTTPException(status_code=403, detail="You do not have access to this account.")
-        return {"account_ids": owned}
-    if role == RoleCode.PROJECT_MANAGER:
-        return {"project_manager_id": current_user.id}
-    if role == RoleCode.TEAM_MEMBER:
-        return {"account_ids": []}
-    return {}
+        scope = {"account_ids": owned}
+    elif role == RoleCode.PROJECT_MANAGER:
+        scope = {"project_manager_id": current_user.id}
+    elif role == RoleCode.TEAM_MEMBER:
+        scope = {"account_ids": []}
+    else:
+        scope = {}
+    return {**scope, "region_id": region_id}
 
 
 def _health_filters(
@@ -515,10 +524,15 @@ async def get_project_health_dashboard(
         payment_milestones=await dashboard_service.payment_milestones_card_summary(db, filters),
         actions=await dashboard_service.actions_card_summary(db, filters, project_ids),
         findings=await dashboard_service.findings_card_summary(db, filters),
+        alerts=await dashboard_service.alerts_card_summary(db, filters),
         de_assessments=await dashboard_service.de_assessments_card_summary(db, active_project_ids, month),
         report_submissions=await dashboard_service.report_submissions_week_summary(
             db, active_filters, active_project_ids, week, month_period
         ),
+        customer_project_reports=await dashboard_service.customer_project_report_summary(
+            db, active_project_ids, week
+        ),
+        customer_account_reports=await dashboard_service.customer_account_report_summary(db, active_account_ids),
         period_id=week.id if week else None,
         period_label=week.label if week else None,
     )
@@ -549,7 +563,6 @@ async def get_project_health_periods(
 @router.get("/project-health/projects", response_model=Page[ProjectListRow])
 async def get_project_health_project_list(
     geo_id: UUID | None = Query(default=None),
-    region_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     project_owned: str | None = Query(default=None),
@@ -560,7 +573,6 @@ async def get_project_health_project_list(
 ):
     filters = DashboardFilters(
         geo_id=geo_id,
-        region_id=region_id,
         account_id=account_id,
         project_type_id=project_type_id,
         project_owned=project_owned,
@@ -569,6 +581,69 @@ async def get_project_health_project_list(
     )
     items, total = await dashboard_service.list_projects_for_health(
         db, filters, skip=pagination.skip, limit=pagination.limit, search=search
+    )
+    return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+
+
+# Project Health -> Oracle Projects: Oracle projects (oracle_project_master) that
+# no governance project has been created for. Not for Project Managers / Team
+# Members. Geo Head sees their geos' projects plus those with no GEO; Delivery
+# Manager sees their accounts'; everyone else sees all. Geo/Region/Account
+# narrow further.
+async def _oracle_project_scope(
+    geo_id: UUID | None = Query(default=None),
+    region_id: UUID | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> oracle_mapping_service.OracleProjectScope:
+    role = await _role_code(db, current_user)
+    if role in (RoleCode.PROJECT_MANAGER, RoleCode.TEAM_MEMBER):
+        raise HTTPException(status_code=403, detail="Oracle projects are not available for your role.")
+    scope = oracle_mapping_service.OracleProjectScope(geo_id=geo_id, region_id=region_id)
+
+    if role == RoleCode.GEO_HEAD:
+        scope.owned_geo_ids = list(
+            (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == current_user.id))).scalars().all()
+        )
+        if geo_id is not None and geo_id not in scope.owned_geo_ids:
+            raise HTTPException(status_code=403, detail="You do not have access to this geo.")
+    elif role == RoleCode.ACCOUNT_MANAGER:
+        owned_account_ids = list(
+            (await db.execute(select(UserAccount.account_id).where(UserAccount.user_id == current_user.id)))
+            .scalars()
+            .all()
+        )
+        if account_id is not None and account_id not in owned_account_ids:
+            raise HTTPException(status_code=403, detail="You do not have access to this account.")
+        names = (await db.execute(select(Account.name).where(Account.id.in_(owned_account_ids)))).scalars().all()
+        scope.owned_account_names = [n.strip().lower() for n in names]
+
+    if account_id is not None:
+        name = (await db.execute(select(Account.name).where(Account.id == account_id))).scalar_one_or_none()
+        # An unknown account matches nothing rather than everything.
+        scope.account_name = name.strip().lower() if name else "\0"
+    return scope
+
+
+@router.get("/project-health/oracle-projects/summary", response_model=OracleProjectSummary)
+async def get_oracle_projects_summary(
+    scope: oracle_mapping_service.OracleProjectScope = Depends(_oracle_project_scope),
+    db: AsyncSession = Depends(get_db),
+):
+    return await oracle_mapping_service.oracle_project_summary(db, scope)
+
+
+@router.get("/project-health/oracle-projects", response_model=Page[OracleProjectRow])
+async def get_oracle_projects(
+    status: Literal["unmapped", "mapped", "all"] = Query(default="unmapped"),
+    search: str | None = Query(default=None),
+    pagination: PaginationParams = Depends(pagination_params),
+    scope: oracle_mapping_service.OracleProjectScope = Depends(_oracle_project_scope),
+    db: AsyncSession = Depends(get_db),
+):
+    items, total = await oracle_mapping_service.list_oracle_projects(
+        db, scope, status=status, search=search, skip=pagination.skip, limit=pagination.limit
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 
@@ -855,5 +930,64 @@ async def get_project_health_report_submissions(
         limit=pagination.limit,
         report_type=report_type,
         pending=pending,
+    )
+    return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+
+
+# Drill-downs behind the two customer-reporting cards. Project status covers the
+# selected weekly period (default: current week) for Active projects; account
+# reporting is the last 12 months and has no period.
+@router.get(
+    "/project-health/customer-project-reports",
+    response_model=Page[CustomerProjectReportRow],
+)
+async def get_project_health_customer_project_reports(
+    geo_id: UUID | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    project_type_id: UUID | None = Query(default=None),
+    period_id: UUID | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    search: str | None = Query(default=None),
+    pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = replace(_health_filters(geo_id, account_id, project_type_id, **scope), active_only=True)
+    active_projects = await dashboard_service.project_health_rows(db, filters)
+    week = await _weekly_period_or_current(db, period_id)
+    items, total = await dashboard_service.list_customer_project_reports_for_health(
+        db,
+        [p.project_id for p in active_projects],
+        week,
+        skip=pagination.skip,
+        limit=pagination.limit,
+        status=status_filter,
+        search=search,
+    )
+    return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+
+
+@router.get(
+    "/project-health/customer-account-reports",
+    response_model=Page[CustomerAccountReportRow],
+)
+async def get_project_health_customer_account_reports(
+    geo_id: UUID | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    project_type_id: UUID | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    search: str | None = Query(default=None),
+    pagination: PaginationParams = Depends(pagination_params),
+    scope: dict = Depends(_health_scope),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = replace(_health_filters(geo_id, account_id, project_type_id, **scope), active_only=True)
+    items, total = await dashboard_service.list_customer_account_reports_for_health(
+        db,
+        await dashboard_service.active_account_ids(db, filters),
+        skip=pagination.skip,
+        limit=pagination.limit,
+        status=status_filter,
+        search=search,
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)

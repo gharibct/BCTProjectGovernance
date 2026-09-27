@@ -38,7 +38,7 @@ function formatDateTime(value: string): string {
 }
 
 // Scope-generic counterpart to components/project-dashboard/submit-report-action.tsx
-// — the Account Manager's / Geo Head's own submit action, mirroring
+// — the Delivery Manager's / Geo Head's own submit action, mirroring
 // status-review/review-actions.tsx's ReviewActions (their reviewer's
 // Approve/Reject bar) but for submitting instead of deciding.
 export function SubmitReportAction({

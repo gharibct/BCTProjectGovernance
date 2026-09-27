@@ -211,6 +211,9 @@ class ProjectOracleIdRead(ProjectOracleIdBase):
     id: UUID
     project_id: UUID
     created_at: datetime
+    # The Oracle project's name from oracle_project_master; None when the ID isn't
+    # in the master (not loaded yet, or mistyped).
+    project_description: str | None = None
 
 
 class ProjectResourceBase(BaseModel):

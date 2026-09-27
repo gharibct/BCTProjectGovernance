@@ -36,6 +36,14 @@ EXCLUDED_TABLES: frozenset[str] = frozenset(
         # Head submits, DE approves -> real project, or rejects -> row deleted).
         "project_creation_requests",
         "project_creation_request_oracle_ids",
+        # Oracle man-month integration: loaded by scripts/import_man_month.py
+        # from the BCT Man Month Report, never entered by hand.
+        "integration_load_run",
+        "integration_man_month",
+        "oracle_employee_master",
+        "oracle_project_master",
+        "oracle_project_allocation",
+        "oracle_project_month_allocation",
     }
 )
 

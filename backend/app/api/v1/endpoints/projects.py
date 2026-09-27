@@ -21,6 +21,11 @@ from app.models.reference_data import Account, Region
 from app.models.users import User, UserAccount
 from app.schemas.approval_readiness import ApprovalReadiness
 from app.schemas.common import Page
+from app.schemas.oracle_resource_allocation import (
+    ResourceAllocationDetail,
+    ResourceAllocationRow,
+    ResourceAllocationSummary,
+)
 from app.schemas.enums import ProjectLifecycleStatus, ProjectStatus, RoleCode, YesNo
 from app.schemas.projects import (
     ProjectBulkCreate,
@@ -38,6 +43,12 @@ from app.services import notifications as notify_svc
 from app.services.amendment import active_amendment, initiate_amendment
 from app.services.approval_readiness import compute_approval_readiness
 from app.services.code_generator import generate_code
+from app.services.oracle_project_profile import oracle_project_descriptions
+from app.services.oracle_resource_allocation import (
+    list_resource_allocations,
+    resource_allocation_detail,
+    resource_allocation_summary,
+)
 
 def _is_amendable(obj: Project) -> bool:
     """An approved project can be amended unless its lifecycle state is Closed."""
@@ -124,7 +135,7 @@ async def bulk_create_project(
 ):
     """Admin bulk import: create one Draft project with its Oracle Project
     mapping. Called once per import row, so each row commits (or fails) on its
-    own. Account Manager (delivery_manager_id) is defaulted from the account's
+    own. Delivery Manager (delivery_manager_id) is defaulted from the account's
     Account Head, as the charter screen does."""
     email = payload.project_manager_email.strip().lower()
     manager = (
@@ -313,12 +324,19 @@ async def recall_approval(project_id: UUID, db: AsyncSession = Depends(get_db)):
 # --- Oracle Project ID(s) ---
 
 
+def _oracle_id_read(item: ProjectOracleId, descriptions: dict[str, str]) -> ProjectOracleIdRead:
+    read = ProjectOracleIdRead.model_validate(item)
+    read.project_description = descriptions.get(item.oracle_project_id)
+    return read
+
+
 @router.get("/{project_id}/oracle-ids", response_model=list[ProjectOracleIdRead], dependencies=_pm_read)
 async def list_oracle_ids(project_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await project_oracle_id_crud.list(
         db, filters={ProjectOracleId.project_id: project_id}, limit=200
     )
-    return items
+    descriptions = await oracle_project_descriptions(db, [item.oracle_project_id for item in items])
+    return [_oracle_id_read(item, descriptions) for item in items]
 
 
 @router.post(
@@ -328,7 +346,9 @@ async def list_oracle_ids(project_id: UUID, db: AsyncSession = Depends(get_db)):
     dependencies=_pm_write,
 )
 async def add_oracle_id(project_id: UUID, payload: ProjectOracleIdCreate, db: AsyncSession = Depends(get_db)):
-    return await project_oracle_id_crud.create(db, payload, project_id=project_id)
+    item = await project_oracle_id_crud.create(db, payload, project_id=project_id)
+    descriptions = await oracle_project_descriptions(db, [item.oracle_project_id])
+    return _oracle_id_read(item, descriptions)
 
 
 @router.delete("/{project_id}/oracle-ids/{oracle_id_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
@@ -337,6 +357,51 @@ async def delete_oracle_id(project_id: UUID, oracle_id_id: UUID, db: AsyncSessio
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Oracle ID mapping not found")
     await project_oracle_id_crud.delete(db, obj)
+
+
+# --- Oracle resource allocation (Project Setup / Amend Project page) ---
+# Read-only view of the man-month allocations of the project's mapped Oracle
+# projects (oracle_* tables, loaded by scripts/import_man_month.py).
+
+
+@router.get(
+    "/{project_id}/resource-allocation/summary",
+    response_model=ResourceAllocationSummary,
+    dependencies=_pm_read,
+)
+async def oracle_resource_allocation_summary(project_id: UUID, db: AsyncSession = Depends(get_db)):
+    return await resource_allocation_summary(db, project_id)
+
+
+@router.get(
+    "/{project_id}/resource-allocation",
+    response_model=Page[ResourceAllocationRow],
+    dependencies=_pm_read,
+)
+async def list_oracle_resource_allocations(
+    project_id: UUID,
+    search: str | None = Query(default=None, description="Matches the resource name anywhere in it"),
+    pagination: PaginationParams = Depends(pagination_params),
+    db: AsyncSession = Depends(get_db),
+):
+    items, total = await list_resource_allocations(
+        db, project_id, search=search, skip=pagination.skip, limit=pagination.limit
+    )
+    return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+
+
+@router.get(
+    "/{project_id}/resource-allocation/{employee_id}/months",
+    response_model=ResourceAllocationDetail,
+    dependencies=_pm_read,
+)
+async def oracle_resource_allocation_months(
+    project_id: UUID, employee_id: UUID, db: AsyncSession = Depends(get_db)
+):
+    detail = await resource_allocation_detail(db, project_id, employee_id)
+    if detail is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resource is not allocated on this project")
+    return detail
 
 
 # --- Resource Allocation ---

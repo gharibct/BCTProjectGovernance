@@ -10,14 +10,21 @@ FakeDB has no storage, so these assert wiring / param parsing / status codes,
 not filtered result data.
 """
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.api.v1.endpoints.users import update_user
+from app.core.db import Base
+from app.models.projects import Project
 from app.models.reference_data import Account, Geo
-from app.models.users import User
+from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.enums import RoleCode
+from app.schemas.users import UserUpdate
 from tests.test_authorization import override_auth
 
 pytestmark = pytest.mark.asyncio
@@ -231,3 +238,113 @@ async def test_set_geo_head_ok_for_admin(client, override_auth):
         f"/api/v1/geos/{gid}/geo-head", json={"user_id": None}, headers=headers
     )
     assert response.status_code == 200
+
+
+# --- Role change unallocation (update_user) --------------------------------
+# A real, isolated sqlite DB per test (same pattern as test_dashboard.py's
+# session_factory) — FakeDB has no storage, and this behavior is exactly about
+# rows actually changing.
+
+
+@pytest.fixture
+async def session_factory(tmp_path):
+    db_path = tmp_path / "users_test.db"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    yield factory
+    await engine.dispose()
+
+
+def _now():
+    return datetime.now(UTC)
+
+
+async def _make_role(session, code):
+    role = Role(id=uuid4(), code=code, name=code)
+    session.add(role)
+    await session.commit()
+    return role
+
+
+async def _make_user(session, role, **overrides):
+    overrides.setdefault("is_active", True)
+    overrides.setdefault("mfa_enrolled", False)
+    user = User(
+        id=uuid4(),
+        ldap_username=f"u{uuid4().hex[:8]}",
+        full_name="Test User",
+        email=f"{uuid4().hex[:8]}@example.com",
+        role_id=role.id,
+        created_at=_now(),
+        updated_at=_now(),
+        **overrides,
+    )
+    session.add(user)
+    await session.commit()
+    return user
+
+
+async def test_role_change_unallocates_project_account_and_geo(session_factory):
+    async with session_factory() as session:
+        pm_role = await _make_role(session, RoleCode.PROJECT_MANAGER.value)
+        other_role = await _make_role(session, RoleCode.TEAM_MEMBER.value)
+        user = await _make_user(session, pm_role)
+
+        project = Project(
+            id=uuid4(),
+            project_code=f"P-{uuid4().hex[:8]}",
+            project_name="Test Project",
+            project_status="Draft",
+            project_manager_id=user.id,
+            created_at=_now(),
+            updated_at=_now(),
+        )
+        session.add(project)
+        session.add(UserAccount(id=uuid4(), user_id=user.id, account_id=uuid4(), created_at=_now()))
+        session.add(UserGeo(id=uuid4(), user_id=user.id, geo_id=uuid4(), created_at=_now()))
+        await session.commit()
+
+        await update_user(user.id, UserUpdate(role_id=other_role.id), db=session)
+
+        refreshed_project = await session.get(Project, project.id)
+        assert refreshed_project.project_manager_id is None
+        assert (
+            await session.execute(select(UserAccount).where(UserAccount.user_id == user.id))
+        ).scalars().first() is None
+        assert (
+            await session.execute(select(UserGeo).where(UserGeo.user_id == user.id))
+        ).scalars().first() is None
+
+
+async def test_update_without_role_change_keeps_allocations(session_factory):
+    async with session_factory() as session:
+        pm_role = await _make_role(session, RoleCode.PROJECT_MANAGER.value)
+        user = await _make_user(session, pm_role)
+
+        project = Project(
+            id=uuid4(),
+            project_code=f"P-{uuid4().hex[:8]}",
+            project_name="Test Project",
+            project_status="Draft",
+            project_manager_id=user.id,
+            created_at=_now(),
+            updated_at=_now(),
+        )
+        session.add(project)
+        await session.commit()
+
+        await update_user(user.id, UserUpdate(full_name="Renamed"), db=session)
+
+        refreshed_project = await session.get(Project, project.id)
+        assert refreshed_project.project_manager_id == user.id
+
+
+async def test_update_user_not_found_raises_404(session_factory):
+    from fastapi import HTTPException
+
+    async with session_factory() as session:
+        with pytest.raises(HTTPException) as exc:
+            await update_user(uuid4(), UserUpdate(full_name="X"), db=session)
+        assert exc.value.status_code == 404

@@ -355,6 +355,35 @@ async def test_report_submissions_summary_counts_owed_vs_submitted(session_facto
         assert summary.metrics_projects.expected_count == 4
 
 
+async def test_geo_delivery_status_hidden_for_account_scoped_delivery_manager(session_factory):
+    async with session_factory() as session:
+        geo = Geo(
+            id=uuid4(), code="APAC", name="Asia Pacific", is_active=True, tool_effective_date=date(2020, 1, 1),
+            created_at=_now(), updated_at=_now(),
+        )
+        session.add(geo)
+        await session.commit()
+        await _make_period(session, date(2026, 8, 3), date(2026, 8, 9), "Weekly")
+
+        # Org-wide and Geo Head scopes owe the geo's weekly report.
+        for filters in (DashboardFilters(), DashboardFilters(geo_ids=[geo.id])):
+            summary = await dashboard_service.report_submissions_summary(session, filters, [])
+            assert summary.delivery_status_geos.expected_count == 1
+            items, total = await dashboard_service.list_report_submissions_for_health(
+                session, filters, [], skip=0, limit=100
+            )
+            assert {r.report_type for r in items} == {"Delivery Status - Geo"}
+
+        # A Delivery Manager (account-scoped, no geo scope) owes and sees no geo report.
+        scoped = DashboardFilters(account_ids=[uuid4()])
+        summary = await dashboard_service.report_submissions_summary(session, scoped, [])
+        assert summary.delivery_status_geos.expected_count == 0
+        items, total = await dashboard_service.list_report_submissions_for_health(
+            session, scoped, [], skip=0, limit=100, report_type="Delivery Status - Geo"
+        )
+        assert total == 0
+
+
 async def test_report_submissions_detail_grid_marks_each_owed_pair(session_factory):
     async with session_factory() as session:
         project = await _make_project(session, actual_start_date=date(2026, 1, 1))
@@ -574,3 +603,129 @@ async def test_previous_month_window_and_recent_weekly_periods(session_factory):
         assert all(p.period_type == "Weekly" for p in periods)
         assert periods[0].end_date == max(p.end_date for p in periods)
         assert periods[0].end_date <= date(2026, 8, 20)  # only completed periods
+
+
+# --- Project Health dashboard: customer reporting cards ---------------------------
+
+
+async def test_customer_project_report_summary_splits_shared_not_shared_not_submitted(session_factory):
+    async with session_factory() as session:
+        week = await _make_period(session, date(2026, 8, 3), date(2026, 8, 9))
+        shared = await _make_project(session, actual_start_date=date(2026, 1, 1))
+        not_shared = await _make_project(session, actual_start_date=date(2026, 1, 1))
+        unanswered = await _make_project(session, actual_start_date=date(2026, 1, 1))
+        draft = await _make_project(session, actual_start_date=date(2026, 1, 1))
+        missing = await _make_project(session, actual_start_date=date(2026, 1, 1))
+        not_yet_started = await _make_project(session, actual_start_date=date(2026, 9, 1))
+        for project, flag in ((shared, True), (not_shared, False), (unanswered, None)):
+            report = await _make_status_report(session, project, week)
+            report.customer_report_shared = flag
+        draft_report = await _make_status_report(session, draft, week, status=ReportStatus.DRAFT)
+        draft_report.customer_report_shared = True  # Draft never counts as shared
+        await session.commit()
+
+        ids = [p.id for p in (shared, not_shared, unanswered, draft, missing, not_yet_started)]
+        summary = await dashboard_service.customer_project_report_summary(session, ids, week)
+
+        assert summary.shared_count == 1
+        assert summary.not_shared_count == 2  # explicit No + never answered
+        assert summary.not_submitted_count == 2  # Draft + missing; the not-yet-started project owes nothing
+
+
+async def test_customer_account_report_summary_previous_quarter_and_new_accounts(session_factory):
+    from app.models.customer_communications import AccountCustomerCommunication
+
+    today = date.today()
+    prev_start, prev_end, current_start = dashboard_service._calendar_quarter_bounds(today)
+
+    async def make_account(session, name, onboarded):
+        account = Account(
+            id=uuid4(), name=name, is_active=True, tool_effective_date=onboarded, created_at=_now(), updated_at=_now()
+        )
+        session.add(account)
+        await session.commit()
+        return account
+
+    async def communicate(session, account, when):
+        session.add(
+            AccountCustomerCommunication(
+                id=uuid4(), account_id=account.id, reporting_date=when, title="QBR", file_name="q.pdf",
+                file_path="x/q.pdf", created_at=_now(), updated_at=_now(),
+            )
+        )
+        await session.commit()
+
+    async with session_factory() as session:
+        old = today - timedelta(days=800)
+        recent = await make_account(session, "Recent", old)
+        stale = await make_account(session, "Stale", old)
+        silent = await make_account(session, "Silent", old)
+        current_only = await make_account(session, "CurrentOnly", old)
+        new = await make_account(session, "New", current_start)
+        await communicate(session, recent, prev_start + timedelta(days=5))
+        await communicate(session, recent, prev_end)  # last day of the quarter counts
+        await communicate(session, stale, prev_start - timedelta(days=1))  # the quarter before is outside the window
+        await communicate(session, current_only, current_start)  # the current quarter is ignored
+        await communicate(session, new, prev_start + timedelta(days=5))  # New wins over Shared
+
+        summary = await dashboard_service.customer_account_report_summary(
+            session, [recent.id, stale.id, silent.id, current_only.id, new.id]
+        )
+
+        assert (summary.shared_count, summary.not_shared_count, summary.new_count) == (1, 3, 1)
+
+
+async def test_calendar_quarter_bounds():
+    bounds = dashboard_service._calendar_quarter_bounds
+    assert bounds(date(2026, 9, 25)) == (date(2026, 4, 1), date(2026, 6, 30), date(2026, 7, 1))
+    assert bounds(date(2026, 1, 1)) == (date(2025, 10, 1), date(2025, 12, 31), date(2026, 1, 1))
+    assert bounds(date(2026, 3, 31)) == (date(2025, 10, 1), date(2025, 12, 31), date(2026, 1, 1))
+    assert bounds(date(2026, 4, 1)) == (date(2026, 1, 1), date(2026, 3, 31), date(2026, 4, 1))
+
+
+async def test_customer_report_list_functions_filter_by_status_and_page(session_factory):
+    from app.models.customer_communications import AccountCustomerCommunication
+
+    async with session_factory() as session:
+        week = await _make_period(session, date(2026, 8, 3), date(2026, 8, 9))
+        shared = await _make_project(session, actual_start_date=date(2026, 1, 1))
+        missing = await _make_project(session, actual_start_date=date(2026, 1, 1))
+        report = await _make_status_report(session, shared, week)
+        report.customer_report_shared = True
+        report.customer_report_date = date(2026, 8, 6)
+        await session.commit()
+        ids = [shared.id, missing.id]
+
+        items, total = await dashboard_service.list_customer_project_reports_for_health(session, ids, week, 0, 10)
+        assert total == 2
+        assert items[0].status == "Not Submitted"  # pending first
+        assert items[1].status == "Shared with Customer"
+        assert items[1].customer_report_date == date(2026, 8, 6)
+
+        items, total = await dashboard_service.list_customer_project_reports_for_health(
+            session, ids, week, 0, 10, status="Shared with Customer"
+        )
+        assert (total, len(items)) == (1, 1)
+        items, total = await dashboard_service.list_customer_project_reports_for_health(session, ids, week, 1, 1)
+        assert (total, len(items)) == (2, 1)
+
+        old = date.today() - timedelta(days=800)
+        account = Account(id=uuid4(), name="Acme", is_active=True, tool_effective_date=old, created_at=_now(), updated_at=_now())
+        session.add(account)
+        await session.commit()
+        session.add(
+            AccountCustomerCommunication(
+                id=uuid4(), account_id=account.id, reporting_date=dashboard_service._calendar_quarter_bounds(date.today())[0], title="QBR",
+                file_name="q.pdf", file_path="x/q.pdf", created_at=_now(), updated_at=_now(),
+            )
+        )
+        await session.commit()
+
+        items, total = await dashboard_service.list_customer_account_reports_for_health(session, [account.id], 0, 10)
+        assert total == 1
+        row = items[0]
+        assert (row.status, row.last_title, row.communications_count) == ("Shared with Customer", "QBR", 1)
+        items, total = await dashboard_service.list_customer_account_reports_for_health(
+            session, [account.id], 0, 10, status="Not Shared"
+        )
+        assert total == 0

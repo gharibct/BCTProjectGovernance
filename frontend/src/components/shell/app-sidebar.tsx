@@ -32,11 +32,14 @@ import {
 
 import { cn } from "@/lib/utils";
 import { NEW_PROJECT_SEGMENT } from "@/stores/new-project-ui";
-import type { Project } from "@/lib/api/projects";
-import type { Account, Geo } from "@/lib/api/reference-data";
+import type { Geo } from "@/lib/api/reference-data";
 import { MENU_LABEL_OVERRIDES, ROLE_MENU_SECTIONS, type MenuEntryId } from "@/lib/menu-config";
 import { useSession } from "@/stores/session";
 import { usePatchScope } from "@/hooks/use-patch-scope";
+import { selectProjectHref } from "@/lib/project-context-targets";
+import { selectAccountHref } from "@/lib/account-context-targets";
+import { useAccountContext } from "@/stores/account-context";
+import { useProjectContext } from "@/stores/project-context";
 
 // --- Sidebar color system ---------------------------------------------------
 // Centralized here (this file already owns the sidebar's styling — no
@@ -281,102 +284,6 @@ function SimpleLink({
   );
 }
 
-// A project counts as "Approved" once it's past Pending Approval — Draft and
-// Pending Approval are still being set up (Maintain Project); Approved
-// onward (Approved/Under Amendment/Ongoing/Hold/Closed/Open Only for Billing)
-// is what the DE Project Approval screen produces and is what Amend Project
-// operates on.
-function isApproved(status: Project["project_status"]): boolean {
-  return status !== "Draft" && status !== "Pending Approval";
-}
-
-// Report Project Status is narrower than isApproved: a project mid-revision
-// (Under Amendment) is back in the charter-editing flow, not a live project
-// to report on, so it's excluded here (it still shows under Amend Project).
-function canReport(status: Project["project_status"]): boolean {
-  return isApproved(status) && status !== "Under Amendment";
-}
-
-// Shared renderer for every project list in the sidebar: shows the project
-// NAME (single line, ellipsised), sorted by most-recently-modified, capped at
-// the 5 newest with a "… more …" toggle for the rest. The currently-open
-// project stays visible even when it falls outside the top 5. This sits on top
-// of each group's own Draft/Approved filtering.
-const RECENT_LIMIT = 5;
-
-function ProjectNavList({
-  projects,
-  activeId,
-  hrefFor,
-  emptyLabel,
-}: {
-  projects: Project[];
-  activeId: string | undefined;
-  hrefFor: (project: Project) => string;
-  emptyLabel: string;
-}) {
-  const [showAll, setShowAll] = React.useState(false);
-  const sorted = React.useMemo(
-    () => [...projects].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
-    [projects]
-  );
-
-  if (sorted.length === 0) {
-    return <p className="px-3 py-2 text-[12px] text-slate-400">{emptyLabel}</p>;
-  }
-
-  const head = sorted.slice(0, RECENT_LIMIT);
-  const activeProject = activeId ? sorted.find((p) => p.id === activeId) : undefined;
-  const visible = showAll
-    ? sorted
-    : activeProject && !head.includes(activeProject)
-      ? [...head, activeProject]
-      : head;
-  const hiddenCount = sorted.length - visible.length;
-
-  return (
-    <>
-      {visible.map((project) => {
-        const active = project.id === activeId;
-        return (
-          <Link
-            key={project.id}
-            href={hrefFor(project)}
-            title={project.project_name}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "block w-full truncate rounded-md px-3 py-2 text-left text-[12px] transition-colors",
-              active
-                ? "bg-white/15 font-semibold text-white"
-                : "text-slate-300 hover:bg-white/5 hover:text-white"
-            )}
-          >
-            {project.project_name}
-          </Link>
-        );
-      })}
-      {hiddenCount > 0 ? (
-        <button
-          type="button"
-          onClick={() => setShowAll(true)}
-          className="px-3 py-2 text-left text-[12px] font-semibold text-slate-400 transition-colors hover:text-white"
-        >
-          … {hiddenCount} more …
-        </button>
-      ) : null}
-      {showAll && sorted.length > RECENT_LIMIT ? (
-        <button
-          type="button"
-          onClick={() => setShowAll(false)}
-          className="px-3 py-2 text-left text-[12px] font-semibold text-slate-400 transition-colors hover:text-white"
-        >
-          Show less
-        </button>
-      ) : null}
-    </>
-  );
-}
-
 function EntityNavList<T extends { id: string; name: string }>({
   entities,
   activeId,
@@ -432,32 +339,18 @@ type SidebarCtx = {
   isDashboard: boolean;
   isNewProject: boolean;
   isMaintaining: boolean;
-  routeProjectId: string | undefined;
   isAmendProject: boolean;
-  amendProjectId: string | undefined;
   isProjectReporting: boolean;
-  reportingProjectId: string | undefined;
   isDeAssessmentReport: boolean;
-  deAssessmentReportProjectId: string | undefined;
   isAccountReporting: boolean;
-  reportingAccountId: string | undefined;
   isGeoReporting: boolean;
   reportingGeoId: string | undefined;
   isProjectReview: boolean;
-  reviewProjectId: string | undefined;
   isProjectPerformance: boolean;
-  performanceProjectId: string | undefined;
   isAccountReview: boolean;
-  reviewAccountId: string | undefined;
   isGeoReview: boolean;
   reviewGeoId: string | undefined;
-  maintainProjects: Project[];
-  reportingProjects: Project[];
-  statusReportProjects: Project[];
-  reviewProjects: Project[];
-  reviewAccounts: Account[];
   reviewGeos: Geo[];
-  reportingAccounts: Account[];
   reportingGeos: Geo[];
 };
 
@@ -625,68 +518,40 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     </CollapsibleGroup>
   ),
   "account-reporting": (ctx) => (
-    <CollapsibleGroup
+    <SimpleLink
+      href={selectAccountHref("account-reporting")}
       icon={Building2}
       label={ctx.labelFor("account-reporting", "Report Account Status")}
-      active={ctx.isAccountReporting}
-      defaultOpen={ctx.isAccountReporting}
+      active={ctx.isAccountReporting || ctx.pathname === selectAccountHref("account-reporting")}
       bold={ctx.bold}
-    >
-      <EntityNavList
-        entities={ctx.reportingAccounts}
-        activeId={ctx.reportingAccountId}
-        hrefFor={(account) => `/account-reporting/${account.id}`}
-        emptyLabel="No accounts assigned yet."
-      />
-    </CollapsibleGroup>
+    />
   ),
   "maintain-project": (ctx) => (
-    <CollapsibleGroup
+    <SimpleLink
+      href={selectProjectHref("maintain-project")}
       icon={Wrench}
       label={ctx.labelFor("maintain-project", "Project Setup")}
-      active={ctx.isMaintaining}
-      defaultOpen={ctx.isMaintaining}
+      active={ctx.isMaintaining || ctx.pathname === selectProjectHref("maintain-project")}
       bold={ctx.bold}
-    >
-      <ProjectNavList
-        projects={ctx.maintainProjects}
-        activeId={ctx.isMaintaining ? ctx.routeProjectId : undefined}
-        hrefFor={(project) => `/new-project/${project.id}/project-charter`}
-        emptyLabel="No projects yet."
-      />
-    </CollapsibleGroup>
+    />
   ),
   "view-amend-projects": (ctx) => (
-    <CollapsibleGroup
+    <SimpleLink
+      href={selectProjectHref("view-amend-projects")}
       icon={Eye}
       label={ctx.labelFor("view-amend-projects", "Amend Project")}
-      active={ctx.isAmendProject}
-      defaultOpen={ctx.isAmendProject}
+      active={ctx.isAmendProject || ctx.pathname === selectProjectHref("view-amend-projects")}
       bold={ctx.bold}
-    >
-      <ProjectNavList
-        projects={ctx.reportingProjects}
-        activeId={ctx.amendProjectId}
-        hrefFor={(project) => `/amend-project/${project.id}/project-charter`}
-        emptyLabel="No approved projects yet."
-      />
-    </CollapsibleGroup>
+    />
   ),
   "project-reporting": (ctx) => (
-    <CollapsibleGroup
+    <SimpleLink
+      href={selectProjectHref("project-reporting")}
       icon={FolderOpen}
       label={ctx.labelFor("project-reporting", "Report Project Status")}
-      active={ctx.isProjectReporting}
-      defaultOpen={ctx.isProjectReporting}
+      active={ctx.isProjectReporting || ctx.pathname === selectProjectHref("project-reporting")}
       bold={ctx.bold}
-    >
-      <ProjectNavList
-        projects={ctx.statusReportProjects}
-        activeId={ctx.reportingProjectId}
-        hrefFor={(project) => `/project-reporting/${project.id}`}
-        emptyLabel="No approved projects yet."
-      />
-    </CollapsibleGroup>
+    />
   ),
   "geo-review": (ctx) => (
     <CollapsibleGroup
@@ -705,20 +570,13 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     </CollapsibleGroup>
   ),
   "account-review": (ctx) => (
-    <CollapsibleGroup
+    <SimpleLink
+      href={selectAccountHref("account-review")}
       icon={ShieldCheck}
       label={ctx.labelFor("account-review", "Account Delivery Status")}
-      active={ctx.isAccountReview}
-      defaultOpen={ctx.isAccountReview}
+      active={ctx.isAccountReview || ctx.pathname === selectAccountHref("account-review")}
       bold={ctx.bold}
-    >
-      <EntityNavList
-        entities={ctx.reviewAccounts}
-        activeId={ctx.reviewAccountId}
-        hrefFor={(account) => `/account-review/${account.id}`}
-        emptyLabel="No accounts to review yet."
-      />
-    </CollapsibleGroup>
+    />
   ),
   "admin-users-roles": (ctx) => (
     <SimpleLink
@@ -793,36 +651,22 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     />
   ),
   "project-review": (ctx) => (
-    <CollapsibleGroup
+    <SimpleLink
+      href={selectProjectHref("project-review")}
       icon={ClipboardCheck}
       label={ctx.labelFor("project-review", "Project Delivery Status")}
-      active={ctx.isProjectReview}
-      defaultOpen={ctx.isProjectReview}
+      active={ctx.isProjectReview || ctx.pathname === selectProjectHref("project-review")}
       bold={ctx.bold}
-    >
-      <ProjectNavList
-        projects={ctx.reviewProjects}
-        activeId={ctx.reviewProjectId}
-        hrefFor={(project) => `/project-review/${project.id}`}
-        emptyLabel="No projects to review yet."
-      />
-    </CollapsibleGroup>
+    />
   ),
   "project-performance": (ctx) => (
-    <CollapsibleGroup
+    <SimpleLink
+      href={selectProjectHref("project-performance")}
       icon={ChartColumn}
       label={ctx.labelFor("project-performance", "Project Performance")}
-      active={ctx.isProjectPerformance}
-      defaultOpen={ctx.isProjectPerformance}
+      active={ctx.isProjectPerformance || ctx.pathname === selectProjectHref("project-performance")}
       bold={ctx.bold}
-    >
-      <ProjectNavList
-        projects={ctx.reviewProjects}
-        activeId={ctx.performanceProjectId}
-        hrefFor={(project) => `/project-performance/${project.id}`}
-        emptyLabel="No projects yet."
-      />
-    </CollapsibleGroup>
+    />
   ),
   actions: (ctx) => (
     <SimpleLink
@@ -834,20 +678,13 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     />
   ),
   "de-assessment-report": (ctx) => (
-    <CollapsibleGroup
+    <SimpleLink
+      href={selectProjectHref("de-assessment-report")}
       icon={ShieldCheck}
       label={ctx.labelFor("de-assessment-report", "DE Assessment")}
-      active={ctx.isDeAssessmentReport}
-      defaultOpen={ctx.isDeAssessmentReport}
+      active={ctx.isDeAssessmentReport || ctx.pathname === selectProjectHref("de-assessment-report")}
       bold={ctx.bold}
-    >
-      <ProjectNavList
-        projects={ctx.statusReportProjects}
-        activeId={ctx.deAssessmentReportProjectId}
-        hrefFor={(project) => `/de-assessment/${project.id}`}
-        emptyLabel="No approved projects yet."
-      />
-    </CollapsibleGroup>
+    />
   ),
   "pm-findings": (ctx) => (
     <SimpleLink
@@ -890,16 +727,10 @@ export function AppSidebar() {
   // independent of the chosen context (Geo Head: everything in their geo;
   // Account Head: their accounts; PM/Admin/CDO: everything). Shared with the
   // standalone Actions page — see use-patch-scope.ts.
-  const { patchProjects, reportingAccounts, reportingGeos } = usePatchScope();
-
-  const maintainProjects = patchProjects.filter((p) => !isApproved(p.project_status));
-  const reportingProjects = patchProjects.filter((p) => isApproved(p.project_status));
-  const statusReportProjects = patchProjects.filter((p) => canReport(p.project_status));
+  const { reportingGeos } = usePatchScope();
 
   // The "review" (one level up) lists — now that every list is already
   // patch-scoped, review and reporting scopes coincide.
-  const reviewProjects = reportingProjects;
-  const reviewAccounts = reportingAccounts;
   const reviewGeos = reportingGeos;
 
   const isDashboard = pathname === "/dashboard";
@@ -932,6 +763,29 @@ export function AppSidebar() {
   const performanceProjectId = isProjectPerformance ? pathname.split("/")[2] : undefined;
   const reviewAccountId = isAccountReview ? pathname.split("/")[2] : undefined;
   const reviewGeoId = isGeoReview ? pathname.split("/")[2] : undefined;
+
+  // Remember whichever project screen is open as the "current" project, so the
+  // Project Context page offers it (and the recent list) next time — also covers
+  // deep links (dashboards, notifications) that skip the Context page.
+  const openProjectId =
+    (isMaintaining && routeProjectId) ||
+    amendProjectId ||
+    reportingProjectId ||
+    deAssessmentReportProjectId ||
+    reviewProjectId ||
+    performanceProjectId ||
+    undefined;
+  const { touch: touchProject } = useProjectContext();
+  React.useEffect(() => {
+    if (openProjectId) touchProject(openProjectId);
+  }, [openProjectId, touchProject]);
+
+  // Same for the account screens (Report Account Status / Account Delivery Status).
+  const openAccountId = reportingAccountId || reviewAccountId || undefined;
+  const { touch: touchAccount } = useAccountContext();
+  React.useEffect(() => {
+    if (openAccountId) touchAccount(openAccountId);
+  }, [openAccountId, touchAccount]);
 
   const labelFor = React.useCallback(
     (id: MenuEntryId, fallback: string) =>
@@ -966,32 +820,18 @@ export function AppSidebar() {
     isDashboard,
     isNewProject,
     isMaintaining,
-    routeProjectId,
     isAmendProject,
-    amendProjectId,
     isProjectReporting,
-    reportingProjectId,
     isDeAssessmentReport,
-    deAssessmentReportProjectId,
     isAccountReporting,
-    reportingAccountId,
     isGeoReporting,
     reportingGeoId,
     isProjectReview,
-    reviewProjectId,
     isProjectPerformance,
-    performanceProjectId,
     isAccountReview,
-    reviewAccountId,
     isGeoReview,
     reviewGeoId,
-    maintainProjects,
-    reportingProjects,
-    statusReportProjects,
-    reviewProjects,
-    reviewAccounts,
     reviewGeos,
-    reportingAccounts,
     reportingGeos,
   };
 

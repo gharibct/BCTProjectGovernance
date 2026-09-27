@@ -4,7 +4,7 @@ import { api } from "./client";
 
 // Reassign Owners (backend/app/api/v1/endpoints/reassignment.py) — a Geo Head or
 // Delivery Excellence user changes a Project's Project Manager, an Account's
-// Account Manager, or a Geo's Geo Head at any time, independent of the
+// Delivery Manager, or a Geo's Geo Head at any time, independent of the
 // project/amendment workflow. The server scopes each list by role: a Geo Head
 // only sees entities within their own owned geo(s); DE / Admin see everything.
 

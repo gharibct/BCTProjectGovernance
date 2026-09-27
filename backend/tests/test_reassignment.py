@@ -226,7 +226,7 @@ async def test_reassign_geo_head_rejected_for_account_head(client, override_auth
     assert response.status_code == 403
 
 
-# --- Account Manager / Geo Head single-owner replacement --------------
+# --- Delivery Manager / Geo Head single-owner replacement --------------
 
 
 async def test_reassign_account_manager_replaces_prior_owners(client, override_auth):
@@ -277,7 +277,7 @@ async def test_reassign_account_manager_geo_head_scope(client, override_auth):
     assert denied.status_code == 403
 
 
-async def test_reassign_account_manager_account_head_scope(client, override_auth):
+async def test_reassign_account_manager_rejected_for_account_head(client, override_auth):
     owned = SimpleNamespace(id=uuid4(), name="Acme", geo_id=None)
     other = SimpleNamespace(id=uuid4(), name="Globex", geo_id=None)
     headers = override_auth(
@@ -285,18 +285,14 @@ async def test_reassign_account_manager_account_head_scope(client, override_auth
         owned_account_ids=[owned.id],
         get_map={(Account, owned.id): owned, (Account, other.id): other},
     )
-    ok = await client.patch(
-        f"/api/v1/reassignment/accounts/{owned.id}",
-        json={"user_id": str(uuid4())},
-        headers=headers,
-    )
-    assert ok.status_code == 200
-    denied = await client.patch(
-        f"/api/v1/reassignment/accounts/{other.id}",
-        json={"user_id": str(uuid4())},
-        headers=headers,
-    )
-    assert denied.status_code == 403
+    # An Account Head may not reassign Delivery Managers at all.
+    for account in (owned, other):
+        response = await client.patch(
+            f"/api/v1/reassignment/accounts/{account.id}",
+            json={"user_id": str(uuid4())},
+            headers=headers,
+        )
+        assert response.status_code == 403
 
 
 async def test_reassign_geo_head_replaces_prior_owners(client, override_auth):
