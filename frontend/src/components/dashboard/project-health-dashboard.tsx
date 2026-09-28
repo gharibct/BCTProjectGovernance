@@ -159,7 +159,6 @@ function CustomerReportCard({
   shared,
   notShared,
   notSubmitted,
-  newCount,
   href,
 }: {
   title: string;
@@ -167,7 +166,6 @@ function CustomerReportCard({
   shared: number;
   notShared: number;
   notSubmitted?: number;
-  newCount?: number;
 }) {
   const expected = shared + notShared + (notSubmitted ?? 0);
   const adherencePct = expected > 0 ? Math.round((shared / expected) * 100) : 0;
@@ -184,7 +182,6 @@ function CustomerReportCard({
             valueClass={notSubmitted > 0 ? "text-red-600" : undefined}
           />
         ) : null}
-        {newCount !== undefined ? <SubStat label="New (not counted)" value={newCount} /> : null}
       </div>
     </Card>
   );
@@ -471,7 +468,7 @@ export function ProjectHealthDashboard() {
             <p className="text-xs text-slate-400">
               {isPm
                 ? "Project Performance is the monthly report for the month before the selected week. Customer Project Status Reporting covers the selected week."
-                : "Project Performance is the monthly report for the month before the selected week. Customer Project Status Reporting covers the selected week; Customer Account Reporting covers the previous calendar quarter, as it is shared quarterly and the current quarter is ignored (accounts with no entry count as Not Shared; accounts onboarded this quarter are New and left out of Adherence)."}
+                : "Project Performance is the monthly report for the month before the selected week. Customer Project Status Reporting covers the selected week; Customer Account Reporting covers the previous and the current calendar quarter, as it is shared quarterly (accounts with no entry in either count as Not Shared)."}
             </p>
             <div className={cn("grid grid-cols-1 gap-4", isPm ? "md:grid-cols-2" : "md:grid-cols-3")}>
               <ReportSubmissionCard
@@ -494,7 +491,6 @@ export function ProjectHealthDashboard() {
                   href="/project-health/customer-account-reports"
                   shared={data.customer_account_reports.shared_count}
                   notShared={data.customer_account_reports.not_shared_count}
-                  newCount={data.customer_account_reports.new_count}
                 />
               )}
             </div>

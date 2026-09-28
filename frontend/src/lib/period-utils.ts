@@ -36,6 +36,33 @@ export function recentPeriods(
     .sort((a, b) => b.start_date.localeCompare(a.start_date));
 }
 
+// Completed Weekly periods, most recent first: reporting happens on a period's
+// end date, so a week is complete once end_date <= today (local date). The same
+// weeks the Delivery Status reporting combos offer; the label is the end date.
+export function completedWeeklyPeriods(periods: ReportingPeriod[], limit = 15): ReportingPeriod[] {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return periods
+    .filter((p) => p.period_type === "Weekly" && p.is_active && p.end_date <= todayStr)
+    .sort((a, b) => b.end_date.localeCompare(a.end_date))
+    .slice(0, limit);
+}
+
+// The latest Weekly periods that have started, most recent first — the current
+// (in-progress) week plus the ones before it, `limit` in total. The DE
+// Assessment period combo uses this: unlike completedWeeklyPeriods, an
+// assessment can be recorded against the week still in progress.
+export function latestWeeklyPeriods(periods: ReportingPeriod[], limit = 10): ReportingPeriod[] {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return periods
+    .filter((p) => p.period_type === "Weekly" && p.is_active && p.start_date <= todayStr)
+    .sort((a, b) => b.end_date.localeCompare(a.end_date))
+    .slice(0, limit);
+}
+
 // The sentinel reporting_periods row (code = "BASELINE", seeded in
 // db/seed_dev.sql) that project-creation-time records reference instead of
 // a real Weekly/Monthly period — see 04_health_declarations.sql and

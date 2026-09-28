@@ -53,6 +53,9 @@ export type OracleProjectProfile = {
   region_id: string | null;
   account_id: string | null;
   notes: string[];
+  // Set when the ID may not be added: not in the master, already mapped to a
+  // project (any status), or on another pending creation request.
+  blocked_reason: string | null;
 };
 
 export function fetchOracleProjectProfile(oracleProjectId: string) {

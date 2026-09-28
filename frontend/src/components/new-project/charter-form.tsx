@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { ProductOptions } from "@/components/forms/product-options";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import { useNewProjectId, useNewProjectUi } from "@/stores/new-project-ui";
+import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   useAccounts,
@@ -56,6 +56,7 @@ import type { useAiReview } from "@/components/ai/use-ai-review";
 import { useAiFieldBinding, type FieldAi } from "@/components/ai/use-ai-field-binding";
 import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useBaselinePeriodId } from "@/lib/period-utils";
+import { BaselineLockLink, BaselineLockNotice, useBaselineEditable } from "./baseline-lock";
 import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaration";
 import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
@@ -142,18 +143,10 @@ function valuesFromProject(project: Project): ProjectPayload {
   };
 }
 
-// The form only locks once a project moves past Draft — see
-// ProjectDescriptionActions. A not-yet-created draft (no project loaded yet)
-// counts as Draft too.
-function isDraftStatus(project: Project | undefined): boolean {
-  return !project || project.project_status === "Draft";
-}
-
-// Statuses in which the charter is directly editable without an "Edit Project"
-// click: a Draft, or a project put back into edit via Amend ("Under Amendment").
-function isAmendableStatus(project: Project | undefined): boolean {
-  return isDraftStatus(project) || project?.project_status === "Under Amendment";
-}
+// Whether the charter forms are editable is decided by useBaselineEditable
+// (baseline-lock.tsx): only a Draft or an Under Amendment project can be edited —
+// there is no "Edit Project" unlock any more. To change an Approved project,
+// initiate an amendment; a Pending Approval project must be recalled first.
 
 function useProjectProfileForm() {
   const projectId = useNewProjectId();
@@ -192,15 +185,17 @@ function ProjectDescriptionTab({
   projectNameError?: string;
 }) {
   const projectId = useNewProjectId();
-  const { data: project } = useProject(projectId);
-  const isEditing = useNewProjectUi((state) => state.isEditing);
-  const locked = !isAmendableStatus(project) && !isEditing;
+  const { project, editable } = useBaselineEditable();
+  const locked = !editable;
   // The same charter form serves /new-project and /amend-project — the
   // lifecycle Project Status combo only belongs to the Amend flow.
   const isAmend = (usePathname() ?? "").split("/")[1] === "amend-project";
   // Project Type is fixed once a project exists and is being amended — the
   // amendment snapshot/measurement wiring is keyed to the original type.
   const projectTypeLocked = locked || project?.project_status === "Under Amendment";
+  // The lifecycle state (Ongoing / Hold / Closed / …) moves only through an
+  // amendment — the server rejects a change in any other status.
+  const lifecycleEditable = project?.project_status === "Under Amendment";
 
   const { data: organizations } = useOrganizations();
   const { data: geos } = useGeos();
@@ -273,9 +268,9 @@ function ProjectDescriptionTab({
             htmlFor="lifecycle-status"
             className="max-w-xs"
             hint={
-              locked
-                ? "Editable once the amendment is initiated."
-                : "The project's current lifecycle state — optional."
+              lifecycleEditable
+                ? "The project's current lifecycle state — optional."
+                : "Editable only while the project is Under Amendment."
             }
           >
             <NativeSelect
@@ -286,7 +281,7 @@ function ProjectDescriptionTab({
                   (e.target.value || undefined) as ProjectLifecycleStatus | undefined,
                 )
               }
-              disabled={locked}
+              disabled={!lifecycleEditable}
             >
               <option value="">Select…</option>
               {PROJECT_LIFECYCLE_STATUS_OPTIONS.map((s) => (
@@ -681,11 +676,13 @@ function ScopeAndScheduleTab({
   );
 }
 
-// Project Profile action bar: Create Project (POST) and Edit Project (PUT —
-// saves the current fields, and unlocks them if the project is locked).
-// Submitting the project for approval now has its own dedicated screen
-// (new-project/[projectId]/send-to-approval), which validates governance
-// completeness server-side before moving Draft -> Pending Approval.
+// Project Profile action bar: Create Project (POST, only before the project
+// exists) and Save (PUT — only while the baseline is editable, i.e. Draft or Under
+// Amendment). There is no "Edit Project" unlock: an Approved project is changed by
+// initiating an amendment, a Pending Approval one by recalling it — when locked the
+// Save button is replaced by a link to that action. Submitting the project for
+// approval has its own screen (new-project/[projectId]/send-to-approval), which
+// validates governance completeness server-side.
 function ProjectDescriptionActions({
   values,
   ai,
@@ -697,8 +694,7 @@ function ProjectDescriptionActions({
 }) {
   const router = useRouter();
   const projectId = useNewProjectId();
-  const { isEditing, setEditing } = useNewProjectUi();
-  const { data: project } = useProject(projectId);
+  const { project, editable } = useBaselineEditable();
   const createProject = useCreateProject();
   const updateProject = useUpdateProject(projectId);
   const showSuccess = usePageBanner((state) => state.showSuccess);
@@ -706,27 +702,21 @@ function ProjectDescriptionActions({
 
   const primaryClass =
     "h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]";
-  const secondaryClass =
-    "h-11 bg-slate-600 px-6 text-sm font-semibold text-white hover:bg-slate-700";
 
   const status = project?.project_status;
   const isCreated = !!projectId;
-  const isDraft = isDraftStatus(project);
-  // Tracks whether an Edit Project save is in flight, so only that button shows
-  // a spinner (Create has its own `createProject.isPending`).
-  const [pendingAction, setPendingAction] = React.useState<"edit" | null>(null);
+  // Tracks whether a Save is in flight, so only that button shows a spinner
+  // (Create has its own `createProject.isPending`).
+  const [pendingAction, setPendingAction] = React.useState<"save" | null>(null);
 
-  const statusMessage = isDraft
-    ? "Editable by the Project Manager while the project is in Draft."
-    : status === "Under Amendment"
+  const statusMessage =
+    status === "Under Amendment"
       ? "Under Amendment — every field except Project Type can be changed; then use Send To Approve."
       : status === "Pending Approval"
-        ? "Pending Approval — Delivery Excellence will review and approve. Click Edit Project to make changes."
+        ? "Pending Approval — Delivery Excellence will review and approve."
         : status === "Approved"
-          ? "Approved — click Edit Project to make changes."
-          : isEditing
-            ? "Editable by the Project Manager while the project is unlocked."
-            : "Locked — click Edit Project to make changes.";
+          ? "Approved — the project baseline is locked."
+          : "Editable by the Project Manager while the project is in Draft.";
 
   const handleCreate = async () => {
     if (!values.project_name?.trim()) {
@@ -738,7 +728,6 @@ function ProjectDescriptionActions({
     onProjectNameErrorChange(null);
     try {
       const created = await createProject.mutateAsync(values);
-      setEditing(false);
       // Survives the redirect below so it's visible on the destination page
       // instead of flashing away before the navigation completes.
       showSuccess("Project Created Successfully", { persistThroughNavigation: true });
@@ -748,16 +737,12 @@ function ProjectDescriptionActions({
     }
   };
 
-  // Edit Project saves whatever is currently in the fields (a PUT — there is
-  // no client-only "unlock" step) and, for a project that's locked because
-  // it's past Draft, also unlocks it for further edits.
-  const handleEdit = async () => {
+  const handleSave = async () => {
     onProjectNameErrorChange(null);
-    setPendingAction("edit");
+    setPendingAction("save");
     try {
       await updateProject.mutateAsync(values);
       await ai.resolveAll();
-      setEditing(true);
       showSuccess("Project Updated Successfully");
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to save changes.");
@@ -770,7 +755,7 @@ function ProjectDescriptionActions({
 
   return (
     <>
-      <div className="flex justify-end gap-3">
+      <div className="flex items-center justify-end gap-3">
         {!isCreated ? (
           <Button
             className={cn(primaryClass, "gap-2")}
@@ -780,16 +765,17 @@ function ProjectDescriptionActions({
             {createProject.isPending ? <ButtonSpinner /> : null}
             Create Project
           </Button>
-        ) : null}
-        {isCreated ? (
+        ) : editable ? (
           <Button
-            className={cn(secondaryClass, "gap-2")}
+            className={cn(primaryClass, "gap-2")}
             disabled={busy}
-            onClick={handleEdit}
+            onClick={handleSave}
           >
-            {pendingAction === "edit" ? <ButtonSpinner /> : null}
-            Edit Project
+            {pendingAction === "save" ? <ButtonSpinner /> : null}
+            Save
           </Button>
+        ) : project ? (
+          <BaselineLockLink project={project} />
         ) : null}
       </div>
       <p className="flex items-center gap-2 text-sm text-slate-500">
@@ -808,10 +794,14 @@ export function ProjectProfileForm() {
   const { values, set } = useProjectProfileForm();
   const { ai, fieldAi, setAndClear } = useAiFieldBinding(projectId, "project_profile", periodId, values, set);
   const [projectNameError, setProjectNameError] = React.useState<string | null>(null);
+  const { project, editable } = useBaselineEditable();
 
   return (
     <div>
-      <LoadAiSuggestionsButton projectId={projectId} screen="project_profile" periodId={periodId} ai={ai} />
+      {!editable && project ? <BaselineLockNotice project={project} /> : null}
+      {editable ? (
+        <LoadAiSuggestionsButton projectId={projectId} screen="project_profile" periodId={periodId} ai={ai} />
+      ) : null}
       <ProjectDescriptionTab
         values={values}
         fieldAi={fieldAi}
@@ -828,8 +818,8 @@ export function ProjectProfileForm() {
 export function ScopeScheduleForm() {
   const projectId = useNewProjectId();
   const periodId = useBaselinePeriodId();
-  const isEditing = useNewProjectUi((state) => state.isEditing);
   const { project, values, set } = useProjectProfileForm();
+  const { editable } = useBaselineEditable();
   const updateProject = useUpdateProject(projectId);
   const { ai, fieldAi, setAndClear } = useAiFieldBinding(projectId, "scope_schedule", periodId, values, set);
   const showSuccess = usePageBanner((state) => state.showSuccess);
@@ -841,43 +831,49 @@ export function ScopeScheduleForm() {
     );
   }
 
-  const isDraft = isDraftStatus(project);
-  const isUnderAmendment = project?.project_status === "Under Amendment";
-  const locked = !isAmendableStatus(project) && !isEditing;
+  const locked = !editable;
+  const status = project?.project_status;
 
   return (
     <div>
-      <LoadAiSuggestionsButton projectId={projectId} screen="scope_schedule" periodId={periodId} ai={ai} />
+      {locked && project ? <BaselineLockNotice project={project} /> : null}
+      {editable ? (
+        <LoadAiSuggestionsButton projectId={projectId} screen="scope_schedule" periodId={periodId} ai={ai} />
+      ) : null}
       <ScopeAndScheduleTab values={values} fieldAi={fieldAi} setAndClear={setAndClear} locked={locked} />
       <div className="mt-10 flex flex-col gap-4">
-        <div className="flex justify-end gap-3">
-          <Button
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-            disabled={locked || updateProject.isPending}
-            onClick={() =>
-              updateProject.mutate(values, {
-                onSuccess: () => {
-                  ai.resolveAll();
-                  showSuccess("Scope & Schedule Saved Successfully");
-                },
-                onError: (err) =>
-                  showError(err instanceof Error ? err.message : "Failed to save changes."),
-              })
-            }
-          >
-            {updateProject.isPending ? <ButtonSpinner /> : null}
-            Save Scope &amp; Schedule
-          </Button>
+        <div className="flex items-center justify-end gap-3">
+          {locked && project ? (
+            <BaselineLockLink project={project} />
+          ) : (
+            <Button
+              className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+              disabled={updateProject.isPending}
+              onClick={() =>
+                updateProject.mutate(values, {
+                  onSuccess: () => {
+                    ai.resolveAll();
+                    showSuccess("Scope & Schedule Saved Successfully");
+                  },
+                  onError: (err) =>
+                    showError(err instanceof Error ? err.message : "Failed to save changes."),
+                })
+              }
+            >
+              {updateProject.isPending ? <ButtonSpinner /> : null}
+              Save Scope &amp; Schedule
+            </Button>
+          )}
         </div>
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Lock className="size-4" />
-          {isDraft
-            ? "Editable by the Project Manager while the project is in Draft."
-            : isUnderAmendment
-              ? "Under Amendment — editable; submit via Send To Approve when done."
-              : isEditing
-                ? "Editable by the Project Manager while the project is unlocked."
-                : "Locked — click Edit Project on the Project Profile tab to make changes."}
+          {status === "Under Amendment"
+            ? "Under Amendment — editable; submit via Send To Approve when done."
+            : status === "Pending Approval"
+              ? "Pending Approval — Delivery Excellence will review and approve."
+              : status === "Approved"
+                ? "Approved — the project baseline is locked."
+                : "Editable by the Project Manager while the project is in Draft."}
         </p>
       </div>
     </div>

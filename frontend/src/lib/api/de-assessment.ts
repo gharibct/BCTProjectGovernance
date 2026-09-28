@@ -71,6 +71,8 @@ export type DEAssessment = {
   id: string;
   project_id: string;
   assessment_date: string | null;
+  // Weekly reporting period the assessment is aligned with; null on older rows.
+  period_id: string | null;
   de_assessed_project_health: HealthRating;
   pci_score: string | null;
   remarks: string | null;
@@ -87,6 +89,7 @@ export type DEAssessment = {
 // "Draft" for Save Draft.
 export type DEAssessmentPayload = {
   assessment_date?: string;
+  period_id?: string;
   de_assessed_project_health: HealthRating;
   pci_score?: string;
   remarks?: string;
@@ -95,8 +98,9 @@ export type DEAssessmentPayload = {
 
 export type DEAssessmentUpdatePayload = {
   assessment_date?: string;
+  period_id?: string;
   de_assessed_project_health?: HealthRating;
-  pci_score?: string;
+  pci_score?: string | null; // null clears a previously saved DE Score
   remarks?: string;
   status?: DEAssessmentStatus;
 };

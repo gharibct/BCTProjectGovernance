@@ -24,6 +24,7 @@ import {
   fetchOracleProjectProfile,
   useCreateProjectCreationRequest,
   useProjectCreationRequests,
+  type OracleProjectProfile,
   type ProjectCreationRequestRow,
 } from "@/lib/api/project-creation-requests";
 import {
@@ -83,14 +84,17 @@ export function ProjectCreationForm() {
   const [profileError, setProfileError] = React.useState<string | null>(null);
   // Set when the profile was filled from the first Oracle Project.
   const [profileNotes, setProfileNotes] = React.useState<string[]>([]);
-  const [profileLoading, setProfileLoading] = React.useState(false);
 
   const [oracleInput, setOracleInput] = React.useState("");
   const [oracleInputError, setOracleInputError] = React.useState<string | null>(null);
+  const [oracleValidating, setOracleValidating] = React.useState(false);
   const [pendingOracleIds, setPendingOracleIds] = React.useState<PendingOracleId[]>([]);
   const [oracleListError, setOracleListError] = React.useState<string | null>(null);
 
-  const addOracleId = () => {
+  // Every Oracle Project ID is checked on Add: it must exist in the Oracle
+  // project master and must not already belong to a project (any status) or to
+  // another pending request. The server re-checks on submit.
+  const addOracleId = async () => {
     const value = oracleInput.trim();
     if (!value) {
       setOracleInputError("Oracle Project ID is required.");
@@ -100,53 +104,54 @@ export function ProjectCreationForm() {
       setOracleInputError("This Oracle Project ID has already been added.");
       return;
     }
+
+    setOracleValidating(true);
+    let profile: OracleProjectProfile;
+    try {
+      profile = await fetchOracleProjectProfile(value);
+    } catch {
+      setOracleInputError("Couldn't validate the Oracle Project ID. Try again.");
+      return;
+    } finally {
+      setOracleValidating(false);
+    }
+    if (profile.blocked_reason) {
+      setOracleInputError(profile.blocked_reason);
+      return;
+    }
+
     setOracleInputError(null);
     setOracleListError(null);
     const isFirst = pendingOracleIds.length === 0;
     setPendingOracleIds((prev) => [...prev, { id: `${Date.now()}-${value}`, oracle_project_id: value }]);
     setOracleInput("");
-    if (isFirst) void prefillProfile(value);
+    if (isFirst) applyProfile(profile);
   };
 
   // The first Oracle Project drives the Project Profile: Organization is BCTPL,
   // Region comes from the project's "BCT <region>" geo, GEO from that region, and
   // Account from the project's account. Whatever can't be resolved is left for
-  // the requester to pick. An unknown ID is still accepted.
-  const prefillProfile = async (oracleProjectId: string) => {
-    setProfileLoading(true);
-    setProfileNotes([]);
-    try {
-      const profile = await fetchOracleProjectProfile(oracleProjectId);
-      if (!profile.found) {
-        setProfileNotes([
-          `Oracle Project ${oracleProjectId} was not found in the Oracle project master — select the Project Profile manually.`,
-        ]);
-        return;
-      }
-      const notes = [...profile.notes];
-      if (profile.organization_id) setOrganizationId(profile.organization_id);
-      if (profile.geo_id && profile.region_id) {
-        setGeoId(profile.geo_id);
-        setRegionId(profile.region_id);
-        // The Account list is filtered to the region, so only pre-select an
-        // account that is set up under this GEO / Region.
-        const account = (accounts ?? []).find((item) => item.id === profile.account_id);
-        if (account && account.geo_id === profile.geo_id && account.region_id === profile.region_id) {
-          setAccountId(account.id);
-        } else {
-          setAccountId(null);
-          if (profile.account_id) {
-            notes.push(`Account "${profile.oracle_account_name}" is not set up under the resolved GEO / Region.`);
-          }
+  // the requester to pick.
+  const applyProfile = (profile: OracleProjectProfile) => {
+    const notes = [...profile.notes];
+    if (profile.organization_id) setOrganizationId(profile.organization_id);
+    if (profile.geo_id && profile.region_id) {
+      setGeoId(profile.geo_id);
+      setRegionId(profile.region_id);
+      // The Account list is filtered to the region, so only pre-select an
+      // account that is set up under this GEO / Region.
+      const account = (accounts ?? []).find((item) => item.id === profile.account_id);
+      if (account && account.geo_id === profile.geo_id && account.region_id === profile.region_id) {
+        setAccountId(account.id);
+      } else {
+        setAccountId(null);
+        if (profile.account_id) {
+          notes.push(`Account "${profile.oracle_account_name}" is not set up under the resolved GEO / Region.`);
         }
       }
-      setProfileError(null);
-      setProfileNotes(notes);
-    } catch {
-      setProfileNotes(["Couldn't fetch the Project Profile from Oracle — select it manually."]);
-    } finally {
-      setProfileLoading(false);
     }
+    setProfileError(null);
+    setProfileNotes(notes);
   };
 
   const removeOracleId = (item: PendingOracleId) => {
@@ -355,8 +360,10 @@ export function ProjectCreationForm() {
         <div className="mt-6 flex justify-end">
           <Button
             onClick={addOracleId}
+            disabled={oracleValidating}
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
+            {oracleValidating ? <ButtonSpinner /> : null}
             Add
           </Button>
         </div>
@@ -365,9 +372,6 @@ export function ProjectCreationForm() {
       <SectionCard icon={Building2} title="Project Profile">
         {profileError ? (
           <p className="mb-4 text-sm font-medium text-red-600">{profileError}</p>
-        ) : null}
-        {profileLoading ? (
-          <p className="mb-4 text-sm text-slate-500">Fetching the Project Profile from Oracle…</p>
         ) : null}
         {profileNotes.map((note) => (
           <p key={note} className="mb-2 text-sm text-amber-700">

@@ -89,6 +89,7 @@ class DEAssessmentCreate(BaseModel):
     """
 
     assessment_date: date | None = None
+    period_id: UUID | None = None  # a Weekly reporting period
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None
     remarks: str | None = None
@@ -101,6 +102,7 @@ class DEAssessmentUpdate(BaseModel):
     status to Submitted finalizes it (writes back the Project charter health)."""
 
     assessment_date: date | None = None
+    period_id: UUID | None = None  # a Weekly reporting period
     de_assessed_project_health: HealthRating | None = None
     pci_score: Decimal | None = None
     remarks: str | None = None
@@ -112,6 +114,7 @@ class DEAssessmentRead(BaseModel):
     id: UUID
     project_id: UUID
     assessment_date: date | None
+    period_id: UUID | None = None
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None
     remarks: str | None = None

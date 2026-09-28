@@ -16,7 +16,7 @@ import {
   type ApprovalReadiness,
   type SendToApprovalError,
 } from "@/lib/api/approval-readiness";
-import { effectiveProjectStatus } from "@/lib/api/projects";
+import { effectiveProjectStatus, useProject } from "@/lib/api/projects";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
@@ -84,6 +84,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
   const showError = usePageBanner((s) => s.showError);
 
   const { data, isLoading, isError, error } = useApprovalReadiness(projectId);
+  const { data: project } = useProject(projectId);
   const send = useSendToApproval(projectId);
   const recall = useRecallApproval(projectId);
   const initiate = useInitiateAmendment(projectId);
@@ -114,12 +115,17 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
   // An approved project can be amended unless its lifecycle state is Closed.
   const canInitiate = view.project_status === "Approved" && view.lifecycle_status !== "Closed";
   const busy = send.isPending || recall.isPending || initiate.isPending;
+  // What Recall lands on is decided by the server from the project's amendment
+  // cycle, not by which route tree the PM happens to be in: an amendment goes back
+  // to Under Amendment, a first-time submission back to Draft.
+  const recallsToAmendment = project?.has_active_amendment ?? isAmend;
+  const recallTarget = recallsToAmendment ? "Under Amendment" : "Draft";
 
   const onSubmit = () => {
     send.mutate(undefined, {
       onSuccess: () => {
         setServerReadiness(null);
-        showSuccess(isAmend ? "Amendment sent for approval" : "Project Sent to Approval Successfully");
+        showSuccess(isUnderAmendment ? "Amendment sent for approval" : "Project Sent to Approval Successfully");
       },
       onError: (err) => {
         const detail = err instanceof ApiError ? err.detail : null;
@@ -138,7 +144,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
       onSuccess: () => {
         setServerReadiness(null);
         showSuccess(
-          isAmend
+          recallsToAmendment
             ? "Amendment recalled — project is back Under Amendment"
             : "Project Recalled — status set back to Draft",
         );
@@ -220,15 +226,15 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
           {isPendingApproval ? (
             <p className="text-sm text-slate-500">
               This project is with Delivery Excellence for approval. Recall it to move it back to{" "}
-              {isAmend ? "Under Amendment" : "Draft"} and make changes.
+              {recallTarget} and make changes.
             </p>
           ) : isAmend && !isUnderAmendment ? (
             <p className="text-sm text-slate-400">
-              This project is {effectiveProjectStatus(view)}. Initiate an amendment first.
+              This project is {view.project_status}. Initiate an amendment first.
             </p>
           ) : !isAmend && view.project_status !== "Draft" ? (
             <p className="text-sm text-slate-400">
-              This project is {effectiveProjectStatus(view)}. Nothing to submit.
+              This project is {view.project_status}. Nothing to submit.
             </p>
           ) : view.modules_incomplete > 0 ? (
             <p className="text-xs text-amber-600">
@@ -252,7 +258,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
               className="gap-2 border-red-200 bg-red-50 font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
             >
               {recall.isPending ? <ButtonSpinner /> : <Undo2 className="size-4" />}
-              {isAmend ? "Recall" : "Recall to Draft"}
+              {`Recall to ${recallTarget}`}
             </Button>
           </div>
         </div>

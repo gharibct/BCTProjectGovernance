@@ -39,7 +39,7 @@ test("workspace: save draft, add a finding, submit", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Project Assessment");
 
   await test.step("save draft", async () => {
-    await page.getByLabel("PCI Score").fill("72");
+    await page.getByLabel("DE Score").fill("72");
     await page.getByLabel("Assessment Remarks").fill("E2E draft — rating justified by schedule slippage.");
     await page.getByRole("button", { name: "Save Draft" }).click();
     await expect(page.getByRole("alert")).toBeVisible();

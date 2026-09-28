@@ -23,6 +23,8 @@ class ResourceAllocationRow(BaseModel):
     employee_name: str | None = None
     employee_code: str
     location: str | None = None
+    # Oracle project numbers (of the project's mapped ones) the resource is allocated to
+    oracle_project_ids: list[str] = []
     allocation_start_date: date | None = None  # earliest start
     allocation_end_date: date | None = None  # latest end; None when any period is open-ended
     total_man_months: Decimal

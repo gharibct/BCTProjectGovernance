@@ -28,22 +28,14 @@ export function DeAssessmentForm() {
 
   const [health, setHealth] = React.useState<UiHealthRating>("green");
   const [pciScore, setPciScore] = React.useState("");
-  const [pciScoreError, setPciScoreError] = React.useState<string | null>(null);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
   const submitHeader = () => {
     if (!projectId) return;
-    if (!pciScore.trim()) {
-      const message = "PCI Score is required.";
-      setPciScoreError(message);
-      showError(message);
-      return;
-    }
-    setPciScoreError(null);
     const payload: DEAssessmentPayload = {
       de_assessed_project_health: RATING_TO_API[health],
-      pci_score: pciScore,
+      pci_score: pciScore.trim() || undefined,
     };
     createAssessment.mutate(payload, {
       onSuccess: () => showSuccess("DE Assessment Submitted Successfully"),
@@ -65,12 +57,7 @@ export function DeAssessmentForm() {
           <Field label="DE Assessed Project Health" badge={<MandatoryBadge />}>
             <HealthPicker value={health} onChange={setHealth} />
           </Field>
-          <Field
-            label="PCI Score"
-            htmlFor="pci-score"
-            badge={<MandatoryBadge />}
-            error={pciScoreError ?? undefined}
-          >
+          <Field label="DE Score" htmlFor="pci-score" hint="Optional.">
             <Input
               id="pci-score"
               type="number"
@@ -78,10 +65,7 @@ export function DeAssessmentForm() {
               placeholder="0.00"
               className="h-11 w-36"
               value={pciScore}
-              onChange={(e) => {
-                setPciScore(e.target.value);
-                if (pciScoreError) setPciScoreError(null);
-              }}
+              onChange={(e) => setPciScore(e.target.value)}
             />
           </Field>
           <Button

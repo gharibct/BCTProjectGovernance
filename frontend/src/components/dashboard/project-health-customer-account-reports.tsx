@@ -28,7 +28,6 @@ type Row = CustomerAccountReportRow & { id: string };
 const STATUS_TONE: Record<string, string> = {
   [CUSTOMER_REPORT_STATUSES.shared]: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   [CUSTOMER_REPORT_STATUSES.notShared]: "bg-red-50 text-red-700 ring-red-200",
-  [CUSTOMER_REPORT_STATUSES.new]: "bg-blue-50 text-blue-700 ring-blue-200",
 };
 
 function StatusPill({ value }: { value: string }) {
@@ -48,9 +47,8 @@ const dash = (value: string | null | undefined) => (value && value.trim() ? valu
 
 // Drill-down behind the dashboard's Customer Account Reporting card: one row per
 // active account with whether it shared a presentation with the customer in the
-// previous calendar quarter (the current quarter is ignored). Accounts onboarded
-// in the current quarter are New and left out of Adherence. The dashboard's
-// Period filter doesn't apply (the window is fixed).
+// previous or the current calendar quarter. The dashboard's Period filter
+// doesn't apply (the window is fixed).
 export function ProjectHealthCustomerAccountReports() {
   const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
   const [status, setStatus] = React.useState("");
@@ -90,7 +88,7 @@ export function ProjectHealthCustomerAccountReports() {
     { key: "last_title", label: "Latest Presentation", render: (row) => dash(row.last_title), excelValue: (row) => row.last_title ?? "" },
     {
       key: "communications_count",
-      label: "Shared (12 mo.)",
+      label: "Shared (Last 2 Qtrs)",
       render: (row) => row.communications_count,
       excelValue: (row) => row.communications_count,
     },
@@ -118,8 +116,8 @@ export function ProjectHealthCustomerAccountReports() {
         <BackToProjectHealth />
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Customer Account Reporting</h1>
         <p className="text-slate-500">
-          Active accounts and whether they shared a presentation with the customer in the previous calendar quarter (no entry =
-          Not Shared). Accounts onboarded this quarter are New and are left out of Adherence.
+          Active accounts and whether they shared a presentation with the customer in the previous or the current calendar
+          quarter (no entry in either = Not Shared).
         </p>
       </header>
 
@@ -149,16 +147,14 @@ export function ProjectHealthCustomerAccountReports() {
             <option value="">Status [All]</option>
             <option value={CUSTOMER_REPORT_STATUSES.shared}>Shared with Customer</option>
             <option value={CUSTOMER_REPORT_STATUSES.notShared}>Not Shared</option>
-            <option value={CUSTOMER_REPORT_STATUSES.new}>New</option>
           </NativeSelect>
         </div>
       </ProjectHealthFilterBar>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatTile label="Adherence" value={adherence === null ? "—" : `${adherence}%`} accentClassName="border-t-[#1a6fc4]" />
         <StatTile label="Shared with Customer" value={kpi?.shared_count ?? "—"} accentClassName="border-t-emerald-500" />
         <StatTile label="Not Shared" value={kpi?.not_shared_count ?? "—"} accentClassName="border-t-red-500" />
-        <StatTile label="New (not counted)" value={kpi?.new_count ?? "—"} accentClassName="border-t-slate-400" />
       </div>
 
       {isError ? (

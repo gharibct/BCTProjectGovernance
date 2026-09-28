@@ -24,7 +24,8 @@ import {
 import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole } from "@/stores/session";
 import { useProject } from "@/lib/api/projects";
-import { useAccounts, useUsers } from "@/lib/api/reference-data";
+import { useAccounts, useReportingPeriods, useUsers } from "@/lib/api/reference-data";
+import { latestWeeklyPeriods } from "@/lib/period-utils";
 import { useLatestHealthDeclaration } from "@/lib/api/health-declarations";
 import { canWriteDeAssessment, canAssessProject } from "@/lib/api/de-assessment-permissions";
 import {
@@ -86,6 +87,7 @@ function WorkspaceInner() {
   const { data: project } = useProject(projectId);
   const { data: accounts = [] } = useAccounts();
   const { data: users = [] } = useUsers();
+  const { data: allPeriods = [] } = useReportingPeriods();
   const { data: assessments = [] } = useDEAssessments(projectId);
   const { data: findings = [] } = useDEAssessmentFindings(projectId);
   const { data: health } = useLatestHealthDeclaration(projectId);
@@ -139,7 +141,8 @@ function WorkspaceInner() {
   const [pciScore, setPciScore] = React.useState("");
   const [remarks, setRemarks] = React.useState("");
   const [assessmentDate, setAssessmentDate] = React.useState(today());
-  const [errors, setErrors] = React.useState<{ pci?: string; remarks?: string }>({});
+  const [periodChoice, setPeriodChoice] = React.useState("");
+  const [errors, setErrors] = React.useState<{ remarks?: string; period?: string }>({});
 
   const displaySourceKey = displaySource?.id ?? null;
   if (displaySourceKey !== syncedId) {
@@ -148,8 +151,21 @@ function WorkspaceInner() {
     setPciScore(displaySource?.pci_score ?? "");
     setRemarks(displaySource?.remarks ?? "");
     setAssessmentDate(displaySource?.assessment_date ?? today());
+    setPeriodChoice(displaySource?.period_id ?? "");
     setErrors({});
   }
+
+  // Period — the last 10 Weekly periods, current (in-progress) one included,
+  // newest first. A write-capable viewer who hasn't picked one gets the current
+  // week; a period already saved on the assessment stays selectable even when
+  // it has aged out of the window.
+  const periodOptions = React.useMemo(() => {
+    const recent = latestWeeklyPeriods(allPeriods);
+    const saved = displaySource?.period_id;
+    const savedPeriod = saved && !recent.some((p) => p.id === saved) ? allPeriods.find((p) => p.id === saved) : undefined;
+    return savedPeriod ? [...recent, savedPeriod] : recent;
+  }, [allPeriods, displaySource?.period_id]);
+  const periodId = periodChoice || (readOnly ? "" : (periodOptions[0]?.id ?? ""));
 
   const createAssessment = useCreateDEAssessment(projectId);
   const updateAssessment = useUpdateDEAssessment(projectId);
@@ -159,7 +175,7 @@ function WorkspaceInner() {
     if (!projectId) return;
     if (status === "Submitted") {
       const nextErrors: typeof errors = {};
-      if (!pciScore.trim()) nextErrors.pci = "PCI Score is required.";
+      if (!periodId) nextErrors.period = "Period is required.";
       if (!remarks.trim()) nextErrors.remarks = "Assessment Remarks are required.";
       setErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) {
@@ -182,8 +198,9 @@ function WorkspaceInner() {
           id: working.id,
           payload: {
             assessment_date: assessmentDate || undefined,
+            period_id: periodId || undefined,
             de_assessed_project_health: RATING_TO_API[healthValue],
-            pci_score: pciScore || undefined,
+            pci_score: pciScore.trim() || null,
             remarks: remarks || undefined,
             status,
           },
@@ -194,6 +211,7 @@ function WorkspaceInner() {
       createAssessment.mutate(
         {
           assessment_date: assessmentDate || undefined,
+          period_id: periodId || undefined,
           de_assessed_project_health: RATING_TO_API[healthValue],
           pci_score: pciScore || undefined,
           remarks: remarks || undefined,
@@ -286,19 +304,43 @@ function WorkspaceInner() {
         </div>
       ) : null}
 
-      {/* Assessment Date — leads the workspace; every section below describes
-          or supports the assessment being recorded on this date. */}
-      <SectionCard icon={CalendarDays} title="Assessment Date">
-        <Field label="Assessment Date" htmlFor="de-assessment-date" badge={<MandatoryBadge />}>
-          <Input
-            id="de-assessment-date"
-            type="date"
-            className="h-11 w-44"
-            value={assessmentDate}
-            disabled={readOnly}
-            onChange={(e) => setAssessmentDate(e.target.value)}
-          />
-        </Field>
+      {/* Assessment Date and Period — lead the workspace; every section below
+          describes or supports the assessment being recorded on this date. The
+          Period is a Weekly reporting period, aligned with Delivery Status. */}
+      <SectionCard icon={CalendarDays} title="Assessment Date & Period">
+        <div className="flex flex-wrap items-start gap-6">
+          <Field label="Assessment Date" htmlFor="de-assessment-date" badge={<MandatoryBadge />}>
+            <Input
+              id="de-assessment-date"
+              type="date"
+              className="h-11 w-44"
+              value={assessmentDate}
+              disabled={readOnly}
+              onChange={(e) => setAssessmentDate(e.target.value)}
+            />
+          </Field>
+          <Field label="Period" htmlFor="de-assessment-period" badge={<MandatoryBadge />} error={errors.period}>
+            <NativeSelect
+              id="de-assessment-period"
+              className="h-11 w-56"
+              value={periodId}
+              disabled={readOnly}
+              onChange={(e) => {
+                setPeriodChoice(e.target.value);
+                if (errors.period) setErrors((p) => ({ ...p, period: undefined }));
+              }}
+            >
+              <option value="" disabled>
+                {readOnly ? "—" : "Select a period"}
+              </option>
+              {periodOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        </div>
       </SectionCard>
 
       {/* Section 1 — Project Context Summary */}
@@ -319,7 +361,7 @@ function WorkspaceInner() {
               {previous?.de_assessed_project_health ?? "—"}
             </span>
           </ContextItem>
-          <ContextItem label="Previous PCI">
+          <ContextItem label="Previous DE Score">
             {previous?.pci_score ? `${previous.pci_score}%` : "—"}
           </ContextItem>
         </div>
@@ -382,11 +424,9 @@ function WorkspaceInner() {
             )}
           </Field>
           <Field
-            label="PCI Score"
+            label="DE Score"
             htmlFor="de-pci-score"
-            badge={<MandatoryBadge />}
-            hint="Enter a value between 0 and 100."
-            error={errors.pci}
+            hint="Optional. Enter a value between 0 and 100."
           >
             <div className="relative w-36">
               <Input
@@ -397,10 +437,7 @@ function WorkspaceInner() {
                 className="h-11 pr-8"
                 value={pciScore}
                 disabled={readOnly}
-                onChange={(e) => {
-                  setPciScore(e.target.value);
-                  if (errors.pci) setErrors((p) => ({ ...p, pci: undefined }));
-                }}
+                onChange={(e) => setPciScore(e.target.value)}
               />
               <span className="absolute top-1/2 right-3 -translate-y-1/2 text-sm text-slate-400">%</span>
             </div>

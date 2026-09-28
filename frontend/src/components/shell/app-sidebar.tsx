@@ -57,13 +57,13 @@ const itemClass =
 // when you happen to be on it).
 const dashboardClass = "bg-[#8B5CF6] hover:bg-[#7C3AED]";
 
-// Group header ("My Work" / "My Reports") base tones — per
+// Group header ("My Worklist" / "My Reports") base tones — per
 // design-reference/menu-style.png ("Option 5: Blue + Green" — teal for
 // work/transactions, blue for reports/oversight; a deliberate, explicit
 // exception to the sidebar's otherwise blue-only palette). Both use the same
 // generic brightness-based hover since their base colors differ.
 const SECTION_HEADER_COLORS: Record<string, string> = {
-  "My Work": "bg-[#14B8A6]",
+  "My Worklist": "bg-[#14B8A6]",
   "Team Worklist": "bg-[#14B8A6]",
   "My Reports": "bg-[#3B8DE3]",
 };
@@ -89,7 +89,7 @@ const childIdleClass = "border-transparent hover:bg-[#3278B8]/20";
 const hierarchyLineClass = "border-[#4D789C]/25";
 
 // Shared open/close state for the two collapsible wrappers below. `persistKey`
-// (only passed by CollapsibleSection, the "My Work"/"My Reports"
+// (only passed by CollapsibleSection, the "My Worklist"/"My Reports"
 // headings) remembers the choice in localStorage across reloads; the
 // per-item CollapsibleGroup below never passes one, so its behavior is
 // unchanged (ephemeral, resets to defaultOpen on remount). `openByDefault`
@@ -186,7 +186,7 @@ function CollapsibleGroup({
   );
 }
 
-// Wraps a labeled group of *different* menu items ("My Work", "Project
+// Wraps a labeled group of *different* menu items ("My Worklist", "Project
 // Oversight") — as opposed to CollapsibleGroup, which wraps one item's own
 // project/entity list. Renders as a solid, subdued-accent rounded box
 // (always on, not just on hover/active like a plain nav row) so it reads as
@@ -329,7 +329,7 @@ type SidebarCtx = {
   pathname: string;
   labelFor: (id: MenuEntryId, fallback: string) => string;
   routeActive: Partial<Record<MenuEntryId, boolean>>;
-  // Group headings ("My Work"/"My Reports", via CollapsibleSection) are
+  // Group headings ("My Worklist"/"My Reports", via CollapsibleSection) are
   // always bold; items rendered inside one of those sections are normal
   // weight, per design-reference/left-menu-reference.png. An item outside
   // any heading (e.g. the top "Project Health Dashboard" link, or a flat
@@ -659,6 +659,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       bold={ctx.bold}
     />
   ),
+  "project-approval": (ctx) => (
+    <SimpleLink
+      href={selectProjectHref("project-approval")}
+      icon={CheckCircle2}
+      label={ctx.labelFor("project-approval", "Approve Project Delivery Status")}
+      active={ctx.routeActive["project-approval"] || ctx.pathname === selectProjectHref("project-approval")}
+      bold={ctx.bold}
+    />
+  ),
   "project-performance": (ctx) => (
     <SimpleLink
       href={selectProjectHref("project-performance")}
@@ -707,7 +716,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
 };
 
 const SECTION_ICONS: Record<string, React.ElementType> = {
-  "My Work": Briefcase,
+  "My Worklist": Briefcase,
   "My Reports": FileBarChart2,
   "Team Worklist": Users,
 };
@@ -739,6 +748,7 @@ export function AppSidebar() {
   const isAccountReporting = pathname.startsWith("/account-reporting");
   const isGeoReporting = pathname.startsWith("/geo-reporting");
   const isProjectReview = pathname.startsWith("/project-review");
+  const isProjectApproval = pathname.startsWith("/project-approval");
   const isProjectPerformance = pathname.startsWith("/project-performance");
   const isAccountReview = pathname.startsWith("/account-review");
   const isGeoReview = pathname.startsWith("/geo-review");
@@ -759,7 +769,7 @@ export function AppSidebar() {
   const deAssessmentReportProjectId = isDeAssessmentReport ? pathname.split("/")[2] : undefined;
   const reportingAccountId = isAccountReporting ? pathname.split("/")[2] : undefined;
   const reportingGeoId = isGeoReporting ? pathname.split("/")[2] : undefined;
-  const reviewProjectId = isProjectReview ? pathname.split("/")[2] : undefined;
+  const reviewProjectId = isProjectReview || isProjectApproval ? pathname.split("/")[2] : undefined;
   const performanceProjectId = isProjectPerformance ? pathname.split("/")[2] : undefined;
   const reviewAccountId = isAccountReview ? pathname.split("/")[2] : undefined;
   const reviewGeoId = isGeoReview ? pathname.split("/")[2] : undefined;
@@ -799,6 +809,7 @@ export function AppSidebar() {
     "project-reporting": isProjectReporting,
     "de-assessment-report": isDeAssessmentReport,
     "project-review": isProjectReview,
+    "project-approval": isProjectApproval,
     "project-performance": isProjectPerformance,
     "account-review": isAccountReview,
     "geo-review": isGeoReview,
@@ -841,7 +852,7 @@ export function AppSidebar() {
     <aside className="w-64 shrink-0 bg-[#174F7E] py-6">
       <nav className="flex flex-col gap-2 px-3">
         {sections.map((section, index) => {
-          // Items directly under a heading ("My Work"/"My Reports")
+          // Items directly under a heading ("My Worklist"/"My Reports")
           // are normal weight; a bare (heading-less) section's items stay
           // bold — see design-reference/left-menu-reference.png.
           const sectionCtx: SidebarCtx = { ...ctx, bold: !section.heading };

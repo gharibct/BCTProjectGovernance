@@ -4,6 +4,7 @@ import * as React from "react";
 import { Lock } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { BaselineGate } from "../baseline-lock";
 
 import { CommitmentsTab } from "./commitments-tab";
 import { MilestonesTab } from "./milestones-tab";
@@ -43,8 +44,12 @@ export function ContractualComplianceForm() {
         ))}
       </div>
 
+      {/* Only the tab content is gated — the tab buttons above must keep
+          switching while the baseline is locked. */}
       <div className="mt-8">
-        <Active />
+        <BaselineGate>
+          <Active />
+        </BaselineGate>
       </div>
 
       <div className="mt-10 flex flex-wrap items-start justify-between gap-4">

@@ -26,17 +26,17 @@ export function ProjectHealthOracleProjectsSection({ filters }: { filters: Proje
       >
         <BigStat
           value={summary?.mapped_count ?? "—"}
-          label="Mapped Projects"
+          label="Onboarded to GovOne"
           valueClass="text-emerald-600"
         />
         <div className="flex flex-col gap-1">
           <SubStat
-            label="Not Mapped"
+            label="Not Onboarded to GovOne"
             value={summary?.unmapped_count ?? "—"}
             valueClass={unmapped > 0 ? "text-red-600" : undefined}
           />
           <SubStat
-            label="Not Mapped · No GEO"
+            label="Not Mapped to Geo in Oracle"
             value={summary?.unmapped_no_geo_count ?? "—"}
             valueClass={(summary?.unmapped_no_geo_count ?? 0) > 0 ? "text-amber-600" : undefined}
           />

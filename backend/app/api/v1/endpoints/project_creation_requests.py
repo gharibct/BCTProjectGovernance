@@ -34,6 +34,7 @@ from app.schemas.project_creation_request import (
 )
 from app.schemas.projects import ProjectCreate, ProjectOracleIdCreate, ProjectRead
 from app.services.code_generator import generate_code
+from app.services.oracle_id_validation import oracle_id_blockers
 from app.services.oracle_project_profile import resolve_oracle_project_profile
 
 router = APIRouter(prefix="/project-creation-requests", tags=["Project Creation Requests"])
@@ -116,6 +117,21 @@ async def create_request(
     current_user: User = Depends(_submitter),
     db: AsyncSession = Depends(get_db),
 ):
+    seen: set[str] = set()
+    oracle_ids: list[str] = []
+    for raw in payload.oracle_project_ids:
+        value = raw.strip()
+        if value and value not in seen:
+            seen.add(value)
+            oracle_ids.append(value)
+    if not oracle_ids:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "At least one Oracle Project ID is required."
+        )
+    blockers = await oracle_id_blockers(db, oracle_ids)
+    if blockers:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, " ".join(blockers.values()))
+
     now = datetime.now(UTC)
     request = ProjectCreationRequest(
         id=uuid4(),
@@ -135,23 +151,11 @@ async def create_request(
         updated_at=now,
     )
     db.add(request)
-
-    seen: set[str] = set()
-    oracle_ids: list[str] = []
-    for raw in payload.oracle_project_ids:
-        value = raw.strip()
-        if not value or value in seen:
-            continue
-        seen.add(value)
-        oracle_ids.append(value)
+    for value in oracle_ids:
         db.add(
             ProjectCreationRequestOracleId(
                 id=uuid4(), request_id=request.id, oracle_project_id=value, created_at=now
             )
-        )
-    if not oracle_ids:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, "At least one Oracle Project ID is required."
         )
 
     await db.flush()
@@ -166,10 +170,14 @@ async def oracle_project_profile(
 ):
     """Organization / GEO / Region / Account for an Oracle Project ID, from
     oracle_project_master — used to pre-fill the Project Profile when the first
-    Oracle Project is added. An unknown ID returns found=false (not a 404): the
-    requester can still add it and fill the profile by hand."""
+    Oracle Project is added. Also validates the ID: `blocked_reason` is set when
+    it isn't in the master (found=false, not a 404) or is already mapped to a
+    project / held by a pending request, and the ID must not be added."""
     profile = await resolve_oracle_project_profile(db, oracle_project_id)
-    return OracleProjectProfile(**vars(profile))
+    blockers = await oracle_id_blockers(db, [profile.oracle_project_id])
+    return OracleProjectProfile(
+        **vars(profile), blocked_reason=blockers.get(profile.oracle_project_id)
+    )
 
 
 @router.get("", response_model=list[ProjectCreationRequestRow])
@@ -231,6 +239,19 @@ async def approve_request(
             f"Request is {request.status}; only a Pending request can be approved.",
         )
 
+    # Re-check at approval: another project may have claimed an ID since the
+    # request was submitted. Pending requests are skipped here — a legacy pair
+    # of pending requests sharing an ID must not deadlock each other.
+    request_oracle_ids = await _oracle_ids(db, request.id)
+    blockers = await oracle_id_blockers(
+        db, request_oracle_ids, exclude_request_id=request.id, check_pending_requests=False
+    )
+    if blockers:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            " ".join(blockers.values()) + " Reject this request or ask the requester to resubmit.",
+        )
+
     code = await generate_code(db, "PROJECT")
     project = await project_crud.create(
         db,
@@ -246,7 +267,7 @@ async def approve_request(
         project_code=code,
         project_status=ProjectStatus.DRAFT,
     )
-    for oracle_project_id in await _oracle_ids(db, request.id):
+    for oracle_project_id in request_oracle_ids:
         await project_oracle_id_crud.create(
             db, ProjectOracleIdCreate(oracle_project_id=oracle_project_id), project_id=project.id
         )

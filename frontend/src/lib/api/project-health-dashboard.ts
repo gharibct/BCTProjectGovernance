@@ -119,13 +119,11 @@ export type CustomerProjectReportSummary = {
   not_submitted_count: number;
 };
 
-// Customer account reporting for the previous calendar quarter (the current
-// quarter is ignored); `new_count` = accounts onboarded in the current quarter
-// (not judged).
+// Customer account reporting over the previous + current calendar quarter:
+// Shared = at least one communication in either quarter, Not Shared = none.
 export type CustomerAccountReportSummary = {
   shared_count: number;
   not_shared_count: number;
-  new_count: number;
 };
 
 // Project-level DE assessment buckets (previous month's latest Submitted

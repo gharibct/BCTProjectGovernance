@@ -21,6 +21,8 @@ export type ResourceAllocationRow = {
   employee_name: string | null;
   employee_code: string;
   location: string | null;
+  // Oracle project numbers (of the project's mapped ones) the resource is allocated to.
+  oracle_project_ids: string[];
   allocation_start_date: string | null;
   allocation_end_date: string | null;
   total_man_months: string;

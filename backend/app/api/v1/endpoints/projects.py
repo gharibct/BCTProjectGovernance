@@ -9,7 +9,9 @@ from app.api.deps import (
     PaginationParams,
     get_current_user,
     pagination_params,
+    PROJECT_LOCKED,
     project_scope_conditions,
+    require_baseline_editable,
     require_project_access,
     require_project_read_access,
     require_role,
@@ -71,6 +73,10 @@ _pm_write = [
         )
     )
 ]
+# Baseline writes (profile, scope & schedule, Oracle mapping, resources) are
+# additionally locked outside Draft / Under Amendment — see deps.py "Baseline lock".
+# Role/ownership is checked first so an unauthorised caller gets 403, not the status.
+_baseline_write = [*_pm_write, Depends(require_baseline_editable())]
 _pm_read = [Depends(require_project_read_access())]
 
 
@@ -194,11 +200,38 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     return obj
 
 
-@router.put("/{project_id}", response_model=ProjectRead, dependencies=_pm_write)
+@router.put("/{project_id}", response_model=ProjectRead, dependencies=_baseline_write)
 async def update_project(project_id: UUID, payload: ProjectUpdate, db: AsyncSession = Depends(get_db)):
     obj = await project_crud.get(db, project_id)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
+
+    # Only reachable while Draft / Under Amendment (the baseline guard above); the
+    # two field rules below narrow that further. Unchanged values are allowed so
+    # the charter form can keep re-sending the whole payload on every save.
+    changes = payload.model_dump(exclude_unset=True)
+    if "lifecycle_status" in changes and changes["lifecycle_status"] != obj.lifecycle_status:
+        if obj.project_status != ProjectStatus.UNDER_AMENDMENT:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": PROJECT_LOCKED,
+                    "message": "Project Status can only be changed while the project is Under Amendment.",
+                    "project_status": str(obj.project_status),
+                },
+            )
+    if "project_type_id" in changes and changes["project_type_id"] != obj.project_type_id:
+        # An amendment only ever starts from an approved project, so Under Amendment
+        # means "has been approved" — the measurement targets are keyed to its type.
+        if obj.project_status == ProjectStatus.UNDER_AMENDMENT:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": PROJECT_LOCKED,
+                    "message": "Project Type cannot be changed once a project has been approved.",
+                    "project_status": str(obj.project_status),
+                },
+            )
     return await project_crud.update(db, obj, payload)
 
 
@@ -343,7 +376,7 @@ async def list_oracle_ids(project_id: UUID, db: AsyncSession = Depends(get_db)):
     "/{project_id}/oracle-ids",
     response_model=ProjectOracleIdRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=_pm_write,
+    dependencies=_baseline_write,
 )
 async def add_oracle_id(project_id: UUID, payload: ProjectOracleIdCreate, db: AsyncSession = Depends(get_db)):
     item = await project_oracle_id_crud.create(db, payload, project_id=project_id)
@@ -351,7 +384,9 @@ async def add_oracle_id(project_id: UUID, payload: ProjectOracleIdCreate, db: As
     return _oracle_id_read(item, descriptions)
 
 
-@router.delete("/{project_id}/oracle-ids/{oracle_id_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
+@router.delete(
+    "/{project_id}/oracle-ids/{oracle_id_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_baseline_write
+)
 async def delete_oracle_id(project_id: UUID, oracle_id_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await project_oracle_id_crud.get(db, oracle_id_id)
     if obj is None or obj.project_id != project_id:
@@ -429,13 +464,13 @@ async def list_resources(project_id: UUID, db: AsyncSession = Depends(get_db)):
     "/{project_id}/resources",
     response_model=ProjectResourceRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=_pm_write,
+    dependencies=_baseline_write,
 )
 async def add_resource(project_id: UUID, payload: ProjectResourceCreate, db: AsyncSession = Depends(get_db)):
     return await project_resource_crud.create(db, payload, project_id=project_id)
 
 
-@router.put("/{project_id}/resources/{resource_id}", response_model=ProjectResourceRead, dependencies=_pm_write)
+@router.put("/{project_id}/resources/{resource_id}", response_model=ProjectResourceRead, dependencies=_baseline_write)
 async def update_resource(
     project_id: UUID,
     resource_id: UUID,
@@ -448,7 +483,9 @@ async def update_resource(
     return await project_resource_crud.update(db, obj, payload)
 
 
-@router.delete("/{project_id}/resources/{resource_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
+@router.delete(
+    "/{project_id}/resources/{resource_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_baseline_write
+)
 async def delete_resource(project_id: UUID, resource_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await project_resource_crud.get(db, resource_id)
     if obj is None or obj.project_id != project_id:

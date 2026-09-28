@@ -2,8 +2,8 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, FetchedValue, ForeignKey, Numeric
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime, FetchedValue, ForeignKey, Numeric, column, exists, table
+from sqlalchemy.orm import Mapped, column_property, mapped_column
 
 from app.core.db import Base
 from app.models.mixins import TimestampColumns, UUIDPrimaryKey
@@ -94,3 +94,18 @@ class ProjectResource(Base, UUIDPrimaryKey, TimestampColumns):
     role: Mapped[str | None]
     fte_allocation: Mapped[Decimal] = mapped_column(Numeric)
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# True while an amendment cycle is open (In Progress / Submitted) for the project —
+# i.e. it is Under Amendment, or it is Pending Approval *because* an amendment was
+# submitted. Lets the UI route a Pending Approval project to Amend Project vs Project
+# Setup. A read-only subquery, not a stored column. The lightweight table() avoids
+# importing models.amendment (which imports this module); keep the statuses in step
+# with services.amendment._ACTIVE_STATUSES.
+_project_amendments = table("project_amendments", column("project_id"), column("status"))
+Project.has_active_amendment = column_property(
+    exists().where(
+        _project_amendments.c.project_id == Project.id,
+        _project_amendments.c.status.in_(("In Progress", "Submitted")),
+    )
+)

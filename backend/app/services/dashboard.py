@@ -692,7 +692,6 @@ _SUBMITTED_REPORT_STATUSES = (ReportStatus.SUBMITTED, ReportStatus.APPROVED)
 CUSTOMER_SHARED = "Shared with Customer"
 CUSTOMER_NOT_SHARED = "Not Shared"
 CUSTOMER_NOT_SUBMITTED = "Not Submitted"
-CUSTOMER_NEW = "New"
 
 
 def _submission_kpi(submitted: int, expected: int) -> ReportSubmissionKpi:
@@ -1498,7 +1497,7 @@ async def report_review_queue(
             # updated_at is the best available proxy, since the Draft ->
             # Submitted transition happens via the report's update endpoint.
             submitted_at=report.updated_at,
-            href=f"/project-review/{report.project_id}",
+            href=f"/project-approval/{report.project_id}",
         )
         for report, period_label, pm_name in rows
     ]
@@ -2390,7 +2389,7 @@ def de_attention_required(
                 prev_label = recent[1].assessment_date.strftime("%b %d") if recent[1].assessment_date else "an earlier date"
                 items.append(
                     AttentionItem(
-                        title=f"{row.project_name}: PCI declined from {recent[1].pci_score} to {recent[0].pci_score}",
+                        title=f"{row.project_name}: DE Score declined from {recent[1].pci_score} to {recent[0].pci_score}",
                         subtitle=f"Previous assessment {prev_label}",
                         href=row.href,
                     )
@@ -4777,31 +4776,28 @@ class _CustomerAccountStatus(NamedTuple):
     status: str
     last_shared_date: date | None
     last_title: str | None
-    communications_count: int  # entries dated within the previous calendar quarter
+    communications_count: int  # entries dated within the previous + current calendar quarter
 
 
 async def _customer_account_statuses(
     db: AsyncSession, account_ids: list[UUID]
 ) -> dict[UUID, _CustomerAccountStatus]:
     """Customer account reporting on a calendar-quarter cadence (not
-    period-scoped). Accounts are judged on the previous completed quarter; the
-    current quarter is ignored. Shared = the account has at least one customer
-    communication dated in the previous quarter; Not Shared = none (no entry is
-    assumed not shared); New = the account was onboarded (tool effective date,
-    else created date) in the current quarter and is not judged yet."""
+    period-scoped). Accounts are judged on the previous and the current calendar
+    quarter together. Shared = the account has at least one customer
+    communication dated in either quarter; Not Shared = none (no entry is
+    assumed not shared)."""
     if not account_ids:
         return {}
 
-    today = date.today()
-    window_start, window_end, current_quarter_start = _calendar_quarter_bounds(today)
-    onboarded_by_account = {
-        account_id: tool_effective_date or created_at.date()
-        for account_id, tool_effective_date, created_at in (
-            await db.execute(
-                select(Account.id, Account.tool_effective_date, Account.created_at).where(Account.id.in_(account_ids))
-            )
-        ).all()
-    }
+    window_start, _, current_quarter_start = _calendar_quarter_bounds(date.today())
+    # Last day of the current quarter (the 1st of the quarter after it, minus a day).
+    next_quarter_start = (
+        date(current_quarter_start.year + 1, 1, 1)
+        if current_quarter_start.month == 10
+        else date(current_quarter_start.year, current_quarter_start.month + 3, 1)
+    )
+    window_end = next_quarter_start - timedelta(days=1)
     latest: dict[UUID, tuple[date, str]] = {}
     counts: Counter = Counter()
     for account_id, reporting_date, title in (
@@ -4824,16 +4820,12 @@ async def _customer_account_statuses(
 
     out: dict[UUID, _CustomerAccountStatus] = {}
     for account_id in account_ids:
-        onboarded = onboarded_by_account.get(account_id)
         last = latest.get(account_id)
-        if onboarded is not None and onboarded >= current_quarter_start:
-            status = CUSTOMER_NEW
-        elif last is not None:
-            status = CUSTOMER_SHARED
-        else:
-            status = CUSTOMER_NOT_SHARED
         out[account_id] = _CustomerAccountStatus(
-            status, last[0] if last else None, last[1] if last else None, counts.get(account_id, 0)
+            CUSTOMER_SHARED if last is not None else CUSTOMER_NOT_SHARED,
+            last[0] if last else None,
+            last[1] if last else None,
+            counts.get(account_id, 0),
         )
     return out
 
@@ -4845,7 +4837,6 @@ async def customer_account_report_summary(
     return CustomerAccountReportSummary(
         shared_count=statuses.count(CUSTOMER_SHARED),
         not_shared_count=statuses.count(CUSTOMER_NOT_SHARED),
-        new_count=statuses.count(CUSTOMER_NEW),
     )
 
 
@@ -4858,7 +4849,7 @@ async def list_customer_account_reports_for_health(
     search: str | None = None,
 ) -> tuple[list[CustomerAccountReportRow], int]:
     """Drill-down behind the Customer Account Reporting card: one row per active
-    account with its previous-calendar-quarter customer-sharing status."""
+    account with its customer-sharing status over the previous + current calendar quarter."""
     statuses = await _customer_account_statuses(db, account_ids)
     if not statuses:
         return [], 0
@@ -4899,6 +4890,6 @@ async def list_customer_account_reports_for_health(
                 communications_count=info.communications_count,
             )
         )
-    order = {CUSTOMER_NOT_SHARED: 0, CUSTOMER_SHARED: 1, CUSTOMER_NEW: 2}  # pending first
+    order = {CUSTOMER_NOT_SHARED: 0, CUSTOMER_SHARED: 1}  # pending first
     rows.sort(key=lambda r: (order[r.status], r.account_name.lower()))
     return rows[skip : skip + limit], len(rows)

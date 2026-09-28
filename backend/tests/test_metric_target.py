@@ -4,10 +4,12 @@ modules here the "happy path" for an authenticated caller is a clean 404
 (no target set yet) rather than a 200 with an empty page.
 """
 
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 
+from app.models.projects import Project
 from app.schemas.enums import RoleCode
 from app.services.metric_reference import metric_range_errors
 from tests.test_authorization import override_auth
@@ -15,6 +17,8 @@ from tests.test_authorization import override_auth
 pytestmark = pytest.mark.asyncio
 
 _PROJECT_ID = uuid4()
+# Metric targets are baseline writes, so the guard needs a project it may edit.
+_DRAFT_PROJECT_MAP = {(Project, _PROJECT_ID): SimpleNamespace(account_id=None, geo_id=None, project_status="Draft")}
 
 
 async def test_get_development_target_requires_auth(client):
@@ -37,7 +41,7 @@ async def test_upsert_development_target_rejects_non_pm_admin(client, override_a
 
 
 async def test_upsert_development_target_passes_pm_or_admin_gate(client, override_auth):
-    headers = override_auth(RoleCode.ADMIN)
+    headers = override_auth(RoleCode.ADMIN, get_map=_DRAFT_PROJECT_MAP)
     response = await client.put(
         f"/api/v1/projects/{_PROJECT_ID}/metric-targets/development", json={}, headers=headers
     )
@@ -78,7 +82,7 @@ async def test_metric_range_errors_ignores_blank_bound_and_bad_input():
 
 
 async def test_upsert_development_target_rejects_out_of_range(client, override_auth):
-    headers = override_auth(RoleCode.ADMIN)
+    headers = override_auth(RoleCode.ADMIN, get_map=_DRAFT_PROJECT_MAP)
     response = await client.put(
         f"/api/v1/projects/{_PROJECT_ID}/metric-targets/development",
         json={"target_test_pass_rate_pct": 150},
@@ -89,7 +93,7 @@ async def test_upsert_development_target_rejects_out_of_range(client, override_a
 
 
 async def test_upsert_development_target_in_range_is_not_422(client, override_auth):
-    headers = override_auth(RoleCode.ADMIN)
+    headers = override_auth(RoleCode.ADMIN, get_map=_DRAFT_PROJECT_MAP)
     response = await client.put(
         f"/api/v1/projects/{_PROJECT_ID}/metric-targets/development",
         json={"target_test_pass_rate_pct": 95},

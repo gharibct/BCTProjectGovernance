@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access, require_project_read_access
+from app.api.deps import require_baseline_editable, require_project_access, require_project_read_access
 from app.core.db import get_db
 from app.crud.contractual import (
     contractual_commitment_actual_crud,
@@ -42,6 +42,10 @@ _pm_write_dep = require_project_access(
     RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN
 )
 _pm_write = [Depends(_pm_write_dep)]
+# Commitments and milestones themselves are baseline: create/update/delete is locked
+# outside Draft / Under Amendment (deps.py "Baseline lock"). Their *actuals* are
+# reporting data and keep the plain _pm_write gate.
+_baseline_write = [*_pm_write, Depends(require_baseline_editable())]
 _pm_read = [Depends(require_project_read_access())]
 
 
@@ -59,7 +63,7 @@ async def list_commitments(project_id: UUID, db: AsyncSession = Depends(get_db))
 
 
 @commitments_router.post(
-    "", response_model=ContractualCommitmentRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+    "", response_model=ContractualCommitmentRead, status_code=status.HTTP_201_CREATED, dependencies=_baseline_write
 )
 async def create_commitment(project_id: UUID, payload: ContractualCommitmentCreate, db: AsyncSession = Depends(get_db)):
     return await contractual_commitment_crud.create(db, payload, project_id=project_id)
@@ -73,7 +77,7 @@ async def get_commitment(project_id: UUID, commitment_id: UUID, db: AsyncSession
     return obj
 
 
-@commitments_router.put("/{commitment_id}", response_model=ContractualCommitmentRead, dependencies=_pm_write)
+@commitments_router.put("/{commitment_id}", response_model=ContractualCommitmentRead, dependencies=_baseline_write)
 async def update_commitment(
     project_id: UUID, commitment_id: UUID, payload: ContractualCommitmentUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -83,7 +87,7 @@ async def update_commitment(
     return await contractual_commitment_crud.update(db, obj, payload)
 
 
-@commitments_router.delete("/{commitment_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
+@commitments_router.delete("/{commitment_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_baseline_write)
 async def delete_commitment(project_id: UUID, commitment_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await contractual_commitment_crud.get(db, commitment_id)
     if obj is None or obj.project_id != project_id:
@@ -215,7 +219,7 @@ async def list_milestones(project_id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 @milestones_router.post(
-    "", response_model=MilestonePaymentRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write
+    "", response_model=MilestonePaymentRead, status_code=status.HTTP_201_CREATED, dependencies=_baseline_write
 )
 async def create_milestone(project_id: UUID, payload: MilestonePaymentCreate, db: AsyncSession = Depends(get_db)):
     return await milestone_payment_crud.create(db, payload, project_id=project_id)
@@ -229,7 +233,7 @@ async def get_milestone(project_id: UUID, milestone_id: UUID, db: AsyncSession =
     return obj
 
 
-@milestones_router.put("/{milestone_id}", response_model=MilestonePaymentRead, dependencies=_pm_write)
+@milestones_router.put("/{milestone_id}", response_model=MilestonePaymentRead, dependencies=_baseline_write)
 async def update_milestone(
     project_id: UUID, milestone_id: UUID, payload: MilestonePaymentUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -239,7 +243,7 @@ async def update_milestone(
     return await milestone_payment_crud.update(db, obj, payload)
 
 
-@milestones_router.delete("/{milestone_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
+@milestones_router.delete("/{milestone_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_baseline_write)
 async def delete_milestone(project_id: UUID, milestone_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await milestone_payment_crud.get(db, milestone_id)
     if obj is None or obj.project_id != project_id:

@@ -34,6 +34,7 @@ def _fake_assessment(**overrides):
         "id": uuid4(),
         "project_id": _PROJECT_ID,
         "assessment_date": date.today(),
+        "period_id": None,
         "de_assessed_project_health": "Amber",
         "pci_score": None,
         "remarks": None,
@@ -135,6 +136,33 @@ async def test_multiple_assessments_in_the_same_month_are_allowed(client, overri
     )
     assert first.status_code == 201
     assert second.status_code == 201
+
+
+async def test_create_rejects_a_period_that_is_not_a_weekly_reporting_period(client, override_auth):
+    # The fake session finds no reporting period for this id, as for a Monthly/unknown one.
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map={(Project, _PROJECT_ID): _fake_project()})
+    response = await client.post(
+        f"/api/v1/projects/{_PROJECT_ID}/de-assessments",
+        json={"de_assessed_project_health": "Green", "status": "Draft", "period_id": str(uuid4())},
+        headers=headers,
+    )
+    assert response.status_code == 422
+
+
+async def test_create_stores_the_weekly_period(client, override_auth, monkeypatch):
+    async def _accept(db, period_id):
+        return None
+
+    monkeypatch.setattr("app.api.v1.endpoints.de_assessment._require_weekly_period", _accept)
+    period_id = str(uuid4())
+    headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map={(Project, _PROJECT_ID): _fake_project()})
+    response = await client.post(
+        f"/api/v1/projects/{_PROJECT_ID}/de-assessments",
+        json={"de_assessed_project_health": "Green", "status": "Draft", "period_id": period_id},
+        headers=headers,
+    )
+    assert response.status_code == 201
+    assert response.json()["period_id"] == period_id
 
 
 async def test_get_latest_assessment_404s_when_none_recorded(client, override_auth):

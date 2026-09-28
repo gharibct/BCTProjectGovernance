@@ -26,6 +26,18 @@ _VALID_BODY = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _no_oracle_blockers(monkeypatch):
+    """FakeDB can't answer the oracle_project_master / mapping queries, so the
+    endpoint tests stub the validator (covered for real in
+    tests/test_oracle_id_validation.py). Tests that need a blocker re-patch it."""
+
+    async def none_blocked(*args, **kwargs):
+        return {}
+
+    monkeypatch.setattr("app.api.v1.endpoints.project_creation_requests.oracle_id_blockers", none_blocked)
+
+
 def _fake_request(**overrides):
     now = datetime.now(UTC)
     defaults = dict(
@@ -84,6 +96,36 @@ async def test_create_request_needs_at_least_one_oracle_id(client, override_auth
         headers=headers,
     )
     assert response.status_code == 422
+
+
+async def test_create_request_rejects_blocked_oracle_id(client, override_auth, monkeypatch):
+    async def blocked(db, ids, **kwargs):
+        return {"ORA-2": "Oracle Project ID ORA-2 is already mapped to project PRJ-1 - X (Closed)."}
+
+    monkeypatch.setattr("app.api.v1.endpoints.project_creation_requests.oracle_id_blockers", blocked)
+    headers = override_auth(RoleCode.ACCOUNT_MANAGER)
+    response = await client.post("/api/v1/project-creation-requests", json=_VALID_BODY, headers=headers)
+    assert response.status_code == 422
+    assert "already mapped to project PRJ-1" in response.json()["detail"]
+
+
+async def test_approve_rejects_when_oracle_id_got_mapped_meanwhile(client, override_auth, monkeypatch):
+    async def blocked(db, ids, **kwargs):
+        return {"ORA-1": "Oracle Project ID ORA-1 is already mapped to project PRJ-9 - Y (Draft)."}
+
+    monkeypatch.setattr("app.api.v1.endpoints.project_creation_requests.oracle_id_blockers", blocked)
+    request = _fake_request()
+    headers = override_auth(
+        RoleCode.DELIVERY_EXCELLENCE,
+        get_map={(ProjectCreationRequest, _REQUEST_ID): request},
+    )
+    response = await client.post(
+        f"/api/v1/project-creation-requests/{_REQUEST_ID}/approve",
+        json={"reviewed_by": str(_REVIEWER_ID)},
+        headers=headers,
+    )
+    assert response.status_code == 422
+    assert request.status == "Pending"
 
 
 # --- queue ----------------------------------------------------------------

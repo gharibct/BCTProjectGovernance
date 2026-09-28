@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils";
 // Account Reporting hub's "Customer Communications" card — sits beside the
 // Delivery Status card (progress-ring-card.tsx), so it copies that card's
 // chrome and its 32-unit ring: the total communications shared in the ring,
-// counts for the previous, current and next two quarters (as month ranges,
-// e.g. Jan-Mar) where the legend is, the last
+// counts for the previous three quarters and the current one last (as month
+// ranges with the year, e.g. Jan-Mar 2026) where the legend is, the last
 // communication underneath, and an Add Communication action.
 
 // Same geometry as the donut in ReportingProgressCard.

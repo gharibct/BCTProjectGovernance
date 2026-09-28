@@ -6,6 +6,7 @@ import { Target } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useNewProjectId } from "@/stores/new-project-ui";
+import { BaselineGate } from "../baseline-lock";
 import { usePageBanner } from "@/stores/page-banner";
 import { useProject } from "@/lib/api/projects";
 import {
@@ -347,37 +348,39 @@ export function MeasurementTabs() {
   const Active = activeTab.content;
 
   return (
-    <div>
-      <div role="tablist" className="flex gap-8 border-b border-slate-200">
-        <span
-          role="tab"
-          aria-selected="true"
-          className="-mb-px border-b-2 border-[#1a4a7a] pb-3 text-sm font-semibold whitespace-nowrap text-[#1a4a7a]"
-        >
-          {activeTab.label}
-        </span>
-      </div>
-
-      <div className="mt-8">
-        <Active m={m} set={setField} reference={reference} errors={fieldErrors} />
-      </div>
-
-      <div className="mt-10 flex flex-wrap items-start justify-between gap-4">
-        <p className="flex max-w-2xl items-start gap-2 text-sm text-slate-500">
-          <Target className="mt-0.5 size-4 shrink-0" />
-          We&apos;re at the planning stage — only target metrics can be set;
-          actuals follow once the project is underway.
-        </p>
-        <div className="flex shrink-0 gap-3">
-          <Button
-            onClick={handleSave}
-            disabled={!projectId || target.isSaving}
-            className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+    <BaselineGate>
+      <div>
+        <div role="tablist" className="flex gap-8 border-b border-slate-200">
+          <span
+            role="tab"
+            aria-selected="true"
+            className="-mb-px border-b-2 border-[#1a4a7a] pb-3 text-sm font-semibold whitespace-nowrap text-[#1a4a7a]"
           >
-            {target.isSaving ? "Saving…" : "Save Targets"}
-          </Button>
+            {activeTab.label}
+          </span>
+        </div>
+
+        <div className="mt-8">
+          <Active m={m} set={setField} reference={reference} errors={fieldErrors} />
+        </div>
+
+        <div className="mt-10 flex flex-wrap items-start justify-between gap-4">
+          <p className="flex max-w-2xl items-start gap-2 text-sm text-slate-500">
+            <Target className="mt-0.5 size-4 shrink-0" />
+            We&apos;re at the planning stage — only target metrics can be set;
+            actuals follow once the project is underway.
+          </p>
+          <div className="flex shrink-0 gap-3">
+            <Button
+              onClick={handleSave}
+              disabled={!projectId || target.isSaving}
+              className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              {target.isSaving ? "Saving…" : "Save Targets"}
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </BaselineGate>
   );
 }

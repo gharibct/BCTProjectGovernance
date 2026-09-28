@@ -57,6 +57,9 @@ class OracleProjectProfile(BaseModel):
     region_id: UUID | None = None
     account_id: UUID | None = None
     notes: list[str] = []
+    # Set when the ID may not be used: not in the master, already mapped to a
+    # project (any status), or on another pending creation request.
+    blocked_reason: str | None = None
 
 
 class ProjectCreationApproveRequest(BaseModel):

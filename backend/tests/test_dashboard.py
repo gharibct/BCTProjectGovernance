@@ -632,7 +632,7 @@ async def test_customer_project_report_summary_splits_shared_not_shared_not_subm
         assert summary.not_submitted_count == 2  # Draft + missing; the not-yet-started project owes nothing
 
 
-async def test_customer_account_report_summary_previous_quarter_and_new_accounts(session_factory):
+async def test_customer_account_report_summary_previous_and_current_quarter(session_factory):
     from app.models.customer_communications import AccountCustomerCommunication
 
     today = date.today()
@@ -661,18 +661,19 @@ async def test_customer_account_report_summary_previous_quarter_and_new_accounts
         stale = await make_account(session, "Stale", old)
         silent = await make_account(session, "Silent", old)
         current_only = await make_account(session, "CurrentOnly", old)
-        new = await make_account(session, "New", current_start)
+        onboarded_now = await make_account(session, "OnboardedNow", current_start)  # no special "New" status
         await communicate(session, recent, prev_start + timedelta(days=5))
-        await communicate(session, recent, prev_end)  # last day of the quarter counts
+        await communicate(session, recent, prev_end)  # last day of the previous quarter counts
         await communicate(session, stale, prev_start - timedelta(days=1))  # the quarter before is outside the window
-        await communicate(session, current_only, current_start)  # the current quarter is ignored
-        await communicate(session, new, prev_start + timedelta(days=5))  # New wins over Shared
+        await communicate(session, current_only, current_start)  # the current quarter counts too
 
         summary = await dashboard_service.customer_account_report_summary(
-            session, [recent.id, stale.id, silent.id, current_only.id, new.id]
+            session, [recent.id, stale.id, silent.id, current_only.id, onboarded_now.id]
         )
 
-        assert (summary.shared_count, summary.not_shared_count, summary.new_count) == (1, 3, 1)
+        # recent + current_only are Shared; stale, silent and the just-onboarded account are Not Shared.
+        assert (summary.shared_count, summary.not_shared_count) == (2, 3)
+        assert not hasattr(summary, "new_count")
 
 
 async def test_calendar_quarter_bounds():

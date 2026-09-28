@@ -32,6 +32,7 @@ export type MenuEntryId =
   | "account-reporting"
   | "geo-reporting"
   | "project-review"
+  | "project-approval"
   | "project-performance"
   | "actions"
   | "account-review"
@@ -46,7 +47,7 @@ export type MenuEntryId =
 
 const DASHBOARD_ONLY_MENU: MenuEntryId[] = ["dashboard"];
 
-// A labeled, collapsible group of sidebar items ("My Work", "Project
+// A labeled, collapsible group of sidebar items ("My Worklist", "Project
 // Oversight"), or an ungrouped item list when `heading` is omitted (rendered
 // bare, same as before this existed). Every RoleCode gets an entry — roles
 // out of scope for grouping (ADMIN, PMO, TEAM_MEMBER) just get one
@@ -62,7 +63,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
   PROJECT_MANAGER: [
     { items: ["project-manager-dashboard"] },
     {
-      heading: "My Work",
+      heading: "My Worklist",
       items: ["maintain-project", "view-amend-projects", "project-reporting"],
     },
     {
@@ -74,7 +75,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
   DELIVERY_EXCELLENCE: [
     { items: ["delivery-excellence-dashboard"] },
     {
-      heading: "My Work",
+      heading: "My Worklist",
       items: [
         "de-project-requests",
         "de-allocation",
@@ -97,8 +98,8 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
   ACCOUNT_MANAGER: [
     { items: ["account-manager-dashboard"] },
     {
-      heading: "My Work",
-      items: ["new-project", "account-reporting", "reassignment"],
+      heading: "My Worklist",
+      items: ["new-project", "account-reporting", "project-approval", "reassignment"],
     },
     {
       heading: "My Reports",
@@ -119,7 +120,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
   GEO_HEAD: [
     { items: ["geo-head-dashboard"] },
     {
-      heading: "My Work",
+      heading: "My Worklist",
       items: ["geo-reporting", "reassignment"],
     },
     {

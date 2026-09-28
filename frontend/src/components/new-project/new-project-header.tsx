@@ -1,7 +1,7 @@
 "use client";
 
 import { useNewProjectId } from "@/stores/new-project-ui";
-import { effectiveProjectStatus, useProject } from "@/lib/api/projects";
+import { useProject } from "@/lib/api/projects";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { PageBanner } from "@/components/shell/page-banner";
 import { QueryErrorState } from "@/components/shared/query-error-state";
@@ -41,7 +41,15 @@ export function NewProjectHeader({
             </p>
           ) : null}
         </div>
-        <StatusBadge value={project ? effectiveProjectStatus(project) : "Draft"} size="lg" />
+        {/* Both states, side by side: where the project is in the approval
+            workflow (Draft / Pending Approval / Approved / Under Amendment) and, once
+            the first approval has set one, its lifecycle state (Ongoing / Hold /
+            Closed / Open Only for Billing). Showing only the lifecycle value would
+            hide "Under Amendment" / "Pending Approval" from an approved project. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge value={project?.project_status ?? "Draft"} size="lg" />
+          {project?.lifecycle_status ? <StatusBadge value={project.lifecycle_status} size="lg" /> : null}
+        </div>
       </div>
       <PageBanner />
     </>

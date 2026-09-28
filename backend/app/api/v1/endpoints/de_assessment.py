@@ -11,6 +11,7 @@ from app.crud.de_assessment import de_assessment_crud, de_assessment_finding_cru
 from app.crud.projects import project_crud
 from app.models.de_assessment import DEAssessment, DEAssessmentFinding
 from app.models.projects import Project
+from app.models.reference_data import ReportingPeriod
 from app.models.users import User
 from app.schemas.de_assessment import (
     DEAssessmentCreate,
@@ -54,6 +55,18 @@ def _finalize_assessment(project: Project, assessment: DEAssessment) -> None:
     project.overall_project_health = compute_overall_project_health(
         project.delivery_declared_overall_health, assessment.de_assessed_project_health
     )
+
+
+async def _require_weekly_period(db: AsyncSession, period_id: UUID | None) -> None:
+    """The assessment's period must be a Weekly reporting period (the same
+    periods Delivery Status reporting uses)."""
+    if period_id is None:
+        return
+    period_type = (
+        await db.execute(select(ReportingPeriod.period_type).where(ReportingPeriod.id == period_id))
+    ).scalar_one_or_none()
+    if period_type != "Weekly":
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "period_id must be a Weekly reporting period")
 
 
 @router.get("", response_model=list[DEAssessmentRead], dependencies=_de_read)
@@ -100,12 +113,14 @@ async def create_assessment(
     project = await project_crud.get(db, project_id)
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
+    await _require_weekly_period(db, payload.period_id)
 
     now = datetime.now(UTC)
     assessment = DEAssessment(
         id=uuid4(),
         project_id=project_id,
         assessment_date=payload.assessment_date,
+        period_id=payload.period_id,
         de_assessed_project_health=payload.de_assessed_project_health,
         pci_score=payload.pci_score,
         remarks=payload.remarks,
@@ -140,6 +155,7 @@ async def update_assessment(
         raise HTTPException(status.HTTP_409_CONFLICT, "A submitted assessment can no longer be edited")
 
     data = payload.model_dump(exclude_unset=True)
+    await _require_weekly_period(db, data.get("period_id"))
     for field, value in data.items():
         setattr(assessment, field, value)
     assessment.updated_at = datetime.now(UTC)

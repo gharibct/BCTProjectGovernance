@@ -1,4 +1,4 @@
-import type { Project } from "@/lib/api/projects";
+import { projectScreenRoot, type Project } from "@/lib/api/projects";
 import type { MenuEntryId } from "@/lib/menu-config";
 
 // Project-level menu entries. Clicking one no longer expands a project list in
@@ -11,6 +11,7 @@ export type ProjectTargetId = Extract<
   | "view-amend-projects"
   | "project-reporting"
   | "project-review"
+  | "project-approval"
   | "project-performance"
   | "de-assessment-report"
 >;
@@ -42,16 +43,19 @@ type ProjectTarget = {
 };
 
 export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
+  // Project Setup vs Amend Project is decided by projectScreenRoot, not by
+  // isApproved alone: a Pending Approval project belongs to Amend Project when an
+  // amendment was submitted (so it stays with the screen the PM amended it on).
   "maintain-project": {
     label: "Project Setup",
     hrefFor: (id) => `/new-project/${id}/project-charter`,
-    eligible: (p) => !isApproved(p.project_status),
+    eligible: (p) => projectScreenRoot(p) === "new-project",
     emptyLabel: "No projects awaiting setup.",
   },
   "view-amend-projects": {
     label: "Amend Project",
     hrefFor: (id) => `/amend-project/${id}/project-charter`,
-    eligible: (p) => isApproved(p.project_status),
+    eligible: (p) => projectScreenRoot(p) === "amend-project",
     emptyLabel: "No approved projects yet.",
   },
   "project-reporting": {
@@ -65,6 +69,14 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     hrefFor: (id) => `/project-review/${id}`,
     eligible: (p) => isApproved(p.project_status),
     emptyLabel: "No projects to review yet.",
+  },
+  // Same report as Project Delivery Status, but with the Approve / Reject bar —
+  // the Account Manager's worklist item (Project Delivery Status is view-only).
+  "project-approval": {
+    label: "Approve Project Delivery Status",
+    hrefFor: (id) => `/project-approval/${id}`,
+    eligible: (p) => isApproved(p.project_status),
+    emptyLabel: "No projects to approve yet.",
   },
   "project-performance": {
     label: "Project Performance",

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
+import { BaselineGate } from "../baseline-lock";
 import {
   useAddOracleId,
   useDeleteOracleId,
@@ -66,88 +67,90 @@ export function OracleMappingForm() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <SectionCard
-        icon={Database}
-        title="Oracle Projects Register"
-        aside={<AutoBadge label={`${items.length} mapped`} />}
-      >
-        <RegisterTable
-          items={items}
-          emptyLabel="No Oracle Project IDs mapped yet."
-          columns={[
-            { key: "oracle_project_id", label: "Oracle Project ID" },
-            {
-              key: "description",
-              label: "Project Description",
-              render: (item: ProjectOracleId) =>
-                item.project_description ? (
-                  item.project_description
-                ) : (
-                  <span className="text-slate-400 italic">Not found in Oracle project master</span>
+    <BaselineGate>
+      <div className="flex flex-col gap-8">
+        <SectionCard
+          icon={Database}
+          title="Oracle Projects Register"
+          aside={<AutoBadge label={`${items.length} mapped`} />}
+        >
+          <RegisterTable
+            items={items}
+            emptyLabel="No Oracle Project IDs mapped yet."
+            columns={[
+              { key: "oracle_project_id", label: "Oracle Project ID" },
+              {
+                key: "description",
+                label: "Project Description",
+                render: (item: ProjectOracleId) =>
+                  item.project_description ? (
+                    item.project_description
+                  ) : (
+                    <span className="text-slate-400 italic">Not found in Oracle project master</span>
+                  ),
+              },
+              {
+                key: "actions",
+                label: "",
+                render: (item: ProjectOracleId) => (
+                  <button
+                    type="button"
+                    aria-label={`Remove ${item.oracle_project_id}`}
+                    onClick={() => removeMapping(item)}
+                    className="text-slate-400 hover:text-red-600"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
                 ),
-            },
-            {
-              key: "actions",
-              label: "",
-              render: (item: ProjectOracleId) => (
-                <button
-                  type="button"
-                  aria-label={`Remove ${item.oracle_project_id}`}
-                  onClick={() => removeMapping(item)}
-                  className="text-slate-400 hover:text-red-600"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              ),
-            },
-          ]}
-        />
-      </SectionCard>
+              },
+            ]}
+          />
+        </SectionCard>
 
-      <SectionCard icon={Database} title="New Oracle Project">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field
-            label="Oracle Project ID"
-            htmlFor="oracle-project-id"
-            badge={<MandatoryBadge />}
-            error={oracleIdError ?? undefined}
-          >
-            <Input
-              id="oracle-project-id"
-              placeholder="e.g. ORA-88121"
-              value={oracleProjectId}
-              onChange={(e) => {
-                setOracleProjectId(e.target.value);
-                if (oracleIdError) setOracleIdError(null);
-              }}
-              className="h-11"
-            />
-          </Field>
-          <Field
-            label="Project Description"
-            htmlFor="oracle-project-description"
-            badge={<AutoBadge label="From Oracle" />}
-          >
-            <Input
-              id="oracle-project-description"
-              placeholder="Shown in the register above once mapped"
-              disabled
-              className="h-11"
-            />
-          </Field>
-        </div>
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addMapping}
-            disabled={addOracleId.isPending}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {addOracleId.isPending ? <ButtonSpinner /> : null}
-            Add Projects
-          </Button>
-        </div>
-      </SectionCard>
-    </div>
+        <SectionCard icon={Database} title="New Oracle Project">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+            <Field
+              label="Oracle Project ID"
+              htmlFor="oracle-project-id"
+              badge={<MandatoryBadge />}
+              error={oracleIdError ?? undefined}
+            >
+              <Input
+                id="oracle-project-id"
+                placeholder="e.g. ORA-88121"
+                value={oracleProjectId}
+                onChange={(e) => {
+                  setOracleProjectId(e.target.value);
+                  if (oracleIdError) setOracleIdError(null);
+                }}
+                className="h-11"
+              />
+            </Field>
+            <Field
+              label="Project Description"
+              htmlFor="oracle-project-description"
+              badge={<AutoBadge label="From Oracle" />}
+            >
+              <Input
+                id="oracle-project-description"
+                placeholder="Shown in the register above once mapped"
+                disabled
+                className="h-11"
+              />
+            </Field>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <Button
+              onClick={addMapping}
+              disabled={addOracleId.isPending}
+              className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              {addOracleId.isPending ? <ButtonSpinner /> : null}
+              Add Projects
+            </Button>
+          </div>
+        </SectionCard>
+      </div>
+    </BaselineGate>
   );
 }

@@ -100,7 +100,8 @@ class ProjectUpdate(BaseModel):
     account_id: UUID | None = None
     project_manager_id: UUID | None = None
     delivery_manager_id: UUID | None = None
-    delivery_excellence_id: UUID | None = None
+    # delivery_excellence_id is deliberately absent: the DE is assigned only on the
+    # DE Allocation screen (de_allocation.py), never through the project PUT.
     customer_overview: str | None = None
     project_scope_description: str | None = None
     project_revenue: Decimal | None = None
@@ -130,6 +131,17 @@ class ProjectRead(ProjectBase):
     project_code: str
     project_status: ProjectStatus
     lifecycle_status: ProjectLifecycleStatus | None = None
+    # An amendment cycle is open (Under Amendment, or Pending Approval because an
+    # amendment was submitted) — see models/projects.py.
+    has_active_amendment: bool = False
+
+    @field_validator("has_active_amendment", mode="before")
+    @classmethod
+    def _coerce_has_active_amendment(cls, v: object) -> object:
+        """A Project built in memory (not yet re-read from the DB) has no value
+        for the mapped subquery — treat that as "no amendment"."""
+        return bool(v)
+
     # project_revenue converted to USD at the Admin exchange rate (None until a rate exists).
     project_revenue_usd: Decimal | None = None
     planned_duration_days: int | None = None  # DB-computed

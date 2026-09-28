@@ -69,15 +69,15 @@ export async function downloadCustomerCommunicationFile(
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export type CustomerCommunicationQuarter = {
-  // Month range, e.g. "Jan-Mar" (with the year appended outside the current one).
+  // Month range with its year, e.g. "Jan-Mar 2026".
   label: string;
   count: number;
   current: boolean;
 };
 
 // What the Account Reporting hub's Customer Communications card shows: totals
-// (all time, plus a rolling four calendar quarters starting from the previous
-// one, by Reporting Date), the most recent
+// (all time, plus the previous three calendar quarters and the current one
+// last, by Reporting Date), the most recent
 // communication, and one box per month of the year — green ("on-time" renders
 // as the Communication Shared colour) for a month with at least one, else the
 // plain outline.
@@ -96,15 +96,13 @@ export function summarizeCustomerCommunications(communications: CustomerCommunic
     if (y === year) monthsWithOne.add(m - 1);
   }
 
-  // Previous quarter first, then the current one, the next, and the one after.
-  const quarters: CustomerCommunicationQuarter[] = [-1, 0, 1, 2].map((offset) => {
+  // The previous three quarters, oldest first, then the current one last.
+  const quarters: CustomerCommunicationQuarter[] = [-3, -2, -1, 0].map((offset) => {
     const index = currentQuarterIndex + offset;
     const quarterYear = Math.floor(index / 4);
     const startMonth = (index % 4) * 3;
-    const months = `${MONTH_ABBR[startMonth]}-${MONTH_ABBR[startMonth + 2]}`;
     return {
-      // The year is only spelled out when the quarter falls outside this one.
-      label: quarterYear === year ? months : `${months} ${quarterYear}`,
+      label: `${MONTH_ABBR[startMonth]}-${MONTH_ABBR[startMonth + 2]} ${quarterYear}`,
       count: quarterCounts.get(index) ?? 0,
       current: offset === 0,
     };

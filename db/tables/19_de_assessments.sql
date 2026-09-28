@@ -10,6 +10,7 @@ CREATE TABLE de_assessments (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     assessment_date DATE,
+    period_id UUID REFERENCES reporting_periods(id), -- Weekly period, aligned with Delivery Status reporting; NULL on older rows
     de_assessed_project_health TEXT NOT NULL, -- Red, Potential Red, Amber, Green
     pci_score NUMERIC(6, 2),
     remarks TEXT, -- DE's justification for the rating (DE Assessment Workspace)

@@ -592,20 +592,18 @@ class CustomerAccountReportRow(BaseModel):
     account_head_name: str | None = None
     geo_head_name: str | None = None
     onboarded_date: date | None = None
-    status: str  # "Shared with Customer" | "Not Shared" | "New"
-    last_shared_date: date | None = None  # latest communication in the previous calendar quarter
+    status: str  # "Shared with Customer" | "Not Shared"
+    last_shared_date: date | None = None  # latest communication in the previous + current calendar quarter
     last_title: str | None = None
-    communications_count: int = 0  # communications dated in the previous calendar quarter
+    communications_count: int = 0  # communications dated in the previous + current calendar quarter
 
 
 # Customer account reporting on a calendar-quarter cadence: active accounts that
-# shared at least one presentation with the customer in the previous completed
-# quarter (the current quarter is ignored), those that did not (no entry = not
-# shared), and accounts onboarded in the current quarter (New — not judged).
+# shared at least one presentation with the customer in the previous or the
+# current calendar quarter, and those that did not (no entry = not shared).
 class CustomerAccountReportSummary(BaseModel):
     shared_count: int
     not_shared_count: int
-    new_count: int
 
 
 # Weekly Project / Account health buckets for the selected week; the five counts

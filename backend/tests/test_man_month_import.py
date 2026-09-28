@@ -114,6 +114,33 @@ def test_target_month_is_the_previous_calendar_month(today, column, label, month
     assert (m.column, m.label, m.month_start) == (column, label, month_start)
 
 
+@pytest.mark.parametrize(
+    ("today", "name", "label", "month_start"),
+    [
+        (date(2026, 9, 24), "APR", "Apr-26", date(2026, 4, 1)),
+        (date(2026, 9, 24), "may", "May-26", date(2026, 5, 1)),  # case-insensitive
+        (date(2026, 9, 24), "SEP", "Sep-26", date(2026, 9, 1)),
+        (date(2026, 9, 24), "OCT", "Oct-25", date(2025, 10, 1)),  # not yet reached this year
+        (date(2026, 1, 10), "DEC", "Dec-25", date(2025, 12, 1)),
+    ],
+)
+def test_named_month_overrides_the_default(today, name, label, month_start):
+    m = resolve_target_month(today, name)
+    assert (m.column, m.label, m.month_start) == (name.upper(), label, month_start)
+
+
+def test_named_month_must_be_a_three_letter_month():
+    with pytest.raises(ValueError):
+        resolve_target_month(date(2026, 9, 24), "AUGUST")
+
+
+def test_parse_reads_the_named_month_column(tmp_path):
+    path = _write(tmp_path / "f.xlsx", [_row("100", "A", "P1", 0.84)])
+    parsed = parse_workbook(path, date(2026, 9, 24), "SEP")
+    assert parsed.month.label == "Sep-26"
+    assert parsed.rows[0].man_month == Decimal("1")
+
+
 # --- parsing ----------------------------------------------------------------
 
 

@@ -100,6 +100,7 @@ async def test_list_has_one_row_per_resource_with_the_span_and_total(seeded):
     assert anita.total_man_months == Decimal("2.0000")  # Aug .97 + .03, Sep 1
     assert by_code["200"].allocation_end_date is None  # open-ended
     assert by_code["300"].allocation_end_date == date(2026, 8, 15)
+    assert all(r.oracle_project_ids == ["P1"] for r in rows)  # the Oracle project id of the allocation
 
 
 async def test_list_is_ordered_by_name_and_paginated(seeded):

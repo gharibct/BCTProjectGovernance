@@ -11,10 +11,32 @@ export class ApiError extends Error {
   detail: unknown;
 
   constructor(status: number, detail: unknown) {
-    super(typeof detail === "string" ? detail : `Request failed with status ${status}`);
+    super(detailMessage(detail) ?? `Request failed with status ${status}`);
     this.status = status;
     this.detail = detail;
   }
+
+  /** The machine-readable `code` of a structured error detail (e.g. PROJECT_LOCKED). */
+  get code(): string | null {
+    const detail = this.detail;
+    if (detail && typeof detail === "object" && !Array.isArray(detail) && "code" in detail) {
+      const code = (detail as { code: unknown }).code;
+      return typeof code === "string" ? code : null;
+    }
+    return null;
+  }
+}
+
+// FastAPI's `detail` is a plain string for most errors and an object for the
+// structured ones ({code, message, ...}, e.g. PROJECT_LOCKED) — surface either as
+// the error's message so every `err.message` toast shows something readable.
+function detailMessage(detail: unknown): string | null {
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object" && !Array.isArray(detail) && "message" in detail) {
+    const message = (detail as { message: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return null;
 }
 
 // A 401 means the session cookie is missing/expired/invalid — clear the

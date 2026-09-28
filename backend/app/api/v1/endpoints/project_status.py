@@ -257,7 +257,7 @@ async def update_status_report(
                 type="REPORT_SUBMITTED",
                 title=f"{project.project_code} submitted a status report",
                 body="Awaiting your review.",
-                link=f"/project-review/{project.id}",
+                link=f"/project-approval/{project.id}",
                 entity_type="status_report",
                 entity_id=updated.id,
                 data={"project_code": project.project_code},

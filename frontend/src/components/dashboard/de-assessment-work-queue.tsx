@@ -47,7 +47,7 @@ export function DeAssessmentWorkQueue({ rows }: { rows: DEAssessmentWorkQueueRow
                 <th className="min-w-[220px] px-5 py-3">Project</th>
                 <th className="min-w-[90px] px-3 py-3">PM Health</th>
                 <th className="min-w-[90px] px-3 py-3">DE Health</th>
-                <th className="min-w-[70px] px-3 py-3">PCI</th>
+                <th className="min-w-[70px] px-3 py-3">DE Score</th>
                 <th className="min-w-[110px] px-3 py-3">Status</th>
                 <th className="min-w-[100px] px-5 py-3">Action</th>
               </tr>

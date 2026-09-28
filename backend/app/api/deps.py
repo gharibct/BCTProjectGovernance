@@ -13,7 +13,7 @@ from app.core.session import SESSION_COOKIE_NAME, decode_session_token
 from app.models.projects import Project
 from app.models.reference_data import Account
 from app.models.users import Role, User, UserAccount, UserGeo
-from app.schemas.enums import RoleCode
+from app.schemas.enums import ProjectStatus, RoleCode
 
 
 @dataclass
@@ -441,6 +441,51 @@ def require_project_read_access(*extra_bypass_roles: RoleCode):
                 if account is not None and account.geo_id in owned_geos:
                     return current_user
         raise _FORBIDDEN
+
+    return dependency
+
+
+# --- Baseline lock -------------------------------------------------------------
+#
+# A project's *baseline* (profile, scope & schedule, Oracle mapping, resources,
+# measurement targets, commitments, milestones) is only writable while the project
+# is a Draft or Under Amendment. Once it is Pending Approval (frozen for the DE's
+# review) or Approved, the only way to change it is Initiate Amendment. Reporting
+# data (actuals, per-period measurements, RAIDO, health, status reports, actions)
+# is not baseline and is never gated by this.
+#
+# Every project-scoped write endpoint is either "baseline" (carries
+# require_baseline_editable / calls ensure_baseline_editable) or "reporting"
+# (deliberately does not). Keep new endpoints in one bucket or the other.
+
+PROJECT_LOCKED = "PROJECT_LOCKED"
+BASELINE_EDITABLE_STATUSES = (ProjectStatus.DRAFT, ProjectStatus.UNDER_AMENDMENT)
+
+
+def ensure_baseline_editable(project: Project) -> None:
+    """Raise a 422 PROJECT_LOCKED unless the project's baseline may be edited."""
+    if project.project_status in BASELINE_EDITABLE_STATUSES:
+        return
+    if project.project_status == ProjectStatus.PENDING_APPROVAL:
+        message = "This project is with Delivery Excellence for approval. Recall it to change it."
+    else:
+        message = "Initiate an amendment to change this project"
+    raise HTTPException(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail={"code": PROJECT_LOCKED, "message": message, "project_status": str(project.project_status)},
+    )
+
+
+def require_baseline_editable():
+    """Path-param gate for `/projects/{project_id}/...` baseline write routes.
+    List it *after* require_project_access so an unauthorised caller gets 403
+    rather than learning the project's status."""
+
+    async def dependency(project_id: UUID, db: AsyncSession = Depends(get_db)) -> None:
+        project = await db.get(Project, project_id)
+        if project is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
+        ensure_baseline_editable(project)
 
     return dependency
 

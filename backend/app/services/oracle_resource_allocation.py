@@ -133,12 +133,28 @@ async def list_resource_allocations(
         )
         man_months = {employee_id: Decimal(total_mm) for employee_id, total_mm in sums.all()}
 
+    oracle_ids: dict[UUID, list[str]] = {}
+    if employee_ids:
+        numbers = await db.execute(
+            select(OracleProjectAllocation.employee_id, OracleProjectMaster.project_number)
+            .join(OracleProjectMaster, OracleProjectMaster.id == OracleProjectAllocation.project_id)
+            .where(
+                OracleProjectAllocation.project_id.in_(ids),
+                OracleProjectAllocation.employee_id.in_(employee_ids),
+            )
+            .distinct()
+            .order_by(OracleProjectMaster.project_number)
+        )
+        for employee_id, project_number in numbers.all():
+            oracle_ids.setdefault(employee_id, []).append(project_number)
+
     rows = [
         ResourceAllocationRow(
             employee_id=emp_id,
             employee_name=name,
             employee_code=code,
             location=location,
+            oracle_project_ids=oracle_ids.get(emp_id, []),
             allocation_start_date=start,
             # An open-ended period (no end date) makes the whole span open-ended.
             allocation_end_date=end if n_end == n_periods else None,

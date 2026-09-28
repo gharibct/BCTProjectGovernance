@@ -79,7 +79,7 @@ function HistoryInner() {
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3">Assessed By</th>
                   <th className="py-2 pr-3">DE Health</th>
-                  <th className="py-2 pr-3 text-right">PCI</th>
+                  <th className="py-2 pr-3 text-right">DE Score</th>
                   <th className="py-2 pr-3">Next Due</th>
                   <th className="py-2">Remarks</th>
                 </tr>

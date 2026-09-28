@@ -82,6 +82,11 @@ export function ResourceAllocationView() {
       ),
     },
     {
+      key: "oracle_project_ids",
+      label: "Oracle Project ID",
+      render: (row) => (row.oracle_project_ids.length ? row.oracle_project_ids.join(", ") : "—"),
+    },
+    {
       key: "allocation_start_date",
       label: "Allocation Start Date",
       render: (row) => formatIsoDate(row.allocation_start_date),

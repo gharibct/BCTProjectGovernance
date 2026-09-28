@@ -36,6 +36,33 @@ export function effectiveProjectStatus(p: {
   return p.lifecycle_status ?? p.project_status;
 }
 
+// The project's baseline (profile, scope & schedule, Oracle mapping, measurement
+// targets, commitments, milestones, "create" documents) is only writable while it
+// is a Draft or Under Amendment. Pending Approval is frozen for the DE's review and
+// Approved needs Initiate Amendment. The server enforces the same rule (422
+// PROJECT_LOCKED) — this only mirrors it so the UI can disable the controls.
+export function isBaselineEditable(status: ProjectStatus): boolean {
+  return status === "Draft" || status === "Under Amendment";
+}
+
+// Which screen family owns the project: Draft (and a first-time Pending Approval)
+// is Project Setup; Approved / Under Amendment (and a Pending Approval that came
+// from an amendment) is Amend Project.
+export type ProjectScreenRoot = "new-project" | "amend-project";
+export function projectScreenRoot(p: {
+  project_status: ProjectStatus;
+  has_active_amendment?: boolean;
+}): ProjectScreenRoot {
+  switch (p.project_status) {
+    case "Draft":
+      return "new-project";
+    case "Pending Approval":
+      return p.has_active_amendment ? "amend-project" : "new-project";
+    default:
+      return "amend-project";
+  }
+}
+
 export type Project = {
   id: string;
   project_code: string;
@@ -73,6 +100,9 @@ export type Project = {
   lifecycle_status: ProjectLifecycleStatus | null;
   // Server-computed: lifecycle_status ?? project_status (see effectiveProjectStatus).
   effective_status: string;
+  // An amendment cycle is open — the project is Under Amendment, or Pending Approval
+  // because an amendment was submitted (see projectScreenRoot).
+  has_active_amendment: boolean;
   planned_duration_days: number | null;
   actual_duration_days: number | null;
   delivery_declared_overall_health: HealthRating | null;

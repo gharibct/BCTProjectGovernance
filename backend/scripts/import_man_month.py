@@ -1,7 +1,8 @@
-"""Load the Oracle "BCT Man Month Report" workbook (previous month's column).
+"""Load the Oracle "BCT Man Month Report" workbook (previous month's column by default).
 
 Captures the month BEFORE today (e.g. run in Sep-2026 -> the AUG column, stored
-as "Aug-26"), loads every row into integration_man_month, then updates
+as "Aug-26"), or the month named with --month (three letters, e.g. APR, MAY),
+loads every row into integration_man_month, then updates
 oracle_employee_master, oracle_project_master (with its Region / GEO resolved
 from Project Geo) and oracle_project_allocation.
 
@@ -9,13 +10,16 @@ Run from backend/:
     python -m scripts.import_man_month "<file.xlsx>"                 # dry run
     python -m scripts.import_man_month "<file.xlsx>" --apply         # commit
     python -m scripts.import_man_month "<file.xlsx>" --as-of=2026-09-24
+    python -m scripts.import_man_month "<file.xlsx>" --month=APR     # a named month
 
 A dry run does the whole load inside a transaction and rolls it back, so the
 counts it prints are exactly what --apply would write. Tables filled: the
 staging table integration_man_month plus oracle_employee_master,
 oracle_project_master, oracle_project_allocation and
 oracle_project_month_allocation. --as-of overrides
-"today" (useful for backfilling an earlier month). Re-running a month replaces
+"today". --month picks that month's most recent occurrence not after the
+current month (run in Sep-2026, APR -> Apr-26, OCT -> Oct-25); use it to
+backfill an earlier month. Re-running a month replaces
 that month's rows; other months are untouched.
 """
 
@@ -26,6 +30,7 @@ from datetime import date
 
 from app.core.db import AsyncSessionLocal
 from app.services.man_month_import import (
+    MONTH_ABBR,
     LoadSummary,
     ManMonthFileError,
     ParseResult,
@@ -75,9 +80,15 @@ def _report(parsed: ParseResult, summary: LoadSummary, applied: bool) -> None:
     _print_examples("Project attribute conflicts (last non-blank value kept)", _conflict_lines(summary.project_conflicts))
 
 
-async def _run(path: str, today: date, apply: bool) -> int:
+def _month_arg(value: str) -> str:
+    if value.strip().upper() not in (a.upper() for a in MONTH_ABBR):
+        raise argparse.ArgumentTypeError(f"{value!r} is not a three-letter month (APR, MAY, JUN, ...)")
+    return value.strip().upper()
+
+
+async def _run(path: str, today: date, apply: bool, month_name: str | None) -> int:
     try:
-        parsed = parse_workbook(path, today)
+        parsed = parse_workbook(path, today, month_name)
     except ManMonthFileError as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -103,12 +114,20 @@ async def _run(path: str, today: date, apply: bool) -> int:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Load the Oracle BCT Man Month Report (previous month).")
+    parser = argparse.ArgumentParser(
+        description="Load the Oracle BCT Man Month Report (previous month unless --month is given)."
+    )
     parser.add_argument("file", help="path to the .xlsx workbook")
     parser.add_argument("--apply", action="store_true", help="commit (default is a dry run)")
     parser.add_argument("--as-of", type=date.fromisoformat, default=None, help="treat this YYYY-MM-DD as today")
+    parser.add_argument(
+        "--month",
+        type=_month_arg,
+        default=None,
+        help="three-letter month to load instead of the previous month, e.g. APR, MAY (case-insensitive)",
+    )
     args = parser.parse_args()
-    sys.exit(asyncio.run(_run(args.file, args.as_of or date.today(), args.apply)))
+    sys.exit(asyncio.run(_run(args.file, args.as_of or date.today(), args.apply, args.month)))
 
 
 if __name__ == "__main__":

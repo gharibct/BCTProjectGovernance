@@ -53,7 +53,7 @@ export function ProjectHealthAssessments() {
     { key: "account_name", label: "Account" },
     { key: "pm_health", label: "Project Manager Health", render: (row) => <HealthBadge value={row.pm_health} /> },
     { key: "de_health", label: "DE Health", render: (row) => <HealthBadge value={row.de_health} /> },
-    { key: "pci_score", label: "PCI Score", render: (row) => (row.pci_score ? `${row.pci_score}%` : "—") },
+    { key: "pci_score", label: "DE Score", render: (row) => (row.pci_score ? `${row.pci_score}%` : "—") },
     { key: "assessment_period", label: "Assessment Period" },
     { key: "assessed_by_name", label: "Assessed By" },
     { key: "status", label: "Status", render: (row) => <StatusPill value={row.status} /> },

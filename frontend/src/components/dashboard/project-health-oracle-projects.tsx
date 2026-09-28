@@ -138,8 +138,8 @@ export function ProjectHealthOracleProjects() {
         <BackToProjectHealth />
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Oracle Projects</h1>
         <p className="text-slate-500">
-          Oracle projects and whether a governance project has been created for them. Not Mapped projects still need
-          one.
+          Oracle projects and whether a governance project has been created for them. Projects not onboarded in
+          Governance One still need one.
         </p>
       </header>
 
@@ -155,10 +155,14 @@ export function ProjectHealthOracleProjects() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Oracle Projects" value={total} />
-        <StatTile label="Mapped" value={summary?.mapped_count ?? "—"} accentClassName="border-t-emerald-500" />
-        <StatTile label="Not Mapped" value={summary?.unmapped_count ?? "—"} accentClassName="border-t-red-500" />
+        <StatTile label="Onboarded to GovOne" value={summary?.mapped_count ?? "—"} accentClassName="border-t-emerald-500" />
         <StatTile
-          label="Not Mapped · No GEO"
+          label="Not Onboarded to GovOne"
+          value={summary?.unmapped_count ?? "—"}
+          accentClassName="border-t-red-500"
+        />
+        <StatTile
+          label="Not Mapped to Geo in Oracle"
           value={summary?.unmapped_no_geo_count ?? "—"}
           accentClassName="border-t-amber-500"
         />

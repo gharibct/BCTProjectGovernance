@@ -262,7 +262,6 @@ export const CUSTOMER_REPORT_STATUSES = {
   shared: "Shared with Customer",
   notShared: "Not Shared",
   notSubmitted: "Not Submitted",
-  new: "New",
 } as const;
 
 export type CustomerProjectReportRow = {

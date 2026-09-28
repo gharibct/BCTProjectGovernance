@@ -144,9 +144,22 @@ class TargetMonth:
     label: str  # "Aug-26"
 
 
-def resolve_target_month(today: date) -> TargetMonth:
-    """The month before `today`, whatever the day (a January run gives December)."""
-    prev = today.replace(day=1) - timedelta(days=1)
+def resolve_target_month(today: date, month_name: str | None = None) -> TargetMonth:
+    """The month before `today`, whatever the day (a January run gives December).
+
+    `month_name` (a three-letter month such as "APR") picks that month instead: its most
+    recent occurrence not after the month of `today` (run in Sep-2026, "MAR" gives Mar-26
+    and "OCT" gives Oct-25).
+    """
+    if month_name is None:
+        prev = today.replace(day=1) - timedelta(days=1)
+    else:
+        abbrs = [a.upper() for a in MONTH_ABBR]
+        key = month_name.strip().upper()
+        if key not in abbrs:
+            raise ValueError(f"Unknown month {month_name!r}; use a three-letter month such as APR, MAY, JUN.")
+        number = abbrs.index(key) + 1
+        prev = date(today.year if number <= today.month else today.year - 1, number, 1)
     abbr = MONTH_ABBR[prev.month - 1]
     return TargetMonth(
         month_start=prev.replace(day=1),
@@ -234,9 +247,9 @@ def _clean_decimal(value: Any, places: str) -> Decimal | None:
         raise ValueError(f"not a number: {value!r}") from None
 
 
-def parse_workbook(path: str | Path, today: date) -> ParseResult:
-    """Read the sheet's rows for the month before `today`."""
-    month = resolve_target_month(today)
+def parse_workbook(path: str | Path, today: date, month_name: str | None = None) -> ParseResult:
+    """Read the sheet's rows for the month before `today` (or for `month_name`, e.g. "APR")."""
+    month = resolve_target_month(today, month_name)
     try:
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     except Exception as exc:  # openpyxl raises a wide range of errors for bad files

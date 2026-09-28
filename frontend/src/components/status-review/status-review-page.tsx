@@ -32,6 +32,13 @@ const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
   geo: "Delivery Status Report - Geo",
 };
 
+// "approve" is the Account Manager's worklist copy of the project report (with the
+// Approve / Reject bar); "view" is the read-only report. Only the project scope has both.
+export type StatusReviewMode = "view" | "approve";
+
+const APPROVE_NAV_LABEL = "Approve Project Delivery Status";
+const APPROVE_NAV_HREF = "/select-project/project-approval";
+
 const SCOPE_NAV_HREF: Record<ReviewScope, string> = {
   project: "/project-review",
   account: "/account-review",
@@ -47,7 +54,7 @@ function useEntityName(scope: ReviewScope, scopeId: string): string {
   return geos.find((g) => g.id === scopeId)?.name ?? SCOPE_NAV_LABEL.geo;
 }
 
-function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: string }) {
+function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId: string; mode: StatusReviewMode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -72,13 +79,20 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
   // project-health-report-submissions.tsx) can carry a `?back=` path so
   // this breadcrumb returns there instead of defaulting to SCOPE_NAV_HREF.
   const back = searchParams.get("back");
+  const approving = scope === "project" && mode === "approve";
+  // Project Delivery Status (view) is for reading only — its decision bar moved to
+  // the approve page. Account and Geo reports keep theirs.
+  const viewOnly = scope === "project" && mode === "view";
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div>
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-          <Link href={back || SCOPE_NAV_HREF[scope]} className="font-semibold text-[#1a6fc4] hover:underline">
-            {back ? "Report Submissions" : SCOPE_NAV_LABEL[scope]}
+          <Link
+            href={back || (approving ? APPROVE_NAV_HREF : SCOPE_NAV_HREF[scope])}
+            className="font-semibold text-[#1a6fc4] hover:underline"
+          >
+            {back ? "Report Submissions" : approving ? APPROVE_NAV_LABEL : SCOPE_NAV_LABEL[scope]}
           </Link>
           {period ? (
             <>
@@ -137,7 +151,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
             </>
           )}
           <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
-          <ReviewActions scope={scope} scopeId={scopeId} report={report} />
+          <ReviewActions scope={scope} scopeId={scopeId} report={report} readOnly={viewOnly} />
         </>
       )}
     </div>
@@ -146,7 +160,15 @@ function PeriodAwareBody({ scope, scopeId }: { scope: ReviewScope; scopeId: stri
 
 // Client wrapper reading the dynamic route param — matches the pattern used
 // by reporting/regional-reporting-hub.tsx for its scope-parameterized routes.
-export function StatusReviewPage({ scope, paramName }: { scope: ReviewScope; paramName: string }) {
+export function StatusReviewPage({
+  scope,
+  paramName,
+  mode = "view",
+}: {
+  scope: ReviewScope;
+  paramName: string;
+  mode?: StatusReviewMode;
+}) {
   const params = useParams<Record<string, string>>();
   const scopeId = params[paramName] ?? "";
 
@@ -154,7 +176,7 @@ export function StatusReviewPage({ scope, paramName }: { scope: ReviewScope; par
     // useSearchParams (for the selected reporting period) requires a
     // Suspense boundary at prerender.
     <Suspense fallback={null}>
-      <PeriodAwareBody scope={scope} scopeId={scopeId} />
+      <PeriodAwareBody scope={scope} scopeId={scopeId} mode={mode} />
     </Suspense>
   );
 }

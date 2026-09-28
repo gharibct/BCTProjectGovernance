@@ -20,6 +20,7 @@ import { StatusBadge } from "@/components/forms/status-badge";
 import { cn } from "@/lib/utils";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
+import { BaselineLockNotice, useBaselineEditable } from "../baseline-lock";
 import {
   downloadDocument,
   useDeleteDocument,
@@ -44,6 +45,10 @@ function hasAiOutput(status: ProjectDocument["ai_status"]): boolean {
 
 export function DocumentProcessing() {
   const projectId = useNewProjectId();
+  // Documents uploaded here feed the project baseline, so uploading, processing and
+  // deleting are locked outside Draft / Under Amendment. Viewing and downloading
+  // what's already there stay available, which is why this doesn't use BaselineGate.
+  const { project, editable } = useBaselineEditable();
   const { data: documents = [] } = useProjectDocuments(projectId);
   const uploadDocument = useUploadDocument(projectId);
   const processDocuments = useProcessDocuments(projectId);
@@ -57,7 +62,7 @@ export function DocumentProcessing() {
   const pendingCount = documents.filter((d) => d.ai_status === "Not Processed").length;
 
   const addFiles = (files: FileList | null) => {
-    if (!files || files.length === 0 || !projectId) return;
+    if (!editable || !files || files.length === 0 || !projectId) return;
     // Per-file upload feedback stays a toast — several files can be
     // uploaded at once, each failing independently, which doesn't fit the
     // single-banner-at-a-time model used for the page's important actions.
@@ -73,6 +78,7 @@ export function DocumentProcessing() {
   // per-row selection. This is the page's "Apply AI Changes"-equivalent
   // action, so success/failure go through the page banner.
   const processAll = () => {
+    if (!editable) return;
     const ids = documents.filter((d) => d.ai_status === "Not Processed").map((d) => d.id);
     if (ids.length === 0) {
       showError("No documents pending processing.");
@@ -96,6 +102,7 @@ export function DocumentProcessing() {
   };
 
   const handleDelete = (doc: ProjectDocument) => {
+    if (!editable) return;
     deleteDocument.mutate(doc.id, {
       onError: (err) => toast.error(err instanceof Error ? err.message : `Failed to delete ${doc.file_name}.`),
     });
@@ -109,11 +116,12 @@ export function DocumentProcessing() {
 
   return (
     <div className="flex flex-col gap-8">
+      {!editable && project ? <BaselineLockNotice project={project} /> : null}
       <SectionCard icon={UploadCloud} title="Upload Documents">
         <div
           onDragOver={(e) => {
             e.preventDefault();
-            setIsDragging(true);
+            if (editable) setIsDragging(true);
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={(e) => {
@@ -123,7 +131,8 @@ export function DocumentProcessing() {
           }}
           className={cn(
             "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-12 text-center transition-colors",
-            isDragging ? "border-[#1a6fc4] bg-blue-50" : "border-slate-300 bg-slate-50"
+            isDragging ? "border-[#1a6fc4] bg-blue-50" : "border-slate-300 bg-slate-50",
+            !editable && "opacity-60"
           )}
         >
           <UploadCloud className="size-8 text-slate-400" />
@@ -131,7 +140,7 @@ export function DocumentProcessing() {
           <Button
             type="button"
             variant="outline"
-            disabled={uploadDocument.isPending}
+            disabled={!editable || uploadDocument.isPending}
             onClick={() => fileInputRef.current?.click()}
             className="h-9 gap-2 px-4 text-sm font-semibold"
           >
@@ -157,7 +166,7 @@ export function DocumentProcessing() {
         aside={
           <Button
             onClick={processAll}
-            disabled={pendingCount === 0 || processDocuments.isPending}
+            disabled={!editable || pendingCount === 0 || processDocuments.isPending}
             className="h-9 gap-2 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
           >
             {processDocuments.isPending ? <ButtonSpinner /> : <Sparkles className="size-4" />}
@@ -224,9 +233,10 @@ export function DocumentProcessing() {
                             <button
                               type="button"
                               onClick={() => handleDelete(doc)}
+                              disabled={!editable}
                               aria-label="Delete"
                               title="Delete"
-                              className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                              className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-40"
                             >
                               <Trash2 className="size-4" />
                             </button>

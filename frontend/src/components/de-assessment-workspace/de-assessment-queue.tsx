@@ -83,7 +83,7 @@ export function DeAssessmentQueue() {
             <StatCard label="Due This Month" value={data.pending_count} />
             <StatCard label="Red / Amber Assessed" value={data.red_amber_assessed_count} accent="red" />
             <StatCard
-              label="Average PCI"
+              label="Average DE Score"
               value={data.average_pci != null ? `${data.average_pci}%` : "—"}
             />
           </div>
@@ -126,7 +126,7 @@ export function DeAssessmentQueue() {
                       <th className="px-3 py-3">Project Manager</th>
                       <th className="px-3 py-3 text-center">PM Health</th>
                       <th className="px-3 py-3 text-center">DE Health</th>
-                      <th className="px-3 py-3 text-right">PCI</th>
+                      <th className="px-3 py-3 text-right">DE Score</th>
                       <th className="px-3 py-3 text-center">Open Findings</th>
                       <th className="px-3 py-3 text-center">
                         Status

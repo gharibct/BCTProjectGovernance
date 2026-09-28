@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access, require_project_read_access
+from app.api.deps import ensure_baseline_editable, require_project_access, require_project_read_access
 from app.core.config import settings
 from app.core.db import get_db
 from app.crud.documents import project_document_crud
@@ -32,6 +32,11 @@ from app.schemas.enums import DocumentAiStatus, DocumentContext, RoleCode
 #   extraction — see ai_suggestions.py / ai_row_suggestions.py, the same
 #   boundary applies here: no real AI/LLM pipeline exists in this repo yet.
 router = APIRouter(prefix="/projects/{project_id}/documents", tags=["Documents"])
+
+# Documents uploaded in the "create" context (New Project / Amend Project AI Hub)
+# feed the baseline, so writing them is locked outside Draft / Under Amendment
+# (deps.py "Baseline lock") — enforced per call below since the context is a form
+# field / row attribute, not a route. "reporting" documents stay open.
 
 # PM work — also reachable by an Account/Geo Head via the top-bar Work Context,
 # scoped to projects in their own accounts/geo (require_project_access).
@@ -104,6 +109,7 @@ async def upload_document(
     project = await _get_project_or_404(project_id, db)
 
     if context == DocumentContext.CREATE:
+        ensure_baseline_editable(project)
         folder = f"{_sanitize_segment(project.project_code)}_create"
         period_id = await _get_baseline_period_id(db)
     else:
@@ -154,11 +160,13 @@ async def process_documents(
     payload: DocumentProcessRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    await _get_project_or_404(project_id, db)
+    project = await _get_project_or_404(project_id, db)
 
     docs = []
     for document_id in payload.document_ids:
         doc = await _get_document_or_404(project_id, document_id, db)
+        if doc.context == DocumentContext.CREATE:
+            ensure_baseline_editable(project)
         if doc.ai_status == DocumentAiStatus.NOT_PROCESSED:
             docs.append(doc)
 
@@ -185,6 +193,8 @@ async def process_documents(
 @router.delete("/{document_id}", dependencies=_pm_write)
 async def delete_document(project_id: UUID, document_id: UUID, db: AsyncSession = Depends(get_db)):
     doc = await _get_document_or_404(project_id, document_id, db)
+    if doc.context == DocumentContext.CREATE:
+        ensure_baseline_editable(await _get_project_or_404(project_id, db))
 
     if doc.ai_status == DocumentAiStatus.NOT_PROCESSED:
         file_path = Path(settings.document_storage_dir) / doc.storage_path
