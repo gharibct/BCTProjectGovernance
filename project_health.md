@@ -1,292 +1,344 @@
-# Project Health Dashboard — KPI Logic (revised, for implementation)
+# Project Health Dashboard — KPI Logic (as-built reference)
 
 Page: `/project-health` (`frontend/src/components/dashboard/project-health-dashboard.tsx`)
-API: `GET /dashboard/project-health` (`backend/app/api/v1/endpoints/dashboard.py::get_project_health_dashboard`)
-Logic: `backend/app/services/dashboard.py`
-Roles: PMO, Admin, CDO, Delivery Excellence.
+API: `GET /dashboard/project-health` (`backend/app/api/v1/endpoints/dashboard.py::get_project_health_dashboard`, line ~490)
+Logic: `backend/app/services/dashboard.py` (Project Health section starts ~line 2818)
+Roles: every signed-in role can open the page; results are role-scoped (Geo Head → owned geos, Delivery Manager → owned accounts, Project Manager → own projects, Team Member → nothing) via `_health_scope` (`dashboard.py` endpoint, line 418).
 
-This version applies the review changes. Items marked **[Assumption]** are gaps I filled with a default — please confirm or correct them (collected in §9).
+This is a description of what the code does today, not a proposal. Every open question from the previous draft has been resolved against the implementation; where the summary card and its own drill-down screen disagree in scope, that is called out explicitly in §9 rather than papered over.
 
 ---
 
 ## 0. Global rules
 
 ### 0.1 Filter bar
-| Filter | Effect |
-|---|---|
-| Geo / Account / Project Type | Narrow the project set (and accounts/geos where noted). |
-| Period | Weekly period combo, see 0.2. |
+The filter bar (`project-health-filter-bar.tsx`) offers **Geo / Region / Account / Period**. Region cascades off Geo; Account cascades off Geo+Region. There is **no Project Type filter in the UI** (the backend endpoints all accept an optional `project_type_id` query param, but no control sets it). An **Ownership** filter (Fully Owned / Co-Owned / Customer Driven) exists only on the `/project-health/projects` (Project List) drill-down, not on the main dashboard bar.
 
-### 0.2 Period combo (changed)
-- Lists **Weekly periods only** (no Monthly, no Baseline).
-- Shows the **last 10 weekly periods including the current one**, newest first.
-- **Defaults to the current weekly period** (the weekly period containing today). No "[Current]" blank option — a period is always selected.
-- The header shows `Period: <label>`.
-- Which widgets use it:
+A Geo Head with a single owned geo has it locked in (no "All"); with several, "All" is available and default. A Delivery Manager gets no Geo/Region combo, only Account (their own). A Project Manager gets none of the three — they only see their own projects.
+
+### 0.2 Period combo
+Source: `GET /project-health/periods` → `recent_weekly_periods()` (`dashboard.py:4335`).
+- **Weekly periods only**, `is_active = true`, and **completed** (`end_date <= today` — reporting happens on the end date, matching [[project_reporting_period_definition]]).
+- Ordered newest-first, capped at **10** (`WEEKLY_PERIOD_LIMIT = 10`).
+- Row 0 is flagged `is_current = true` and is the combo's default (`filters.periodId ?? periods[0]?.id`, `project-health-filter-bar.tsx:181`). There is no "[Current]" blank option — a period is always selected once periods load.
+- If the client omits `period_id`, the backend independently resolves the same "current" period via `current_weekly_period()` (`dashboard.py:4353`).
+
+**Which widgets use the selected week**, corrected against `get_project_health_dashboard` (`dashboard.py` endpoint, lines 501–535):
 
 | Widget | Uses selected week? | How |
 |---|---|---|
-| Project Portfolio | No | Snapshot as of today |
-| Project Health (RAG) | **Yes** | Health declared for the selected week |
-| Account Health (RAG) | **Yes** | Health declared for the selected week |
-| RAIDO | No | "as of today" |
-| Metrics | **Yes** | Previous-month Project Performance report of the selected week |
-| Commitments | **Yes** | Previous-month Project Performance report of the selected week |
-| Payment Milestones | No | Snapshot as of today **[Assumption]** |
-| Findings | No | Snapshot (New This Period removed) |
-| DE Assessments | **Yes** | Latest assessment in the month before the selected week |
-| Actions | No | Snapshot |
-| Report Submissions (4 cards) | **Yes** | Selected week (Delivery Status) / previous month of selected week (Project Performance) |
+| Portfolio (shown on Project List drill-down, not a card) | No | Snapshot as of today |
+| Project Health (RAG) | **Yes** | `project_health_week_summary(active_project_ids, week)` |
+| Account Health (RAG) | **Yes** | `account_health_week_summary(active_account_ids, week)` |
+| RAIDO (Risks/Issues/Dependencies/Assumptions/Opportunities) | No | Snapshot "as of today", Active Projects only |
+| Metrics | Indirectly | `project_metrics_bucket_summary(active_project_ids, month_period)` — month_period is the previous month of the selected week |
+| Commitments | Indirectly | `commitments_bucket_summary(active_project_ids, month)` — same previous-month window |
+| Payment Milestones | No | Snapshot as of today, **not** Active-only (see 3.3) |
+| Findings / DE Alerts | No | Snapshot, **not** Active-only (see 4.1) |
+| DE Assessments | Indirectly | Latest Submitted assessment dated in the previous month of the selected week |
+| Actions | No | Snapshot (see 4.3 for scope) |
+| Report Submissions — Delivery Status (Projects/Account/Geo) | **Yes** | Selected week only |
+| Report Submissions — Project Performance | Indirectly | Previous month of the selected week |
+| Customer Project Status Reporting | **Yes** | Selected week, Active Projects only |
+| Customer Account Reporting | No | Previous **calendar quarter**, independent of the Period combo (see 5.3) |
 
 ### 0.3 "Previous month of the selected week"
-Wherever a monthly source is needed, take the **calendar month before the month containing the selected week's start date** **[Assumption — confirm: week start vs. week end when a week straddles two months]**. e.g. week 14–20 Sep 2026 → August 2026.
+`previous_month_window()` (`dashboard.py:4358`):
+```python
+anchor = week.start_date if week is not None else date.today()
+last_of_previous = anchor.replace(day=1) - timedelta(days=1)
+return MonthRange(last_of_previous.replace(day=1), last_of_previous)
+```
+Confirmed: it anchors on the **week's start date**, not its end date. A week that straddles two calendar months (e.g. 28 Sep – 4 Oct) resolves to the month before the *start* month (September → August), even though most of the week falls in October. `monthly_period_for()` (`dashboard.py:4365`) then looks up the actual Monthly `ReportingPeriod` covering that window, if one exists.
 
 ### 0.4 Project scope
-- The dashboard's project set = filtered projects that are **approved and not Draft** — i.e. `project_status` in (Approved, Under Amendment). Draft and Pending Approval are excluded everywhere **[Assumption: Pending Approval is what "Unapproved" means; Under Amendment stays because it is an already-approved live project]**.
-- **Active Projects** = the above set with `lifecycle_status` ≠ Closed and ≠ Hold (i.e. Ongoing, Open Only for Billing, or unset) **[Assumption — see 1.1]**.
-- "Active Accounts" = accounts in the Geo/Account filter that have at least one Active Project **[Assumption]**.
+Two nested scopes, both built by `_project_conditions()` (`dashboard.py:187`) off `DashboardFilters` flags set in `_health_filters()` (endpoint, line 459):
 
-**Your decision:**
+- **0.4 base set** (`approved_only=True`, set on every Project Health request): `Project.project_status.in_(("Approved", "Under Amendment"))`. Draft and Pending Approval are excluded; **Under Amendment stays in scope** (it's a live, already-approved project undergoing amendment).
+- **Active Projects** (`active_only=True`, added on top by the endpoint via `replace(filters, active_only=True)`): the base set further restricted to `lifecycle_status IS NULL OR lifecycle_status NOT IN (Closed, Hold)`. **Hold is excluded from Active**, same as Closed.
+- **Active Accounts**: `active_account_ids()` (`dashboard.py:4444`) — accounts matching the Geo/Account filter with `Account.is_active = true`. This is the **Account** row's own `is_active` flag, independent of whether the account has any Active (or any) Project — an account with `is_active = true` and zero projects still counts.
+
+Not every card actually uses "Active Projects" — several use the wider 0.4 base set instead. See the per-card tables below and §9 for the full list of which is which.
 
 ---
 
 ## 1. Project & Account
 
-### 1.1 Project Portfolio — `project_portfolio_summary`
-Scope: 0.4 project set (Draft / Pending Approval excluded). Snapshot, ignores Period.
+### 1.1 Project Portfolio
+Not a card on the main `/project-health` dashboard. It is returned in the API payload (`portfolio` field) and rendered as the four stat tiles at the top of the **`/project-health/projects`** (Project List) drill-down (`project-health-project-list.tsx:88-95`).
+
+`project_portfolio_summary()` (`dashboard.py:2830`), scope = 0.4 base set, snapshot (ignores Period):
+
 | Number | Logic |
 |---|---|
-| **Total** | Projects in scope. |
+| **Total** | Count of the 0.4 base set. |
 | **Active** | `lifecycle_status` not Closed and not Hold. |
-| **Hold** | `lifecycle_status = Hold`. **(new, shown next to Active and Completed)** |
 | **Completed** | `lifecycle_status = Closed`. |
+| **On Hold** | `lifecycle_status = Hold`. |
 
-Active + Hold + Completed = Total. **Active is the anchor: every "must equal Active Projects" rule below uses this number.**
-
-**Your decision:**
+Active + On Hold + Completed = Total.
 
 ### 1.2 Project Health — for the selected week
-Population = **Active Projects**. Each project falls in exactly one bucket, so the buckets always sum to Active Projects.
+Card: `data.health` → `RagCounts` on the main dashboard. Population = **Active Projects**. `_weekly_health_buckets()` (`dashboard.py:4379`), called via `project_health_week_summary()`:
+
 | Bucket | Logic |
 |---|---|
-| **Green / Amber / Pot. Red / Red** | The project's health declaration **for the selected weekly period**; bucket by its `overall_rating`. |
-| **Not Submitted** | Active project with no submitted health declaration for the selected week. |
+| **Green / Amber / Pot. Red / Red** | The project has a `ProjectStatusReport` for the selected week with `status` in (Submitted, Approved) **and** a `HealthDeclaration` row for that same `period_id`; bucketed by the declaration's `overall_rating`. |
+| **Not Submitted** | Either condition above is missing — no filed weekly report, or a filed report with no matching declaration row. |
 
-- **Overdue is removed** (replaced by Not Submitted) **[Assumption]**.
-- **[Assumption]** "Health for the period" = the project's Delivery Status (weekly) report for the selected week, in Submitted/Approved status, carrying that week's health declaration; a Draft report → Not Submitted. Confirm whether the source should be the declaration row (`health_declarations.period_id`) or the weekly status report.
-- Requires the health declaration to be looked up by period, not "latest ever" (current behaviour).
-
-**Your decision:**
+- **Both a filed status report and a period-keyed declaration row are required** to be rated — this resolves the old open question definitively: it isn't "report OR declaration", it's both, looked up by `period_id` (not "latest ever").
+- Overdue is gone — `WeeklyHealthBuckets` (schema) has no such field.
+- A Draft or Rejected weekly report → Not Submitted (`_SUBMITTED_REPORT_STATUSES = (Submitted, Approved)`).
 
 ### 1.3 Account Health — for the selected week
-Population = **Active Accounts** (0.4). Buckets always sum to Active Accounts.
-| Bucket | Logic |
-|---|---|
-| **Green / Amber / Pot. Red / Red** | The account's health declaration for the selected weekly period, by `overall_rating`. |
-| **Not Submitted** | Active account with no submitted account health declaration / weekly account status report for the selected week. |
-
-Overdue removed. Same source **[Assumption]** as 1.2, using `account_status_reports` / `account_health_declarations`.
-
-**Your decision:**
+Card: `data.account_health`. Population = **Active Accounts** (0.4, `Account.is_active = true`). Same `_weekly_health_buckets()` helper, sourced from `AccountStatusReport` + `AccountHealthDeclaration` keyed by `account_id`/`period_id`. Same Green/Amber/Pot. Red/Red/Not Submitted rule as 1.2, same "both report and declaration" requirement, same Draft/Rejected → Not Submitted.
 
 ---
 
 ## 2. RAIDO (as of today)
 
-**Section heading renamed to "RAIDO (as of today)".** Snapshot; ignores Period. Scope: 0.4 project set filtered by Geo/Account/Type. **[Assumption: Active Projects only — confirm, or should Hold/Closed projects' records still show?]**
+Heading on the page: **"RAIDO, Alerts & Actions (as of today)"** — it's one combined section with the DE Alerts and Actions cards (§4.1b, §4.3), not a standalone RAIDO section.
 
-### 2.1 Risks
+**Scope split (see §9 for the full list):** the five **summary cards** below (Risks/Issues/Dependencies/Assumptions/Opportunities) are scoped to **Active Projects** (`active_filters`, endpoint line 517-521). Their own **drill-down list screens** (`/project-health/risks`, `/issues`, `/dependencies`, `/assumptions`, `/opportunities`) use the wider **0.4 base set** with no `active_only` — i.e. they also include Hold projects that the summary card excludes.
+
+### 2.1 Risks — `risk_card_summary` (`dashboard.py:2859`)
 | Number | Logic |
 |---|---|
 | **Open** | `current_status` in (Open, Monitoring) |
-| **High/Crit** | Open AND severity in (High, Critical) |
-| **Overdue** | Open AND `target_resolution_date < today` |
-| **No Mitigation** | Open AND `mitigation_plan` null/empty |
+| **High/Crit** | Open AND `severity` in (High, Critical) |
+| **Overdue** | Open AND `target_resolution_date` is set and `< today` |
+| **No Mitigation** | Open AND `mitigation_plan` is null/empty |
 
-### 2.2 Issues
+### 2.2 Issues — `issue_card_summary` (`dashboard.py:2894`)
 | Number | Logic |
 |---|---|
 | **Open** | `status` not in (Resolved, Closed) |
-| **Critical** | Open AND severity = Critical |
-| **Overdue** | Open AND `due_date < today` |
+| **Critical** | Open AND `severity = Critical` |
+| **Overdue** | Open AND `due_date` is set and `< today` |
 
-### 2.3 Dependencies
+The service also computes an `aging_over_threshold_count` (open, `raised_date` set and more than 14 days ago — `_ISSUE_AGING_THRESHOLD_DAYS`), returned in `IssueCardSummary` but **not rendered** on the dashboard card (only Open/Critical/Overdue show).
+
+### 2.3 Dependencies — `dependency_card_summary` (`dashboard.py:3186`)
 | Number | Logic |
 |---|---|
 | **Open** | `dependency_status != Completed` |
-| **Overdue** | Open AND `required_by_date < today` |
+| **Overdue** | Open AND `required_by_date` is set and `< today` |
 | **Critical** | Open AND `criticality = Critical` |
 
-### 2.4 Assumptions
+### 2.4 Assumptions — `assumption_card_summary` (`dashboard.py:3262`)
+AssumptionLog has no due-date field, so this is a proxy off validation fields:
+
 | Number | Logic |
 |---|---|
 | **Open** | `current_status = Open` |
 | **Review Due** | Open AND `validation_status = Pending` |
-| **Overdue** | Review Due AND `validation_date < today` |
+| **Overdue** | Review Due AND `validation_date` is set and `< today` |
 
-### 2.5 Opportunities
+### 2.5 Opportunities — `opportunity_card_summary` (`dashboard.py:3328`)
 | Number | Logic |
 |---|---|
 | **Open** | `status` in (Identified, Approved) |
 | **High Priority** | Open AND `impact = High` |
 | **Pending Approval** | `approval_required = true` AND `status = Identified` |
 
-Records with no due date are never Overdue.
-
-**Your decision:**
+Records with no due/target/review date are never counted as Overdue anywhere in RAIDO.
 
 ---
 
 ## 3. Performance & Commercial
 
-Metrics and Commitments are **project-level**: each **Active Project** is counted **once** in exactly one bucket, so the buckets always sum to Active Projects. Source is the project's **Project Performance report of the previous month of the selected week** (0.3).
+### 3.1 Metrics — `project_metrics_bucket_summary` (`dashboard.py:4479`)
+Population = **Active Projects** (both the card and its `/project-health/metrics` drill-down use `active_only=True` — this one is consistent). Source = `_project_field_statuses()` (`dashboard.py:4041`) across every measurement discipline (Development, Support, Staffing, Testing, Cloud Maintenance, Cloud Migration) for the **previous month's Project Performance data**.
 
-### 3.1 Metrics
-Per Active Project, evaluate every metric reported in that Project Performance report against its target:
 | Bucket | Logic |
 |---|---|
-| **Compliant** | Project has a Performance report for the month **and every metric meets its target**. *(renamed from "Below Target"; the "≤20% below target" rule is removed)* |
-| **Critical Variance** | Report exists and **at least one metric misses its target** (any miss, no 20% threshold). |
-| **Not Reported** | No Project Performance report / no measurements for the month (or nothing comparable against a target — **[Assumption]**). |
+| **Compliant** | Project reported at least one comparable metric field for the month and **every** field it reported met its target. |
+| **Critical Variance** | Project reported and **any** field missed its target (any miss counts — there is no 20% grace band at the project-bucket level). |
+| **Not Reported** | No comparable metric field at all for the month (no report, or a report with nothing measurable against a target). |
 
-Compliant + Critical Variance + Not Reported = Active Projects. The tile shows the three counts (and Compliant % = Compliant ÷ Active Projects **[Assumption]**). The former "Below Target" tile is dropped, Critical Variance remains.
-- "Miss" uses the existing direction rule (higher_better: actual < target; lower_better: actual > target).
-- **Fix carried over:** a project with several disciplines must be evaluated across **all** of them (worst wins), not last-discipline-wins as today.
+Compliant + Critical Variance + Not Reported = Active Projects.
 
-**Your decision:**
+Note: the shared per-field helper `_metric_field_status()` (`dashboard.py:4022`) still internally distinguishes "Below Target" from "Critical Variance" using a 20%-of-target threshold (`_CRITICAL_VARIANCE_THRESHOLD_PCT = 20`). That distinction is only used by the older `metrics_compliance_summary()` (used by a different page, `project_performance.py`) and by the metric-level drill-down rows (`list_metrics_for_health`, which still shows a field-level "Below Target" vs "Critical Variance" status). At the **Project Health dashboard's project-bucket level**, both are folded into "Critical Variance" — any miss, no threshold, per project.
 
-### 3.2 Commitments
-Per Active Project, from the same previous-month Project Performance report (commitment actuals recorded in that month):
+- Direction rule per field: `higher_better` → miss if `actual < target`; `lower_better` → miss if `actual > target`.
+- Worst-wins across all disciplines a project reports in (fixed from a prior last-discipline-wins bug — `_project_field_statuses` accumulates every discipline's field statuses before reducing).
+
+### 3.2 Commitments — `commitments_bucket_summary` (`dashboard.py:4503`)
+Population = **Active Projects**, from `ContractualCommitmentActual` rows dated within the previous month (`period_date` between `month.start` and `month.end`).
+
 | Bucket | Logic |
 |---|---|
-| **Met** | Project has commitment actuals reported for the month and **every** commitment is Met. |
-| **Not Met** | At least **one** commitment is not Met (Not Met / Breached). |
-| **Not Reported** | No commitment actual reported for the month (**[Assumption]** — includes projects with no commitments defined; alternatively a separate "No commitments" treatment). |
+| **Met** | Project has at least one commitment actual in the month, and **every** commitment's latest actual that month is `met_status = Met`. |
+| **Not Met** | At least one commitment's latest actual that month is not Met. |
+| **Not Reported** | No commitment actual recorded for the project in that month — this includes projects with no commitments defined at all. |
 
-Met + Not Met + Not Reported = Active Projects. Open / Due Soon / Overdue / Breached tiles are replaced by these three buckets.
+Met + Not Met + Not Reported = Active Projects.
 
-**Your decision:**
+**Scope inconsistency:** the `/project-health/commitments` drill-down (`list_commitments_for_health`) uses the 0.4 base set (no `active_only`) and shows each commitment's *overall* latest actual (not scoped to the previous month) rather than the bucketed month-scoped view the summary card uses — see §9.
 
-### 3.3 Payment Milestones
-No change requested — current logic retained; snapshot as of today, project scope 0.4.
+### 3.3 Payment Milestones — `payment_milestones_card_summary` (`dashboard.py:3393`)
+Scope = **0.4 base set, not Active-only** (uses plain `filters`, unlike Metrics/Commitments/DE Assessments). Snapshot as of today.
+
 | Number | Logic |
 |---|---|
-| **Value Due** | Sum of `expected_payment_value` for milestones with no actual payment. **Note:** currently sums across currencies — open point. |
-| **Due** | Unpaid, `expected_date` null or ≥ today (upcoming) |
-| **Overdue** | Unpaid, `expected_date < today` |
-
-**Your decision (currency handling, meaning of "Due"):**
+| **Value Due** | Sum of `expected_payment_value` for milestones with no actual payment date. Still sums across currencies unconditionally — no per-currency grouping exists. |
+| **Due** | Unpaid, `expected_date` null or `>= today`. |
+| **Overdue** | Unpaid, `expected_date < today`. |
 
 ---
 
 ## 4. Delivery Excellence & Governance
 
-### 4.1 Findings — snapshot
-**"New This Period" removed.** Remaining tiles:
+### 4.1 Findings (all classifications) — computed but not displayed
+`findings_card_summary()` (`dashboard.py:3742`) is still called by the endpoint (`data.findings` in the response) and covers **every** `DEAssessmentFinding` regardless of classification (Observation, Recommendation, Alert), scoped to the 0.4 base set (not Active-only), snapshot as of today:
+
 | Number | Logic |
 |---|---|
-| **Open Findings** | `status = Open` **[Assumption — carried over; confirm whether Open should include In Progress / Awaiting Closure]** |
-| **Overdue** | Open AND `finding_date` > 30 days ago |
-| **Awaiting Closure** | `status` in (On Hold, Deferred) **[carried over — confirm: should this be `status = Awaiting Closure`?]** |
+| **Open Findings** | `status = Open` |
+| **Overdue** | Open AND `finding_date` set and more than 30 days ago (`_FINDING_OVERDUE_DAYS = 30`) |
+| **Awaiting Closure** | `status` in (**On Hold, Deferred**) |
 
-No longer period-dependent (also removes the "0 if no period" forcing).
+The frontend dashboard **does not render this card** — `data.findings` is unused in `project-health-dashboard.tsx`. Only the Alert-scoped variant below is shown.
 
-**Your decision:**
+Note on "Awaiting Closure": `FindingStatus` (`schemas/enums.py:329`) now has an explicit `AWAITING_CLOSURE = "Awaiting Closure"` value, but this bucket still checks the older `On Hold`/`Deferred` values, not `status = Awaiting Closure`. That is the current behavior, not a doc gap — worth a product/eng decision on whether it should switch, but as-built it's the legacy pair.
 
-### 4.2 DE Assessments — project-level (reworked)
-Population = **Active Projects**; each in exactly one bucket, buckets sum to Active Projects.
-Source = the project's **latest DE Assessment done in the previous month of the selected week** (0.3). **[Assumption: only Submitted assessments count; Draft is ignored.]**
+### 4.1b DE Alerts (the card actually shown)
+`alerts_card_summary()` (`dashboard.py:3761`) — identical logic to 4.1, restricted to `classification = Alert` (the renamed "Open NC" — see [[project_nc_renamed_alert]]):
+
+| Number | Logic |
+|---|---|
+| **Open Alerts** | Alert-classified findings with `status = Open` |
+| **Overdue** | Open AND `finding_date` more than 30 days ago |
+| **Awaiting Closure** | `status` in (On Hold, Deferred) |
+
+Card title on the page: **"DE Alerts"**, links to `/project-health/findings` (same grid as 4.1, filterable by `classification`). Scope = 0.4 base set, not Active-only. Snapshot, not period-dependent.
+
+### 4.2 DE Assessments — `de_assessments_card_summary` (`dashboard.py:3865`)
+Population = **Active Projects**. Source = the project's **latest `Submitted`** `DEAssessment` with `assessment_date` inside the previous month of the selected week:
+
+```python
+DEAssessment.status == "Submitted",
+DEAssessment.assessment_date >= month.start,
+DEAssessment.assessment_date <= month.end,
+```
+
 | Bucket | Logic |
 |---|---|
-| **Green** | Latest assessment's `de_assessed_project_health` = Green. |
-| **Need Attention** | Latest assessment's health in (**Amber, Potential Red, Red**). |
-| **Not Assessed** | No (Submitted) assessment in that month. |
+| **Green** | Latest qualifying assessment's `de_assessed_project_health = Green`. |
+| **Need Attention** | = latest assessments count − Green count (i.e. Amber, Potential Red or Red). |
+| **Not Assessed** | No qualifying (Submitted, in-window) assessment. |
 
-Completed / Avg PCI / Due / Red-Amber tiles are replaced by these three buckets **[Assumption — Avg PCI dropped; confirm]**.
+The schema (`DEAssessmentsCardSummary`) also carries the individual `amber_count` / `potential_red_count` / `red_count` (used to color the RAG strip's Amber/Pot.Red/Red cells on the dashboard's DE card, alongside `green_count`/`not_assessed_count`), but "Need Attention" as a single number is not a separate schema field — the frontend still displays the four RAG colors plus "Not Assessed", not a single "Need Attention" tile.
 
-**Your decision:**
+**Draft assessments are ignored** — confirmed by the `status == "Submitted"` filter. **Avg PCI is dropped** from this card — no PCI field on `DEAssessmentsCardSummary` (a `pci_score` still exists per-row on the `/project-health/assessments` drill-down grid only).
 
-### 4.3 Actions — snapshot (not period dependent)
-**"Due This Week" removed.**
+**Scope inconsistency:** `/project-health/assessments` (`list_assessments_for_health`) uses the 0.4 base set (no `active_only`) and lists every assessment ever recorded, not scoped to Active Projects or to the previous month — see §9.
+
+### 4.3 Actions — `actions_card_summary` (`dashboard.py:3636`)
+Scope = 0.4 base set (not Active-only), snapshot, not period-dependent. "Due This Week" is gone (`ActionsCardSummary` has no such field).
+
 | Number | Logic |
 |---|---|
-| **Open** | status not in (Completed, Closed, Cancelled) |
-| **In Progress** | Open AND status = In Progress |
+| **Open** | `status` not in (Completed, Closed, Cancelled) |
+| **In Progress** | Open AND `status = In Progress` |
 | **Overdue** | Open AND `due_date < today` |
 
-Scope unchanged: with no Geo/Account/Type filter → all actions at every level; with any filter → Project-level actions of in-scope projects only (UI note retained).
+Scope rule (unchanged from before): with **no** Geo/Region/Account/Project Type filter active, every Action at every level (Project/Account/Geo) counts. With **any** filter active, only **Project-level** Actions on the in-scope project set count — Geo/Account-level actions have no FK to intersect against a project filter, so they're dropped and the UI shows a note ("Geo/Account-level actions are excluded while a filter is active").
 
-**Your decision:**
+### 4.4 Data Integrity — card removed, drill-down kept
+The Data Integrity **card is gone** from `ProjectHealthDashboardSummary` and from the dashboard grid (`project-health-dashboard.tsx` has no Data Integrity `<Card>`). But:
+- The drill-down route `GET /project-health/data-integrity` (`dashboard.py` endpoint, line 887) and its service function `list_data_integrity_for_health` (`dashboard.py:4254`) still exist and work — its own docstring notes it backs "the (removed) card summary".
+- The **nav entry survives**: `project-health-nav.tsx:75` still links "Data Integrity" → `/project-health/data-integrity`.
 
-### 4.4 Data Integrity — **REMOVED**
-The Data Integrity card is removed from the dashboard (frontend card + `data_integrity_card_summary` in the summary payload). The drill-down `/project-health/data-integrity` screen and nav entry: **[Assumption — remove the card only, leave the drill-down; confirm or remove everything]**.
+So the resolution is: card removed only; drill-down screen and nav entry both stay.
 
 ---
 
-## 5. Report Submissions
+## 5. Report Submissions & Customer Reporting
 
-Section is a Submitted / Not Submitted tracker. **Draft reports are never counted as Submitted.** Filed = status Submitted or Approved (Rejected and Draft = Not Submitted **[Assumption]**). Population is **Active** entities only **[Assumption]**. Every card has exactly two buckets, **Submitted + Not Submitted = Expected**.
+Section headings on the page: **"Delivery Status"** and **"Project Performance & Customer Reporting"**.
+Draft/Rejected reports never count as Submitted anywhere in this section (`_SUBMITTED_REPORT_STATUSES = (Submitted, Approved)`).
 
-### 5.1 Weekly reports — for the selected week (Monthly excluded)
+### 5.1 Delivery Status — Weekly (`report_submissions_week_summary`, `dashboard.py:4564`)
+Population = Active Projects / Active Accounts / geos in filter (or all geos when unfiltered). For the **selected week only** — no longer "every started period since onboarding" for this particular card:
+
 | Card | Population | Submitted when |
 |---|---|---|
-| **Delivery Status — Projects** | Active Projects | Project weekly status report for the selected week is Submitted/Approved |
-| **Delivery Status — Account** | Active Accounts | Account weekly status report for the selected week is Submitted/Approved |
-| **Delivery Status — Geo** | Geos in filter (all geos when unfiltered) | Geo weekly status report for the selected week is Submitted/Approved |
+| **Delivery Status — Projects** | Active Projects | `ProjectStatusReport` for the selected week is Submitted/Approved |
+| **Delivery Status — Account** | Active Accounts | `AccountStatusReport` for the selected week is Submitted/Approved |
+| **Delivery Status — Geo** | Geos in filter (all geos if unfiltered); hidden entirely for Project Manager / Delivery Manager roles | `GeoStatusReport` for the selected week is Submitted/Approved |
 
-- Only the selected weekly period is evaluated — no longer "every started period since onboarding". Entities onboarded after the week's start are not expected **[Assumption — keep the existing onboarding-date rule]**.
+An entity onboarded after the week's start date is not "owed" a report for that week (`_owed_pairs`, using `tool_effective_date` / `actual_start_date` / `planned_start_date` as the onboarding anchor) and doesn't count against Expected.
 
 ### 5.2 Project Performance (renamed from "Metrics — Projects")
-- **Monthly** report. For the selected week, the **previous month's** Project Performance report (0.3).
-- Population = Active Projects. Buckets **Submitted / Not Submitted**.
-- **[Assumption]** "Submitted" for a Performance report = the project's monthly completion is fully complete for that month (`compute_monthly_completion` → `all_complete`: Measurement, Commitments, Payment Milestones and the 5 RAIDO logs each saved or attested "Reviewed – No Changes"). The Performance report currently has no Draft/Submitted status of its own. Alternative: any measurement row for the month (today's "Metrics — Projects" rule) — please choose.
+Population = Active Projects. **Submitted** = `compute_monthly_completion(db, project_id, month_period)` returns items that are **all** `complete` (every section — Measurement, Commitments, Payment Milestones, and the 5 RAIDO logs — saved or attested "Reviewed – No Changes") for the previous month's Monthly `ReportingPeriod`. There is no separate Draft/Submitted status on the Performance report itself; "Submitted" is entirely derived from monthly-completion state. If no Monthly period exists for that month, the card shows 0/`len(active_project_ids)`.
 
-Adherence % (Submitted ÷ Expected) and Missing (= Not Submitted) may remain as display values.
+### 5.3 Customer Project Status Reporting — `customer_project_report_summary` (`dashboard.py:4687`)
+Population = Active Projects that owed the **selected week's** status report (same owed-set logic as 5.1).
 
-**Your decision:**
+| Bucket | Logic |
+|---|---|
+| **Shared** | Report filed (Submitted/Approved) and `customer_report_shared = true` |
+| **Not Shared** | Report filed but `customer_report_shared` is false/unset |
+| **Not Submitted** | No filed report for the week (Draft, Rejected, or missing) |
+
+### 5.4 Customer Account Reporting — `customer_account_report_summary` (`dashboard.py:4841`)
+Population = Active Accounts. **Not tied to the Period combo** — it looks at the **previous calendar quarter** of `AccountCustomerCommunication` rows internally (quarterly cadence, current quarter deliberately ignored since it isn't due yet).
+
+| Bucket | Logic |
+|---|---|
+| **Shared** | At least one communication logged and shared last quarter |
+| **Not Shared** | Account has no qualifying communication last quarter (and isn't New) |
+| **New** | Account onboarded so recently there's no completed quarter to judge yet — shown for information, excluded from the Adherence % |
 
 ---
 
-## 6. Bucket integrity rules (implementation must assert)
+## 6. Bucket integrity rules (implementation asserts these by construction)
 | Widget | Buckets | Must equal |
 |---|---|---|
 | Project Health | Green + Amber + Pot. Red + Red + Not Submitted | Active Projects |
 | Account Health | Green + Amber + Pot. Red + Red + Not Submitted | Active Accounts |
 | Metrics | Compliant + Critical Variance + Not Reported | Active Projects |
 | Commitments | Met + Not Met + Not Reported | Active Projects |
-| DE Assessments | Green + Need Attention + Not Assessed | Active Projects |
-| Delivery Status (Projects/Account/Geo) | Submitted + Not Submitted | Expected |
+| DE Assessments | Green + Amber + Pot. Red + Red + Not Assessed | Active Projects |
+| Delivery Status (Projects/Account/Geo) | Submitted + Not Submitted | Expected (owed pairs for the week) |
 | Project Performance | Submitted + Not Submitted | Active Projects |
-| Portfolio | Active + Hold + Completed | Total |
+| Customer Project Status Reporting | Shared + Not Shared + Not Submitted | Active Projects owed the week |
+| Customer Account Reporting | Shared + Not Shared + New | Active Accounts |
+| Portfolio | Active + On Hold + Completed | Total (0.4 base set) |
+
+RAIDO, Payment Milestones, Findings/DE Alerts, and Actions are **not** bucket-complete sets summing to a population — they're independent open/overdue-style counts, some against Active Projects (RAIDO cards) and some against the wider 0.4 base set (Payment Milestones, Findings/Alerts, Actions) — see §9.
 
 ---
 
-## 7. Drill-down screens affected
-Each card's list screen should use the same population/period and show the bucket per row: `/project-health/project-list`, `/rag`, `/account-rag`, `/metrics`, `/commitments`, `/assessments`, `/findings`, `/actions`, `/report-submissions/*` (Metrics-projects route/label → Project Performance), and `/data-integrity` (see 4.4). Drill-downs should honour the same Period combo for period-driven cards.
+## 7. Drill-down screens
+All under `/project-health/*`; each has a corresponding backend list endpoint in `dashboard.py`:
+`projects` (Portfolio + Project List), `rag`, `account-rag`, `risks`, `issues`, `dependencies`, `assumptions`, `opportunities`, `metrics`, `commitments`, `payment-milestones`, `assessments`, `findings` (backs both Findings and DE Alerts), `actions`, `data-integrity`, `report-submissions`, `customer-project-reports`, `customer-account-reports`, plus `oracle-projects` / `oracle-projects/summary` (a separate section, not one of the KPI cards — projects present in Oracle with no governance-tool project yet).
 
-## 8. Summary of changes vs. previous version
-1. Period combo: Weekly only, last 10 incl. current, defaults to current.
-2. Portfolio: Draft/Pending Approval excluded; Hold added.
-3. Project & Account Health: per selected week, Not Submitted bucket, sums to Active; Overdue removed.
-4. RAIDO heading → "RAIDO (as of today)".
-5. Metrics: project-level from previous-month Performance report; Below Target → Compliant; 20% rule removed; any miss = Critical Variance; Active only.
-6. Commitments: project-level Met / Not Met / Not Reported; Active only.
-7. Findings: New This Period removed.
-8. DE Assessments: project-level Green / Need Attention / Not Assessed from previous month's assessment.
-9. Actions: Due This Week removed.
-10. Data Integrity card removed.
-11. Report Submissions: weekly-only Delivery Status cards, Submitted/Not Submitted, Draft excluded; "Metrics — Projects" → "Project Performance" (previous month).
+Not every drill-down honours the same population/period as its summary card — see §9.
 
-## 9. Open questions to confirm
-1. "Unapproved" = Pending Approval (and Draft)? Should Under Amendment stay in?
-2. Is Hold excluded from Active (my assumption) — and therefore from all the "= Active Projects" widgets?
-3. "Previous month" of a week: use week start date or end date when it straddles months?
-4. Project/Account Health "for the period": source = weekly status report's health declaration vs. declaration row by period?
-5. Is a Pending/Rejected weekly report treated as Not Submitted?
-6. "Not Reported" for Metrics: also cover "report exists but no target set"? For Commitments: projects with no commitments defined → Not Reported?
-7. What defines a Project Performance report as "Submitted" (all sections complete vs. any measurement row)?
-8. DE Assessments: Draft assessments ignored? Avg PCI dropped?
-9. RAIDO / Payment Milestones / Findings / Actions: restrict to Active Projects, or keep all in-scope projects?
-10. Data Integrity: remove only the card, or also the drill-down screen and nav entry?
-11. Findings: keep "Open = status Open only" and "Awaiting Closure = On Hold/Deferred"?
-12. Payment Milestones: multi-currency Value Due handling.
+---
+
+## 8. Card inventory (what actually renders on `/project-health` today)
+In page order (`project-health-dashboard.tsx`):
+1. **Project & Account** — Project Health, Account Health (hidden for PM), Project Health Assessed by DE.
+2. **RAIDO, Alerts & Actions (as of today)** — Risks, Issues, Opportunities, DE Alerts, Actions.
+3. **Performance & Commercial** — Metrics, Commitments, Payment Milestones.
+4. **Delivery Status** — Delivery Status Projects, Delivery Status Account (hidden for PM), Delivery Status Geo (hidden for PM/Delivery Manager).
+5. **Project Performance & Customer Reporting** — Project Performance, Customer Project Status Reporting, Customer Account Reporting (hidden for PM).
+6. **Oracle Projects** — role-gated (`useCanSeeOracleProjects`), not shown to PM/Team Member.
+
+Not on the page as cards: **Dependencies** and **Assumptions** (summarized in the backend payload but not rendered — same "computed but unused" situation as plain Findings), **Project Portfolio** (rendered on the Project List drill-down instead), **Data Integrity** (removed per §4.4).
+
+---
+
+## 9. Known scope inconsistencies between a summary card and its own drill-down
+These are current, real behaviors — not proposals to fix — flagged because a reader will otherwise assume a card's "View X" link shows the same population the card counted.
+
+1. **RAIDO** (Risks/Issues/Dependencies/Assumptions/Opportunities): summary cards = Active Projects only; drill-downs (`/project-health/risks` etc.) = full 0.4 base set (Hold projects included).
+2. **Commitments**: summary card = Active Projects, bucketed by the previous month's actuals only; `/project-health/commitments` = full 0.4 base set, shows each commitment's overall latest actual (any month).
+3. **DE Assessments**: summary card = Active Projects, latest Submitted assessment in the previous month only; `/project-health/assessments` = full 0.4 base set, every assessment ever recorded (no month/status filter).
+4. **Report Submissions drill-down** (`/project-health/report-submissions`, backing `list_report_submissions_for_health`) enumerates every owed (entity, period) pair across **every active Weekly+Monthly period since onboarding** — not just the selected week / previous month the main cards use.
+5. **Findings vs DE Alerts**: both are computed server-side against the same 0.4 base set; only DE Alerts (Alert classification) is rendered as a card, but the plain Findings numbers are still shipped in the API payload unused.
+
+Everything else (Project/Account Health, Metrics, Payment Milestones, Actions, Findings/Alerts, Delivery Status, Project Performance, Customer Reporting) uses the same population and period logic in its card and its drill-down.

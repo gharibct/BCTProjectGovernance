@@ -250,6 +250,9 @@ async def _replace_entity_head(db: AsyncSession, link_model: type, link_col, ent
     existing = (await db.execute(select(link_model).where(link_col == entity_id))).scalars().all()
     for row in existing:
         await db.delete(row)
+    # Flush the deletes first: the unit of work otherwise INSERTs before it
+    # DELETEs, so re-saving the same head trips UNIQUE (user_id, account_id/geo_id).
+    await db.flush()
     if user_id is not None:
         now = datetime.now(UTC)
         if link_model is UserAccount:
