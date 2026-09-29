@@ -21,11 +21,15 @@ class ProjectCRUD(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
     async def create(self, db: AsyncSession, obj_in: ProjectCreate, **extra: Any) -> Project:
         obj = await super().create(db, obj_in, **extra)
         await sync_project_revenue_usd(db, obj)
+        # The sync's UPDATE expires the has_active_amendment column_property; reload it
+        # here (async) so serializing the response doesn't lazy-load (MissingGreenlet).
+        await db.refresh(obj)
         return obj
 
     async def update(self, db: AsyncSession, db_obj: Project, obj_in: ProjectUpdate) -> Project:
         obj = await super().update(db, db_obj, obj_in)
         await sync_project_revenue_usd(db, obj)
+        await db.refresh(obj)
         return obj
 
 
