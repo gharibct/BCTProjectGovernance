@@ -94,7 +94,7 @@ CREATE TABLE reporting_periods (
                                 -- health_declarations' initial New Project
                                 -- declaration — see 04_health_declarations.sql)
     code TEXT NOT NULL UNIQUE, -- e.g. '2026-W31', '2026-07'
-    label TEXT NOT NULL,       -- e.g. 'Week 31, 2026', 'Jul 2026'
+    label TEXT NOT NULL,       -- Weekly: the Friday end date, e.g. 'Sep 11, 2026'; Monthly: 'Jul 2026'
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     is_active BOOLEAN NOT NULL,

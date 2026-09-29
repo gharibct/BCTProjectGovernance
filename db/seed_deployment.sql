@@ -19,20 +19,20 @@ INSERT INTO organizations (id, code, name, is_active, created_at, updated_at) VA
     --(gen_random_uuid(), 'FT', 'FinTech Unit', true, now(), now());
 
 INSERT INTO geos (id, code, name, is_active, created_at, updated_at) VALUES
-    (gen_random_uuid(), 'APAC', 'Asia Pacific', true, now(), now()),
-    (gen_random_uuid(), 'MEA', 'Middle East & Africa', true, now(), now()),
-    (gen_random_uuid(), 'US', 'United States', true, now(), now());
+    (gen_random_uuid(), 'APAC', 'APAC', true, now(), now()),
+    (gen_random_uuid(), 'MEA', 'MEA', true, now(), now()),
+    (gen_random_uuid(), 'US', 'US', true, now(), now());
 
 INSERT INTO regions (id, geo_id, code, name, is_active, created_at, updated_at) VALUES
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'BRUNEI', 'Brunei', true, now(), now()),
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'SINGAPORE', 'Singapore', true, now(), now()),
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'INDIA', 'India', true, now(), now()),
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'US'), 'US', 'United States', true, now(), now()),
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'UAE', 'United Arab Emirates', true, now(), now()),
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'QATAR', 'Qatar', true, now(), now()),
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'UK', 'United Kingdom', true, now(), now()),
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'OMAN', 'Oman', true, now(), now()),
-    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'SAUDI', 'Saudi Arabia', true, now(), now());
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'BRUNEI', 'BRUNEI', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'SINGAPORE', 'SINGAPORE', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'APAC'), 'INDIA', 'INDIA', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'US'), 'US', 'US', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'UAE', 'UAE', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'QATAR', 'QATAR', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'UK', 'UK', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'OMAN', 'OMAN', true, now(), now()),
+    (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'SAUDI', 'SAUDI', true, now(), now());
 
 INSERT INTO project_types (id, code, name, description, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'DEVELOPMENT', 'Development/ Enhancement', NULL, true, now(), now()),
@@ -61,10 +61,12 @@ INSERT INTO products (id, code, name, product_group, is_active, created_at, upda
     (gen_random_uuid(), 'ePAY', 'ePAY', 'Payments', true, now(), now()),
     (gen_random_uuid(), 'eREMIT', 'eREMIT', 'Payments', true, now(), now());
 
+/*
 INSERT INTO accounts (id, name, geo_id, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'Gulf National Bank', (SELECT id FROM geos WHERE code = 'MEA'), true, now(), now()),
     (gen_random_uuid(), 'Pacific Retail Group', (SELECT id FROM geos WHERE code = 'APAC'), true, now(), now()),
     (gen_random_uuid(), 'Liberty Insurance Co', (SELECT id FROM geos WHERE code = 'US'), true, now(), now());
+*/
 
 INSERT INTO users (id, ldap_username, full_name, email, role_id, is_active, mfa_enrolled, created_at, updated_at) VALUES
     -- Admin role so this login (the primary dev/test account) sees every
@@ -102,8 +104,8 @@ INSERT INTO user_geos (id, user_id, geo_id, created_at) VALUES
 INSERT INTO reporting_periods (id, period_type, code, label, start_date, end_date, is_active, created_at, updated_at)
 SELECT gen_random_uuid(), 'Weekly',
        to_char(d, 'IYYY') || '-W' || to_char(d, 'IW'),
-       to_char(d::date + 6, 'Mon DD, YYYY'),
-       d::date, (d::date + 6), true, now(), now()
+       to_char(d::date + 4, 'Mon DD, YYYY'),
+       d::date, (d::date + 4), true, now(), now()
 FROM generate_series('2025-12-29'::date, '2027-01-03'::date, '7 days') AS d;
 
 INSERT INTO reporting_periods (id, period_type, code, label, start_date, end_date, is_active, created_at, updated_at)

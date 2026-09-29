@@ -10,16 +10,19 @@ sudo apt update && sudo apt -y upgrade
 sudo apt -y install git curl build-essential nginx ufw \
   python3 python3-venv python3-pip libpq-dev
 sudo timedatectl set-timezone <your/Timezone>   # scheduler runs at 07:00 server-local time
+sudo timedatectl set-timezone Asia/Kolkata 
 
 2. PostgreSQL 16
 
 sudo apt -y install postgresql postgresql-contrib
 sudo systemctl enable --now postgresql
 
-DBPASS=$(openssl rand -hex 16); echo "DB password: $DBPASS"   # save this
-sudo -u postgres psql -c "ALTER USER postgres PASSWORD '$DBPASS';"
+# DBPASS=$(openssl rand -hex 16); echo "DB password: $DBPASS"   # save this
+# sudo -u postgres psql -c "ALTER USER postgres PASSWORD '$DBPASS';"
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
 sudo -u postgres createdb project_governance
-Tune it for 16 GB (create /etc/postgresql/16/main/conf.d/pgov.conf):
+# Tune it for 16 GB (create /etc/postgresql/16/main/conf.d/pgov.conf):
+create /etc/postgresql/18/main/conf.d/pgov.conf
 shared_buffers = 3GB
 effective_cache_size = 8GB
 work_mem = 16MB
@@ -65,17 +68,17 @@ sudo useradd -m -s /bin/bash pgov
 sudo mkdir -p /opt/pgov && sudo chown pgov:pgov /opt/pgov
 sudo -iu pgov
 cd /opt/pgov
-git clone --no-checkout -b GeoAccountDev https://github.com/gharibct/BCTProjectGovernance.git app
+git clone --no-checkout -b left-menu-changes https://github.com/gharibct/BCTProjectGovernance.git app
 cd app
 git sparse-checkout init --cone
 git sparse-checkout set backend frontend db deployment.md
-git checkout GeoAccountDev
+git checkout left-menu-changes
 If the repo is private, use a deploy key or a personal access token for the clone.
 
 5. Database schema and seed
 
 cd /opt/pgov/app
-export PGPASSWORD='<DB password>'
+export PGPASSWORD='postgres'
 psql -h localhost -U postgres -d project_governance -f db/run_all.sql
 Before seeding, edit db/seed_deployment.sql if needed. It creates one Admin user, hari.g / hari.g@bahwancybertek.com, and that is the login identifier. It also still inserts three demo accounts (Gulf National Bank, Pacific Retail Group, Liberty Insurance Co), even though deployment.md says accounts are left out. Remove those lines if you don't want them in production.
 psql -h localhost -U postgres -d project_governance -f db/seed_deployment.sql
@@ -228,3 +231,29 @@ Checks after deploy
 
 I can also write these as a single provisioning script, or add the CloudWatch agent config for memory and disk alarms.
 
+ps aux | grep -E "npm|uvicorn"
+
+sudo pkill -f "npm"
+sudo pkill -f "uvicorn"
+
+cd /opt/pgov/app/frontend
+nohup npm run start -- -H 0.0.0.0 -p 3000 > /tmp/frontend.log 2>&1 &
+disown
+
+cd /opt/pgov/app/backend
+nohup .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/uvicorn.log 2>&1 &
+disown
+
+
+ psql -h localhost -U postgres -d project_governance
+
+River47Cloud
+Stone82Moon
+
+curl -H "X-API-Key: local-dev-key" http://localhost:8000/api/v1/auth/config
+curl  http://localhost:3000/api/v1/auth/config
+
+curl -i -X OPTIONS http://localhost:8000/api/v1/auth/config \
+  -H "Origin: https://govone.bahwancybertek.com" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: local-dev-key"

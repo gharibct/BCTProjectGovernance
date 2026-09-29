@@ -32,12 +32,19 @@ const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
   geo: "Delivery Status Report - Geo",
 };
 
-// "approve" is the Account Manager's worklist copy of the project report (with the
-// Approve / Reject bar); "view" is the read-only report. Only the project scope has both.
+// "approve" is a reviewer's worklist copy of the report (with the Approve / Reject
+// bar); "view" is the read-only report under My Reports. Project and account
+// reports have both; the geo report keeps a single page with its bar.
 export type StatusReviewMode = "view" | "approve";
 
-const APPROVE_NAV_LABEL = "Approve Project Delivery Status";
-const APPROVE_NAV_HREF = "/select-project/project-approval";
+const APPROVE_NAV_LABEL: Partial<Record<ReviewScope, string>> = {
+  project: "Approve Project Delivery Status",
+  account: "Approve Account Delivery Status",
+};
+const APPROVE_NAV_HREF: Partial<Record<ReviewScope, string>> = {
+  project: "/select-project/project-approval",
+  account: "/select-account/account-approval",
+};
 
 const SCOPE_NAV_HREF: Record<ReviewScope, string> = {
   project: "/project-review",
@@ -79,20 +86,20 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
   // project-health-report-submissions.tsx) can carry a `?back=` path so
   // this breadcrumb returns there instead of defaulting to SCOPE_NAV_HREF.
   const back = searchParams.get("back");
-  const approving = scope === "project" && mode === "approve";
-  // Project Delivery Status (view) is for reading only — its decision bar moved to
-  // the approve page. Account and Geo reports keep theirs.
-  const viewOnly = scope === "project" && mode === "view";
+  const approving = scope !== "geo" && mode === "approve";
+  // Project / Account Delivery Status (view) are for reading only — their decision
+  // bar moved to the approve pages. The Geo report keeps its own.
+  const viewOnly = scope !== "geo" && mode === "view";
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div>
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
           <Link
-            href={back || (approving ? APPROVE_NAV_HREF : SCOPE_NAV_HREF[scope])}
+            href={back || (approving ? APPROVE_NAV_HREF[scope] : undefined) || SCOPE_NAV_HREF[scope]}
             className="font-semibold text-[#1a6fc4] hover:underline"
           >
-            {back ? "Report Submissions" : approving ? APPROVE_NAV_LABEL : SCOPE_NAV_LABEL[scope]}
+            {back ? "Report Submissions" : approving ? APPROVE_NAV_LABEL[scope] : SCOPE_NAV_LABEL[scope]}
           </Link>
           {period ? (
             <>

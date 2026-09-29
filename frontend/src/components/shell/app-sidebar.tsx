@@ -578,6 +578,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       bold={ctx.bold}
     />
   ),
+  "account-approval": (ctx) => (
+    <SimpleLink
+      href={selectAccountHref("account-approval")}
+      icon={CheckCircle2}
+      label={ctx.labelFor("account-approval", "Approve Account Delivery Status")}
+      active={ctx.routeActive["account-approval"] || ctx.pathname === selectAccountHref("account-approval")}
+      bold={ctx.bold}
+    />
+  ),
   "admin-users-roles": (ctx) => (
     <SimpleLink
       href="/admin/users"
@@ -751,6 +760,7 @@ export function AppSidebar() {
   const isProjectApproval = pathname.startsWith("/project-approval");
   const isProjectPerformance = pathname.startsWith("/project-performance");
   const isAccountReview = pathname.startsWith("/account-review");
+  const isAccountApproval = pathname.startsWith("/account-approval");
   const isGeoReview = pathname.startsWith("/geo-review");
   // The :projectId route segment is the single source of truth for which of
   // "New Project" (segment === "new") vs "Maintain Project" (a real id) is
@@ -771,7 +781,7 @@ export function AppSidebar() {
   const reportingGeoId = isGeoReporting ? pathname.split("/")[2] : undefined;
   const reviewProjectId = isProjectReview || isProjectApproval ? pathname.split("/")[2] : undefined;
   const performanceProjectId = isProjectPerformance ? pathname.split("/")[2] : undefined;
-  const reviewAccountId = isAccountReview ? pathname.split("/")[2] : undefined;
+  const reviewAccountId = isAccountReview || isAccountApproval ? pathname.split("/")[2] : undefined;
   const reviewGeoId = isGeoReview ? pathname.split("/")[2] : undefined;
 
   // Remember whichever project screen is open as the "current" project, so the
@@ -812,6 +822,7 @@ export function AppSidebar() {
     "project-approval": isProjectApproval,
     "project-performance": isProjectPerformance,
     "account-review": isAccountReview,
+    "account-approval": isAccountApproval,
     "geo-review": isGeoReview,
     "account-reporting": isAccountReporting,
     "geo-reporting": isGeoReporting,

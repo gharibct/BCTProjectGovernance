@@ -308,6 +308,36 @@ export function ProjectCreationForm() {
         </Field>
       </SectionCard>
 
+      <SectionCard icon={Database} title="Add Oracle Project">
+        <Field
+          label="Oracle Project ID"
+          htmlFor="oracle-project-id"
+          badge={<MandatoryBadge />}
+          error={oracleInputError ?? undefined}
+        >
+          <Input
+            id="oracle-project-id"
+            placeholder="e.g. ORA-88121"
+            value={oracleInput}
+            onChange={(e) => {
+              setOracleInput(e.target.value);
+              if (oracleInputError) setOracleInputError(null);
+            }}
+            className={inputClass}
+          />
+        </Field>
+        <div className="mt-6 flex justify-end">
+          <Button
+            onClick={addOracleId}
+            disabled={oracleValidating}
+            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+          >
+            {oracleValidating ? <ButtonSpinner /> : null}
+            Add
+          </Button>
+        </div>
+      </SectionCard>
+
       <SectionCard
         icon={Database}
         title="Oracle Projects Register"
@@ -337,36 +367,6 @@ export function ProjectCreationForm() {
             },
           ]}
         />
-      </SectionCard>
-
-      <SectionCard icon={Database} title="Add Oracle Project">
-        <Field
-          label="Oracle Project ID"
-          htmlFor="oracle-project-id"
-          badge={<MandatoryBadge />}
-          error={oracleInputError ?? undefined}
-        >
-          <Input
-            id="oracle-project-id"
-            placeholder="e.g. ORA-88121"
-            value={oracleInput}
-            onChange={(e) => {
-              setOracleInput(e.target.value);
-              if (oracleInputError) setOracleInputError(null);
-            }}
-            className={inputClass}
-          />
-        </Field>
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addOracleId}
-            disabled={oracleValidating}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {oracleValidating ? <ButtonSpinner /> : null}
-            Add
-          </Button>
-        </div>
       </SectionCard>
 
       <SectionCard icon={Building2} title="Project Profile">

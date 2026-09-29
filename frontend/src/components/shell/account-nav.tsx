@@ -3,10 +3,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useSearchParams } from "next/navigation";
-import { CalendarDays, Circle, CircleCheck, ClipboardList, LayoutGrid, Sparkles } from "lucide-react";
+import { Circle, CircleCheck, ClipboardList, LayoutGrid, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
 import { activeClass, childClass, idleClass, StatusIcon, type NavGroup } from "./nav-primitives";
 
 // Mirrors project-nav.tsx's shell exactly, generalized for Account
@@ -103,11 +102,6 @@ export function AccountNav() {
 
   return (
     <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
-      <p className="flex items-center gap-2 px-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
-        <CalendarDays className="size-4 text-[#1a6fc4]" />
-        Period: {CURRENT_PERIOD}
-      </p>
-
       <Suspense fallback={null}>
         <NavLinks groups={groups} pathname={pathname} base={base} />
       </Suspense>

@@ -36,6 +36,7 @@ export type MenuEntryId =
   | "project-performance"
   | "actions"
   | "account-review"
+  | "account-approval"
   | "geo-review"
   | "admin-users-roles"
   | "admin-integrations"
@@ -121,7 +122,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     { items: ["geo-head-dashboard"] },
     {
       heading: "My Worklist",
-      items: ["geo-reporting", "reassignment"],
+      items: ["geo-reporting", "account-approval", "reassignment"],
     },
     {
       heading: "My Reports",

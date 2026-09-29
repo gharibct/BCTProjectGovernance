@@ -4,7 +4,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useSearchParams } from "next/navigation";
 import {
-  CalendarDays,
   Circle,
   CircleCheck,
   ClipboardList,
@@ -15,7 +14,6 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { activeClass, childClass, idleClass, StatusIcon, type NavGroup } from "./nav-primitives";
 
@@ -201,11 +199,6 @@ export function ProjectNav() {
 
   return (
     <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
-      <p className="flex items-center gap-2 px-3 text-xs font-bold tracking-wide text-slate-500 uppercase">
-        <CalendarDays className="size-4 text-[#1a6fc4]" />
-        Period: {CURRENT_PERIOD}
-      </p>
-
       <Suspense fallback={null}>
         <NavLinks groups={groups} pathname={pathname} base={base} />
       </Suspense>

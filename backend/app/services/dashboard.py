@@ -1744,7 +1744,7 @@ async def account_review_queue(
             # updated_at is the best available proxy, same convention as
             # report_review_queue's ProjectStatusReport handling.
             submitted_at=report.updated_at,
-            href=f"/account-review/{report.account_id}",
+            href=f"/account-approval/{report.account_id}",
         )
         for report, account_name, head_name in rows
     ]
