@@ -4,7 +4,9 @@ import * as React from "react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 import { X } from "lucide-react"
 
+import { BannerView } from "@/components/shell/page-banner"
 import { cn } from "@/lib/utils"
+import { usePageBanner } from "@/stores/page-banner"
 
 // Right-side sliding drawer — same Radix Dialog primitives as ui/dialog.tsx,
 // restyled as a side sheet instead of a centered modal (matches
@@ -35,6 +37,23 @@ function SheetOverlay({ className, ...props }: React.ComponentProps<typeof Dialo
   )
 }
 
+// Inline success/error feedback pinned to the bottom of every drawer, next to
+// its action buttons. The page-level banner sits behind the drawer overlay, so
+// a message raised while the drawer is open would otherwise be hidden. Only
+// messages raised after the drawer opened are shown (stale ones are ignored).
+function SheetFeedback() {
+  const banner = usePageBanner((state) => state.banner)
+  const dismiss = usePageBanner((state) => state.dismiss)
+  const [initial] = React.useState(banner)
+
+  if (!banner || banner === initial) return null
+  return (
+    <div className="border-t border-slate-200 bg-white p-4">
+      <BannerView banner={banner} onDismiss={dismiss} />
+    </div>
+  )
+}
+
 function SheetContent({
   className,
   children,
@@ -47,13 +66,14 @@ function SheetContent({
       <DialogPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "fixed top-0 right-0 z-50 flex h-full w-full flex-col border-l border-slate-200 bg-white shadow-2xl outline-none sm:w-[450px] lg:w-[35%]",
+          "fixed top-0 right-0 z-50 flex h-full w-full flex-col border-l border-slate-200 bg-white shadow-2xl outline-none sm:w-[560px] lg:w-[40%]",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
           className
         )}
         {...props}
       >
         {children}
+        <SheetFeedback />
         {showClose ? (
           <DialogPrimitive.Close
             data-slot="sheet-close-icon"

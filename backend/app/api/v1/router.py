@@ -39,6 +39,7 @@ from app.api.v1.endpoints import (
     reassignment,
     reference_data,
     regional_status,
+    report_attachments,
     reporting_attestation,
     users,
 )
@@ -62,6 +63,8 @@ api_router.include_router(health_declarations.items_router)
 api_router.include_router(bulk_delivery_status.router)
 api_router.include_router(import_templates.router)
 api_router.include_router(project_status.router)
+api_router.include_router(report_attachments.project_attachments_router)
+api_router.include_router(report_attachments.account_attachments_router)
 api_router.include_router(project_status.items_router)
 api_router.include_router(project_status.activity_router)
 api_router.include_router(raid.router)

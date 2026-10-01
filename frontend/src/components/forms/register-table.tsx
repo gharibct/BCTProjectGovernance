@@ -49,12 +49,12 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   const [pendingDelete, setPendingDelete] = React.useState<T | null>(null);
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200">
+    <div className="overflow-x-auto rounded-lg border border-[#D0D9E2]">
       <table className="w-full text-sm">
         <thead>
           <tr
             className={cn(
-              "border-b border-slate-200 bg-slate-50 text-left text-xs font-bold tracking-wide text-slate-600 uppercase",
+              "border-b border-[#8EBBE0] bg-[#D6E9F8] text-left text-xs font-bold tracking-wide text-[#205889] uppercase",
               headerClassName
             )}
           >
@@ -69,12 +69,12 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
             {showActions ? <th className="px-4 py-3 text-right">Actions</th> : null}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-[#E4E9EE] text-[#172033]">
           {items.length === 0 ? (
             <tr>
               <td
                 colSpan={columns.length + (showActions ? 1 : 0)}
-                className="px-4 py-6 text-center text-slate-400"
+                className="px-4 py-6 text-center text-[#526273]"
               >
                 {emptyLabel}
               </td>
@@ -84,7 +84,10 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
               <tr
                 key={item.id}
                 onClick={onRowClick ? () => onRowClick(item) : undefined}
-                className={onRowClick ? "cursor-pointer hover:bg-slate-50" : undefined}
+                className={cn(
+                  "bg-white even:bg-[#F8FAFB] hover:bg-[#EDF3F7]",
+                  onRowClick && "cursor-pointer"
+                )}
               >
                 {columns.map((c) => (
                   <td
@@ -111,7 +114,7 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
                           type="button"
                           onClick={() => onEdit(item)}
                           aria-label="Edit row"
-                          className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#1a6fc4]"
+                          className="rounded-md p-1.5 text-[#526273] hover:bg-[#EDF3F7] hover:text-[#1a6fc4]"
                         >
                           <Pencil className="size-4" />
                         </button>
@@ -121,7 +124,7 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
                           type="button"
                           onClick={() => setPendingDelete(item)}
                           aria-label="Delete row"
-                          className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                          className="rounded-md p-1.5 text-[#526273] hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 className="size-4" />
                         </button>

@@ -71,7 +71,10 @@ class ApplicablePhase(StrEnum):
     TESTING = "Testing"
     UAT_SUPPORT = "UAT Support"
     WARRANTY = "Warranty"
-    SUPPORT = "Support"
+    SUPPORT_L0 = "Support L0"
+    SUPPORT_L1 = "Support L1"
+    SUPPORT_L2 = "Support L2"
+    SUPPORT_L3 = "Support L3"
     MIGRATION = "Migration"
 
 
@@ -484,6 +487,13 @@ class ReportStatus(StrEnum):
     SUBMITTED = "Submitted"
     APPROVED = "Approved"
     REJECTED = "Rejected"
+    # Geo reports only: the Geo Head doesn't author them from scratch — they
+    # are auto-generated from the accounts' filed reports, saved as a draft
+    # once the Geo Head edits them, and baselined (frozen) instead of
+    # submitted for review.
+    AUTO_GENERATED = "Auto Generated"
+    DRAFT_SAVED = "Draft - Saved"
+    BASELINED = "Baselined"
 
 
 class ProjectStatusCategory(StrEnum):

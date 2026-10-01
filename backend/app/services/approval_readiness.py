@@ -77,7 +77,7 @@ _DE_MODULE_FOR_READINESS: dict[str, str] = {
 
 _GAP_TEXT: dict[str, str] = {
     "project_profile": "Project Profile fields incomplete",
-    "scope_schedule": "Customer overview, scope description, planned start date, or planned end date missing",
+    "scope_schedule": "Scope description, planned start date, or planned end date missing",
     "measurement": "Measurement targets not captured",
     "commitments": "No commitments added",
     "milestones": "No payment milestones added",
@@ -117,6 +117,16 @@ _FLAT_METRIC_TARGET: dict[str, tuple[type, type]] = {
 }
 
 _STAFFING_CODE = "PROFESSIONAL_STAFFING"
+
+# Development projects also declare their Size Unit, Overall Planned Size and Overall Estimated Effort
+# on Scope & Schedule (stored on the Development metric-target row). They are
+# validated there, not as Measurement targets.
+_DEVELOPMENT_CODE = "DEVELOPMENT"
+SCOPE_SIZE_EFFORT_COLUMNS = (
+    "target_size_unit",
+    "target_overall_planned_size",
+    "target_overall_estimated_effort",
+)
 
 
 def _filled(value: object) -> bool:
@@ -181,6 +191,8 @@ async def measurement_progress(db: AsyncSession, project: Project) -> tuple[int,
             await db.execute(select(model).where(model.project_id == project.id))
         ).scalar_one_or_none()
         columns = _target_columns(in_schema)
+        if code == _DEVELOPMENT_CODE:
+            columns = [col for col in columns if col not in SCOPE_SIZE_EFFORT_COLUMNS]
         total = len(columns)
         filled = 0 if row is None else sum(1 for col in columns if getattr(row, col) is not None)
         gap = None if filled >= total else f"Measurement targets incomplete for {ptype.name}"
@@ -217,6 +229,24 @@ async def measurement_progress(db: AsyncSession, project: Project) -> tuple[int,
     return 0, 1, "Measurement not applicable for this project type"
 
 
+async def scope_size_effort_progress(db: AsyncSession, project: Project) -> tuple[int, int, str | None]:
+    """(filled, expected, gap text) for the Size Unit / Overall Planned Size / Overall Estimated Effort
+    fields on Scope & Schedule. Only Development projects have them — every other
+    project type is (0, 0, None)."""
+    if project.project_type_id is None:
+        return 0, 0, None
+    ptype = await db.get(ProjectType, project.project_type_id)
+    if ptype is None or ptype.code != _DEVELOPMENT_CODE:
+        return 0, 0, None
+    row = (
+        await db.execute(select(MetricTargetDevelopment).where(MetricTargetDevelopment.project_id == project.id))
+    ).scalar_one_or_none()
+    total = len(SCOPE_SIZE_EFFORT_COLUMNS)
+    filled = 0 if row is None else sum(1 for col in SCOPE_SIZE_EFFORT_COLUMNS if _filled(getattr(row, col)))
+    gap = None if filled >= total else f"Size Unit, Overall Planned Size and Overall Estimated Effort incomplete for {ptype.name}"
+    return filled, total, gap
+
+
 async def measurement_complete(db: AsyncSession, project: Project) -> tuple[bool, str | None]:
     filled, total, gap = await measurement_progress(db, project)
     return (total > 0 and filled >= total), gap
@@ -239,13 +269,15 @@ async def _module_status(
         last_updated = project.updated_at
     elif key == "scope_schedule":
         fields = (
-            project.customer_overview,
             project.project_scope_description,
             project.planned_start_date,
             project.planned_end_date,
         )
         ft = len(fields)
         fc = sum(1 for v in fields if _filled(v))
+        size_fc, size_ft, gap_override = await scope_size_effort_progress(db, project)
+        fc += size_fc
+        ft += size_ft
         last_updated = project.updated_at
     elif key == "measurement":
         fc, ft, gap_override = await measurement_progress(db, project)

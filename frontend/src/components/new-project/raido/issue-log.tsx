@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
@@ -14,25 +14,15 @@ import {
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
-import { useUsers } from "@/lib/api/reference-data";
-import { useBaselinePeriodId } from "@/lib/period-utils";
+import { useProjectPeopleChoices, useUsersByIds } from "@/lib/api/reference-data";
 import {
   useCreateIssue,
   useIssues,
-  useUpdateIssue,
   type IssueLog as IssueLogItem,
   type IssueLogPayload,
 } from "@/lib/api/raid";
 import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
-
-const ISSUE_PREVIEW_FIELDS = [
-  { key: "issue_title", label: "Title" },
-  { key: "issue_category", label: "Category" },
-  { key: "priority", label: "Priority" },
-  { key: "severity", label: "Severity" },
-] as const;
 
 function buildIssuePayload(values: Record<string, string>): IssueLogPayload {
   return values as IssueLogPayload;
@@ -43,8 +33,7 @@ function buildIssuePayload(values: Record<string, string>): IssueLogPayload {
 // escalation_date, resolution_summary, lessons_learned, closure_date)
 // aren't collected here; they belong to a future edit screen.
 function useIssueFields(): FieldDef[] {
-  const { data: users } = useUsers();
-  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+  const userChoices = useProjectPeopleChoices(useNewProjectId());
 
   return [
     { key: "issue_title", label: "Issue Title", kind: "text", mandatory: true },
@@ -81,23 +70,36 @@ function useIssueFields(): FieldDef[] {
 
 export function IssueLog() {
   const projectId = useNewProjectId();
-  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useIssues(projectId);
   const createIssue = useCreateIssue(projectId);
-  const updateIssue = useUpdateIssue(projectId);
   const fields = useIssueFields();
-  const { data: users } = useUsers();
+  const { data: users } = useUsersByIds(items.map((item) => item.assigned_to));
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
 
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
+
+  const [formOpen, setFormOpen] = React.useState(false);
+  const startAdd = () => {
+    reset();
+    setFormOpen(true);
+  };
+  const cancelForm = () => {
+    reset();
+    setFormOpen(false);
+  };
+  const formRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (formOpen) formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [formOpen]);
 
   const addIssue = () => {
     if (!values.issue_title?.trim()) return;
     createIssue.mutate(buildIssuePayload(values), {
       onSuccess: () => {
         reset();
+        setFormOpen(false);
         showSuccess("Issue Added Successfully");
       },
       onError: (err) => showError(err instanceof Error ? err.message : "Failed to add issue."),
@@ -112,12 +114,22 @@ export function IssueLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <AiRowSuggestionsTrigger projectId={projectId} screen="issues" periodId={periodId} itemLabel="Issue" />
 
       <SectionCard
         icon={TriangleAlert}
         title="Issue Register"
-        aside={<AutoBadge label={`${items.length} logged`} />}
+        aside={
+          <div className="flex items-center gap-3">
+            <AutoBadge label={`${items.length} logged`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Issue
+            </Button>
+          </div>
+        }
       >
         <RegisterImportToolbar
           defs={fields}
@@ -139,30 +151,27 @@ export function IssueLog() {
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="issues"
-        periodId={periodId}
-        itemLabel="Issue"
-        previewFields={ISSUE_PREVIEW_FIELDS}
-        buildPayload={buildIssuePayload}
-        createMutation={createIssue}
-        updateMutation={updateIssue}
-      />
 
-      <SectionCard icon={TriangleAlert} title="New Issue">
-        <EntryFields defs={fields} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addIssue}
-            disabled={createIssue.isPending}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {createIssue.isPending ? <ButtonSpinner /> : null}
-            Add Issue
-          </Button>
+      {formOpen ? (
+        <div ref={formRef}>
+          <SectionCard icon={TriangleAlert} title="New Issue">
+            <EntryFields defs={fields} values={values} set={set} />
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelForm}>
+                Cancel
+              </Button>
+              <Button
+                onClick={addIssue}
+                disabled={createIssue.isPending}
+                className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+              >
+                {createIssue.isPending ? <ButtonSpinner /> : null}
+                Add Issue
+              </Button>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      ) : null}
     </div>
   );
 }

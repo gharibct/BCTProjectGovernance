@@ -177,7 +177,7 @@ export function DocumentProcessing() {
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-bold tracking-wide text-slate-600 uppercase">
+              <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-left text-xs font-bold tracking-wide text-[#205889] uppercase">
                 <th className="px-4 py-3">File</th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">AI Status</th>

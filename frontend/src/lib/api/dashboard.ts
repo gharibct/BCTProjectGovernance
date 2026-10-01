@@ -106,10 +106,13 @@ export type DashboardSummary = {
 export type DashboardScope = {
   geo_ids?: string[];
   account_ids?: string[];
+  // Geo report: scope the account matrix to one reporting period's RAG.
+  period_id?: string;
 };
 
 function buildQuery(scope: DashboardScope): string {
   const params = new URLSearchParams();
+  if (scope.period_id) params.append("period_id", scope.period_id);
   for (const id of scope.geo_ids ?? []) params.append("geo_ids", id);
   for (const id of scope.account_ids ?? []) params.append("account_ids", id);
   const qs = params.toString();
@@ -163,7 +166,7 @@ export function useOpenAlertsForReport(
   scopeId: string | null | undefined,
   report: { status: string; open_alerts_count: number; open_alerts_snapshot: OpenNcRow[] | null } | undefined
 ): OpenNcListResponse | undefined {
-  const isFrozen = report?.status === "Submitted" || report?.status === "Approved";
+  const isFrozen = report?.status === "Submitted" || report?.status === "Approved" || report?.status === "Baselined";
   const live = useOpenNcs(scope, scopeId, { enabled: !isFrozen });
   if (isFrozen) {
     return { open_ncs_count: report!.open_alerts_count, open_ncs: report!.open_alerts_snapshot ?? [] };

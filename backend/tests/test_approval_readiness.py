@@ -162,13 +162,13 @@ async def test_all_mandatory_complete_can_submit():
 
 
 async def test_planned_end_date_required_for_scope_schedule():
-    # planned_end_date missing -> scope_schedule is 3/4 and no longer complete.
+    # planned_end_date missing -> scope_schedule is 2/3 and no longer complete.
     result = await compute_approval_readiness(StubDB(), _project(planned_end_date=None))
     scope = next(m for m in result.modules if m.key == "scope_schedule")
     assert scope.complete is False
-    assert scope.fields_complete == 3
-    assert scope.fields_total == 4
-    assert scope.progress_pct == 75
+    assert scope.fields_complete == 5
+    assert scope.fields_total == 6  # 3 core + 3 Development size/effort
+    assert scope.progress_pct == 83
     assert result.can_submit is False
 
 
@@ -178,13 +178,13 @@ async def test_partial_progress_is_field_weighted():
     result = await compute_approval_readiness(StubDB(), _project(project_currency=""))
     profile = next(m for m in result.modules if m.key == "project_profile")
     assert (profile.fields_complete, profile.fields_total) == (13, 14)
-    assert result.completion_pct == 97  # 30 / 31 mandatory fields
+    assert result.completion_pct == 97  # 29 / 30 mandatory fields
 
 
 async def test_missing_commitments_and_milestones_lowers_pct():
     db = StubDB(counts={"contractual_commitments": 0, "milestone_payments": 0})
     result = await compute_approval_readiness(db, _project())
-    assert result.completion_pct == 94  # 29 / 31 mandatory fields
+    assert result.completion_pct == 93  # 28 / 30 mandatory fields
     assert result.gaps_count == 2
     incomplete = {m.key for m in result.modules if not m.complete and m.mandatory}
     assert incomplete == {"commitments", "milestones"}
@@ -267,3 +267,13 @@ async def test_incomplete_profile_is_a_gap():
     assert profile.complete is False
     assert (profile.fields_complete, profile.fields_total) == (13, 14)
     assert result.completion_pct == 97  # 30 / 31 mandatory fields
+
+
+async def test_development_size_and_effort_belong_to_scope_schedule():
+    db = StubDB(metric_row=_dev_target(target_overall_estimated_effort=None))
+    result = await compute_approval_readiness(db, _project())
+    scope = next(m for m in result.modules if m.key == "scope_schedule")
+    assert scope.complete is False
+    assert scope.gaps == "Size Unit, Overall Planned Size and Overall Estimated Effort incomplete for Development"
+    measurement = next(m for m in result.modules if m.key == "measurement")
+    assert measurement.complete is True

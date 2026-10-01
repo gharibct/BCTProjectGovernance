@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 
 import { RaidoTabs } from "@/components/raido/raido-tabs";
@@ -12,7 +13,9 @@ export default function RaidoPage() {
     <div className="mx-auto max-w-6xl">
       <ProjectHeader subheading="Project RAIDO Register" />
       <div className="mt-8">
-        <RaidoTabs />
+        <Suspense fallback={null}>
+          <RaidoTabs />
+        </Suspense>
       </div>
     </div>
   );

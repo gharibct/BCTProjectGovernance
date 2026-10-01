@@ -1,9 +1,12 @@
 "use client";
 
-import { Database } from "lucide-react";
+import { Database, PieChart } from "lucide-react";
 
 import type { ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
-import { useProjectHealthOracleProjectSummary } from "@/lib/api/project-health-lists";
+import {
+  useProjectHealthOracleProjectDemography,
+  useProjectHealthOracleProjectSummary,
+} from "@/lib/api/project-health-lists";
 import { BigStat, Card, SubStat } from "./project-health-kpi";
 
 // Body of the Project Health dashboard's "Oracle Projects" section (the section
@@ -13,6 +16,7 @@ import { BigStat, Card, SubStat } from "./project-health-kpi";
 // Oracle projects — never for Project Managers.
 export function ProjectHealthOracleProjectsSection({ filters }: { filters: ProjectHealthDashboardFilters }) {
   const { data: summary } = useProjectHealthOracleProjectSummary(filters);
+  const { data: demography } = useProjectHealthOracleProjectDemography(filters);
   const unmapped = summary?.unmapped_count ?? 0;
 
   return (
@@ -41,6 +45,24 @@ export function ProjectHealthOracleProjectsSection({ filters }: { filters: Proje
             valueClass={(summary?.unmapped_no_geo_count ?? 0) > 0 ? "text-amber-600" : undefined}
           />
         </div>
+      </Card>
+      <Card title="Project Demography" icon={PieChart} iconClassName="text-[#1a6fc4]">
+        <p className="mb-3 text-xs tracking-wide text-slate-400 uppercase">Projects by Project Type</p>
+        {demography && demography.length === 0 ? (
+          <p className="text-sm text-slate-400">No projects.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {(demography ?? []).map((entry) => (
+              <div key={entry.project_type ?? "none"} className="flex items-start justify-between gap-3 text-sm">
+                <div className="min-w-0">
+                  <p className="text-slate-700">{entry.project_type ?? "Not specified"}</p>
+                  {entry.description ? <p className="text-xs text-slate-400">{entry.description}</p> : null}
+                </div>
+                <span className="font-semibold text-slate-900">{entry.count}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );

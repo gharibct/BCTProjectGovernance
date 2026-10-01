@@ -1,19 +1,15 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { SelfAssessmentForm } from "@/components/project-charter/charter-form";
-import { ProjectHeader } from "@/components/shell/project-header";
-
-export const metadata: Metadata = {
-  title: "Project Charter — RAG Status | Governance One",
-};
-
-export default function ProjectCharterSelfAssessmentPage() {
-  return (
-    <div className="mx-auto max-w-6xl">
-      <ProjectHeader subheading="RAG Status" />
-      <div className="mt-8">
-        <SelfAssessmentForm />
-      </div>
-    </div>
-  );
+// RAG Status is now part of the merged Delivery Status Report (Project Status
+// page). Old links and bookmarks land there, keeping the selected period.
+export default async function ProjectCharterSelfAssessmentPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const { projectId } = await params;
+  const { period } = await searchParams;
+  redirect(`/project-reporting/${projectId}/project-status${period ? `?period=${period}` : ""}`);
 }

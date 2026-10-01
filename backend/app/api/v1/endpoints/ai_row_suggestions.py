@@ -184,10 +184,8 @@ def _commitment_test_rows() -> list[AiRowSuggestionIn]:
             values={
                 "commitment_name": "SLA - Incident Resolution Time",
                 "frequency": "Monthly",
-                "formula": "Incidents Resolved Within SLA / Total Incidents",
-                "target": "95%",
+                "commitment_details": "95% of incidents resolved within the agreed SLA window.",
                 "penalty_applicable": "Y",
-                "penalty_value": "5000",
             },
             confidence=0.78,
             source_document="Statement_of_Work.docx",
@@ -199,10 +197,8 @@ def _commitment_test_rows() -> list[AiRowSuggestionIn]:
             values={
                 "commitment_name": "System Uptime",
                 "frequency": "Monthly",
-                "formula": "Uptime Hours / Total Hours",
-                "target": "99.5%",
+                "commitment_details": "99.5% platform uptime, measured monthly.",
                 "penalty_applicable": "Y",
-                "penalty_value": "10000",
             },
             confidence=0.7,
             source_document="Purchase_Order.pdf",
@@ -214,7 +210,7 @@ def _commitment_test_rows() -> list[AiRowSuggestionIn]:
             values={
                 "commitment_name": "Monthly Status Reporting",
                 "frequency": "Monthly",
-                "target": "By 5th of following month",
+                "commitment_details": "Status report submitted by the 5th of the following month.",
                 "penalty_applicable": "N",
             },
             confidence=0.5,

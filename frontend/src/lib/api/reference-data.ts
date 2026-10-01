@@ -123,6 +123,27 @@ export function useUsers() {
   });
 }
 
+// The people a RAIDO register may pick from for Owner / Raised By / etc.: the
+// project's Project Manager, its account's Delivery Manager (Account Head) and
+// its geo's Geo Head — not the whole directory. See GET /projects/{id}/raido-people.
+export function useProjectPeople(projectId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["users", "raido-people", projectId],
+    queryFn: () => api.get<User[]>(`/projects/${projectId}/raido-people`),
+    enabled: !!projectId,
+    staleTime: 60_000,
+  });
+}
+
+// `{ value, label }` choices for a FieldDef `select`, built from useProjectPeople.
+export function useProjectPeopleChoices(projectId: string | null | undefined) {
+  const { data } = useProjectPeople(projectId);
+  return React.useMemo(
+    () => (data ?? []).map((u) => ({ value: u.id, label: u.full_name })),
+    [data],
+  );
+}
+
 export type UserDirectoryQuery = {
   search?: string;
   roleCode?: string;

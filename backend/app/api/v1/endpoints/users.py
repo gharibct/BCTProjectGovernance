@@ -243,6 +243,34 @@ async def get_account_head(account_id: UUID, db: AsyncSession = Depends(get_db))
     return await _resolve_account_head(db, account_id)
 
 
+# Who may be picked in a RAIDO register's person fields (Owner, Raised By, ...):
+# only the people accountable for the project — its Project Manager, the
+# Delivery Manager / Account Head of its account, and the Geo Head of its geo —
+# instead of the whole directory. Open read, like the other people lookups here.
+@router.get("/projects/{project_id}/raido-people", response_model=list[UserRead], tags=["Users"])
+async def get_project_raido_people(project_id: UUID, db: AsyncSession = Depends(get_db)):
+    project = await db.get(Project, project_id)
+    if project is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    people: list[User] = []
+    seen: set[UUID] = set()
+
+    def _add(user: User | None) -> None:
+        if user is not None and user.id not in seen:
+            seen.add(user.id)
+            people.append(user)
+
+    for user_id in (project.project_manager_id, project.delivery_manager_id):
+        if user_id is not None:
+            _add(await db.get(User, user_id))
+    if project.account_id is not None:
+        _add(await _resolve_account_head(db, project.account_id))
+    if project.geo_id is not None:
+        _add(await _resolve_geo_head(db, project.geo_id))
+    return [u for u in people if u.is_active]
+
+
 async def _replace_entity_head(db: AsyncSession, link_model: type, link_col, entity_id: UUID, user_id: UUID | None) -> None:
     """Single-owner: drop every existing link row for this account/geo, then
     add one for `user_id` (or none when clearing). Mirrors

@@ -12,7 +12,7 @@ from fastapi import HTTPException, status
 
 from app.schemas.enums import ReportStatus
 
-FROZEN_REPORT_STATUSES = (ReportStatus.SUBMITTED, ReportStatus.APPROVED)
+FROZEN_REPORT_STATUSES = (ReportStatus.SUBMITTED, ReportStatus.APPROVED, ReportStatus.BASELINED)
 
 
 def assert_report_editable(report_status: str | ReportStatus | None) -> None:

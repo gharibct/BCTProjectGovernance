@@ -10,21 +10,15 @@ from app.schemas.enums import CommitmentFrequency, MetStatus, MilestonePaymentSt
 class ContractualCommitmentCreate(BaseModel):
     frequency: CommitmentFrequency
     commitment_name: str
-    formula: str | None = None
-    target: str | None = None
-    target_uom: str | None = None
     penalty_applicable: bool = False
-    penalty_value: Decimal | None = None
+    commitment_details: str | None = None
 
 
 class ContractualCommitmentUpdate(BaseModel):
     frequency: CommitmentFrequency | None = None
     commitment_name: str | None = None
-    formula: str | None = None
-    target: str | None = None
-    target_uom: str | None = None
     penalty_applicable: bool | None = None
-    penalty_value: Decimal | None = None
+    commitment_details: str | None = None
 
 
 class ContractualCommitmentRead(BaseModel):
@@ -33,25 +27,22 @@ class ContractualCommitmentRead(BaseModel):
     project_id: UUID
     frequency: CommitmentFrequency
     commitment_name: str
-    formula: str | None = None
-    target: str | None = None
-    target_uom: str | None = None
     penalty_applicable: bool
-    penalty_value: Decimal | None = None
+    commitment_details: str | None = None
     created_at: datetime
     updated_at: datetime
 
 
 class ContractualCommitmentActualCreate(BaseModel):
     period_date: date
-    actual_value: str | None = None
+    actual_details: str | None = None
     met_status: MetStatus | None = None
 
 
 class ContractualCommitmentActualUpdate(BaseModel):
     # period_date is immutable — it is the (commitment_id, period_date) unique
     # key; move a reading by deleting and re-adding it.
-    actual_value: str | None = None
+    actual_details: str | None = None
     met_status: MetStatus | None = None
 
 
@@ -60,7 +51,7 @@ class ContractualCommitmentActualRead(BaseModel):
     id: UUID
     commitment_id: UUID
     period_date: date
-    actual_value: str | None = None
+    actual_details: str | None = None
     met_status: MetStatus | None = None
     recorded_by: UUID | None = None
     created_at: datetime

@@ -16,11 +16,8 @@ export type ContractualCommitment = {
   project_id: string;
   frequency: CommitmentFrequency;
   commitment_name: string;
-  formula: string | null;
-  target: string | null;
-  target_uom: string | null;
   penalty_applicable: boolean;
-  penalty_value: string | null;
+  commitment_details: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -28,11 +25,8 @@ export type ContractualCommitment = {
 export type ContractualCommitmentPayload = {
   frequency: CommitmentFrequency;
   commitment_name: string;
-  formula?: string;
-  target?: string;
-  target_uom?: string;
   penalty_applicable?: boolean;
-  penalty_value?: string;
+  commitment_details?: string;
 };
 
 export function useCommitments(projectId: string | null) {
@@ -143,7 +137,7 @@ export type ContractualCommitmentActual = {
   id: string;
   commitment_id: string;
   period_date: string;
-  actual_value: string | null;
+  actual_details: string | null;
   met_status: MetStatus | null;
   recorded_by: string | null;
   created_at: string;
@@ -151,12 +145,12 @@ export type ContractualCommitmentActual = {
 
 export type ContractualCommitmentActualPayload = {
   period_date: string;
-  actual_value?: string;
+  actual_details?: string;
   met_status?: MetStatus;
 };
 
 export type ContractualCommitmentActualUpdatePayload = {
-  actual_value?: string;
+  actual_details?: string;
   met_status?: MetStatus;
 };
 
@@ -194,6 +188,7 @@ export function useCreateCommitmentActual(projectId: string | null, commitmentId
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: commitmentActualsKey(projectId, commitmentId) });
+      queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId] });
     },
   });
 }
@@ -226,6 +221,7 @@ export function useUpdateCommitmentActual(projectId: string | null, commitmentId
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: commitmentActualsKey(projectId, commitmentId) });
+      queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId] });
     },
   });
 }
@@ -239,6 +235,7 @@ export function useDeleteCommitmentActual(projectId: string | null, commitmentId
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: commitmentActualsKey(projectId, commitmentId) });
+      queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId] });
     },
   });
 }
@@ -253,6 +250,7 @@ export function useUpsertMilestoneActual(projectId: string | null, milestoneId: 
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: milestoneActualKey(projectId, milestoneId) });
+      queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId] });
     },
   });
 }

@@ -51,7 +51,22 @@ export default function RootLayout({
           <GlobalMutationOverlay />
         </QueryProvider>
         <PageBannerNavigationListener />
-        <Toaster richColors position="top-right" />
+        <Toaster
+          position="top-center"
+          duration={3000}
+          style={{ "--width": "520px" } as React.CSSProperties}
+          toastOptions={{
+            classNames: {
+              toast:
+                "!gap-3 !rounded-xl !border-0 !px-6 !py-5 !text-base !font-medium !text-white !shadow-2xl",
+              title: "!text-base !font-semibold",
+              success: "!bg-emerald-800",
+              error: "!bg-red-800",
+              warning: "!bg-amber-700",
+              info: "!bg-slate-800",
+            },
+          }}
+        />
       </body>
     </html>
   );

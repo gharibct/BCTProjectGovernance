@@ -34,6 +34,7 @@ INSERT INTO regions (id, geo_id, code, name, is_active, created_at, updated_at) 
     (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'OMAN', 'OMAN', true, now(), now()),
     (gen_random_uuid(), (SELECT id FROM geos WHERE code = 'MEA'), 'SAUDI', 'SAUDI', true, now(), now());
 
+   
 INSERT INTO project_types (id, code, name, description, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'DEVELOPMENT', 'Development/ Enhancement', NULL, true, now(), now()),
     (gen_random_uuid(), 'PROFESSIONAL_STAFFING', 'Professional Staffing', NULL, true, now(), now()),

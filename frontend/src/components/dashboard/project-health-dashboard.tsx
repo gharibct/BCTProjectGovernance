@@ -123,8 +123,10 @@ function ReportSubmissionCard({
   title,
   kpi,
   href,
+  period,
 }: {
   title: string;
+  period: string;
   kpi: { submitted_count: number; expected_count: number; adherence_pct: number };
   href: string;
 }) {
@@ -136,6 +138,7 @@ function ReportSubmissionCard({
       iconClassName="text-slate-500"
       href={href}
       footerLabel="View Pending Submissions"
+      period={period}
     >
       <BigStat
         value={`${kpi.adherence_pct}%`}
@@ -160,9 +163,11 @@ function CustomerReportCard({
   notShared,
   notSubmitted,
   href,
+  period,
 }: {
   title: string;
   href: string;
+  period: string;
   shared: number;
   notShared: number;
   notSubmitted?: number;
@@ -170,7 +175,7 @@ function CustomerReportCard({
   const expected = shared + notShared + (notSubmitted ?? 0);
   const adherencePct = expected > 0 ? Math.round((shared / expected) * 100) : 0;
   return (
-    <Card title={title} icon={Users} iconClassName="text-[#1a6fc4]" href={href} footerLabel="View Details">
+    <Card title={title} icon={Users} iconClassName="text-[#1a6fc4]" href={href} footerLabel="View Details" period={period}>
       <BigStat value={`${adherencePct}%`} label="Adherence" valueClass={adherenceTone(adherencePct)} />
       <div className="flex flex-col gap-1">
         <SubStat label="Shared with Customer" value={shared} />
@@ -194,6 +199,10 @@ export function ProjectHealthDashboard() {
   // A PM only owns projects — hide every Account- and Geo-level card/filter.
   const effectiveRole = useEffectiveRole();
   const isPm = effectiveRole === "PROJECT_MANAGER";
+  // The period each KPI covers, shown at the bottom of its card.
+  const weekPeriod = `Selected Period: ${data?.period_label ?? "current week"}`;
+  const monthPeriod = `Previous Month: ${data?.previous_month_label ?? "—"}`;
+  const asOfToday = "As of today";
   // Geo Delivery Status reports belong to Geo Heads and above.
   const showGeoDeliveryStatus = !isPm && effectiveRole !== "ACCOUNT_MANAGER";
   // Oracle projects with no governance project yet — not for PMs / Team Members.
@@ -233,27 +242,11 @@ export function ProjectHealthDashboard() {
         <>
           <section className="flex flex-col gap-3">
             <SectionHeader
-              title={isPm ? "Project" : "Project & Account"}
+              title={isPm ? "Project" : "Account & Project"}
               icon={FolderOpen}
               className="border-blue-200 bg-blue-50 text-[#1a6fc4]"
             />
           <div className={cn("grid grid-cols-1 gap-4", isPm ? "md:grid-cols-2" : "md:grid-cols-3")}>
-            <Card
-              title="Project Health"
-              icon={HeartPulse}
-              iconClassName="text-emerald-600"
-              href="/project-health/rag"
-              footerLabel="View RAG"
-            >
-              <RagCounts
-                green={data.health.green_count}
-                amber={data.health.amber_count}
-                potentialRed={data.health.potential_red_count}
-                red={data.health.red_count}
-                notSubmitted={data.health.not_submitted_count}
-              />
-            </Card>
-
             {isPm ? null : (
               <Card
                 title="Account Health"
@@ -261,6 +254,7 @@ export function ProjectHealthDashboard() {
                 iconClassName="text-emerald-600"
                 href="/project-health/account-rag"
                 footerLabel="View Account RAG"
+                period={weekPeriod}
               >
                 <RagCounts
                   green={data.account_health.green_count}
@@ -273,11 +267,29 @@ export function ProjectHealthDashboard() {
             )}
 
             <Card
+              title="Project Health"
+              icon={HeartPulse}
+              iconClassName="text-emerald-600"
+              href="/project-health/rag"
+              footerLabel="View RAG"
+              period={weekPeriod}
+            >
+              <RagCounts
+                green={data.health.green_count}
+                amber={data.health.amber_count}
+                potentialRed={data.health.potential_red_count}
+                red={data.health.red_count}
+                notSubmitted={data.health.not_submitted_count}
+              />
+            </Card>
+
+            <Card
               title="Project Health Assessed by DE"
               icon={ShieldCheck}
               iconClassName="text-[#1a6fc4]"
               href="/project-health/assessments"
               footerLabel="View DE Assessments"
+              period={monthPeriod}
             >
               <RagCounts
                 green={data.de_assessments.green_count}
@@ -298,7 +310,7 @@ export function ProjectHealthDashboard() {
               className="border-red-200 bg-red-50 text-red-700"
             />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <Card title="Risks" icon={AlertTriangle} iconClassName="text-red-600" href="/project-health/risks">
+            <Card title="Risks" icon={AlertTriangle} iconClassName="text-red-600" href="/project-health/risks" period={asOfToday}>
               <BigStat value={data.risks.open_count} label="Open" />
               <div className="flex flex-col gap-1">
                 <SubStat label="High/Crit" value={data.risks.high_critical_count} valueClass="text-red-600" />
@@ -307,7 +319,7 @@ export function ProjectHealthDashboard() {
               </div>
             </Card>
 
-            <Card title="Issues" icon={Bug} iconClassName="text-amber-500" href="/project-health/issues">
+            <Card title="Issues" icon={Bug} iconClassName="text-amber-500" href="/project-health/issues" period={asOfToday}>
               <BigStat value={data.issues.open_count} label="Open" />
               <div className="flex flex-col gap-1">
                 <SubStat label="Critical" value={data.issues.critical_count} valueClass="text-red-600" />
@@ -320,6 +332,7 @@ export function ProjectHealthDashboard() {
               icon={Lightbulb}
               iconClassName="text-emerald-600"
               href="/project-health/opportunities"
+              period={asOfToday}
             >
               <BigStat value={data.opportunities.open_count} label="Open" />
               <div className="flex flex-col gap-1">
@@ -338,6 +351,7 @@ export function ProjectHealthDashboard() {
               iconClassName="text-purple-600"
               href="/project-health/findings"
               footerLabel="View Findings"
+              period={asOfToday}
             >
               <BigStat value={data.alerts.open_count} label="Open Alerts" />
               <div className="flex flex-col gap-1">
@@ -346,7 +360,7 @@ export function ProjectHealthDashboard() {
               </div>
             </Card>
 
-            <Card title="Actions" icon={ListChecks} iconClassName="text-[#1a6fc4]" href="/project-health/actions">
+            <Card title="Actions" icon={ListChecks} iconClassName="text-[#1a6fc4]" href="/project-health/actions" period={asOfToday}>
               <BigStat value={data.actions.open_count} label="Open" />
               <div className="flex flex-col gap-1">
                 <SubStat label="In Progress" value={data.actions.in_progress_count} />
@@ -368,7 +382,13 @@ export function ProjectHealthDashboard() {
               className="border-indigo-200 bg-indigo-50 text-indigo-700"
             />
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card title="Metrics" icon={BarChart3} iconClassName="text-[#1a6fc4]" href="/project-health/metrics">
+            <Card
+              title="Metrics"
+              icon={BarChart3}
+              iconClassName="text-[#1a6fc4]"
+              href="/project-health/metrics"
+              period={monthPeriod}
+            >
               <BigStat
                 value={data.metrics.compliant_count}
                 label="Compliant Projects"
@@ -386,7 +406,13 @@ export function ProjectHealthDashboard() {
               </div>
             </Card>
 
-            <Card title="Commitments" icon={Handshake} iconClassName="text-teal-600" href="/project-health/commitments">
+            <Card
+              title="Commitments"
+              icon={Handshake}
+              iconClassName="text-teal-600"
+              href="/project-health/commitments"
+              period={monthPeriod}
+            >
               <BigStat value={data.commitments.met_count} label="Met Projects" valueClass="text-emerald-600" />
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-3 py-2">
@@ -405,6 +431,7 @@ export function ProjectHealthDashboard() {
               icon={Wallet}
               iconClassName="text-emerald-600"
               href="/project-health/payment-milestones"
+              period={asOfToday}
             >
               <BigStat
                 value={formatNumber(data.payment_milestones.value_due)}
@@ -439,6 +466,7 @@ export function ProjectHealthDashboard() {
                 title="Delivery Status — Projects"
                 kpi={data.report_submissions.delivery_status_projects}
                 href={REPORT_SUBMISSION_STREAMS["delivery-status-projects"].route}
+                period={weekPeriod}
               />
               {isPm ? null : (
                 <>
@@ -446,12 +474,14 @@ export function ProjectHealthDashboard() {
                     title="Delivery Status — Account"
                     kpi={data.report_submissions.delivery_status_accounts}
                     href={REPORT_SUBMISSION_STREAMS["delivery-status-account"].route}
+                    period={weekPeriod}
                   />
                   {showGeoDeliveryStatus ? (
                     <ReportSubmissionCard
                       title="Delivery Status — Geo"
                       kpi={data.report_submissions.delivery_status_geos}
                       href={REPORT_SUBMISSION_STREAMS["delivery-status-geo"].route}
+                      period={weekPeriod}
                     />
                   ) : null}
                 </>
@@ -475,11 +505,13 @@ export function ProjectHealthDashboard() {
                 title="Project Performance"
                 kpi={data.report_submissions.project_performance}
                 href={REPORT_SUBMISSION_STREAMS["metrics-projects"].route}
+                period={monthPeriod}
               />
 
               <CustomerReportCard
                 title="Customer Project Status Reporting"
                 href="/project-health/customer-project-reports"
+                period={weekPeriod}
                 shared={data.customer_project_reports.shared_count}
                 notShared={data.customer_project_reports.not_shared_count}
                 notSubmitted={data.customer_project_reports.not_submitted_count}
@@ -489,6 +521,7 @@ export function ProjectHealthDashboard() {
                 <CustomerReportCard
                   title="Customer Account Reporting"
                   href="/project-health/customer-account-reports"
+                  period="Previous & current quarter"
                   shared={data.customer_account_reports.shared_count}
                   notShared={data.customer_account_reports.not_shared_count}
                 />

@@ -62,13 +62,13 @@ export type SendToApprovalError = {
 
 // Where each checklist row's "View" link goes, relative to
 // /new-project/{projectId} (the Maintain Project route tree). Commitments and
-// Milestones are both edited on the one Contractual Compliance screen.
+// Milestones each have their own screen.
 export const APPROVAL_MODULE_VIEW_PATH: Record<ApprovalReadinessModuleKey, string> = {
   project_profile: "project-charter",
   scope_schedule: "project-charter/schedule",
   measurement: "measurement",
-  commitments: "contractual-compliance",
-  milestones: "contractual-compliance",
+  commitments: "contractual-commitments",
+  milestones: "milestones",
   raido: "raido",
 };
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard, Segmented } from "@/components/forms/form-primitives";
@@ -21,9 +21,8 @@ import {
   filterRaidoByStatus,
   type RaidoStatusFilter,
 } from "@/lib/raido-status";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
-import { useUsers } from "@/lib/api/reference-data";
+import { useProjectPeopleChoices, useUsersByIds } from "@/lib/api/reference-data";
 import {
   useAssumptions,
   useCreateAssumption,
@@ -38,9 +37,8 @@ import {
 // field names — validation_status/current_status/last_updated aren't
 // settable here (they default to "Pending"/"Open" server-side).
 function useAssumptionFields(projectId: string | null): FieldDef[] {
-  const { data: users } = useUsers();
+  const userChoices = useProjectPeopleChoices(projectId);
   const { data: dependencies } = useDependencies(projectId);
-  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
   const dependencyChoices = (dependencies ?? []).map((d) => ({
     value: d.id,
     label: `${d.dependency_code} — ${d.dependency_title}`,
@@ -81,13 +79,6 @@ function useAssumptionFields(projectId: string | null): FieldDef[] {
   ];
 }
 
-const ASSUMPTION_PREVIEW_FIELDS = [
-  { key: "title", label: "Title" },
-  { key: "category", label: "Category" },
-  { key: "probability_of_failure", label: "Probability of Failure" },
-  { key: "impact_rating", label: "Impact Rating" },
-] as const;
-
 function buildAssumptionPayload(values: Record<string, string>): AssumptionLogPayload {
   return values as AssumptionLogPayload;
 }
@@ -103,13 +94,30 @@ export function AssumptionLog() {
   const updateAssumption = useUpdateAssumption(projectId);
   const deleteAssumption = useDeleteAssumption(projectId);
   const fields = useAssumptionFields(projectId);
-  const { data: users } = useUsers();
+  const { data: users } = useUsersByIds(items.map((item) => item.owner));
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
-  const { editingId, startEdit, cancelEdit } = useEditableEntry<AssumptionLogItem>(
+  const { editingId, startEdit: beginEdit, cancelEdit: endEdit } = useEditableEntry<AssumptionLogItem>(
     load,
     reset,
     (item) => item as unknown as Record<string, string>
   );
+  const [formOpen, setFormOpen] = useState(false);
+  const startAdd = () => {
+    endEdit();
+    setFormOpen(true);
+  };
+  const startEdit = (item: AssumptionLogItem) => {
+    beginEdit(item);
+    setFormOpen(true);
+  };
+  const cancelEdit = () => {
+    endEdit();
+    setFormOpen(false);
+  };
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (formOpen) formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [formOpen, editingId]);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
@@ -142,6 +150,7 @@ export function AssumptionLog() {
       createAssumption.mutate(payload, {
         onSuccess: () => {
           reset();
+          setFormOpen(false);
           showSuccess("Assumption Added Successfully");
         },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to add assumption."),
@@ -159,13 +168,7 @@ export function AssumptionLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <AiRowSuggestionsTrigger
-          projectId={projectId}
-          screen="assumptions"
-          periodId={periodId}
-          itemLabel="Assumption"
-        />
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="ASSUMPTION" />
       </div>
 
@@ -180,6 +183,13 @@ export function AssumptionLog() {
               onChange={setStatusFilter}
             />
             <AutoBadge label={`${visibleItems.length} of ${items.length}`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Assumption
+            </Button>
           </div>
         }
       >
@@ -205,35 +215,26 @@ export function AssumptionLog() {
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="assumptions"
-        periodId={periodId}
-        itemLabel="Assumption"
-        previewFields={ASSUMPTION_PREVIEW_FIELDS}
-        buildPayload={buildAssumptionPayload}
-        createMutation={createAssumption}
-        updateMutation={updateAssumption}
-      />
-
-      <SectionCard icon={HelpCircle} title="New Assumption">
-        <EntryFields defs={fields} values={values} set={set} />
-        <div className="mt-6 flex justify-end gap-3">
-          {editingId ? (
-            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
-              Cancel
-            </Button>
-          ) : null}
-          <Button
-            onClick={submit}
-            disabled={busy}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {busy ? <ButtonSpinner /> : null}
-            {editingId ? "Edit Assumption" : "Add Assumption"}
-          </Button>
+      {formOpen ? (
+        <div ref={formRef}>
+          <SectionCard icon={HelpCircle} title={editingId ? "Edit Assumption" : "New Assumption"}>
+            <EntryFields defs={fields} values={values} set={set} />
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+                Cancel
+              </Button>
+              <Button
+                onClick={submit}
+                disabled={busy}
+                className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+              >
+                {busy ? <ButtonSpinner /> : null}
+                {editingId ? "Save Assumption" : "Add Assumption"}
+              </Button>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      ) : null}
     </div>
   );
 }

@@ -69,7 +69,7 @@ export function GovernanceMatrix({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold tracking-wide text-slate-500 uppercase">
+              <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                 {showAccountColumn ? <th className="min-w-[140px] px-4 py-3">Account</th> : null}
                 <th className="min-w-[170px] px-4 py-3">{entityColumnLabel}</th>
                 <th className="min-w-[72px] px-2 py-3 text-center">Overall</th>
@@ -82,7 +82,7 @@ export function GovernanceMatrix({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.entity_id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
+                <tr key={row.entity_id} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
                   {showAccountColumn ? (
                     <td className="px-4 py-2.5 text-slate-700">{row.account_name ?? "—"}</td>
                   ) : null}

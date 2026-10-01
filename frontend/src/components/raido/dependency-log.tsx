@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Link2 } from "lucide-react";
+import { Link2, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard, Segmented } from "@/components/forms/form-primitives";
@@ -21,9 +21,8 @@ import {
   filterRaidoByStatus,
   type RaidoStatusFilter,
 } from "@/lib/raido-status";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
-import { useUsers } from "@/lib/api/reference-data";
+import { useProjectPeopleChoices, useUsersByIds } from "@/lib/api/reference-data";
 import {
   useCreateDependency,
   useDeleteDependency,
@@ -38,8 +37,7 @@ import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 // field names — dependency_status/last_updated/actual_completion_date
 // aren't settable here (status defaults to "Not Started" server-side).
 function useDependencyFields(): FieldDef[] {
-  const { data: users } = useUsers();
-  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+  const userChoices = useProjectPeopleChoices(useParams<{ projectId: string }>().projectId);
 
   return [
     { key: "dependency_title", label: "Dependency Title", kind: "text", mandatory: true },
@@ -103,13 +101,6 @@ function toValues(item: DependencyLogItem): Record<string, string> {
   } as unknown as Record<string, string>;
 }
 
-const DEPENDENCY_PREVIEW_FIELDS = [
-  { key: "dependency_title", label: "Title" },
-  { key: "category", label: "Category" },
-  { key: "criticality", label: "Criticality" },
-  { key: "probability_of_delay", label: "Probability of Delay" },
-] as const;
-
 function buildDependencyPayload(values: Record<string, string>): DependencyLogPayload {
   return {
     ...values,
@@ -128,9 +119,26 @@ export function DependencyLog() {
   const updateDependency = useUpdateDependency(projectId);
   const deleteDependency = useDeleteDependency(projectId);
   const fields = useDependencyFields();
-  const { data: users } = useUsers();
+  const { data: users } = useUsersByIds(items.map((item) => item.owner));
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
-  const { editingId, startEdit, cancelEdit } = useEditableEntry<DependencyLogItem>(load, reset, toValues);
+  const { editingId, startEdit: beginEdit, cancelEdit: endEdit } = useEditableEntry<DependencyLogItem>(load, reset, toValues);
+  const [formOpen, setFormOpen] = useState(false);
+  const startAdd = () => {
+    endEdit();
+    setFormOpen(true);
+  };
+  const startEdit = (item: DependencyLogItem) => {
+    beginEdit(item);
+    setFormOpen(true);
+  };
+  const cancelEdit = () => {
+    endEdit();
+    setFormOpen(false);
+  };
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (formOpen) formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [formOpen, editingId]);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
@@ -163,6 +171,7 @@ export function DependencyLog() {
       createDependency.mutate(payload, {
         onSuccess: () => {
           reset();
+          setFormOpen(false);
           showSuccess("Dependency Added Successfully");
         },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to add dependency."),
@@ -180,13 +189,7 @@ export function DependencyLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <AiRowSuggestionsTrigger
-          projectId={projectId}
-          screen="dependencies"
-          periodId={periodId}
-          itemLabel="Dependency"
-        />
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="DEPENDENCY" />
       </div>
 
@@ -201,6 +204,13 @@ export function DependencyLog() {
               onChange={setStatusFilter}
             />
             <AutoBadge label={`${visibleItems.length} of ${items.length}`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Dependency
+            </Button>
           </div>
         }
       >
@@ -228,35 +238,26 @@ export function DependencyLog() {
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="dependencies"
-        periodId={periodId}
-        itemLabel="Dependency"
-        previewFields={DEPENDENCY_PREVIEW_FIELDS}
-        buildPayload={buildDependencyPayload}
-        createMutation={createDependency}
-        updateMutation={updateDependency}
-      />
-
-      <SectionCard icon={Link2} title="New Dependency">
-        <EntryFields defs={fields} values={values} set={set} />
-        <div className="mt-6 flex justify-end gap-3">
-          {editingId ? (
-            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
-              Cancel
-            </Button>
-          ) : null}
-          <Button
-            onClick={submit}
-            disabled={busy}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {busy ? <ButtonSpinner /> : null}
-            {editingId ? "Edit Dependency" : "Add Dependency"}
-          </Button>
+      {formOpen ? (
+        <div ref={formRef}>
+          <SectionCard icon={Link2} title={editingId ? "Edit Dependency" : "New Dependency"}>
+            <EntryFields defs={fields} values={values} set={set} />
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+                Cancel
+              </Button>
+              <Button
+                onClick={submit}
+                disabled={busy}
+                className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+              >
+                {busy ? <ButtonSpinner /> : null}
+                {editingId ? "Save Dependency" : "Add Dependency"}
+              </Button>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      ) : null}
     </div>
   );
 }

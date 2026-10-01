@@ -22,6 +22,7 @@ import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
+import { ConfirmationDialog } from "@/components/forms/confirmation-dialog";
 
 // "maintain"       — Maintain Project: Send To Approve + Recall (Draft flow).
 // "amend-initiate" — Amend Project / Initiate Amend screen: one Initiate button.
@@ -93,6 +94,8 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
   // readiness — show that immediately, then let the invalidated query converge.
   const [serverReadiness, setServerReadiness] = React.useState<ApprovalReadiness | null>(null);
   const view = serverReadiness ?? data;
+  // Send To Approve / Recall both change the project's workflow state, so each asks first.
+  const [confirm, setConfirm] = React.useState<"send" | "recall" | null>(null);
 
   if (!projectId) return <EmptyState>Create the project first.</EmptyState>;
 
@@ -244,7 +247,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
 
           <div className="flex flex-wrap items-center gap-3">
             <Button
-              onClick={onSubmit}
+              onClick={() => setConfirm("send")}
               disabled={busy || !view.can_submit}
               className="gap-2 bg-[#1a4a7a] font-semibold text-white hover:bg-[#15406b]"
             >
@@ -253,7 +256,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
             </Button>
             <Button
               variant="outline"
-              onClick={onRecall}
+              onClick={() => setConfirm("recall")}
               disabled={busy || !isPendingApproval}
               className="gap-2 border-red-200 bg-red-50 font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
             >
@@ -267,6 +270,38 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
 
   return (
     <div className="flex flex-col gap-6">
+      <ConfirmationDialog
+        open={confirm === "send"}
+        onOpenChange={(open) => {
+          if (!open) setConfirm(null);
+        }}
+        title="Send to approval?"
+        message={
+          isUnderAmendment
+            ? "The amendment will be sent to Delivery Excellence for approval and locked from further edits until it is approved, returned or recalled. Do you want to proceed?"
+            : "The project will be sent to Delivery Excellence for approval and locked from further edits until it is approved, returned or recalled. Do you want to proceed?"
+        }
+        confirmLabel="Send To Approve"
+        confirmVariant="default"
+        onConfirm={() => {
+          setConfirm(null);
+          onSubmit();
+        }}
+      />
+      <ConfirmationDialog
+        open={confirm === "recall"}
+        onOpenChange={(open) => {
+          if (!open) setConfirm(null);
+        }}
+        title={`Recall to ${recallTarget}?`}
+        message={`The project will be taken back from Delivery Excellence and set to ${recallTarget} so it can be edited again. Do you want to proceed?`}
+        confirmLabel={`Recall to ${recallTarget}`}
+        confirmVariant="default"
+        onConfirm={() => {
+          setConfirm(null);
+          onRecall();
+        }}
+      />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Tile label="Overall Completion" value={`${view.completion_pct}%`} />
         <Tile label="Modules Complete" value={view.modules_complete} />
@@ -302,7 +337,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold tracking-wide text-slate-500 uppercase">
+              <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                 <th className="px-3 py-3">Module</th>
                 <th className="px-3 py-3">Completion</th>
                 <th className="px-3 py-3">Gaps</th>
@@ -312,7 +347,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
             </thead>
             <tbody>
               {view.modules.map((m) => (
-                <tr key={m.key} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
+                <tr key={m.key} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
                   <td className="px-3 py-2.5 font-medium text-slate-900">
                     {m.label}
                     {!m.mandatory ? (

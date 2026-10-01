@@ -58,6 +58,7 @@ export function StatusItemsTab({
   return (
     <SectionCard icon={icon} title={title} aside={<AutoBadge label={`${items.length} logged`} />}>
       <EditableTextList
+        addOpenByDefault
         items={items.map((item) => ({ id: item.id, text: item.description }))}
         disabled={frozen}
         addLabel={`Add ${title} Item`}

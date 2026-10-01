@@ -27,7 +27,11 @@ from app.models.raid import (
 from app.schemas.de_approval import GovernanceCompleteness, GovernanceModuleStatus
 from app.schemas.enums import GovernanceModuleKey
 from app.schemas.projects import _is_filled
-from app.services.approval_readiness import measurement_progress, profile_field_progress
+from app.services.approval_readiness import (
+    measurement_progress,
+    profile_field_progress,
+    scope_size_effort_progress,
+)
 
 # key, label, mandatory
 MODULES: list[tuple[GovernanceModuleKey, str, bool]] = [
@@ -42,7 +46,7 @@ MODULES: list[tuple[GovernanceModuleKey, str, bool]] = [
 _INCOMPLETE_GAP_TEXT: dict[GovernanceModuleKey, str] = {
     GovernanceModuleKey.PROJECT_PROFILE: "Project Profile fields incomplete",
     GovernanceModuleKey.SCOPE_SCHEDULE: (
-        "Customer overview, scope description, planned start date, or planned end date missing"
+        "Scope description, planned start date, or planned end date missing"
     ),
     GovernanceModuleKey.MAP_ORACLE_PROJECTS: "No Oracle project mapped",
     GovernanceModuleKey.CONTRACTUAL_COMPLIANCE: "Missing commitments or payment milestones",
@@ -65,12 +69,12 @@ async def _module_progress(
         return fc, ft, None
     if key is GovernanceModuleKey.SCOPE_SCHEDULE:
         fields = (
-            project.customer_overview,
             project.project_scope_description,
             project.planned_start_date,
             project.planned_end_date,
         )
-        return sum(1 for v in fields if _is_filled(v)), len(fields), None
+        size_fc, size_ft, gap = await scope_size_effort_progress(db, project)
+        return sum(1 for v in fields if _is_filled(v)) + size_fc, len(fields) + size_ft, gap
     if key is GovernanceModuleKey.MAP_ORACLE_PROJECTS:
         return (1 if await _count(db, ProjectOracleId, project.id) > 0 else 0), 1, None
     if key is GovernanceModuleKey.CONTRACTUAL_COMPLIANCE:

@@ -5,6 +5,7 @@ import { Check, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner } from "@/components/forms/form-primitives";
+import { ConfirmationDialog } from "@/components/forms/confirmation-dialog";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole, useSession } from "@/stores/session";
@@ -45,6 +46,8 @@ export function ReviewActions({
   const effectiveRole = useEffectiveRole();
   const [comment, setComment] = React.useState("");
   const reviewMutation = useReviewStatusReportMutation(scope, scopeId);
+  const [pending, setPending] = React.useState<"Approved" | "Rejected" | null>(null);
+  const [remarksError, setRemarksError] = React.useState(false);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
 
@@ -73,9 +76,12 @@ export function ReviewActions({
 
   const decide = (decision: "Approved" | "Rejected") => {
     reviewMutation.mutate(
-      { id: report.id, payload: { decision, comment: comment || undefined, reviewed_by: user!.id } },
+      { id: report.id, payload: { decision, comment: comment.trim() || undefined, reviewed_by: user!.id } },
       {
-        onSuccess: () => showSuccess(`Report ${decision.toLowerCase()}.`),
+        onSuccess: () => {
+          setComment("");
+          showSuccess(`Report ${decision.toLowerCase()}.`);
+        },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to submit review."),
       }
     );
@@ -86,16 +92,27 @@ export function ReviewActions({
       <p className="text-sm font-bold text-slate-800">Review this report</p>
       <textarea
         value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Optional comment"
+        onChange={(e) => {
+          setComment(e.target.value);
+          if (e.target.value.trim()) setRemarksError(false);
+        }}
+        placeholder="Comment (optional for approval, required for rejection)"
         rows={2}
-        className="w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+        aria-invalid={remarksError}
+        className={`w-full min-w-0 rounded-lg border bg-[#F7FAFF] px-2.5 py-1.5 text-sm text-[#000000] outline-none placeholder:text-[#718096] hover:border-[#4F91D1] hover:bg-[#F3F8FE] focus-visible:border-[#2F80ED] focus-visible:ring-3 focus-visible:ring-ring/50 ${
+          remarksError ? "border-[#D92D20]" : "border-[#5B9BE6]"
+        }`}
       />
+      {remarksError ? (
+        <p role="alert" className="-mt-2 text-xs font-medium text-red-600">
+          Rejection remarks are required.
+        </p>
+      ) : null}
       <div className="flex gap-2">
         <Button
           className="h-9 gap-2 bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
           disabled={reviewMutation.isPending}
-          onClick={() => decide("Approved")}
+          onClick={() => setPending("Approved")}
         >
           {reviewMutation.isPending ? <ButtonSpinner /> : <Check className="size-4" />}
           Approve
@@ -104,12 +121,33 @@ export function ReviewActions({
           variant="destructive"
           className="h-9 gap-2 text-sm font-semibold"
           disabled={reviewMutation.isPending}
-          onClick={() => decide("Rejected")}
+          onClick={() => {
+            if (!comment.trim()) {
+              setRemarksError(true);
+              return;
+            }
+            setPending("Rejected");
+          }}
         >
           {reviewMutation.isPending ? <ButtonSpinner /> : <X className="size-4" />}
           Reject
         </Button>
       </div>
+      <ConfirmationDialog
+        open={pending !== null}
+        onOpenChange={(open) => {
+          if (!open) setPending(null);
+        }}
+        title={pending === "Approved" ? "Approve report?" : "Reject report?"}
+        message={`This will ${pending === "Approved" ? "approve" : "reject"} the report. Do you want to proceed?`}
+        confirmLabel="Proceed"
+        confirmVariant={pending === "Rejected" ? "destructive" : "default"}
+        onConfirm={() => {
+          const decision = pending;
+          setPending(null);
+          if (decision) decide(decision);
+        }}
+      />
     </div>
   );
 }

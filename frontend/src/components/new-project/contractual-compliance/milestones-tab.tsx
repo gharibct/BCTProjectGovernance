@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Flag } from "lucide-react";
+import { Flag, Plus } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
@@ -10,9 +10,8 @@ import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/e
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { Button } from "@/components/ui/button";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useNewProjectId } from "@/stores/new-project-ui";
-import { useBaselinePeriodId } from "@/lib/period-utils";
 import {
   useCreateMilestonePayment,
   useDeleteMilestonePayment,
@@ -21,12 +20,6 @@ import {
   type MilestonePayment,
   type MilestonePaymentPayload,
 } from "@/lib/api/contractual";
-
-const MILESTONE_PREVIEW_FIELDS = [
-  { key: "milestone_name", label: "Name" },
-  { key: "expected_date_of_payment", label: "Expected Date" },
-  { key: "expected_payment_value", label: "Value" },
-] as const;
 
 // Shared by the manual "Add Milestone" button and the AI row-suggestions
 // panel's Apply (both ultimately call the same createMilestone mutation).
@@ -53,7 +46,7 @@ function toValues(item: MilestonePayment): Record<string, string> {
 // MilestonePaymentCreate. Payment Actuals/Status are recorded later, once
 // each milestone is actually due, via a separate endpoint/screen.
 const MILESTONE_FIELDS: FieldDef[] = [
-  { key: "milestone_name", label: "Milestone Name", kind: "text", mandatory: true },
+  { key: "milestone_name", label: "Milestone Name", kind: "text", mandatory: true, fullWidth: true },
   {
     key: "expected_date_of_payment",
     label: "Expected Date of Payment",
@@ -66,24 +59,37 @@ const MILESTONE_FIELDS: FieldDef[] = [
 
 export function MilestonesTab() {
   const projectId = useNewProjectId();
-  const periodId = useBaselinePeriodId();
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useMilestonePayments(projectId);
   const createMilestone = useCreateMilestonePayment(projectId);
   const updateMilestone = useUpdateMilestonePayment(projectId);
   const deleteMilestone = useDeleteMilestonePayment(projectId);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  // The add / edit form lives in a right drawer.
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
+  const startAdd = () => {
+    setErrors({});
+    setEditingId(null);
+    reset();
+    setDrawerOpen(true);
+  };
+
   const startEdit = (item: MilestonePayment) => {
+    setErrors({});
     setEditingId(item.id);
     load(toValues(item));
+    setDrawerOpen(true);
   };
 
   const cancelEdit = () => {
+    setErrors({});
     setEditingId(null);
     reset();
+    setDrawerOpen(false);
   };
 
   const handleDelete = (item: MilestonePayment) => {
@@ -98,7 +104,11 @@ export function MilestonesTab() {
   };
 
   const submit = () => {
-    if (!values.milestone_name?.trim() || !values.expected_date_of_payment) return;
+    const nextErrors: Record<string, string> = {};
+    if (!values.milestone_name?.trim()) nextErrors.milestone_name = "Milestone Name is required.";
+    if (!values.expected_date_of_payment) nextErrors.expected_date_of_payment = "Expected Date of Payment is required.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     const payload = buildMilestonePayload(values);
 
     if (editingId) {
@@ -117,6 +127,7 @@ export function MilestonesTab() {
       createMilestone.mutate(payload, {
         onSuccess: () => {
           reset();
+          setDrawerOpen(false);
           showSuccess("Payment Milestone Added Successfully");
         },
         onError: (err) =>
@@ -135,17 +146,22 @@ export function MilestonesTab() {
 
   return (
     <div className="flex flex-col gap-8">
-      <AiRowSuggestionsTrigger
-        projectId={projectId}
-        screen="milestones"
-        periodId={periodId}
-        itemLabel="Payment Milestone"
-      />
 
       <SectionCard
         icon={Flag}
         title="Payment Milestones Register"
-        aside={<AutoBadge label={`${items.length} logged`} />}
+        aside={
+          <div className="flex items-center gap-3">
+            <AutoBadge label={`${items.length} logged`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Payment Milestone
+            </Button>
+          </div>
+        }
       >
         <RegisterImportToolbar
           defs={MILESTONE_FIELDS}
@@ -167,34 +183,31 @@ export function MilestonesTab() {
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="milestones"
-        periodId={periodId}
-        itemLabel="Payment Milestone"
-        previewFields={MILESTONE_PREVIEW_FIELDS}
-        buildPayload={buildMilestonePayload}
-        createMutation={createMilestone}
-      />
 
-      <SectionCard icon={Flag} title="New Payment Milestone">
-        <EntryFields defs={MILESTONE_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end gap-3">
-          {editingId ? (
-            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+      <Sheet open={drawerOpen} onOpenChange={(open) => !open && cancelEdit()}>
+        <SheetContent className="gap-0 p-0">
+          <SheetHeader>
+            <SheetTitle>{editingId ? "Edit Payment Milestone" : "New Payment Milestone"}</SheetTitle>
+            <SheetDescription>Payment Actuals and Status are recorded later in Project Reporting.</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto p-6">
+            <EntryFields defs={MILESTONE_FIELDS} values={values} set={set} errors={errors} columns={2} />
+          </div>
+          <SheetFooter className="flex-row justify-end gap-3 border-t border-slate-200 p-4">
+            <Button variant="outline" className="h-10 px-5 text-sm font-semibold" onClick={cancelEdit}>
               Cancel
             </Button>
-          ) : null}
-          <Button
-            onClick={submit}
-            disabled={busy}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {busy ? <ButtonSpinner /> : null}
-            {editingId ? "Edit Payment Milestone" : "Add Payment Milestone"}
-          </Button>
-        </div>
-      </SectionCard>
+            <Button
+              onClick={submit}
+              disabled={busy}
+              className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              {busy ? <ButtonSpinner /> : null}
+              {editingId ? "Save Payment Milestone" : "Add Payment Milestone"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

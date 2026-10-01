@@ -2,15 +2,30 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_project_access, require_project_read_access
 from app.core.db import get_db
 from app.crud.reporting_attestation import monthly_report_attestation_crud
+from app.models.measurement import (
+    MeasurementCloudMaintenance,
+    MeasurementConsulting,
+    MeasurementDevelopment,
+    MeasurementDevelopmentDefect,
+    MeasurementStaffing,
+    MeasurementStaffingPriorityMetric,
+    MeasurementSupport,
+    MeasurementTesting,
+)
+from app.models.project_status import ProjectStatusReport
 from app.models.reference_data import ReportingPeriod
 from app.models.reporting_attestation import MonthlyReportAttestation
 from app.models.users import User
+from app.schemas.copy_from_latest import CopyFromLatestResult
 from app.schemas.enums import RoleCode
+from app.services.copy_from_latest import copy_period_rows
+from app.services.report_lock import assert_report_editable
 from app.schemas.reporting_attestation import MonthlyReportAttestationCreate, MonthlyReportAttestationRead
 
 router = APIRouter(prefix="/projects/{project_id}/monthly-attestations", tags=["Monthly Report Attestation"])
@@ -76,3 +91,50 @@ async def create_attestation(
     return await monthly_report_attestation_crud.create(
         db, payload, project_id=project_id, reviewed_by=user.id, reviewed_at=now
     )
+
+
+# (measurement model, its child-row model) — one row per project + period.
+_MEASUREMENT_COPIES = (
+    (MeasurementDevelopment, MeasurementDevelopmentDefect),
+    (MeasurementSupport, None),
+    (MeasurementStaffing, MeasurementStaffingPriorityMetric),
+    (MeasurementTesting, None),
+    (MeasurementConsulting, None),
+    (MeasurementCloudMaintenance, None),
+)
+
+
+@router.post(
+    "/copy-from-latest",
+    response_model=CopyFromLatestResult,
+    dependencies=[Depends(_write_dep)],
+)
+async def copy_monthly_report_from_latest(
+    project_id: UUID, period_id: UUID = Query(...), db: AsyncSession = Depends(get_db)
+):
+    """"Copy from latest report" for the Monthly Project Performance Report:
+    prefill this period's Measurement forms from the latest earlier Monthly
+    period. Forms that already have data for this period are left alone."""
+    period = await db.get(ReportingPeriod, period_id)
+    if period is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporting period not found")
+    if period.period_type != "Monthly":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only Monthly periods can be copied here")
+    report_status = (
+        await db.execute(
+            select(ProjectStatusReport.status).where(
+                ProjectStatusReport.project_id == project_id, ProjectStatusReport.period_id == period_id
+            )
+        )
+    ).scalars().first()
+    assert_report_editable(report_status)
+
+    copied = 0
+    source_period_id = None
+    for model, child in _MEASUREMENT_COPIES:
+        n, source = await copy_period_rows(
+            db, model=model, project_id=project_id, period_id=period_id, child_model=child
+        )
+        copied += n
+        source_period_id = source_period_id or source
+    return CopyFromLatestResult(copied=copied, source_period_id=source_period_id)

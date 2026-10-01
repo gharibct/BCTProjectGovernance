@@ -55,6 +55,25 @@ export const useDevelopmentTarget = (projectId: string | null, enabled = true) =
 export const useSaveDevelopmentTarget = (projectId: string | null) =>
   useSaveMetricTarget<MetricTargetDevelopmentPayload, MetricTargetDevelopment>(projectId, "development");
 
+// Size Unit / Overall Planned Size / Overall Estimated Effort - declared on Scope & Schedule for
+// Development projects; a partial update of the same row (the Measurement
+// targets are left untouched).
+export type DevelopmentSizeEffortPayload = Pick<
+  MetricTargetDevelopmentPayload,
+  "target_size_unit" | "target_overall_planned_size" | "target_overall_estimated_effort"
+>;
+
+export function useSaveDevelopmentSizeEffort(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: DevelopmentSizeEffortPayload) =>
+      api.put<MetricTargetDevelopment>(`/projects/${projectId}/metric-targets/development/size-effort`, payload),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["metric-target", "development", projectId], data);
+    },
+  });
+}
+
 // --- Support ---
 
 export type MetricTargetSupport = {

@@ -34,8 +34,8 @@ def test_update_none_means_unchanged():
 def test_type_decorator_round_trip():
     t = CommaSeparatedList()
     assert (
-        t.process_bind_param([ApplicablePhase.UAT_SUPPORT, ApplicablePhase.SUPPORT], None)
-        == "UAT Support,Support"
+        t.process_bind_param([ApplicablePhase.UAT_SUPPORT, ApplicablePhase.SUPPORT_L1], None)
+        == "UAT Support,Support L1"
     )
     assert t.process_bind_param([], None) is None
     assert t.process_bind_param(None, None) is None

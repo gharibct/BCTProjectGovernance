@@ -33,6 +33,10 @@ class ProjectStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_comment: Mapped[str | None]
+    # Recall: the PM pulled a Submitted report back to Draft before the Delivery
+    # Manager approved it — the remarks they gave and when. Cleared on resubmit.
+    recall_remarks: Mapped[str | None]
+    recalled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Open Alerts snapshot (see api/v1/endpoints/project_status.py) — a
     # frozen count + row-detail list of Open Alerts as of this period's end
     # date, refreshed on every save while the report is still editable.
@@ -44,6 +48,9 @@ class ProjectStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     # api/v1/endpoints/project_status.py); flipping to False clears them.
     customer_report_shared: Mapped[bool | None]
     customer_report_date: Mapped[date | None] = mapped_column(Date)
+    # Sent, but the report itself cannot be disclosed: only the date is kept
+    # (no file). Implies customer_report_shared = True.
+    customer_report_confidential: Mapped[bool] = mapped_column(default=False, server_default="false")
     customer_report_file_name: Mapped[str | None]
     customer_report_file_path: Mapped[str | None]  # relative to settings.document_storage_dir
     customer_remarks: Mapped[str | None]

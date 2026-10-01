@@ -27,7 +27,7 @@ export function FindingsDrawer({
   const selected = selectedId ? findings.find((f) => f.id === selectedId) ?? null : null;
 
   return (
-    <SheetContent className="gap-0 p-0 sm:w-[540px] lg:w-[40%]">
+    <SheetContent className="gap-0 p-0">
       <SheetHeader>
         <SheetTitle>
           {view === "create" ? `New Finding — ${projectName}` : `Findings — ${projectName}`}

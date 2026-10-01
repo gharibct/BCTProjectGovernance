@@ -29,7 +29,10 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
 }
 
-export function ReportingHub() {
+// One hub per report type: Report Delivery Status (Weekly) and Report Project
+// Performance (Monthly) each get their own landing page.
+export function ReportingHub({ kind }: { kind: "delivery" | "performance" }) {
+  const isDelivery = kind === "delivery";
   const { projectId } = useParams<{ projectId: string }>();
   const projectQuery = useProject(projectId ?? null);
   const { data: project } = projectQuery;
@@ -37,30 +40,32 @@ export function ReportingHub() {
   const { data: reports = [] } = useStatusReports(projectId ?? null);
   const { data: activity } = useReportingActivity(projectId ?? null);
 
-  // Project Delivery Status (the consolidated preview + submit
-  // screen) is where entering the reporting flow for a period should land.
-  const dashboardHref = `/project-reporting/${projectId}/dashboard`;
+  // Report Delivery Status opens the merged Delivery Status Report (Project
+  // Status + RAG Status, submitted from Project Delivery Status); Report
+  // Project Performance lands on the monthly Project Performance dashboard.
+  const dashboardHref = isDelivery
+    ? `/project-reporting/${projectId}/project-status`
+    : `/project-reporting/${projectId}/dashboard`;
 
-  const weekly = activity?.weekly ?? EMPTY_ACTIVITY_SERIES;
-  const monthly = activity?.monthly ?? EMPTY_ACTIVITY_SERIES;
+  const series = (isDelivery ? activity?.weekly : activity?.monthly) ?? EMPTY_ACTIVITY_SERIES;
+  const currentId = currentActivityPeriodId(series.items);
 
-  const currentWeekId = currentActivityPeriodId(weekly.items);
-  const currentMonthId = currentActivityPeriodId(monthly.items);
-
-  // undefined until the user picks explicitly, so each combo defaults to the
+  // undefined until the user picks explicitly, so the combo defaults to the
   // current period once the activity loads without a sync effect.
-  const [weekOverride, setWeekOverride] = useState<string>();
-  const [monthOverride, setMonthOverride] = useState<string>();
-  const weekId = weekOverride ?? currentWeekId ?? "";
-  const monthId = monthOverride ?? currentMonthId ?? "";
+  const [override, setOverride] = useState<string>();
+  const selectedId = override ?? currentId ?? "";
 
   // Combo options: in-window periods only (after project start, up to today
   // or the project end), newest first, at most 15 back from the current one.
-  const weekOptions = useMemo(() => comboPeriods(weekly.items), [weekly]);
-  const monthOptions = useMemo(() => comboPeriods(monthly.items), [monthly]);
+  const options = useMemo(() => comboPeriods(series.items), [series]);
 
   const periodHref = (periodId: string) =>
     periodId ? `${dashboardHref}?period=${periodId}` : dashboardHref;
+
+  const periodType = isDelivery ? "Weekly" : "Monthly";
+  const typeReports = reports.filter(
+    (r) => periods.find((p) => p.id === r.period_id)?.period_type === periodType,
+  );
 
   // All hooks above must run unconditionally every render — this early
   // return has to come after every one of them, not interspersed.
@@ -72,7 +77,11 @@ export function ReportingHub() {
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <div>
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">
-          {project?.project_code ? `${project.project_code} - Reporting Summary` : "Report Project"}
+          {project?.project_code
+            ? `${project.project_code} - ${isDelivery ? "Report Delivery Status" : "Report Project Performance"}`
+            : isDelivery
+              ? "Report Delivery Status"
+              : "Report Project Performance"}
         </h1>
         <p className="mt-2 max-w-3xl text-slate-500">
           {project?.project_scope_description || project?.customer_overview || project?.project_name}
@@ -83,46 +92,30 @@ export function ReportingHub() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <ReportingProgressCard
-          title="Delivery Status Reporting (Weekly)"
-          icon={CalendarDays}
-          captionNoun="Weekly Reports"
-          series={weekly}
-          accent={WEEKLY_ACCENT}
-          comboLabel="Week Selection"
-          options={weekOptions}
-          value={weekId}
-          currentId={currentWeekId}
-          onChange={setWeekOverride}
-          actionHref={periodHref(weekId)}
-          actionLabel="Delivery Status Reporting"
+          title={isDelivery ? "Delivery Status Reporting (Weekly)" : "Project Performance Report (Monthly)"}
+          icon={isDelivery ? CalendarDays : ChartColumn}
+          captionNoun={isDelivery ? "Weekly Reports" : "Monthly Metrics"}
+          series={series}
+          accent={isDelivery ? WEEKLY_ACCENT : MONTHLY_ACCENT}
+          comboLabel={isDelivery ? "Week Selection" : "Month Selection"}
+          options={options}
+          value={selectedId}
+          currentId={currentId}
+          onChange={setOverride}
+          actionHref={periodHref(selectedId)}
+          actionLabel={isDelivery ? "Delivery Status Reporting" : "Project Performance Reporting"}
         />
-        <ReportingProgressCard
-          title="Project Performance Report (Monthly)"
-          icon={ChartColumn}
-          captionNoun="Monthly Metrics"
-          series={monthly}
-          accent={MONTHLY_ACCENT}
-          comboLabel="Month Selection"
-          options={monthOptions}
-          value={monthId}
-          currentId={currentMonthId}
-          onChange={setMonthOverride}
-          actionHref={periodHref(monthId)}
-          actionLabel="Project Performance Reporting"
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <ReportingActivityGrid items={weekly.items} variant="weekly" />
-        <ReportingActivityGrid items={monthly.items} variant="monthly" />
+        <ReportingActivityGrid items={series.items} variant={isDelivery ? "weekly" : "monthly"} />
       </div>
 
       <section>
-        <h2 className="text-lg font-bold text-slate-900">Reporting History</h2>
+        <h2 className="text-lg font-bold text-slate-900">
+          {isDelivery ? "Delivery Status History" : "Project Performance History"}
+        </h2>
         <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="bg-[#D6E9F8]">
+              <tr className="text-xs tracking-wide text-[#205889] uppercase">
                 <th className="px-6 py-3 font-bold">Reporting Period</th>
                 <th className="px-3 py-3 font-bold">Type</th>
                 <th className="px-3 py-3 font-bold">Created On</th>
@@ -132,14 +125,14 @@ export function ReportingHub() {
               </tr>
             </thead>
             <tbody>
-              {reports.length === 0 ? (
+              {typeReports.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-6 text-center text-slate-400">
                     No reports submitted yet.
                   </td>
                 </tr>
               ) : (
-                reports.map((report) => {
+                typeReports.map((report) => {
                   const period = periods.find((p) => p.id === report.period_id);
                   const typeLabel =
                     period?.period_type === "Weekly"
@@ -150,7 +143,7 @@ export function ReportingHub() {
                   return (
                     <tr
                       key={report.id}
-                      className="border-t border-slate-100 transition-colors hover:bg-slate-50/70"
+                      className="border-t border-[#E4E9EE] bg-white transition-colors even:bg-[#F8FAFB] hover:bg-[#EDF3F7]"
                     >
                       <td className="px-6 py-3.5 font-bold text-slate-900">
                         {period?.label ?? "—"}

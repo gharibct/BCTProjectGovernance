@@ -54,6 +54,7 @@ export function HealthItemsTab({
   return (
     <SectionCard icon={icon} title={title} aside={<AutoBadge label={`${items.length} logged`} />}>
       <EditableTextList
+        addOpenByDefault
         items={items.map((item) => ({ id: item.id, text: item.description }))}
         addLabel={`Add ${title} Note`}
         emptyLabel="Nothing logged yet."

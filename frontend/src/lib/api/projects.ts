@@ -16,7 +16,10 @@ export type ApplicablePhase =
   | "Testing"
   | "UAT Support"
   | "Warranty"
-  | "Support"
+  | "Support L0"
+  | "Support L1"
+  | "Support L2"
+  | "Support L3"
   | "Migration";
 // Matches backend/app/schemas/enums.py's ProjectStatus — the approval-workflow
 // state only. A project is "Draft" the moment it's created; the charter's Send

@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { create } from "zustand";
 
 export type BannerVariant = "success" | "error" | "warning";
@@ -29,6 +30,10 @@ type PageBannerState = {
 
 // Success banners auto-dismiss after a short period; error/warning banners
 // don't, so this timer only ever applies to the success case.
+// Every message is also raised as a toast (root-mounted, so it shows above
+// drawers/overlays).
+const TOAST_DURATION_MS = 3000;
+
 let successTimer: ReturnType<typeof setTimeout> | null = null;
 
 function clearSuccessTimer() {
@@ -43,21 +48,24 @@ export const usePageBanner = create<PageBannerState>((set, get) => ({
   showSuccess: (message, opts) => {
     clearSuccessTimer();
     set({ banner: { variant: "success", message, persistThroughNavigation: opts?.persistThroughNavigation } });
+    toast.success(message, { duration: TOAST_DURATION_MS });
     successTimer = setTimeout(() => {
       // Only clear if this same success banner is still showing — a newer
       // banner set in the meantime should not be wiped out by a stale timer.
       if (get().banner?.message === message && get().banner?.variant === "success") {
         get().dismiss();
       }
-    }, 5000);
+    }, TOAST_DURATION_MS);
   },
   showError: (message) => {
     clearSuccessTimer();
     set({ banner: { variant: "error", message } });
+    toast.error(message, { duration: TOAST_DURATION_MS });
   },
   showWarning: (message, action) => {
     clearSuccessTimer();
     set({ banner: { variant: "warning", message, action } });
+    toast.warning(message, { duration: TOAST_DURATION_MS });
   },
   dismiss: () => {
     clearSuccessTimer();

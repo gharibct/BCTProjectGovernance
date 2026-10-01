@@ -86,7 +86,7 @@ function TableBlockView({ block }: { block: TableBlock }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50">
+        <thead className="bg-[#D6E9F8]">
           <tr>
             {block.columns.map((col, i) => (
               <th key={i} className="px-4 py-2 font-bold text-slate-700">

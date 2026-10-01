@@ -455,15 +455,29 @@ async def milestone_payment_summary(db: AsyncSession, filters: DashboardFilters)
 # approach this module's docstring already endorses for grouping math).
 
 
-async def account_health_matrix(db: AsyncSession, filters: DashboardFilters) -> list[HealthMatrixRow]:
+async def account_health_matrix(
+    db: AsyncSession, filters: DashboardFilters, period_id: UUID | None = None
+) -> list[HealthMatrixRow]:
     accounts = await account_health_rows(db, filters)
     if not accounts:
         return []
     account_ids = [a.account_id for a in accounts]
 
-    declarations = (
-        await db.execute(select(AccountHealthDeclaration).where(AccountHealthDeclaration.account_id.in_(account_ids)))
-    ).scalars().all()
+    # With a period (Geo report), only that period's declaration counts — an
+    # account without one has no row here and renders grey...
+    decl_stmt = select(AccountHealthDeclaration).where(AccountHealthDeclaration.account_id.in_(account_ids))
+    if period_id is not None:
+        # ...and only if the account's own report for that period is filed
+        # (Submitted/Approved) — Draft/Rejected/missing reports stay grey.
+        filed_ids = select(AccountStatusReport.account_id).where(
+            AccountStatusReport.period_id == period_id,
+            AccountStatusReport.status.in_((ReportStatus.SUBMITTED, ReportStatus.APPROVED)),
+        )
+        decl_stmt = decl_stmt.where(
+            AccountHealthDeclaration.period_id == period_id,
+            AccountHealthDeclaration.account_id.in_(filed_ids),
+        )
+    declarations = (await db.execute(decl_stmt)).scalars().all()
     latest: dict[UUID, AccountHealthDeclaration] = {}
     for decl in declarations:
         current = latest.get(decl.account_id)
@@ -685,7 +699,7 @@ async def reports_due_summary(db: AsyncSession, filters: DashboardFilters, proje
 # _reports_due_rows / account_rag_card_summary. Projects owe Weekly + Monthly;
 # accounts and geos owe Weekly only (services/reporting_activity.py).
 
-_SUBMITTED_REPORT_STATUSES = (ReportStatus.SUBMITTED, ReportStatus.APPROVED)
+_SUBMITTED_REPORT_STATUSES = (ReportStatus.SUBMITTED, ReportStatus.APPROVED, ReportStatus.BASELINED)
 
 # Customer reporting cards (Project Health dashboard) — the status vocabulary
 # shared by the summary counts and the drill-down grids.
@@ -1801,7 +1815,7 @@ async def geo_report_due(db: AsyncSession, geo_ids: list[UUID]) -> bool:
                 select(GeoStatusReport.geo_id).where(
                     GeoStatusReport.geo_id.in_(in_scope_geo_ids),
                     GeoStatusReport.period_id == nearest_period.id,
-                    GeoStatusReport.status == ReportStatus.SUBMITTED,
+                    GeoStatusReport.status.in_(_SUBMITTED_REPORT_STATUSES),
                 )
             )
         )

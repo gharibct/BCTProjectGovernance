@@ -12,7 +12,8 @@ export type MenuEntryId =
   | "new-project"
   | "maintain-project"
   | "view-amend-projects"
-  | "project-reporting"
+  | "delivery-reporting"
+  | "performance-reporting"
   | "de-assessment-report"
   | "admin-dashboard"
   | "cdo-dashboard"
@@ -65,7 +66,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     { items: ["project-manager-dashboard"] },
     {
       heading: "My Worklist",
-      items: ["maintain-project", "view-amend-projects", "project-reporting"],
+      items: ["maintain-project", "view-amend-projects", "delivery-reporting", "performance-reporting"],
     },
     {
       heading: "My Reports",
@@ -115,7 +116,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     },
     {
       heading: "Team Worklist",
-      items: ["maintain-project", "view-amend-projects", "project-reporting"],
+      items: ["maintain-project", "view-amend-projects", "delivery-reporting", "performance-reporting"],
     },
   ],
   GEO_HEAD: [
@@ -142,7 +143,8 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
         "new-project",
         "maintain-project",
         "view-amend-projects",
-        "project-reporting",
+        "delivery-reporting",
+        "performance-reporting",
         "account-reporting",
       ],
     },

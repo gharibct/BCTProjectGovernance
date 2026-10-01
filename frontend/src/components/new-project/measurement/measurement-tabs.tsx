@@ -183,7 +183,7 @@ function saveWithBanner<TData, TPayload>(
   showError: (message: string) => void
 ) {
   mutation.mutate(payload, {
-    onSuccess: () => showSuccess("Measurement Targets Saved Successfully"),
+    onSuccess: () => showSuccess("Measurement Targets Reviewed"),
     onError: (err) => showError(err instanceof Error ? err.message : "Failed to save measurement targets."),
   });
 }
@@ -350,17 +350,7 @@ export function MeasurementTabs() {
   return (
     <BaselineGate>
       <div>
-        <div role="tablist" className="flex gap-8 border-b border-slate-200">
-          <span
-            role="tab"
-            aria-selected="true"
-            className="-mb-px border-b-2 border-[#1a4a7a] pb-3 text-sm font-semibold whitespace-nowrap text-[#1a4a7a]"
-          >
-            {activeTab.label}
-          </span>
-        </div>
-
-        <div className="mt-8">
+        <div>
           <Active m={m} set={setField} reference={reference} errors={fieldErrors} />
         </div>
 
@@ -376,7 +366,7 @@ export function MeasurementTabs() {
               disabled={!projectId || target.isSaving}
               className="h-11 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
             >
-              {target.isSaving ? "Saving…" : "Save Targets"}
+              {target.isSaving ? "Saving…" : "Accept Targets"}
             </Button>
           </div>
         </div>

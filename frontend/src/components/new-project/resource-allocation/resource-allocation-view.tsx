@@ -49,18 +49,76 @@ function KpiTile({ label, value, hint }: { label: string; value: React.ReactNode
 }
 
 // Project Setup / Amend Project → Resource Allocation. Shows who Oracle has
-// allocated to the project's mapped Oracle projects: two KPIs, a searchable /
-// paginated resource grid, and a right drawer with one resource's month-wise
+// allocated to the project's mapped Oracle projects: two KPIs, two searchable /
+// paginated resource grids (current month / old), and a right drawer with one resource's month-wise
 // allocation. Read-only — allocations are maintained in Oracle.
 export function ResourceAllocationView() {
   const projectId = useNewProjectId();
-  const [search, setSearch] = React.useState("");
-  const debouncedSearch = useDebouncedValue(search, 300);
-  const [skip, setSkip] = React.useState(0);
   const [selected, setSelected] = React.useState<Row | null>(null);
 
   const summary = useResourceAllocationSummary(projectId);
-  const list = useResourceAllocations(projectId, { search: debouncedSearch, skip, limit: PAGE_SIZE });
+
+  if (summary.isError) {
+    return <QueryErrorState error={summary.error} onRetry={() => summary.refetch()} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <KpiTile
+          label="Resources Allocated This Month"
+          value={summary.data ? summary.data.resources_allocated_this_month : "—"}
+          hint="Allocation overlaps the current month"
+        />
+        <KpiTile
+          label="Man Months Consumed Till Date"
+          value={summary.data ? formatManMonths(summary.data.man_months_consumed) : "—"}
+          hint="Across all loaded months"
+        />
+      </div>
+
+      <AllocationGrid
+        projectId={projectId}
+        scope="current"
+        title="Current Month Allocations"
+        emptyLabel="No resources are allocated to the mapped Oracle projects this month."
+        onSelect={setSelected}
+      />
+      <AllocationGrid
+        projectId={projectId}
+        scope="old"
+        title="Old Allocations"
+        emptyLabel="No old allocations found for the mapped Oracle projects."
+        onSelect={setSelected}
+      />
+
+      <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
+        {selected ? <AllocationDrawer projectId={projectId} row={selected} /> : null}
+      </Sheet>
+    </div>
+  );
+}
+
+// One searchable / paginated resource grid; the page renders two of them —
+// resources allocated in the current month, and everyone else ("old").
+function AllocationGrid({
+  projectId,
+  scope,
+  title,
+  emptyLabel,
+  onSelect,
+}: {
+  projectId: string | null;
+  scope: "current" | "old";
+  title: string;
+  emptyLabel: string;
+  onSelect: (row: Row) => void;
+}) {
+  const [search, setSearch] = React.useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
+  const [skip, setSkip] = React.useState(0);
+
+  const list = useResourceAllocations(projectId, { search: debouncedSearch, skip, limit: PAGE_SIZE, scope });
 
   const rows: Row[] = React.useMemo(
     () => (list.data?.items ?? []).map((item) => ({ ...item, id: item.employee_id })),
@@ -111,7 +169,7 @@ export function ResourceAllocationView() {
           variant="outline"
           className="h-8 gap-1.5 px-3 text-xs font-semibold"
           aria-label={`View month-wise allocation for ${row.employee_name ?? row.employee_code}`}
-          onClick={() => setSelected(row)}
+          onClick={() => onSelect(row)}
         >
           <Eye className="size-3.5" />
           View
@@ -120,26 +178,13 @@ export function ResourceAllocationView() {
     },
   ];
 
-  if (summary.isError) {
-    return <QueryErrorState error={summary.error} onRetry={() => summary.refetch()} />;
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <KpiTile
-          label="Resources Allocated This Month"
-          value={summary.data ? summary.data.resources_allocated_this_month : "—"}
-          hint="Allocation overlaps the current month"
-        />
-        <KpiTile
-          label="Man Months Consumed Till Date"
-          value={summary.data ? formatManMonths(summary.data.man_months_consumed) : "—"}
-          hint="Across all loaded months"
-        />
-      </div>
-
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-bold text-slate-900">
+          {title}
+          {list.data ? <span className="ml-2 text-sm font-medium text-slate-400">({list.data.total})</span> : null}
+        </h2>
         <div className="relative w-full max-w-sm">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -150,35 +195,25 @@ export function ResourceAllocationView() {
               setSkip(0);
             }}
             placeholder="Search by resource name…"
-            aria-label="Search resources by name"
+            aria-label={`Search ${title.toLowerCase()} by resource name`}
             className="w-full rounded-md border border-slate-200 py-2 pr-3 pl-9 text-sm focus:border-[#1a6fc4] focus:outline-none"
           />
         </div>
-
-        {list.isError ? (
-          <QueryErrorState error={list.error} onRetry={() => list.refetch()} />
-        ) : (
-          <>
-            <RegisterTable
-              items={rows}
-              columns={columns}
-              emptyLabel={
-                list.isLoading
-                  ? "Loading…"
-                  : debouncedSearch.trim()
-                    ? "No resources match your search."
-                    : "No resource allocations found for the mapped Oracle projects."
-              }
-            />
-            <PaginationBar skip={skip} limit={PAGE_SIZE} total={list.data?.total ?? 0} onPageChange={setSkip} />
-          </>
-        )}
       </div>
 
-      <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
-        {selected ? <AllocationDrawer projectId={projectId} row={selected} /> : null}
-      </Sheet>
-    </div>
+      {list.isError ? (
+        <QueryErrorState error={list.error} onRetry={() => list.refetch()} />
+      ) : (
+        <>
+          <RegisterTable
+            items={rows}
+            columns={columns}
+            emptyLabel={list.isLoading ? "Loading…" : debouncedSearch.trim() ? "No resources match your search." : emptyLabel}
+          />
+          <PaginationBar skip={skip} limit={PAGE_SIZE} total={list.data?.total ?? 0} onPageChange={setSkip} />
+        </>
+      )}
+    </section>
   );
 }
 
@@ -187,7 +222,7 @@ function AllocationDrawer({ projectId, row }: { projectId: string | null; row: R
   const data = detail.data;
 
   return (
-    <SheetContent className="gap-0 p-0 sm:w-[480px] lg:w-[34%]">
+    <SheetContent className="gap-0 p-0">
       <SheetHeader>
         <SheetTitle>{row.employee_name ?? row.employee_code}</SheetTitle>
         <SheetDescription>
@@ -230,7 +265,7 @@ function AllocationDrawer({ projectId, row }: { projectId: string | null; row: R
               <div className="overflow-hidden rounded-lg border border-slate-200">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-bold tracking-wide text-slate-600 uppercase">
+                    <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-left text-xs font-bold tracking-wide text-[#205889] uppercase">
                       <th className="px-4 py-3">Month</th>
                       <th className="px-4 py-3 text-right">Man Months</th>
                     </tr>

@@ -130,7 +130,7 @@ export function OverviewSection({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className={scope === "geo" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 gap-4 md:grid-cols-2"}>
         {STATUS_CATEGORIES.map((c) => (
           <QuadrantCard
             key={c.category}

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export function ExecutiveUpdateView() {
   const user = useSession((s) => s.user);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
+  const queryClient = useQueryClient();
 
   const { data: periods = [] } = useReportingPeriods();
   const { data: records = [] } = useExecutiveUpdates(geoId ?? null);
@@ -65,7 +67,13 @@ export function ExecutiveUpdateView() {
   const isSaving = createUpdate.isPending || updateUpdate.isPending;
 
   const handleSave = () => {
-    const onSuccess = () => showSuccess("Executive Update Saved");
+    // Saving also takes over the geo's Delivery Status Report (Auto Generated
+    // -> Draft - Saved, or created as Draft - Saved) — see geo_autogen.py.
+    const onSuccess = () => {
+      showSuccess("Details Saved Successfully");
+      queryClient.invalidateQueries({ queryKey: ["regional-status-reports", "geo", geoId] });
+      queryClient.invalidateQueries({ queryKey: ["regional-status-report-latest", "geo", geoId] });
+    };
     const onError = (err: unknown) =>
       showError(err instanceof Error ? err.message : "Failed to save Executive Update.");
 
@@ -103,7 +111,7 @@ export function ExecutiveUpdateView() {
       <div className="flex justify-end">
         <Button className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]" disabled={!periodId || isSaving} onClick={handleSave}>
           {isSaving ? <ButtonSpinner /> : <Send className="size-4" />}
-          Save Draft
+          Save Details
         </Button>
       </div>
     </div>

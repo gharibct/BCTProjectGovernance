@@ -73,7 +73,12 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
       ? accounts.find((a) => a.id === scopeId)?.name
       : geos.find((g) => g.id === scopeId)?.name) ?? config.fallbackName;
 
-  const entryHref = `/${scope}-reporting/${scopeId}/dashboard`;
+  // Account launches the long Delivery Status Report (submitted from Submit
+  // Report); Geo still lands on its dashboard.
+  const entryHref =
+    scope === "account"
+      ? `/account-reporting/${scopeId}/status`
+      : `/${scope}-reporting/${scopeId}/dashboard`;
   const weekly = activity?.weekly ?? EMPTY_ACTIVITY_SERIES;
 
   const currentWeekId = currentActivityPeriodId(weekly.items);
@@ -143,8 +148,8 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
         <h2 className="text-lg font-bold text-slate-900">Reporting History</h2>
         <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="bg-[#D6E9F8]">
+              <tr className="text-xs tracking-wide text-[#205889] uppercase">
                 <th className="px-6 py-3 font-bold">Reporting Period</th>
                 <th className="px-3 py-3 font-bold">Created On</th>
                 <th className="px-3 py-3 font-bold">Status</th>
@@ -165,7 +170,7 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
                   return (
                     <tr
                       key={report.id}
-                      className="border-t border-slate-100 transition-colors hover:bg-slate-50/70"
+                      className="border-t border-[#E4E9EE] bg-white transition-colors even:bg-[#F8FAFB] hover:bg-[#EDF3F7]"
                     >
                       <td className="px-6 py-3.5 font-bold text-slate-900">
                         {period?.label ?? "—"}

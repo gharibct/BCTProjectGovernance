@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, type ChangeEvent } from "react";
+import { Suspense, useMemo, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight } from "lucide-react";
@@ -19,7 +19,8 @@ const SCOPE_ACTION_LEVEL: Record<ReviewScope, ActionLevel> = {
 };
 import { GeoAccountMatrixSection } from "./geo-account-matrix-section";
 import { OverviewSection } from "./overview-section";
-import type { ProjectStatusReport } from "@/lib/api/project-status";
+import { isReportFrozen, type ProjectStatusReport } from "@/lib/api/project-status";
+import { ReportAttachmentsView } from "@/components/reporting/report-attachments-section";
 import { CustomerCommunicationSection } from "./customer-communication-section";
 import { RagStatusSection } from "./rag-status-section";
 import { OpenNcSection } from "./open-nc-section";
@@ -68,7 +69,17 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
 
   const name = useEntityName(scope, scopeId);
   const { data: periods = [] } = useReportingPeriods();
-  const { data: reports = [] } = useReviewStatusReports(scope, scopeId);
+  const { data: allReports = [] } = useReviewStatusReports(scope, scopeId);
+  // My Reports (view) only shows filed reports for projects / accounts — Draft
+  // / Rejected ones are still being worked on by the reporter. Geo reports
+  // (Geo Head and CDO) show in every status, incl. Auto Generated. The approve
+  // worklist (project / account) lists only Submitted reports — the ones
+  // actually awaiting a decision.
+  const reports = useMemo(() => {
+    if (scope === "geo") return allReports;
+    if (mode === "approve") return allReports.filter((r) => r.status === "Submitted");
+    return allReports.filter((r) => isReportFrozen(r.status));
+  }, [allReports, mode, scope]);
 
   // Reports are ordered by the period's start_date desc (same convention as
   // the Reporting hubs), so the first row is the latest report.
@@ -137,13 +148,13 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
 
       {!periodId ? (
         <p className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-slate-400">
-          No reports submitted yet.
+          {approving ? "No reports awaiting approval." : "No reports submitted yet."}
         </p>
       ) : (
         <>
           {scope === "geo" ? (
             <>
-              <GeoAccountMatrixSection geoId={scopeId} accented />
+              <GeoAccountMatrixSection geoId={scopeId} periodId={periodId} accented />
               <ExecutiveUpdateSection geoId={scopeId} periodId={periodId} />
               <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
             </>
@@ -155,6 +166,7 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
                 // Under scope "project" the reports are ProjectStatusReports.
                 <CustomerCommunicationSection projectId={scopeId} report={report as ProjectStatusReport | undefined} />
               ) : null}
+              <ReportAttachmentsView scope={scope} ownerId={scopeId} reportId={report?.id} />
             </>
           )}
           <OpenNcSection scope={scope} scopeId={scopeId} report={report} />

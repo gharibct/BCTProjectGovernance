@@ -5,7 +5,6 @@ import { ChartColumn, Gauge } from "lucide-react";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useConsultingTarget } from "@/lib/api/metric-targets";
 import {
   useCreateConsultingMeasurement,
@@ -20,8 +19,8 @@ const MEASURES = [
   { key: "actual_effort_as_on_date", label: "Actual Effort (As on Date)", hint: "Person-Days" },
   { key: "planned_pct_completion", label: "Planned % of Completion (As on Date)", hint: "%" },
   { key: "actual_pct_completion", label: "Actual % of Completion (As on Date)", hint: "%" },
-  { key: "planned_cost", label: "Planned Cost (As on Date)", hint: "Same currency as Project Revenue" },
-  { key: "actual_cost", label: "Actual Cost (As on Date)", hint: "Same currency as Project Revenue" },
+  { key: "planned_cost", label: "Planned Cost (As on Date)", hint: "Same currency as Project TCV Revenue" },
+  { key: "actual_cost", label: "Actual Cost (As on Date)", hint: "Same currency as Project TCV Revenue" },
 ] as const;
 
 function toValues(data: MeasurementConsultingRead): Record<string, string> {
@@ -52,7 +51,7 @@ export function ConsultingTab({ projectId }: { projectId: string }) {
 
   const latestQuery = useLatestConsultingMeasurement(projectId);
   const createMutation = useCreateConsultingMeasurement(projectId);
-  const { latest, m, set, periodId, submit, isSaving, ai } = useMeasurementForm({
+  const { latest, m, set, periodId, submit, isSaving } = useMeasurementForm({
     projectId,
     screen: "measurement_consulting",
     latestQuery,
@@ -63,12 +62,6 @@ export function ConsultingTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <LoadAiSuggestionsButton
-        projectId={projectId}
-        screen="measurement_consulting"
-        periodId={periodId || null}
-        ai={ai}
-      />
       <SectionCard icon={ChartColumn} title="Metrics">
         <div className="rounded-xl bg-slate-50 p-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

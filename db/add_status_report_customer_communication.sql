@@ -11,6 +11,8 @@ ALTER TABLE project_status_reports
 ALTER TABLE project_status_reports
     ADD COLUMN IF NOT EXISTS customer_report_date DATE;
 ALTER TABLE project_status_reports
+    ADD COLUMN IF NOT EXISTS customer_report_confidential BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE project_status_reports
     ADD COLUMN IF NOT EXISTS customer_report_file_name TEXT;
 ALTER TABLE project_status_reports
     ADD COLUMN IF NOT EXISTS customer_report_file_path TEXT;

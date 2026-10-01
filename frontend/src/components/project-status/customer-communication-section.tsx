@@ -11,14 +11,14 @@ import type { ProjectStatusReport } from "@/lib/api/project-status";
 
 // Customer Communication on Project Status — was this period's status report
 // shared with the customer? Date Shared and the Presentation / Status Report
-// upload only apply (and are mandatory) when the answer is Yes. Form state is
-// owned by ProjectStatusTabs and persisted by its "Save Details". Remarks is
+// upload only apply (and are mandatory) when the answer is "Sent"; "Sent - Cannot be Disclosed" needs the date alone. Form state is
+// owned by DeliveryStatusReport and persisted by its "Save Report". Remarks is
 // optional and applies whichever way the question is answered.
 
 export const CUSTOMER_REPORT_ACCEPT = ".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx";
 
 export type CustomerCommunicationState = {
-  shared: "" | "Yes" | "No";
+  shared: "" | "Sent" | "Not Sent" | "Sent - Cannot be Disclosed";
   date: string;
   remarks: string;
   // A file picked but not yet uploaded — uploaded after the report is saved.
@@ -34,7 +34,14 @@ export const BLANK_CUSTOMER_COMMUNICATION: CustomerCommunicationState = {
 
 export function customerCommunicationFromReport(report: ProjectStatusReport): CustomerCommunicationState {
   return {
-    shared: report.customer_report_shared === null ? "" : report.customer_report_shared ? "Yes" : "No",
+    shared:
+      report.customer_report_shared === null
+        ? ""
+        : !report.customer_report_shared
+          ? "Not Sent"
+          : report.customer_report_confidential
+            ? "Sent - Cannot be Disclosed"
+            : "Sent",
     date: report.customer_report_date ?? "",
     remarks: report.customer_remarks ?? "",
     file: null,
@@ -48,9 +55,11 @@ export function validateCustomerCommunication(
   hasUploadedFile: boolean
 ): CustomerCommunicationErrors {
   const errors: CustomerCommunicationErrors = {};
-  if (!value.shared) errors.shared = "Select Yes or No.";
-  if (value.shared === "Yes") {
+  if (!value.shared) errors.shared = "Select Sent, Not Sent or Sent - Cannot be Disclosed.";
+  if (value.shared === "Sent" || value.shared === "Sent - Cannot be Disclosed") {
     if (!value.date) errors.date = "Date Shared is required.";
+  }
+  if (value.shared === "Sent") {
     if (!value.file && !hasUploadedFile) errors.file = "Upload the Presentation / Status Report.";
   }
   return errors;
@@ -72,7 +81,8 @@ export function CustomerCommunicationSection({
   onDownload: () => void;
   disabled: boolean;
 }) {
-  const shared = value.shared === "Yes";
+  const sent = value.shared === "Sent" || value.shared === "Sent - Cannot be Disclosed";
+  const showFile = value.shared === "Sent";
 
   return (
     <SectionCard icon={Presentation} title="Customer Communication">
@@ -86,12 +96,13 @@ export function CustomerCommunicationSection({
             onChange={(e) => onChange({ ...value, shared: e.target.value as CustomerCommunicationState["shared"] })}
           >
             <option value="">Select…</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
+            <option value="Sent">Sent</option>
+            <option value="Not Sent">Not Sent</option>
+            <option value="Sent - Cannot be Disclosed">Sent - Cannot be Disclosed</option>
           </NativeSelect>
         </Field>
 
-        {shared ? (
+        {sent ? (
           <Field label="Date Shared" htmlFor="customer_report_date" required error={errors.date}>
             <Input
               id="customer_report_date"
@@ -104,7 +115,7 @@ export function CustomerCommunicationSection({
           </Field>
         ) : null}
 
-        {shared ? (
+        {showFile ? (
           <Field label="Presentation / Status Report" htmlFor="customer_report_file" required error={errors.file}>
             <div className="flex flex-col gap-2">
               {!disabled ? (

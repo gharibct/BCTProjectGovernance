@@ -11,6 +11,7 @@ import { api, type Page } from "./client";
 export type NotificationType =
   | "REPORT_SUBMITTED"
   | "REPORT_REVIEWED"
+  | "REPORT_RECALLED"
   | "REPORT_DEFAULTER"
   | "DE_DECISION"
   | "DE_APPROVAL_QUEUED"

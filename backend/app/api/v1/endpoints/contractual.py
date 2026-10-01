@@ -147,7 +147,7 @@ async def create_commitment_actual(
             db,
             existing[0],
             ContractualCommitmentActualUpdate(
-                actual_value=payload.actual_value, met_status=payload.met_status
+                actual_details=payload.actual_details, met_status=payload.met_status
             ),
         )
         row.recorded_by = user.id

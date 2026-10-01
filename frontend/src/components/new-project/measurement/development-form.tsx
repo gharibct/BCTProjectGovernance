@@ -1,15 +1,13 @@
 "use client";
 
-import { ChartColumn, Gauge } from "lucide-react";
+import { ChartColumn } from "lucide-react";
 
 import type {
   MetricTargetDevelopment,
   MetricTargetDevelopmentPayload,
 } from "@/lib/api/metric-targets";
-import { Field, SectionCard } from "@/components/forms/form-primitives";
-import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
-import { MetricTile, inputClass, num, str, type MeasuresProps } from "./shared";
+import { SectionCard } from "@/components/forms/form-primitives";
+import { MetricTile, num, str, type MeasuresProps } from "./shared";
 
 export function toDevelopmentPayload(m: Record<string, string>): MetricTargetDevelopmentPayload {
   return {
@@ -124,47 +122,6 @@ export function DevelopmentTab({ m, set, reference, errors }: MeasuresProps) {
             error={errors?.targetCodeCoverage}
             unit="%"
           />
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={Gauge} title="Size & Effort">
-        <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
-          <Field label="Size Unit" htmlFor="size-unit" required>
-            <NativeSelect
-              id="size-unit"
-              value={m.sizeUnit || "FP"}
-              onChange={set("sizeUnit")}
-            >
-              {["CP", "FP", "LOC", "SP"].map((u) => (
-                <option key={u}>{u}</option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field label="Overall Planned Size" htmlFor="planned-size" required>
-            <Input
-              id="planned-size"
-              type="number"
-              min={0}
-              value={m.plannedSize ?? ""}
-              onChange={set("plannedSize")}
-              className={inputClass}
-            />
-          </Field>
-          <Field
-            label="Overall Estimated Effort"
-            htmlFor="estimated-effort"
-            required
-            hint="Person-Days"
-          >
-            <Input
-              id="estimated-effort"
-              type="number"
-              min={0}
-              value={m.estimatedEffort ?? ""}
-              onChange={set("estimatedEffort")}
-              className={inputClass}
-            />
-          </Field>
         </div>
       </SectionCard>
     </div>

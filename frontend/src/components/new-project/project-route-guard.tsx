@@ -4,6 +4,8 @@ import * as React from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 
 import { NEW_PROJECT_SEGMENT } from "@/stores/new-project-ui";
+import { ROLE_LANDING_ROUTE, ROLE_MENUS } from "@/lib/menu-config";
+import { useEffectiveRole } from "@/stores/session";
 import { projectScreenRoot, useProject, type ProjectScreenRoot } from "@/lib/api/projects";
 
 // Keeps a project on the screen family that owns its current status, whichever URL
@@ -21,11 +23,12 @@ import { projectScreenRoot, useProject, type ProjectScreenRoot } from "@/lib/api
 const SUBPATHS: Record<ProjectScreenRoot, readonly string[]> = {
   "new-project": [
     "ai-hub/document-processing",
-    "contractual-compliance",
+    "contractual-commitments",
     "create",
     "de-assessment",
     "map-oracle-projects",
     "measurement",
+    "milestones",
     "project-charter",
     "project-charter/schedule",
     "project-charter/self-assessment",
@@ -36,10 +39,11 @@ const SUBPATHS: Record<ProjectScreenRoot, readonly string[]> = {
   ],
   "amend-project": [
     "ai-hub/document-processing",
-    "contractual-compliance",
+    "contractual-commitments",
     "initiate-amend",
     "map-oracle-projects",
     "measurement",
+    "milestones",
     "project-charter",
     "project-charter/schedule",
     "raido",
@@ -80,15 +84,23 @@ export function ProjectRouteGuard({
   const id = projectId && projectId !== NEW_PROJECT_SEGMENT ? projectId : null;
   const { data: project } = useProject(id);
 
+  // Creating a project (the "new" draft) is limited to roles whose menu offers
+  // "Create Project" — same source as the sidebar entry. The API rejects the
+  // POST anyway; this stops the form opening from a pasted URL.
+  const role = useEffectiveRole();
+  const canCreate = !!role && ROLE_MENUS[role].includes("new-project");
+  const blocked = family === "new-project" && !id && !canCreate;
+
   const owner = project ? projectScreenRoot(project) : null;
   const target = id && owner && owner !== family ? redirectTarget(pathname, id, family, owner) : null;
 
   React.useEffect(() => {
-    if (target) router.replace(target);
-  }, [target, router]);
+    if (blocked) router.replace(role ? ROLE_LANDING_ROUTE[role] : "/");
+    else if (target) router.replace(target);
+  }, [blocked, role, target, router]);
 
   // Render nothing while the redirect is in flight rather than flashing the wrong
   // screen family.
-  if (target) return null;
+  if (blocked || target) return null;
   return <>{children}</>;
 }

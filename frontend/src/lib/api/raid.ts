@@ -20,6 +20,7 @@ function useRaidCreate<TPayload, TRead>(projectId: string | null, prefix: string
     mutationFn: (payload: TPayload) => api.post<TRead>(`/projects/${projectId}/${prefix}`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["raid", prefix, projectId] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId] });
     },
   });
 }
@@ -31,6 +32,7 @@ function useRaidUpdate<TPayload, TRead>(projectId: string | null, prefix: string
       api.put<TRead>(`/projects/${projectId}/${prefix}/${id}`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["raid", prefix, projectId] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId] });
     },
   });
 }
@@ -41,6 +43,7 @@ function useRaidDelete(projectId: string | null, prefix: string) {
     mutationFn: (id: string) => api.delete(`/projects/${projectId}/${prefix}/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["raid", prefix, projectId] });
+      queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId] });
     },
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, Plus } from "lucide-react";
 
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
@@ -10,9 +10,8 @@ import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/e
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { Button } from "@/components/ui/button";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useNewProjectId } from "@/stores/new-project-ui";
-import { useBaselinePeriodId } from "@/lib/period-utils";
 import {
   useCommitments,
   useCreateCommitment,
@@ -23,24 +22,14 @@ import {
   type ContractualCommitmentPayload,
 } from "@/lib/api/contractual";
 
-const COMMITMENT_PREVIEW_FIELDS = [
-  { key: "commitment_name", label: "Name" },
-  { key: "frequency", label: "Frequency" },
-  { key: "target", label: "Target" },
-  { key: "target_uom", label: "Target UOM" },
-] as const;
-
 // Shared by the manual "Add Commitment" button and the AI row-suggestions
 // panel's Apply (both ultimately call the same createCommitment mutation).
 function buildCommitmentPayload(values: Record<string, string>): ContractualCommitmentPayload {
   return {
     commitment_name: values.commitment_name,
     frequency: values.frequency as CommitmentFrequency,
-    formula: values.formula || undefined,
-    target: values.target || undefined,
-    target_uom: values.target_uom || undefined,
     penalty_applicable: values.penalty_applicable === "Yes",
-    penalty_value: values.penalty_value || undefined,
+    commitment_details: values.commitment_details || undefined,
   };
 }
 
@@ -49,11 +38,8 @@ function toValues(item: ContractualCommitment): Record<string, string> {
   return {
     commitment_name: item.commitment_name,
     frequency: item.frequency,
-    formula: item.formula ?? "",
-    target: item.target ?? "",
-    target_uom: item.target_uom ?? "",
     penalty_applicable: item.penalty_applicable ? "Yes" : "No",
-    penalty_value: item.penalty_value ?? "",
+    commitment_details: item.commitment_details ?? "",
   };
 }
 
@@ -72,7 +58,7 @@ const FREQUENCIES = [
 ] as const;
 
 const COMMITMENT_FIELDS: FieldDef[] = [
-  { key: "commitment_name", label: "Name of the Commitment", kind: "text", mandatory: true },
+  { key: "commitment_name", label: "Name of the Commitment", kind: "text", mandatory: true, fullWidth: true },
   {
     key: "frequency",
     label: "Frequency",
@@ -80,38 +66,48 @@ const COMMITMENT_FIELDS: FieldDef[] = [
     options: FREQUENCIES,
     mandatory: true,
   },
-  { key: "formula", label: "Formula", kind: "text", placeholder: "e.g. Resolved / Total" },
-  { key: "target", label: "Target", kind: "text", placeholder: "e.g. 95%" },
-  { key: "target_uom", label: "Target UOM", kind: "text", placeholder: "e.g. %, hrs, days" },
   {
     key: "penalty_applicable",
-    label: "Penalty Applicable",
+    label: "Penalty Applicability",
     kind: "select",
     options: ["Yes", "No"],
   },
-  { key: "penalty_value", label: "Penalty Value", kind: "number" },
+  { key: "commitment_details", label: "Commitment Details", kind: "textarea", fullWidth: true },
 ];
 
 export function CommitmentsTab() {
   const projectId = useNewProjectId();
-  const periodId = useBaselinePeriodId();
   const { values, set, reset, load } = useEntryValues();
   const { data: items = [] } = useCommitments(projectId);
   const createCommitment = useCreateCommitment(projectId);
   const updateCommitment = useUpdateCommitment(projectId);
   const deleteCommitment = useDeleteCommitment(projectId);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  // The add / edit form lives in a right drawer.
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
+  const startAdd = () => {
+    setErrors({});
+    setEditingId(null);
+    reset();
+    setDrawerOpen(true);
+  };
+
   const startEdit = (item: ContractualCommitment) => {
+    setErrors({});
     setEditingId(item.id);
     load(toValues(item));
+    setDrawerOpen(true);
   };
 
   const cancelEdit = () => {
+    setErrors({});
     setEditingId(null);
     reset();
+    setDrawerOpen(false);
   };
 
   const handleDelete = (item: ContractualCommitment) => {
@@ -125,7 +121,11 @@ export function CommitmentsTab() {
   };
 
   const submit = () => {
-    if (!values.commitment_name?.trim() || !values.frequency) return;
+    const nextErrors: Record<string, string> = {};
+    if (!values.commitment_name?.trim()) nextErrors.commitment_name = "Name of the Commitment is required.";
+    if (!values.frequency) nextErrors.frequency = "Frequency is required.";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     const payload = buildCommitmentPayload(values);
 
     if (editingId) {
@@ -143,6 +143,7 @@ export function CommitmentsTab() {
       createCommitment.mutate(payload, {
         onSuccess: () => {
           reset();
+          setDrawerOpen(false);
           showSuccess("Commitment Added Successfully");
         },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to add commitment."),
@@ -160,17 +161,22 @@ export function CommitmentsTab() {
 
   return (
     <div className="flex flex-col gap-8">
-      <AiRowSuggestionsTrigger
-        projectId={projectId}
-        screen="commitments"
-        periodId={periodId}
-        itemLabel="Commitment"
-      />
 
       <SectionCard
         icon={ClipboardCheck}
         title="Commitments Register"
-        aside={<AutoBadge label={`${items.length} logged`} />}
+        aside={
+          <div className="flex items-center gap-3">
+            <AutoBadge label={`${items.length} logged`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Commitment
+            </Button>
+          </div>
+        }
       >
         <RegisterImportToolbar
           defs={COMMITMENT_FIELDS}
@@ -186,46 +192,41 @@ export function CommitmentsTab() {
           columns={[
             { key: "commitment_name", label: "Commitment" },
             { key: "frequency", label: "Frequency" },
-            { key: "target", label: "Target", align: "right" },
-            { key: "target_uom", label: "Target UOM" },
             {
               key: "penalty_applicable",
-              label: "Penalty",
+              label: "Penalty Applicability",
               render: (item) => (item.penalty_applicable ? "Yes" : "No"),
             },
-            { key: "penalty_value", label: "Penalty Value", align: "right" },
+            { key: "commitment_details", label: "Commitment Details" },
           ]}
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="commitments"
-        periodId={periodId}
-        itemLabel="Commitment"
-        previewFields={COMMITMENT_PREVIEW_FIELDS}
-        buildPayload={buildCommitmentPayload}
-        createMutation={createCommitment}
-      />
 
-      <SectionCard icon={ClipboardCheck} title="New Commitment">
-        <EntryFields defs={COMMITMENT_FIELDS} values={values} set={set} />
-        <div className="mt-6 flex justify-end gap-3">
-          {editingId ? (
-            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+      <Sheet open={drawerOpen} onOpenChange={(open) => !open && cancelEdit()}>
+        <SheetContent className="gap-0 p-0">
+          <SheetHeader>
+            <SheetTitle>{editingId ? "Edit Commitment" : "New Commitment"}</SheetTitle>
+            <SheetDescription>Actuals are recorded later in Project Reporting.</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto p-6">
+            <EntryFields defs={COMMITMENT_FIELDS} values={values} set={set} errors={errors} columns={2} />
+          </div>
+          <SheetFooter className="flex-row justify-end gap-3 border-t border-slate-200 p-4">
+            <Button variant="outline" className="h-10 px-5 text-sm font-semibold" onClick={cancelEdit}>
               Cancel
             </Button>
-          ) : null}
-          <Button
-            onClick={submit}
-            disabled={busy}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {busy ? <ButtonSpinner /> : null}
-            {editingId ? "Edit Commitment" : "Add Commitment"}
-          </Button>
-        </div>
-      </SectionCard>
+            <Button
+              onClick={submit}
+              disabled={busy}
+              className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              {busy ? <ButtonSpinner /> : null}
+              {editingId ? "Save Commitment" : "Add Commitment"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

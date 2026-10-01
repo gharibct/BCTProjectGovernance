@@ -7,6 +7,7 @@ import {
   Banknote,
   CalendarDays,
   IdCard,
+  Gauge,
   Info,
   Lock,
   ScanSearch,
@@ -41,6 +42,7 @@ import {
   type ProjectPayload,
 } from "@/lib/api/projects";
 import { useAccountHead, useGeoHead } from "@/lib/api/users";
+import { useDevelopmentTarget, useSaveDevelopmentSizeEffort } from "@/lib/api/metric-targets";
 
 import {
   AutoBadge,
@@ -52,9 +54,9 @@ import {
   Segmented,
 } from "@/components/forms/form-primitives";
 import { useProjectOwnedReference } from "@/lib/api/project-owned-reference";
+import { CONTRACT_TYPE_INFO_ENTRIES, CRITICAL_FLAG_INFO_ENTRIES } from "@/lib/contract-type-reference";
 import type { useAiReview } from "@/components/ai/use-ai-review";
 import { useAiFieldBinding, type FieldAi } from "@/components/ai/use-ai-field-binding";
-import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useBaselinePeriodId } from "@/lib/period-utils";
 import { BaselineLockLink, BaselineLockNotice, useBaselineEditable } from "./baseline-lock";
 import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaration";
@@ -76,7 +78,10 @@ const APPLICABLE_PHASES = [
   "Testing",
   "UAT Support",
   "Warranty",
-  "Support",
+  "Support L0",
+  "Support L1",
+  "Support L2",
+  "Support L3",
   "Migration",
 ] as const;
 const YES_NO_OPTIONS = [
@@ -296,7 +301,15 @@ function ProjectDescriptionTab({
         <>
         <SectionCard icon={Info} title="Project Details">
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-            <Field label="Contract Type" htmlFor="contract-type" required ai={fieldAi("contract_type")}>
+            <Field
+              label="Contract Type"
+              htmlFor="contract-type"
+              required
+              ai={fieldAi("contract_type")}
+              badge={
+                <FieldInfoButton ariaLabel="What does Contract Type mean?" entries={CONTRACT_TYPE_INFO_ENTRIES} />
+              }
+            >
               <NativeSelect
                 id="contract-type"
                 value={values.contract_type ?? ""}
@@ -424,7 +437,14 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Critical Flag" required ai={fieldAi("critical_flag")}>
+            <Field
+              label="Critical Flag"
+              required
+              ai={fieldAi("critical_flag")}
+              badge={
+                <FieldInfoButton ariaLabel="What does Critical Flag mean?" entries={CRITICAL_FLAG_INFO_ENTRIES} />
+              }
+            >
               <Segmented
                 options={YES_NO_OPTIONS}
                 value={values.critical_flag ?? ""}
@@ -517,7 +537,7 @@ function ProjectDescriptionTab({
 
         <SectionCard icon={Banknote} title="Commercials">
           <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-            <Field label="Project Revenue" htmlFor="project-revenue" required ai={fieldAi("project_revenue")}>
+            <Field label="Project TCV Revenue" htmlFor="project-revenue" required ai={fieldAi("project_revenue")}>
               <Input
                 id="project-revenue"
                 type="number"
@@ -570,35 +590,29 @@ function durationDays(from: string, to: string): string {
   return `${Math.round(ms / 86_400_000)} days`;
 }
 
+type SizeEffortValues = { sizeUnit: string; plannedSize: string; estimatedEffort: string };
+const SIZE_UNITS = ["CP", "FP", "LOC", "SP"] as const;
+
 function ScopeAndScheduleTab({
   values,
   fieldAi,
   setAndClear,
   locked,
+  sizeEffort,
+  onSizeEffortChange,
 }: {
   values: ProjectPayload;
   fieldAi: FieldAi<ProjectPayload>;
   setAndClear: <K extends keyof ProjectPayload>(key: K) => (value: ProjectPayload[K]) => void;
   locked: boolean;
+  // Development projects only (null = not applicable, section hidden).
+  sizeEffort: SizeEffortValues | null;
+  onSizeEffortChange: (patch: Partial<SizeEffortValues>) => void;
 }) {
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={ScanSearch} title="Scope Definition">
         <div className="flex flex-col gap-6">
-          <Field
-            label="Customer Overview"
-            htmlFor="customer-overview"
-            required
-            ai={fieldAi("customer_overview")}
-          >
-            <Textarea
-              id="customer-overview"
-              placeholder="Who the customer is, their business, and the relationship context…"
-              value={values.customer_overview ?? ""}
-              onChange={(e) => setAndClear("customer_overview")(e.target.value)}
-              disabled={locked}
-            />
-          </Field>
           <Field
             label="Project Scope Description"
             htmlFor="scope-description"
@@ -672,6 +686,50 @@ function ScopeAndScheduleTab({
           </Field>
         </div>
       </SectionCard>
+
+      {sizeEffort ? (
+        <SectionCard icon={Gauge} title="Size & Effort">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
+            <Field label="Size Unit" htmlFor="size-type" required>
+              <NativeSelect
+                id="size-type"
+                value={sizeEffort.sizeUnit}
+                onChange={(e) => onSizeEffortChange({ sizeUnit: e.target.value })}
+                disabled={locked}
+              >
+                <option value="">Select</option>
+                {SIZE_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label="Overall Planned Size" htmlFor="total-size" required>
+              <Input
+                id="total-size"
+                type="number"
+                min={0}
+                value={sizeEffort.plannedSize}
+                onChange={(e) => onSizeEffortChange({ plannedSize: e.target.value })}
+                className={inputClass}
+                disabled={locked}
+              />
+            </Field>
+            <Field label="Overall Estimated Effort" htmlFor="total-effort" required hint="Person-Days">
+              <Input
+                id="total-effort"
+                type="number"
+                min={0}
+                value={sizeEffort.estimatedEffort}
+                onChange={(e) => onSizeEffortChange({ estimatedEffort: e.target.value })}
+                className={inputClass}
+                disabled={locked}
+              />
+            </Field>
+          </div>
+        </SectionCard>
+      ) : null}
     </div>
   );
 }
@@ -799,9 +857,6 @@ export function ProjectProfileForm() {
   return (
     <div>
       {!editable && project ? <BaselineLockNotice project={project} /> : null}
-      {editable ? (
-        <LoadAiSuggestionsButton projectId={projectId} screen="project_profile" periodId={periodId} ai={ai} />
-      ) : null}
       <ProjectDescriptionTab
         values={values}
         fieldAi={fieldAi}
@@ -825,6 +880,54 @@ export function ScopeScheduleForm() {
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
+  // Size Unit / Overall Planned Size / Overall Estimated Effort exist for Development projects only;
+  // they live on the Development target row but are declared (and validated) here.
+  const { data: projectTypes = [] } = useProjectTypes();
+  const isDevelopment =
+    projectTypes.find((t) => t.id === project?.project_type_id)?.code === "DEVELOPMENT";
+  const { data: developmentTarget, isSuccess: developmentTargetLoaded } = useDevelopmentTarget(
+    projectId,
+    isDevelopment,
+  );
+  const saveSizeEffort = useSaveDevelopmentSizeEffort(projectId);
+  const [sizeEffort, setSizeEffort] = React.useState<SizeEffortValues>({
+    sizeUnit: "",
+    plannedSize: "",
+    estimatedEffort: "",
+  });
+  // Seed once the saved row has loaded (render-time sync, as in useProjectProfileForm).
+  const [sizeEffortSeed, setSizeEffortSeed] = React.useState<string | null>(null);
+  const seedKey = developmentTargetLoaded ? (developmentTarget?.id ?? "none") : null;
+  if (seedKey !== null && seedKey !== sizeEffortSeed) {
+    setSizeEffortSeed(seedKey);
+    setSizeEffort({
+      sizeUnit: developmentTarget?.target_size_unit ?? "",
+      plannedSize: developmentTarget?.target_overall_planned_size?.toString() ?? "",
+      estimatedEffort: developmentTarget?.target_overall_estimated_effort?.toString() ?? "",
+    });
+  }
+  const saveAll = () => {
+    updateProject.mutate(values, {
+      onSuccess: async () => {
+        try {
+          if (isDevelopment) {
+            await saveSizeEffort.mutateAsync({
+              target_size_unit: sizeEffort.sizeUnit || null,
+              target_overall_planned_size: sizeEffort.plannedSize === "" ? null : Number(sizeEffort.plannedSize),
+              target_overall_estimated_effort:
+                sizeEffort.estimatedEffort === "" ? null : Number(sizeEffort.estimatedEffort),
+            });
+          }
+          ai.resolveAll();
+          showSuccess("Scope & Schedule Saved Successfully");
+        } catch (err) {
+          showError(err instanceof Error ? err.message : "Failed to save size and effort.");
+        }
+      },
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to save changes."),
+    });
+  };
+
   if (!projectId) {
     return (
       <EmptyState>Create the project on the Project Profile tab first.</EmptyState>
@@ -837,10 +940,14 @@ export function ScopeScheduleForm() {
   return (
     <div>
       {locked && project ? <BaselineLockNotice project={project} /> : null}
-      {editable ? (
-        <LoadAiSuggestionsButton projectId={projectId} screen="scope_schedule" periodId={periodId} ai={ai} />
-      ) : null}
-      <ScopeAndScheduleTab values={values} fieldAi={fieldAi} setAndClear={setAndClear} locked={locked} />
+      <ScopeAndScheduleTab
+        values={values}
+        fieldAi={fieldAi}
+        setAndClear={setAndClear}
+        locked={locked}
+        sizeEffort={isDevelopment ? sizeEffort : null}
+        onSizeEffortChange={(patch) => setSizeEffort((prev) => ({ ...prev, ...patch }))}
+      />
       <div className="mt-10 flex flex-col gap-4">
         <div className="flex items-center justify-end gap-3">
           {locked && project ? (
@@ -848,19 +955,10 @@ export function ScopeScheduleForm() {
           ) : (
             <Button
               className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-              disabled={updateProject.isPending}
-              onClick={() =>
-                updateProject.mutate(values, {
-                  onSuccess: () => {
-                    ai.resolveAll();
-                    showSuccess("Scope & Schedule Saved Successfully");
-                  },
-                  onError: (err) =>
-                    showError(err instanceof Error ? err.message : "Failed to save changes."),
-                })
-              }
+              disabled={updateProject.isPending || saveSizeEffort.isPending}
+              onClick={saveAll}
             >
-              {updateProject.isPending ? <ButtonSpinner /> : null}
+              {updateProject.isPending || saveSizeEffort.isPending ? <ButtonSpinner /> : null}
               Save Scope &amp; Schedule
             </Button>
           )}
@@ -884,14 +982,6 @@ function SelfAssessmentFormInner() {
   const form = useHealthDeclarationForm();
   return (
     <div>
-      {form.projectId ? (
-        <LoadAiSuggestionsButton
-          projectId={form.projectId}
-          screen="self_assessment"
-          periodId={form.periodId}
-          ai={form.ai}
-        />
-      ) : null}
       <HealthDeclaration form={form} />
       <div className="mt-10 flex flex-col gap-4">
         <div className="flex justify-end gap-3">

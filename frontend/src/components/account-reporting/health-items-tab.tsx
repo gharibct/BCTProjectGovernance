@@ -14,7 +14,7 @@ import {
   useUpdateAccountHealthItem,
   type HealthCategory,
 } from "@/lib/api/account-health-declarations";
-import { RollupSourcePanel, type RollupSourceItem } from "@/components/regional-reporting/rollup-source-panel";
+import { RollupSourceDrawer, type RollupSourceItem } from "@/components/regional-reporting/rollup-source-panel";
 
 // Account-level equivalent of project-charter/health-items-tab.tsx — one
 // line-item register per RAG Status category, plus (unlike the project
@@ -65,8 +65,30 @@ export function AccountHealthItemsTab({
 
   return (
     <div className="flex flex-col gap-6">
-      <SectionCard icon={icon} title={title} aside={<AutoBadge label={`${items.length} logged`} />}>
+      <SectionCard
+        icon={icon}
+        title={title}
+        aside={
+          <div className="flex items-center gap-3">
+            <AutoBadge label={`${items.length} logged`} />
+            {rollupItems ? (
+              <RollupSourceDrawer
+                heading="Rolled Up From Projects"
+                buttonLabel="Pull from Project"
+                emptyLabel="No project RAG notes have contributed to this category yet for the selected period."
+                category={category}
+                items={rollupItems}
+                onPull={onPullRollupItem!}
+                onIgnore={onIgnoreRollupItem!}
+                onUndo={onUndoRollupItem!}
+                busy={!!rollupBusy || frozen}
+              />
+            ) : null}
+          </div>
+        }
+      >
         <EditableTextList
+          addOpenByDefault
           items={items.map((item) => ({ id: item.id, text: item.description }))}
           disabled={frozen}
           addLabel={`Add ${title} Note`}
@@ -97,19 +119,6 @@ export function AccountHealthItemsTab({
           }
         />
       </SectionCard>
-
-      {rollupItems ? (
-        <RollupSourcePanel
-          heading="Rolled Up From Projects"
-          emptyLabel="No project RAG notes have contributed to this category yet for the selected period."
-          category={category}
-          items={rollupItems}
-          onPull={onPullRollupItem!}
-          onIgnore={onIgnoreRollupItem!}
-          onUndo={onUndoRollupItem!}
-          busy={!!rollupBusy || frozen}
-        />
-      ) : null}
     </div>
   );
 }

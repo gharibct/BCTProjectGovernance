@@ -1,4 +1,4 @@
-"""Project Revenue -> USD conversion.
+"""Project TCV Revenue -> USD conversion.
 
 Project values are entered in the project's own currency. `projects.
 project_revenue_usd` holds that value converted at the Admin-maintained rate

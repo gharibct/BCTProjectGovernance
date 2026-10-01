@@ -20,6 +20,7 @@ class ProjectStatusReportCreate(BaseModel):
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
     customer_report_shared: bool | None = None
+    customer_report_confidential: bool | None = None
     customer_report_date: date | None = None
     customer_remarks: str | None = None
     created_by: UUID | None = None
@@ -35,6 +36,7 @@ class ProjectStatusReportUpdate(BaseModel):
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
     customer_report_shared: bool | None = None
+    customer_report_confidential: bool | None = None
     customer_report_date: date | None = None
     customer_remarks: str | None = None
 
@@ -56,9 +58,12 @@ class ProjectStatusReportRead(BaseModel):
     reviewed_by: UUID | None = None
     reviewed_at: datetime | None = None
     review_comment: str | None = None
+    recall_remarks: str | None = None
+    recalled_at: datetime | None = None
     # Customer Communication. The file itself is uploaded/downloaded through
     # /customer-report-file; only its original name is exposed here.
     customer_report_shared: bool | None = None
+    customer_report_confidential: bool | None = False
     customer_report_date: date | None = None
     customer_report_file_name: str | None = None
     customer_remarks: str | None = None

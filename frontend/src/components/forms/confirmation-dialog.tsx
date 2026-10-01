@@ -20,6 +20,7 @@ export function ConfirmationDialog({
   message,
   confirmLabel = "Delete",
   cancelLabel = "Cancel",
+  confirmVariant = "destructive",
   onConfirm,
 }: {
   open: boolean;
@@ -28,6 +29,7 @@ export function ConfirmationDialog({
   message: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
+  confirmVariant?: "default" | "destructive";
   onConfirm: () => void;
 }) {
   return (
@@ -41,7 +43,7 @@ export function ConfirmationDialog({
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             {cancelLabel}
           </Button>
-          <Button type="button" variant="destructive" onClick={onConfirm}>
+          <Button type="button" variant={confirmVariant} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </DialogFooter>

@@ -75,7 +75,7 @@ function HistoryInner() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs font-bold tracking-wide text-slate-500 uppercase">
+                <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3">Assessed By</th>
                   <th className="py-2 pr-3">DE Health</th>

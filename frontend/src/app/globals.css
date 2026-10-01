@@ -128,3 +128,17 @@
     @apply font-sans;
   }
 }
+/* Toasts: vertically centred on screen instead of pinned to the top edge. */
+[data-sonner-toaster][data-y-position="top"] {
+  top: 45% !important;
+}
+[data-sonner-toast] [data-icon] svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Every table: 2px white separator between column headers (single source —
+   no per-table classes needed, so new tables pick it up automatically). */
+thead th:not(:last-child) {
+  border-right: 2px solid #fff;
+}

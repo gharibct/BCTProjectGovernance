@@ -1,19 +1,15 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { AccountRagStatusForm } from "@/components/account-reporting/rag-status-form";
-import { RegionalHeader } from "@/components/regional-reporting/regional-header";
-
-export const metadata: Metadata = {
-  title: "Account Reporting — RAG Status | Governance One",
-};
-
-export default function AccountRagStatusPage() {
-  return (
-    <div className="mx-auto max-w-6xl">
-      <RegionalHeader scope="account" paramName="accountId" subheading="RAG Status" />
-      <div className="mt-8">
-        <AccountRagStatusForm />
-      </div>
-    </div>
-  );
+// RAG Status is now part of the long Account Delivery Status Report (status
+// page). Old links and bookmarks land there, keeping the selected period.
+export default async function AccountRagStatusPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ accountId: string }>;
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const { accountId } = await params;
+  const { period } = await searchParams;
+  redirect(`/account-reporting/${accountId}/status${period ? `?period=${period}` : ""}`);
 }

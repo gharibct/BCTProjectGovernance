@@ -8,7 +8,6 @@ import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/
 import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useAiReview } from "@/components/ai/use-ai-review";
 import { useCloudMigrationTarget } from "@/lib/api/metric-targets";
 import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
@@ -95,12 +94,6 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <LoadAiSuggestionsButton
-        projectId={projectId}
-        screen="measurement_cloud_migration"
-        periodId={periodId}
-        ai={ai}
-      />
       <SectionCard
         icon={ChartColumn}
         title="Metrics"

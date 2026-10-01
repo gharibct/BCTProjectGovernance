@@ -55,18 +55,20 @@ function HeadingRow({
   const heading = suffix ? `${base} - ${suffix}` : base;
 
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+    <div className="mt-4 flex flex-col gap-3">
       <h1 className="text-4xl font-bold tracking-tight text-slate-900">{heading}</h1>
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-slate-500">Period:</span>
+            {period ? <ReportingPeriodPill label={period.label} /> : <span className="text-slate-300">—</span>}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-slate-500">Report Status:</span>
+            <StatusBadge value={report?.status ?? ""} size="lg" />
+          </span>
+        </div>
         {showActionTracker && projectId ? <ActionTrackerTrigger level="PROJECT" id={projectId} name={projectName} /> : null}
-        <span className="flex items-center gap-1.5">
-          <span className="text-sm font-semibold text-slate-500">Period:</span>
-          {period ? <ReportingPeriodPill label={period.label} /> : <span className="text-slate-300">—</span>}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="text-sm font-semibold text-slate-500">Report Status:</span>
-          <StatusBadge value={report?.status ?? ""} size="lg" />
-        </span>
       </div>
     </div>
   );

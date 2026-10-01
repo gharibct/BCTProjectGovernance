@@ -5,7 +5,17 @@ import type { OpenNcRow } from "./dashboard";
 import type { ReportingPeriod } from "./reference-data";
 import type { ReportingActivitySeries } from "@/lib/reporting-activity";
 
-export type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected";
+// The last three are Geo-report-only: Geo reports are auto-generated from the
+// accounts' filed reports, saved as a draft once the Geo Head edits them, and
+// baselined (frozen) instead of submitted for review.
+export type ReportStatus =
+  | "Draft"
+  | "Submitted"
+  | "Approved"
+  | "Rejected"
+  | "Auto Generated"
+  | "Draft - Saved"
+  | "Baselined";
 
 // Reporting Hub (Project/Account/Geo) history tables surface the review
 // lifecycle: a filed report reads as "Submitted" until the level above signs
@@ -14,7 +24,8 @@ export type ReportStatus = "Draft" | "Submitted" | "Approved" | "Rejected";
 // the owner has to revise and resubmit it, and that needs to be visible.
 export function submissionStatusLabel(
   status: ReportStatus
-): "Submitted" | "Approved" | "Rejected" | "Not Submitted" {
+): "Submitted" | "Approved" | "Rejected" | "Not Submitted" | "Auto Generated" | "Draft - Saved" | "Baselined" {
+  if (status === "Auto Generated" || status === "Draft - Saved" || status === "Baselined") return status;
   if (status === "Approved") return "Approved";
   if (status === "Submitted") return "Submitted";
   if (status === "Rejected") return "Rejected";
@@ -26,7 +37,7 @@ export function submissionStatusLabel(
 // only) RAG Status; only Draft/Rejected stay editable. Mirrors the backend
 // guard in services/report_lock.py.
 export function isReportFrozen(status: ReportStatus): boolean {
-  return status === "Submitted" || status === "Approved";
+  return status === "Submitted" || status === "Approved" || status === "Baselined";
 }
 
 export type ProjectStatusReport = {
@@ -47,9 +58,13 @@ export type ProjectStatusReport = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_comment: string | null;
+  // Set when the PM recalled a Submitted report back to Draft; cleared on resubmit.
+  recall_remarks: string | null;
+  recalled_at: string | null;
   // Customer Communication — null = not answered yet. The uploaded file is
   // fetched through downloadCustomerReportFile; only its name is on the report.
   customer_report_shared: boolean | null;
+  customer_report_confidential: boolean;
   customer_report_date: string | null;
   customer_report_file_name: string | null;
   customer_remarks: string | null;
@@ -74,6 +89,7 @@ export type ProjectStatusReportPayload = {
   upcoming_key_releases?: string;
   leadership_support_required?: string;
   customer_report_shared?: boolean;
+  customer_report_confidential?: boolean;
   customer_report_date?: string;
   customer_remarks?: string;
 };
@@ -132,6 +148,16 @@ export function useReportingActivity(projectId: string | null) {
   });
 }
 
+// Same timeline for an explicit calendar year (the hub's default is the
+// current year) — lets a rolling "last 12 months" view span a year boundary.
+export function useReportingActivityForYear(projectId: string | null, year: number) {
+  return useQuery({
+    queryKey: ["reporting-activity", projectId, year],
+    queryFn: () => api.get<ReportingActivity>(`/projects/${projectId}/reporting-activity?year=${year}`),
+    enabled: !!projectId,
+  });
+}
+
 // The most recent report for a period of the SAME type (Weekly/Monthly)
 // strictly before the given one. Used to pre-fill Key Metrics (Revenue, FTE,
 // Projects Count) when a PM starts a new period's report — carried forward from
@@ -183,6 +209,17 @@ export function useUpdateStatusReport(projectId: string | null) {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: ProjectStatusReportUpdatePayload }) =>
       api.put<ProjectStatusReport>(`/projects/${projectId}/status-reports/${id}`, payload),
+    onSuccess: () => invalidateStatusReports(queryClient, projectId),
+  });
+}
+
+// Recall a Submitted report back to Draft (allowed until the Delivery Manager
+// approves or rejects it). Remarks are mandatory.
+export function useRecallStatusReport(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, remarks }: { id: string; remarks: string }) =>
+      api.patch<ProjectStatusReport>(`/projects/${projectId}/status-reports/${id}/recall`, { remarks }),
     onSuccess: () => invalidateStatusReports(queryClient, projectId),
   });
 }
@@ -305,5 +342,22 @@ export function useDeleteStatusItem(projectId: string | null, periodId: string |
   return useMutation({
     mutationFn: (id: string) => api.delete(`/projects/${projectId}/status-items/${id}`),
     onSuccess: () => invalidateStatusItems(queryClient, projectId, periodId, category),
+  });
+}
+
+// "Copy from latest report": prefills this period's status + RAG registers from
+// the project's most recent earlier report. Sections that already have content
+// are left alone, so `copied` is 0 when there was nothing to bring over.
+export type CopyFromLatestResult = { copied: number; source_period_id: string | null };
+
+export function useCopyStatusItemsFromLatest(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (periodId: string) =>
+      api.post<CopyFromLatestResult>(`/projects/${projectId}/status-items/copy-from-latest?period_id=${periodId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["status-items", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["health-items", projectId] });
+    },
   });
 }

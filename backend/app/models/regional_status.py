@@ -45,7 +45,7 @@ class GeoStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
 
     geo_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("geos.id", ondelete="CASCADE"))
     period_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("reporting_periods.id"))
-    status: Mapped[str]  # ReportStatus: Draft, Submitted, Approved, Rejected
+    status: Mapped[str]  # ReportStatus: Auto Generated, Draft - Saved, Baselined
     # Key Metrics — captured once per report alongside the narrative tabs.
     revenue: Mapped[Decimal | None] = mapped_column(Numeric)
     onsite_fte: Mapped[Decimal | None] = mapped_column(Numeric)

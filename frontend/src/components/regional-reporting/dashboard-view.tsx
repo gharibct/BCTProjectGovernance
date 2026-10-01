@@ -5,7 +5,11 @@ import { useParams, useSearchParams } from "next/navigation";
 
 import { ExecutiveUpdateSection } from "./executive-update-section";
 import { RegionalHeader } from "./regional-header";
+import { ReportAttachmentsView } from "@/components/reporting/report-attachments-section";
 import { SubmitReportAction } from "./submit-report-action";
+import { useAccountReportProgress } from "@/components/account-reporting/account-report-progress";
+import { incompleteReportReason } from "@/components/reporting/report-progress";
+import type { RegionalStatusReport } from "@/lib/api/regional-status";
 import { GeoAccountMatrixSection } from "@/components/status-review/geo-account-matrix-section";
 import { OverviewSection } from "@/components/status-review/overview-section";
 import { RagStatusSection } from "@/components/status-review/rag-status-section";
@@ -21,6 +25,29 @@ import { useRegionalDefaultPeriodId } from "@/lib/use-default-period";
 // of the standalone review layout, with SubmitReportAction in place of
 // ReviewActions. Mirrors components/project-dashboard/project-dashboard-view.tsx,
 // scope-generic like the rest of regional-reporting.
+// Account reports must be fully completed before they can be submitted.
+function AccountSubmitAction({
+  scopeId,
+  periodId,
+  report,
+}: {
+  scopeId: string;
+  periodId: string;
+  report: RegionalStatusReport | undefined;
+}) {
+  const reason = incompleteReportReason(useAccountReportProgress(scopeId, periodId));
+  return (
+    <SubmitReportAction
+      scope="account"
+      scopeId={scopeId}
+      periodId={periodId}
+      report={report}
+      disabled={!!reason}
+      disabledReason={reason}
+    />
+  );
+}
+
 function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: string }) {
   const searchParams = useSearchParams();
 
@@ -43,7 +70,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
       <RegionalHeader
         scope={scope}
         paramName={scope === "account" ? "accountId" : "geoId"}
-        subheading={scope === "account" ? "Delivery Status Report - Account" : "Delivery Status Report - Geo"}
+        subheading={scope === "account" ? "Preview Report and Submit" : "Delivery Status Report - Geo"}
         periodId={periodId}
         showActionTracker
       />
@@ -58,7 +85,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
         // section by section, then the Overview (KPI snapshot + 2x2
         // category grid), then Submit.
         <>
-          <GeoAccountMatrixSection geoId={scopeId} accented />
+          <GeoAccountMatrixSection geoId={scopeId} periodId={periodId} accented />
           <ExecutiveUpdateSection geoId={scopeId} periodId={periodId} />
           <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
           <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
@@ -68,8 +95,9 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
         <>
           <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
           <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
+          <ReportAttachmentsView scope="account" ownerId={scopeId} reportId={report?.id} />
           <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
-          <SubmitReportAction scope={scope} scopeId={scopeId} periodId={periodId} report={report} />
+          <AccountSubmitAction scopeId={scopeId} periodId={periodId} report={report} />
         </>
       )}
     </div>

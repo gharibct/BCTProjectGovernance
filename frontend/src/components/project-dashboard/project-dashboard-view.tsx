@@ -12,7 +12,10 @@ import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
 import { currentPeriod } from "@/lib/period-utils";
 import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
+import { ReportAttachmentsView } from "@/components/reporting/report-attachments-section";
 import { SubmitReportAction } from "./submit-report-action";
+import { useReportProgress } from "@/components/project-status/report-progress";
+import { incompleteReportReason } from "@/components/reporting/report-progress";
 
 // The Project Manager's read-first counterpart to /project-review — same
 // OverviewSection/RagStatusSection the Delivery Manager reviews, fitted into
@@ -34,10 +37,11 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
   const urlPeriodId = searchParams.get("period");
   const periodId = urlPeriodId ?? defaultPeriodId ?? reports[0]?.period_id ?? currentPeriod(periods, "Monthly")?.id ?? null;
   const report = reports.find((r) => r.period_id === periodId);
+  const incompleteReason = incompleteReportReason(useReportProgress(projectId, periodId));
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <ProjectHeader subheading="Project Delivery Status" periodId={periodId} showActionTracker />
+      <ProjectHeader subheading="Preview Report and Submit" periodId={periodId} showActionTracker />
 
       {!periodId ? (
         <p className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-slate-400">
@@ -48,8 +52,15 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
           <OverviewSection scope="project" scopeId={projectId} periodId={periodId} />
           <RagStatusSection scope="project" scopeId={projectId} periodId={periodId} />
           <CustomerCommunicationSection projectId={projectId} report={report} />
+          <ReportAttachmentsView scope="project" ownerId={projectId} reportId={report?.id} />
           <OpenNcSection scope="project" scopeId={projectId} report={report} />
-          <SubmitReportAction projectId={projectId} periodId={periodId} report={report} />
+          <SubmitReportAction
+            projectId={projectId}
+            periodId={periodId}
+            report={report}
+            disabled={!!incompleteReason}
+            disabledReason={incompleteReason}
+          />
         </>
       )}
     </div>

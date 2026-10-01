@@ -37,20 +37,17 @@ export function ContractualView() {
           columns={[
             { key: "commitment_name", label: "Commitment" },
             { key: "frequency", label: "Frequency" },
-            { key: "target", label: "Target", align: "right" },
-            { key: "target_uom", label: "Target UOM" },
-            {
-              key: "actual_value",
-              label: "Actual",
-              align: "right",
-              render: (item) => actualsByCommitment[item.id]?.latest?.actual_value ?? "—",
-            },
             {
               key: "penalty_applicable",
-              label: "Penalty",
+              label: "Penalty Applicability",
               render: (item) => (item.penalty_applicable ? "Yes" : "No"),
             },
-            { key: "penalty_value", label: "Penalty Value", align: "right" },
+            { key: "commitment_details", label: "Commitment Details" },
+            {
+              key: "actual_details",
+              label: "Latest Actual",
+              render: (item) => actualsByCommitment[item.id]?.latest?.actual_details ?? "—",
+            },
             {
               key: "history",
               label: "History",
@@ -120,7 +117,7 @@ function CommitmentActualsHistoryDrawer({
     id ? (users.data?.find((u) => u.id === id)?.full_name ?? "—") : "—";
 
   return (
-    <SheetContent className="gap-0 p-0 sm:w-[560px] lg:w-[46%]">
+    <SheetContent className="gap-0 p-0">
       <SheetHeader>
         <SheetTitle>Compliance Actual History — {commitment.commitment_name}</SheetTitle>
       </SheetHeader>
@@ -134,19 +131,8 @@ function CommitmentActualsHistoryDrawer({
           emptyLabel={isLoading ? "Loading…" : "No compliance actuals recorded yet."}
           columns={[
             { key: "period_date", label: "Date", render: (r) => formatDate(r.period_date) },
-            {
-              key: "actual_value",
-              label: "Actual",
-              align: "right",
-              render: (r) => r.actual_value ?? "—",
-            },
             { key: "met_status", label: "Status", badge: true },
-            {
-              key: "penalty",
-              label: "Penalty",
-              render: () =>
-                commitment.penalty_applicable ? (commitment.penalty_value ?? "Yes") : "No",
-            },
+            { key: "actual_details", label: "Actual Details", render: (r) => r.actual_details ?? "—" },
             { key: "recorded_by", label: "Recorded By", render: (r) => userName(r.recorded_by) },
             { key: "created_at", label: "Recorded At", render: (r) => formatDateTime(r.created_at) },
           ]}

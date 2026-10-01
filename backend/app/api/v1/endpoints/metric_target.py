@@ -38,6 +38,7 @@ from app.schemas.metric_target import (
     MetricTargetConsultingRead,
     MetricTargetDevelopmentIn,
     MetricTargetDevelopmentRead,
+    MetricTargetDevelopmentSizeEffortIn,
     MetricTargetStaffingIn,
     MetricTargetStaffingPriorityIn,
     MetricTargetStaffingPriorityRead,
@@ -210,6 +211,36 @@ router.include_router(
         )
     )
 )
+# Scope & Schedule's Size Unit / Overall Planned Size / Overall Estimated Effort for Development
+# projects: a partial update of the Development target row (created if absent)
+# so saving them never touches the Measurement targets.
+@router.put(
+    "/projects/{project_id}/metric-targets/development/size-effort",
+    response_model=MetricTargetDevelopmentRead,
+    tags=["Metric Target - Development"],
+    dependencies=_pm_write,
+)
+async def upsert_development_size_effort(
+    project_id: UUID, payload: MetricTargetDevelopmentSizeEffortIn, db: AsyncSession = Depends(get_db)
+):
+    now = datetime.now(UTC)
+    obj = (
+        await db.execute(select(MetricTargetDevelopment).where(MetricTargetDevelopment.project_id == project_id))
+    ).scalar_one_or_none()
+    if obj is None:
+        obj = MetricTargetDevelopment(
+            id=uuid4(), project_id=project_id, created_at=now, updated_at=now, **payload.model_dump()
+        )
+        db.add(obj)
+    else:
+        for key, value in payload.model_dump().items():
+            setattr(obj, key, value)
+        obj.updated_at = now
+    await db.flush()
+    await db.refresh(obj)
+    return obj
+
+
 router.include_router(
     build_metric_target_router(
         MetricTargetConfig(

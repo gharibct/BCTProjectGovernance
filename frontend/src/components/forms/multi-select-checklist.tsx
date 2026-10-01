@@ -28,9 +28,11 @@ export function MultiSelectChecklist({
   return (
     <div
       className={cn(
-        "flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border border-slate-200 p-3",
+        "flex max-h-56 flex-col gap-2 overflow-y-auto rounded-lg border p-3 transition-colors",
         options.length === 0 && "items-center justify-center",
-        disabled && "opacity-60"
+        disabled
+          ? "border-[#D5DAE0] bg-[#F1F3F5]"
+          : "border-[#5B9BE6] bg-white hover:border-[#4F91D1] focus-within:border-[#2F80ED]"
       )}
     >
       {options.length === 0 ? (
@@ -41,18 +43,22 @@ export function MultiSelectChecklist({
             key={option.value}
             className={cn(
               "flex items-center gap-2.5 rounded-md px-2 py-1.5",
-              disabled ? "cursor-not-allowed" : "cursor-pointer hover:bg-slate-50"
+              disabled ? "cursor-not-allowed" : "cursor-pointer"
             )}
           >
             <Checkbox
               checked={value.includes(option.value)}
               onCheckedChange={() => toggle(option.value)}
               disabled={disabled}
+              className={cn(
+                "border-[#5B9BE6] bg-white hover:border-[#4F91D1] focus-visible:border-[#2F80ED] data-checked:border-[#2F80ED] data-checked:bg-[#2F80ED]",
+                "disabled:border-[#D5DAE0] disabled:bg-[#F1F3F5] disabled:opacity-100"
+              )}
             />
             <Label
               className={cn(
-                "text-sm font-normal text-slate-700",
-                disabled ? "cursor-not-allowed" : "cursor-pointer"
+                "text-sm font-normal",
+                disabled ? "cursor-not-allowed text-[#98A2B3]" : "cursor-pointer text-[#000000]"
               )}
             >
               {option.label}

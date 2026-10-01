@@ -51,9 +51,11 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         items = (await db.execute(stmt)).scalars().all()
         return list(items), total
 
-    async def create(self, db: AsyncSession, obj_in: CreateSchemaType, **extra: Any) -> ModelType:
+    async def create(
+        self, db: AsyncSession, obj_in: CreateSchemaType, *, exclude: set[str] | None = None, **extra: Any
+    ) -> ModelType:
         now = datetime.now(UTC)
-        data = obj_in.model_dump()
+        data = obj_in.model_dump(exclude=exclude)
         data.update(extra)
         data.setdefault("id", uuid4())
         if hasattr(self.model, "created_at") and data.get("created_at") is None:
@@ -66,8 +68,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db.refresh(obj)
         return obj
 
-    async def update(self, db: AsyncSession, db_obj: ModelType, obj_in: UpdateSchemaType) -> ModelType:
-        data = obj_in.model_dump(exclude_unset=True)
+    async def update(
+        self, db: AsyncSession, db_obj: ModelType, obj_in: UpdateSchemaType, *, exclude: set[str] | None = None
+    ) -> ModelType:
+        data = obj_in.model_dump(exclude_unset=True, exclude=exclude)
         for field, value in data.items():
             setattr(db_obj, field, value)
         if hasattr(db_obj, "updated_at"):

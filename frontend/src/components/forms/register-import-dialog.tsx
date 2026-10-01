@@ -107,7 +107,7 @@ export function RegisterImportDialog<TPayload>({
         <div className="max-h-[50vh] overflow-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-bold tracking-wide text-slate-600 uppercase">
+              <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-left text-xs font-bold tracking-wide text-[#205889] uppercase">
                 <th className="px-3 py-2">Status</th>
                 {defs.map((d) => (
                   <th key={d.key} className="px-3 py-2">

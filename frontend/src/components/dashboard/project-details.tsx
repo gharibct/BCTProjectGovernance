@@ -58,7 +58,7 @@ export function ProjectDetails({
       <div className="max-h-[368px] overflow-y-auto">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_theme(colors.slate.200)]">
-            <tr className="text-xs tracking-wide text-slate-500 uppercase">
+            <tr className="text-xs tracking-wide text-[#205889] uppercase">
               <th className="px-6 py-3 font-bold">Project</th>
               <th className="px-3 py-3 font-bold">Health</th>
               <th className="px-3 py-3 font-bold">Critical Reason</th>
@@ -84,7 +84,7 @@ export function ProjectDetails({
               projects.map((project) => (
                 <tr
                   key={project.id}
-                  className="border-t border-slate-100 transition-colors hover:bg-slate-50/70"
+                  className="border-t border-[#E4E9EE] bg-white transition-colors even:bg-[#F8FAFB] hover:bg-[#EDF3F7]"
                 >
                   <td className="px-6 py-3.5">
                     <Link

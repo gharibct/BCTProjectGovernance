@@ -7,11 +7,8 @@ CREATE TABLE contractual_commitments (
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     frequency TEXT NOT NULL, -- One Time, Weekly, Fortnight, Monthly, Quarterly, Half Yearly, Phase Wise
     commitment_name TEXT NOT NULL,
-    formula TEXT,
-    target TEXT,
-    target_uom TEXT, -- unit of measure for the Target value (free text, e.g. "%", "hrs", "days")
     penalty_applicable BOOLEAN NOT NULL,
-    penalty_value NUMERIC(18, 2),
+    commitment_details TEXT,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
@@ -24,8 +21,8 @@ CREATE TABLE contractual_commitment_actuals (
     id UUID PRIMARY KEY,
     commitment_id UUID NOT NULL REFERENCES contractual_commitments(id) ON DELETE CASCADE,
     period_date DATE NOT NULL, -- the period this reading covers, per the commitment's Frequency
-    actual_value TEXT,
-    met_status TEXT, -- Met, Not Met, Breached
+    actual_details TEXT,
+    met_status TEXT, -- Met, Not Met
     recorded_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL,
 

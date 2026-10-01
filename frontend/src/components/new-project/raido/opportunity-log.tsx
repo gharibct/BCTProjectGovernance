@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
@@ -14,24 +14,14 @@ import {
 } from "@/components/forms/entry-form";
 import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { useNewProjectId } from "@/stores/new-project-ui";
-import { useUsers } from "@/lib/api/reference-data";
-import { useBaselinePeriodId } from "@/lib/period-utils";
+import { useProjectPeopleChoices, useUsersByIds } from "@/lib/api/reference-data";
 import {
   useCreateOpportunity,
   useOpportunities,
-  useUpdateOpportunity,
   type OpportunityLog as OpportunityLogItem,
   type OpportunityLogPayload,
 } from "@/lib/api/raid";
-
-const OPPORTUNITY_PREVIEW_FIELDS = [
-  { key: "opportunity_title", label: "Title" },
-  { key: "category", label: "Category" },
-  { key: "impact", label: "Impact" },
-  { key: "expected_benefit", label: "Expected Benefit" },
-] as const;
 
 // Shared by the manual "Add Opportunity" button and the AI row-suggestions
 // panel's Apply (both ultimately call the same createOpportunity mutation).
@@ -46,8 +36,7 @@ function buildOpportunityPayload(values: Record<string, string>): OpportunityLog
 // names — status/approved_by/actual_benefit/closure_date aren't settable at
 // creation (status defaults to "Identified" server-side).
 function useOpportunityFields(): FieldDef[] {
-  const { data: users } = useUsers();
-  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+  const userChoices = useProjectPeopleChoices(useNewProjectId());
 
   return [
     { key: "opportunity_title", label: "Opportunity Title", kind: "text", mandatory: true },
@@ -93,22 +82,35 @@ function useOpportunityFields(): FieldDef[] {
 
 export function OpportunityLog() {
   const projectId = useNewProjectId();
-  const periodId = useBaselinePeriodId();
   const { values, set, reset } = useEntryValues();
   const { data: items = [] } = useOpportunities(projectId);
   const createOpportunity = useCreateOpportunity(projectId);
-  const updateOpportunity = useUpdateOpportunity(projectId);
   const fields = useOpportunityFields();
-  const { data: users } = useUsers();
+  const { data: users } = useUsersByIds(items.map((item) => item.opportunity_owner));
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
+
+  const [formOpen, setFormOpen] = React.useState(false);
+  const startAdd = () => {
+    reset();
+    setFormOpen(true);
+  };
+  const cancelForm = () => {
+    reset();
+    setFormOpen(false);
+  };
+  const formRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (formOpen) formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [formOpen]);
 
   const addOpportunity = () => {
     if (!values.opportunity_title?.trim()) return;
     createOpportunity.mutate(buildOpportunityPayload(values), {
       onSuccess: () => {
         reset();
+        setFormOpen(false);
         showSuccess("Opportunity Added Successfully");
       },
       onError: (err) => showError(err instanceof Error ? err.message : "Failed to add opportunity."),
@@ -123,17 +125,22 @@ export function OpportunityLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <AiRowSuggestionsTrigger
-        projectId={projectId}
-        screen="opportunities"
-        periodId={periodId}
-        itemLabel="Opportunity"
-      />
 
       <SectionCard
         icon={TrendingUp}
         title="Opportunity Register"
-        aside={<AutoBadge label={`${items.length} logged`} />}
+        aside={
+          <div className="flex items-center gap-3">
+            <AutoBadge label={`${items.length} logged`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Opportunity
+            </Button>
+          </div>
+        }
       >
         <RegisterImportToolbar
           defs={fields}
@@ -159,30 +166,27 @@ export function OpportunityLog() {
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="opportunities"
-        periodId={periodId}
-        itemLabel="Opportunity"
-        previewFields={OPPORTUNITY_PREVIEW_FIELDS}
-        buildPayload={buildOpportunityPayload}
-        createMutation={createOpportunity}
-        updateMutation={updateOpportunity}
-      />
 
-      <SectionCard icon={TrendingUp} title="New Opportunity">
-        <EntryFields defs={fields} values={values} set={set} />
-        <div className="mt-6 flex justify-end">
-          <Button
-            onClick={addOpportunity}
-            disabled={createOpportunity.isPending}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {createOpportunity.isPending ? <ButtonSpinner /> : null}
-            Add Opportunity
-          </Button>
+      {formOpen ? (
+        <div ref={formRef}>
+          <SectionCard icon={TrendingUp} title="New Opportunity">
+            <EntryFields defs={fields} values={values} set={set} />
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelForm}>
+                Cancel
+              </Button>
+              <Button
+                onClick={addOpportunity}
+                disabled={createOpportunity.isPending}
+                className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+              >
+                {createOpportunity.isPending ? <ButtonSpinner /> : null}
+                Add Opportunity
+              </Button>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      ) : null}
     </div>
   );
 }

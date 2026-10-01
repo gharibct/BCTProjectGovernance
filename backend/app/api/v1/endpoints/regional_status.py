@@ -14,8 +14,10 @@ from app.crud.regional_status import (
     geo_status_item_crud,
     geo_status_report_crud,
 )
-from app.models.reference_data import ReportingPeriod
+from app.models.account_health_declarations import AccountHealthItem
+from app.models.reference_data import Account, ReportingPeriod
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusItem, GeoStatusReport
+from app.schemas.copy_from_latest import CopyFromLatestResult
 from app.schemas.enums import ProjectStatusCategory, ReportStatus, RoleCode
 from app.schemas.regional_status import (
     AccountStatusItemCreate,
@@ -35,6 +37,8 @@ from app.schemas.regional_status import (
 from app.schemas.reporting_activity import WeeklyReportingActivityResponse
 from app.schemas.status_review import StatusReportReviewRequest
 from app.services import dashboard as dashboard_service
+from app.services.copy_from_latest import copy_category_items
+from app.services.geo_autogen import mark_geo_report_saved, sync_geo_report_from_accounts
 from app.services.report_lock import assert_report_editable
 from app.services.reporting_activity import build_weekly_reporting_activity
 
@@ -99,6 +103,73 @@ async def _clear_prior_review_on_resubmit(db: AsyncSession, prior_status: str, u
         await db.refresh(updated)
 
 
+# The geo's Auto Generated report follows its accounts' filed reports (see
+# services/geo_autogen.py) — refreshed whenever an account report is filed,
+# resubmitted or reviewed.
+async def _sync_geo_report(db: AsyncSession, account_id: UUID, period_id: UUID) -> None:
+    account = await db.get(Account, account_id)
+    if account is not None and account.geo_id is not None:
+        await sync_geo_report_from_accounts(db, account.geo_id, period_id)
+
+
+ACCOUNT_REPORTS_PENDING_APPROVAL = "ACCOUNT_REPORTS_PENDING_APPROVAL"
+
+
+async def _approve_submitted_account_reports(
+    db: AsyncSession, geo_id: UUID, period_id: UUID, *, confirmed: bool
+) -> None:
+    """Baselining a geo report requires the period's account reports to be
+    Approved. Submitted ones are approved here, but only once the Geo Head has
+    confirmed (409 ACCOUNT_REPORTS_PENDING_APPROVAL until then)."""
+    stmt = (
+        select(AccountStatusReport)
+        .join(Account, Account.id == AccountStatusReport.account_id)
+        .where(
+            Account.geo_id == geo_id,
+            AccountStatusReport.period_id == period_id,
+            AccountStatusReport.status == ReportStatus.SUBMITTED,
+        )
+    )
+    submitted = (await db.execute(stmt)).scalars().all()
+    if not submitted:
+        return
+    if not confirmed:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={
+                "code": ACCOUNT_REPORTS_PENDING_APPROVAL,
+                "message": f"{len(submitted)} submitted account report(s) must be approved before baselining.",
+                "count": len(submitted),
+            },
+        )
+    now = datetime.now(UTC)
+    for report in submitted:
+        report.status = ReportStatus.APPROVED
+        report.reviewed_at = now
+        report.review_comment = "Approved on geo report baseline"
+    await db.flush()
+
+
+async def _assert_geo_not_baselined_for_account(db: AsyncSession, account_id: UUID, period_id: UUID) -> None:
+    """Once the geo report is Baselined for a period its account reports are
+    closed: no account report can be submitted for that period."""
+    account = await db.get(Account, account_id)
+    if account is None or account.geo_id is None:
+        return
+    geo_status = (
+        await db.execute(
+            select(GeoStatusReport.status).where(
+                GeoStatusReport.geo_id == account.geo_id, GeoStatusReport.period_id == period_id
+            )
+        )
+    ).scalars().first()
+    if geo_status == ReportStatus.BASELINED:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The geo report for this period is baselined, so account reports can no longer be submitted for it.",
+        )
+
+
 @account_status_router.get("", response_model=list[AccountStatusReportRead], dependencies=_account_read)
 async def list_account_status_reports(account_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await account_status_report_crud.list(
@@ -134,16 +205,20 @@ async def create_account_status_report(
     period = await db.get(ReportingPeriod, payload.period_id)
     if period is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Reporting period not found")
+    if payload.status == ReportStatus.SUBMITTED:
+        await _assert_geo_not_baselined_for_account(db, account_id, payload.period_id)
     alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
         db, scope="account", scope_id=account_id
     )
-    return await account_status_report_crud.create(
+    created = await account_status_report_crud.create(
         db,
         payload,
         account_id=account_id,
         open_alerts_count=alerts_count,
         open_alerts_snapshot=alerts_snapshot,
     )
+    await _sync_geo_report(db, account_id, payload.period_id)
+    return created
 
 
 @account_status_router.put("/{report_id}", response_model=AccountStatusReportRead, dependencies=_account_manager_write)
@@ -160,6 +235,8 @@ async def update_account_status_report(
     # edited here (a Submitted report is only ever decided, via the separate
     # /review endpoint, never edited back through this one).
     assert_report_editable(obj.status)
+    if payload.status == ReportStatus.SUBMITTED:
+        await _assert_geo_not_baselined_for_account(db, account_id, obj.period_id)
     prior_status = obj.status
     updated = await account_status_report_crud.update(db, obj, payload)
 
@@ -174,6 +251,7 @@ async def update_account_status_report(
     await db.refresh(updated)
 
     await _clear_prior_review_on_resubmit(db, prior_status, updated)
+    await _sync_geo_report(db, account_id, updated.period_id)
     return updated
 
 
@@ -198,6 +276,7 @@ async def review_account_status_report(
     obj.review_comment = payload.comment
     await db.flush()
     await db.refresh(obj)
+    await _sync_geo_report(db, account_id, obj.period_id)
     return obj
 
 
@@ -239,9 +318,16 @@ async def create_geo_status_report(
     alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
         db, scope="geo", scope_id=geo_id
     )
+    if payload.status in (ReportStatus.DRAFT, ReportStatus.AUTO_GENERATED):
+        payload.status = ReportStatus.DRAFT_SAVED
+    if payload.status == ReportStatus.BASELINED:
+        await _approve_submitted_account_reports(
+            db, geo_id, payload.period_id, confirmed=payload.approve_submitted_accounts
+        )
     return await geo_status_report_crud.create(
         db,
         payload,
+        exclude={"approve_submitted_accounts"},
         geo_id=geo_id,
         open_alerts_count=alerts_count,
         open_alerts_snapshot=alerts_snapshot,
@@ -260,7 +346,16 @@ async def update_geo_status_report(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
     assert_report_editable(obj.status)
     prior_status = obj.status
-    updated = await geo_status_report_crud.update(db, obj, payload)
+    if payload.status == ReportStatus.AUTO_GENERATED:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A report cannot be set back to Auto Generated")
+    if payload.status == ReportStatus.BASELINED:
+        await _approve_submitted_account_reports(
+            db, geo_id, obj.period_id, confirmed=payload.approve_submitted_accounts
+        )
+    updated = await geo_status_report_crud.update(db, obj, payload, exclude={"approve_submitted_accounts"})
+    # Any save by the Geo Head takes over an Auto Generated report.
+    if prior_status == ReportStatus.AUTO_GENERATED and payload.status is None:
+        updated.status = ReportStatus.DRAFT_SAVED
 
     alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(db, scope="geo", scope_id=geo_id)
     updated.open_alerts_count = alerts_count
@@ -272,25 +367,17 @@ async def update_geo_status_report(
     return updated
 
 
-# Review/sign-off (Geo Review, for CDO): a Submitted report transitions to
-# Approved/Rejected by the level above.
-@geo_status_router.patch("/{report_id}/review", response_model=GeoStatusReportRead, dependencies=_cdo_review)
-async def review_geo_status_report(
-    geo_id: UUID,
-    report_id: UUID,
-    payload: StatusReportReviewRequest,
-    db: AsyncSession = Depends(get_db),
-):
+# Recall: a Baselined geo report goes back to Draft - Saved so the Geo Head can
+# edit it again. (Geo reports are baselined, not submitted for review, so
+# there is no CDO approve/reject step.)
+@geo_status_router.patch("/{report_id}/recall", response_model=GeoStatusReportRead, dependencies=_geo_head_write)
+async def recall_geo_status_report(geo_id: UUID, report_id: UUID, db: AsyncSession = Depends(get_db)):
     obj = await geo_status_report_crud.get(db, report_id)
     if obj is None or obj.geo_id != geo_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
-    if obj.status != ReportStatus.SUBMITTED:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only Submitted reports can be reviewed")
-
-    obj.status = payload.decision
-    obj.reviewed_by = payload.reviewed_by
-    obj.reviewed_at = datetime.now(UTC)
-    obj.review_comment = payload.comment
+    if obj.status != ReportStatus.BASELINED:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only Baselined reports can be recalled")
+    obj.status = ReportStatus.DRAFT_SAVED
     await db.flush()
     await db.refresh(obj)
     return obj
@@ -340,6 +427,21 @@ async def _assert_geo_period_editable(db: AsyncSession, geo_id: UUID, period_id:
         GeoStatusReport.geo_id == geo_id, GeoStatusReport.period_id == period_id
     )
     assert_report_editable((await db.execute(stmt)).scalars().first())
+
+
+# "Copy from latest report" — see project_status.copy_items_from_latest_report.
+@account_status_items_router.post(
+    "/copy-from-latest", response_model=CopyFromLatestResult, dependencies=_account_manager_write
+)
+async def copy_account_items_from_latest_report(account_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
+    await _assert_account_period_editable(db, account_id, period_id)
+    status_copied, status_source = await copy_category_items(
+        db, model=AccountStatusItem, owner_column=AccountStatusItem.account_id, owner_id=account_id, period_id=period_id
+    )
+    health_copied, health_source = await copy_category_items(
+        db, model=AccountHealthItem, owner_column=AccountHealthItem.account_id, owner_id=account_id, period_id=period_id
+    )
+    return CopyFromLatestResult(copied=status_copied + health_copied, source_period_id=status_source or health_source)
 
 
 @account_status_items_router.get("", response_model=list[AccountStatusItemRead], dependencies=_account_read)
@@ -438,6 +540,7 @@ async def list_geo_status_items(
 )
 async def create_geo_status_item(geo_id: UUID, payload: GeoStatusItemCreate, db: AsyncSession = Depends(get_db)):
     await _assert_geo_period_editable(db, geo_id, payload.period_id)
+    await mark_geo_report_saved(db, geo_id, payload.period_id)
     return await geo_status_item_crud.create(db, payload, geo_id=geo_id)
 
 
@@ -449,6 +552,7 @@ async def update_geo_status_item(
     if obj is None or obj.geo_id != geo_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status item not found")
     await _assert_geo_period_editable(db, geo_id, obj.period_id)
+    await mark_geo_report_saved(db, geo_id, obj.period_id)
     return await geo_status_item_crud.update(db, obj, payload)
 
 
@@ -458,4 +562,5 @@ async def delete_geo_status_item(geo_id: UUID, item_id: UUID, db: AsyncSession =
     if obj is None or obj.geo_id != geo_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status item not found")
     await _assert_geo_period_editable(db, geo_id, obj.period_id)
+    await mark_geo_report_saved(db, geo_id, obj.period_id)
     await geo_status_item_crud.delete(db, obj)

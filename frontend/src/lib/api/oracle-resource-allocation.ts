@@ -60,9 +60,11 @@ export function useResourceAllocationSummary(projectId: string | null) {
 
 export function useResourceAllocations(
   projectId: string | null,
-  params: { search: string; skip: number; limit: number }
+  params: { search: string; skip: number; limit: number; scope: "current" | "old" }
 ) {
-  const query = new URLSearchParams({ skip: String(params.skip), limit: String(params.limit) });
+  const query = new URLSearchParams({ skip: String(params.skip), limit: String(params.limit),
+    scope: params.scope,
+  });
   if (params.search.trim()) query.set("search", params.search.trim());
   return useQuery({
     queryKey: ["resource-allocations", projectId, params],

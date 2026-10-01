@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard, Segmented } from "@/components/forms/form-primitives";
@@ -21,9 +21,8 @@ import {
   filterRaidoByStatus,
   type RaidoStatusFilter,
 } from "@/lib/raido-status";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
-import { useUsers } from "@/lib/api/reference-data";
+import { useProjectPeopleChoices, useUsersByIds } from "@/lib/api/reference-data";
 import {
   useCreateIssue,
   useDeleteIssue,
@@ -39,8 +38,7 @@ import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 // escalation_date, resolution_summary, lessons_learned, closure_date)
 // aren't collected here; they belong to a future edit screen.
 function useIssueFields(): FieldDef[] {
-  const { data: users } = useUsers();
-  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+  const userChoices = useProjectPeopleChoices(useParams<{ projectId: string }>().projectId);
 
   return [
     { key: "issue_title", label: "Issue Title", kind: "text", mandatory: true },
@@ -75,13 +73,6 @@ function useIssueFields(): FieldDef[] {
   ];
 }
 
-const ISSUE_PREVIEW_FIELDS = [
-  { key: "issue_title", label: "Title" },
-  { key: "issue_category", label: "Category" },
-  { key: "priority", label: "Priority" },
-  { key: "severity", label: "Severity" },
-] as const;
-
 function buildIssuePayload(values: Record<string, string>): IssueLogPayload {
   return values as IssueLogPayload;
 }
@@ -97,13 +88,30 @@ export function IssueLog() {
   const updateIssue = useUpdateIssue(projectId);
   const deleteIssue = useDeleteIssue(projectId);
   const fields = useIssueFields();
-  const { data: users } = useUsers();
+  const { data: users } = useUsersByIds(items.map((item) => item.assigned_to));
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
-  const { editingId, startEdit, cancelEdit } = useEditableEntry<IssueLogItem>(
+  const { editingId, startEdit: beginEdit, cancelEdit: endEdit } = useEditableEntry<IssueLogItem>(
     load,
     reset,
     (item) => item as unknown as Record<string, string>
   );
+  const [formOpen, setFormOpen] = useState(false);
+  const startAdd = () => {
+    endEdit();
+    setFormOpen(true);
+  };
+  const startEdit = (item: IssueLogItem) => {
+    beginEdit(item);
+    setFormOpen(true);
+  };
+  const cancelEdit = () => {
+    endEdit();
+    setFormOpen(false);
+  };
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (formOpen) formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [formOpen, editingId]);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
@@ -136,6 +144,7 @@ export function IssueLog() {
       createIssue.mutate(payload, {
         onSuccess: () => {
           reset();
+          setFormOpen(false);
           showSuccess("Issue Added Successfully");
         },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to add issue."),
@@ -153,8 +162,7 @@ export function IssueLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <AiRowSuggestionsTrigger projectId={projectId} screen="issues" periodId={periodId} itemLabel="Issue" />
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="ISSUE" />
       </div>
 
@@ -169,6 +177,13 @@ export function IssueLog() {
               onChange={setStatusFilter}
             />
             <AutoBadge label={`${visibleItems.length} of ${items.length}`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Issue
+            </Button>
           </div>
         }
       >
@@ -194,35 +209,26 @@ export function IssueLog() {
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="issues"
-        periodId={periodId}
-        itemLabel="Issue"
-        previewFields={ISSUE_PREVIEW_FIELDS}
-        buildPayload={buildIssuePayload}
-        createMutation={createIssue}
-        updateMutation={updateIssue}
-      />
-
-      <SectionCard icon={TriangleAlert} title="New Issue">
-        <EntryFields defs={fields} values={values} set={set} />
-        <div className="mt-6 flex justify-end gap-3">
-          {editingId ? (
-            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
-              Cancel
-            </Button>
-          ) : null}
-          <Button
-            onClick={submit}
-            disabled={busy}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {busy ? <ButtonSpinner /> : null}
-            {editingId ? "Edit Issue" : "Add Issue"}
-          </Button>
+      {formOpen ? (
+        <div ref={formRef}>
+          <SectionCard icon={TriangleAlert} title={editingId ? "Edit Issue" : "New Issue"}>
+            <EntryFields defs={fields} values={values} set={set} />
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+                Cancel
+              </Button>
+              <Button
+                onClick={submit}
+                disabled={busy}
+                className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+              >
+                {busy ? <ButtonSpinner /> : null}
+                {editingId ? "Save Issue" : "Add Issue"}
+              </Button>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      ) : null}
     </div>
   );
 }

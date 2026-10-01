@@ -257,3 +257,11 @@ curl -i -X OPTIONS http://localhost:8000/api/v1/auth/config \
   -H "Origin: https://govone.bahwancybertek.com" \
   -H "Access-Control-Request-Method: GET" \
   -H "Access-Control-Request-Headers: local-dev-key"
+
+  curl -H "X-API-Key: local-dev-key" http://localhost:8000/api/v1/auth/config \
+  -H "Origin: https://govone.bahwancybertek.com" \
+  -H "Access-Control-Request-Method: GET"
+
+
+  venv/bin/python -m scripts.import_man_month --month=MAY "./integration/BCT Ma
+n Month Report.xlsx" --apply

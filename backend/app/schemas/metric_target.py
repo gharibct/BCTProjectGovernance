@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.enums import StaffingPriority
 
@@ -20,6 +20,22 @@ class MetricTargetDevelopmentIn(BaseModel):
     target_code_coverage_pct: Decimal | None = None
     target_test_execution_coverage_pct: Decimal | None = None
     target_test_pass_rate_pct: Decimal | None = None
+
+
+class MetricTargetDevelopmentSizeEffortIn(BaseModel):
+    """The Size Unit / Overall Planned Size / Overall Estimated Effort a Development project declares
+    on Scope & Schedule — a partial update of the Development target row."""
+
+    target_size_unit: str | None = None
+    target_overall_planned_size: Decimal | None = Field(default=None, ge=0)
+    target_overall_estimated_effort: Decimal | None = Field(default=None, ge=0)
+
+    @field_validator("target_size_unit")
+    @classmethod
+    def _known_size_unit(cls, value: str | None) -> str | None:
+        if value is not None and value not in ("CP", "FP", "LOC", "SP"):
+            raise ValueError("Size Unit must be one of CP, FP, LOC, SP")
+        return value
 
 
 class MetricTargetDevelopmentRead(MetricTargetDevelopmentIn):

@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.db import get_db
 from app.crud.project_status import project_status_item_crud, project_status_report_crud
 from app.crud.projects import project_crud
+from app.models.health_declarations import ProjectHealthItem
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
 from app.models.reference_data import ReportingPeriod
 from app.schemas.enums import ProjectStatusCategory, ReportStatus, RoleCode
@@ -26,9 +27,11 @@ from app.schemas.project_status import (
     ProjectStatusReportRead,
     ProjectStatusReportUpdate,
 )
+from app.schemas.copy_from_latest import CopyFromLatestResult
 from app.schemas.reporting_activity import ReportingActivityResponse
-from app.schemas.status_review import StatusReportReviewRequest
+from app.schemas.status_review import StatusReportRecallRequest, StatusReportReviewRequest
 from app.services import dashboard as dashboard_service
+from app.services.copy_from_latest import copy_category_items
 from app.services import notifications as notify_svc
 from app.services.report_lock import assert_report_editable
 from app.services.reporting_activity import build_reporting_activity
@@ -102,13 +105,13 @@ def _sanitize_segment(value: str) -> str:
 
 
 def _customer_communication_problem(
-    shared: bool | None, date_shared: date | None, file_path: str | None
+    shared: bool | None, date_shared: date | None, file_path: str | None, confidential: bool = False
 ) -> str | None:
     if shared is None:
         return "Customer Communication: state whether the status report was shared with the customer."
     if shared and date_shared is None:
         return "Customer Communication: Date Shared is required when the report was shared with the customer."
-    if shared and not file_path:
+    if shared and not confidential and not file_path:
         return "Customer Communication: upload the Presentation / Status Report that was shared."
     return None
 
@@ -174,15 +177,22 @@ async def create_status_report(
         if project is not None and project.project_revenue_usd is not None:
             payload = payload.model_copy(update={"revenue": project.project_revenue_usd})
 
-    if payload.status == ReportStatus.SUBMITTED:
+    # Project Performance (Monthly) is never shared with the customer, so the
+    # Customer Communication section doesn't apply to it.
+    if payload.status == ReportStatus.SUBMITTED and period.period_type != "Monthly":
         # A brand-new report has no uploaded file yet, so only "No" can pass.
         problem = _customer_communication_problem(
-            payload.customer_report_shared, payload.customer_report_date, None
+            payload.customer_report_shared,
+            payload.customer_report_date,
+            None,
+            bool(payload.customer_report_confidential),
         )
         if problem:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, problem)
     if payload.customer_report_shared is False:
-        payload = payload.model_copy(update={"customer_report_date": None})
+        payload = payload.model_copy(update={"customer_report_date": None, "customer_report_confidential": False})
+    elif payload.customer_report_confidential is None:
+        payload = payload.model_copy(update={"customer_report_confidential": False})
 
     alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
         db, scope="project", scope_id=project_id
@@ -215,12 +225,21 @@ async def update_status_report(
 
     if updated.customer_report_shared is False:
         updated.customer_report_date = None
+        updated.customer_report_confidential = False
         _delete_customer_report_file(updated)
-    if updated.status == ReportStatus.SUBMITTED:
+    elif updated.customer_report_confidential:
+        _delete_customer_report_file(updated)  # nothing may be disclosed
+    period = await db.get(ReportingPeriod, updated.period_id)
+    if updated.status == ReportStatus.SUBMITTED and not (period and period.period_type == "Monthly"):
+        # Project Performance (Monthly) is never shared with the customer, so
+        # the Customer Communication section doesn't apply to it.
         # Raising rolls the whole request back (see get_db), so the report
         # stays as it was and the PM can complete the section first.
         problem = _customer_communication_problem(
-            updated.customer_report_shared, updated.customer_report_date, updated.customer_report_file_path
+            updated.customer_report_shared,
+            updated.customer_report_date,
+            updated.customer_report_file_path,
+            updated.customer_report_confidential,
         )
         if problem:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, problem)
@@ -245,6 +264,13 @@ async def update_status_report(
         updated.reviewed_by = None
         updated.reviewed_at = None
         updated.review_comment = None
+        await db.flush()
+        await db.refresh(updated)
+
+    # Resubmitting after a recall starts clean too: drop the recall note.
+    if updated.status == ReportStatus.SUBMITTED and updated.recall_remarks is not None:
+        updated.recall_remarks = None
+        updated.recalled_at = None
         await db.flush()
         await db.refresh(updated)
 
@@ -325,6 +351,44 @@ async def download_customer_report_file(project_id: UUID, report_id: UUID, db: A
     return FileResponse(file_path, filename=obj.customer_report_file_name)
 
 
+# Recall: the PM pulls a Submitted report back to Draft so it can be edited and
+# resubmitted. Only possible until the Delivery Manager approves (or rejects) it
+# - once reviewed, the report is no longer Submitted. Remarks are mandatory.
+@router.patch("/{report_id}/recall", response_model=ProjectStatusReportRead, dependencies=_pm_write)
+async def recall_status_report(
+    project_id: UUID,
+    report_id: UUID,
+    payload: StatusReportRecallRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    obj = await _get_report_or_404(db, project_id, report_id)
+    if obj.status != ReportStatus.SUBMITTED:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Only a Submitted report can be recalled - it has already been reviewed or was never submitted.",
+        )
+    obj.status = ReportStatus.DRAFT
+    obj.recall_remarks = payload.remarks
+    obj.recalled_at = datetime.now(UTC)
+    await db.flush()
+    await db.refresh(obj)
+
+    project = await project_crud.get(db, project_id)
+    if project is not None:
+        await notify_svc.notify(
+            db,
+            recipient_id=await notify_svc.account_head_id(db, project.account_id),
+            type="REPORT_RECALLED",
+            title=f"{project.project_code} recalled its submitted status report",
+            body=payload.remarks,
+            link=f"/project-approval/{project.id}",
+            entity_type="status_report",
+            entity_id=obj.id,
+            data={"project_code": project.project_code},
+        )
+    return obj
+
+
 # Review/sign-off (Project Review, for Account Heads): a Submitted report
 # transitions to Approved/Rejected by the level above. Direct field
 # assignment rather than CRUDBase.update since it needs the status-transition
@@ -383,6 +447,21 @@ async def _assert_period_editable(db: AsyncSession, project_id: UUID, period_id:
     )
     report_status = (await db.execute(stmt)).scalars().first()
     assert_report_editable(report_status)
+
+
+# "Copy from latest report": prefill this period's Project Status and RAG Status
+# registers from the project's most recent earlier report of the same period
+# type. Only sections that are still empty are filled.
+@items_router.post("/copy-from-latest", response_model=CopyFromLatestResult, dependencies=_pm_write)
+async def copy_items_from_latest_report(project_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
+    await _assert_period_editable(db, project_id, period_id)
+    status_copied, status_source = await copy_category_items(
+        db, model=ProjectStatusItem, owner_column=ProjectStatusItem.project_id, owner_id=project_id, period_id=period_id
+    )
+    health_copied, health_source = await copy_category_items(
+        db, model=ProjectHealthItem, owner_column=ProjectHealthItem.project_id, owner_id=project_id, period_id=period_id
+    )
+    return CopyFromLatestResult(copied=status_copied + health_copied, source_period_id=status_source or health_source)
 
 
 @items_router.get("", response_model=list[ProjectStatusItemRead], dependencies=_pm_read)

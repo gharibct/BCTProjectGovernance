@@ -15,11 +15,8 @@ class ContractualCommitment(Base, UUIDPrimaryKey, TimestampColumns):
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     frequency: Mapped[str]  # One Time, Weekly, Fortnight, Monthly, Quarterly, Half Yearly, Phase Wise
     commitment_name: Mapped[str]
-    formula: Mapped[str | None]
-    target: Mapped[str | None]
-    target_uom: Mapped[str | None]
     penalty_applicable: Mapped[bool]
-    penalty_value: Mapped[Decimal | None] = mapped_column(Numeric)
+    commitment_details: Mapped[str | None]
 
 
 class ContractualCommitmentActual(Base, UUIDPrimaryKey):
@@ -29,8 +26,8 @@ class ContractualCommitmentActual(Base, UUIDPrimaryKey):
         ForeignKey("contractual_commitments.id", ondelete="CASCADE")
     )
     period_date: Mapped[date]
-    actual_value: Mapped[str | None]
-    met_status: Mapped[str | None]  # Met, Not Met, Breached
+    actual_details: Mapped[str | None]
+    met_status: Mapped[str | None]  # Met, Not Met
     recorded_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

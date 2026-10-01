@@ -48,43 +48,39 @@ export function ReviewedNoChangesButton({
 
   const status = completion?.find((c) => c.page_type === pageType);
 
-  if (status?.reason === "data_saved") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
-        <CheckCircle2 className="size-3.5" />
-        Data recorded this period
-      </span>
-    );
-  }
-
-  if (status?.reason === "reviewed_no_changes") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
-        <CheckCircle2 className="size-3.5" />
-        Reviewed{status.reviewed_at ? ` on ${formatDateTime(status.reviewed_at)}` : ""}
-      </span>
-    );
-  }
+  const badge = "inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200";
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      className="h-9 gap-1.5 px-3 text-xs font-semibold"
-      disabled={attest.isPending}
-      onClick={() =>
-        attest.mutate(
-          { period_id: periodId, page_type: pageType },
-          {
-            onSuccess: () =>
-              showSuccess(`${REPORT_PAGE_TYPE_LABEL[pageType]} marked Reviewed and No Changes`),
-            onError: (err) => showError(err instanceof Error ? err.message : "Failed to record the review."),
-          },
-        )
-      }
-    >
-      {attest.isPending ? <ButtonSpinner /> : <CheckCircle2 className="size-3.5" />}
-      Reviewed and No Changes
-    </Button>
+    <div className="flex flex-wrap items-center justify-end gap-3">
+      {status?.reason === "data_saved" ? (
+        <span className={badge}>
+          <CheckCircle2 className="size-3.5" />
+          Data recorded this period
+        </span>
+      ) : status?.reason === "reviewed_no_changes" ? (
+        <span className={badge}>
+          <CheckCircle2 className="size-3.5" />
+          Reviewed{status.reviewed_at ? ` on ${formatDateTime(status.reviewed_at)}` : ""}
+        </span>
+      ) : null}
+      <Button
+        type="button"
+        className="h-9 gap-1.5 bg-[#1a4a7a] px-3 text-xs font-semibold text-white hover:bg-[#15406b]"
+        disabled={attest.isPending}
+        onClick={() =>
+          attest.mutate(
+            { period_id: periodId, page_type: pageType },
+            {
+              onSuccess: () =>
+                showSuccess(`${REPORT_PAGE_TYPE_LABEL[pageType]} marked Reviewed and No Changes`),
+              onError: (err) => showError(err instanceof Error ? err.message : "Failed to record the review."),
+            },
+          )
+        }
+      >
+        {attest.isPending ? <ButtonSpinner /> : <CheckCircle2 className="size-3.5" />}
+        Reviewed and No Changes
+      </Button>
+    </div>
   );
 }

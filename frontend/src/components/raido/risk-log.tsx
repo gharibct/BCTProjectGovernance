@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard, Segmented } from "@/components/forms/form-primitives";
@@ -21,9 +21,8 @@ import {
   filterRaidoByStatus,
   type RaidoStatusFilter,
 } from "@/lib/raido-status";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
-import { useUsers } from "@/lib/api/reference-data";
+import { useProjectPeopleChoices, useUsersByIds } from "@/lib/api/reference-data";
 import {
   useCreateRisk,
   useDeleteRisk,
@@ -37,8 +36,7 @@ import {
 // 1:1 so EntryFields' values can be posted straight through (after the
 // escalation Y/N -> boolean and severity conversions below).
 function useRiskFields(): FieldDef[] {
-  const { data: users } = useUsers();
-  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+  const userChoices = useProjectPeopleChoices(useParams<{ projectId: string }>().projectId);
 
   return [
     { key: "risk_title", label: "Risk Title", kind: "text", mandatory: true },
@@ -118,13 +116,6 @@ function toValues(item: RiskLogItem): Record<string, string> {
   } as unknown as Record<string, string>;
 }
 
-const RISK_PREVIEW_FIELDS = [
-  { key: "risk_title", label: "Title" },
-  { key: "risk_category", label: "Category" },
-  { key: "probability", label: "Probability" },
-  { key: "impact", label: "Impact" },
-] as const;
-
 // Shared by the manual Add/Edit Risk button and the AI row-suggestions
 // panel's Apply (both ultimately call the same create/update mutations).
 function buildRiskPayload(values: Record<string, string>): RiskLogPayload {
@@ -146,9 +137,26 @@ export function RiskLog() {
   const updateRisk = useUpdateRisk(projectId);
   const deleteRisk = useDeleteRisk(projectId);
   const fields = useRiskFields();
-  const { data: users } = useUsers();
+  const { data: users } = useUsersByIds(items.map((item) => item.risk_owner));
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
-  const { editingId, startEdit, cancelEdit } = useEditableEntry<RiskLogItem>(load, reset, toValues);
+  const { editingId, startEdit: beginEdit, cancelEdit: endEdit } = useEditableEntry<RiskLogItem>(load, reset, toValues);
+  const [formOpen, setFormOpen] = useState(false);
+  const startAdd = () => {
+    endEdit();
+    setFormOpen(true);
+  };
+  const startEdit = (item: RiskLogItem) => {
+    beginEdit(item);
+    setFormOpen(true);
+  };
+  const cancelEdit = () => {
+    endEdit();
+    setFormOpen(false);
+  };
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (formOpen) formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [formOpen, editingId]);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
@@ -181,6 +189,7 @@ export function RiskLog() {
       createRisk.mutate(payload, {
         onSuccess: () => {
           reset();
+          setFormOpen(false);
           showSuccess("Risk Added Successfully");
         },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to add risk."),
@@ -198,8 +207,7 @@ export function RiskLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <AiRowSuggestionsTrigger projectId={projectId} screen="risks" periodId={periodId} itemLabel="Risk" />
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="RISK" />
       </div>
 
@@ -214,6 +222,13 @@ export function RiskLog() {
               onChange={setStatusFilter}
             />
             <AutoBadge label={`${visibleItems.length} of ${items.length}`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Risk
+            </Button>
           </div>
         }
       >
@@ -239,35 +254,26 @@ export function RiskLog() {
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="risks"
-        periodId={periodId}
-        itemLabel="Risk"
-        previewFields={RISK_PREVIEW_FIELDS}
-        buildPayload={buildRiskPayload}
-        createMutation={createRisk}
-        updateMutation={updateRisk}
-      />
-
-      <SectionCard icon={ShieldAlert} title="New Risk">
-        <EntryFields defs={fields} values={values} set={set} />
-        <div className="mt-6 flex justify-end gap-3">
-          {editingId ? (
-            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
-              Cancel
-            </Button>
-          ) : null}
-          <Button
-            onClick={submit}
-            disabled={busy}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {busy ? <ButtonSpinner /> : null}
-            {editingId ? "Edit Risk" : "Add Risk"}
-          </Button>
+      {formOpen ? (
+        <div ref={formRef}>
+          <SectionCard icon={ShieldAlert} title={editingId ? "Edit Risk" : "New Risk"}>
+            <EntryFields defs={fields} values={values} set={set} />
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+                Cancel
+              </Button>
+              <Button
+                onClick={submit}
+                disabled={busy}
+                className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+              >
+                {busy ? <ButtonSpinner /> : null}
+                {editingId ? "Save Risk" : "Add Risk"}
+              </Button>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useSearchParams } from "next/navigation";
-import { Flag, GaugeCircle } from "lucide-react";
+import { Flag, Pencil } from "lucide-react";
 import * as React from "react";
 
 import { AutoBadge, ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
@@ -12,6 +12,7 @@ import { RegisterTable } from "@/components/forms/register-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useMilestoneActuals,
@@ -37,6 +38,8 @@ export function MilestonesTab() {
   const { data: items = [] } = useMilestonePayments(projectId);
   const milestoneIds = React.useMemo(() => items.map((i) => i.id), [items]);
   const actualsByMilestone = useMilestoneActuals(projectId, milestoneIds);
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const selected = items.find((i) => i.id === selectedId) ?? null;
 
   if (!projectId) {
     return (
@@ -57,6 +60,7 @@ export function MilestonesTab() {
         <RegisterTable
           items={items}
           emptyLabel="No payment milestones defined yet."
+          onRowClick={(item) => setSelectedId(item.id)}
           columns={[
             { key: "milestone_name", label: "Payment Milestone" },
             { key: "expected_date_of_payment", label: "Expected Date" },
@@ -82,50 +86,69 @@ export function MilestonesTab() {
               label: "Remarks",
               render: (item) => actualsByMilestone[item.id]?.remarks ?? "—",
             },
+            {
+              key: "record",
+              label: "",
+              align: "right",
+              render: (item) => (
+                <Button
+                  className="h-8 gap-1.5 bg-[#1a4a7a] px-3 text-xs font-semibold text-white hover:bg-[#15406b]"
+                  aria-label={`Record payment actual for ${item.milestone_name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedId(item.id);
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                  Record Actual
+                </Button>
+              ),
+            },
           ]}
         />
       </SectionCard>
 
-      <PaymentActualCapture projectId={projectId} milestones={items} actualsByMilestone={actualsByMilestone} />
+      <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelectedId(null)}>
+        {selected ? (
+          <PaymentActualDrawer
+            key={selected.id}
+            projectId={projectId}
+            milestone={selected}
+            actual={actualsByMilestone[selected.id]}
+            onClose={() => setSelectedId(null)}
+          />
+        ) : null}
+      </Sheet>
     </div>
   );
 }
 
 // Monthly Project Reporting capture: the milestone definitions above are set
 // at charter time; here the PM records the actual payment as it happens (one
-// actual per milestone — the server upserts it).
-function PaymentActualCapture({
+// actual per milestone — the server upserts it) in a right-hand drawer opened
+// from the register row.
+function PaymentActualDrawer({
   projectId,
-  milestones,
-  actualsByMilestone,
+  milestone,
+  actual,
+  onClose,
 }: {
   projectId: string;
-  milestones: MilestonePayment[];
-  actualsByMilestone: Record<string, MilestonePaymentActual | null>;
+  milestone: MilestonePayment;
+  actual: MilestonePaymentActual | null | undefined;
+  onClose: () => void;
 }) {
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
-  const [milestoneId, setMilestoneId] = React.useState("");
-  const [actualDate, setActualDate] = React.useState("");
-  const [actualValue, setActualValue] = React.useState("");
-  const [statusValue, setStatusValue] = React.useState<"" | MilestonePaymentStatus>("");
-  const [remarks, setRemarks] = React.useState("");
+  const [actualDate, setActualDate] = React.useState(actual?.actual_date_of_payment ?? "");
+  const [actualValue, setActualValue] = React.useState(actual?.actual_payment_value ?? "");
+  const [statusValue, setStatusValue] = React.useState<"" | MilestonePaymentStatus>(actual?.status ?? "");
+  const [remarks, setRemarks] = React.useState(actual?.remarks ?? "");
 
-  const upsertActual = useUpsertMilestoneActual(projectId, milestoneId);
-
-  // Prefill from any actual already recorded for the picked milestone.
-  const selectMilestone = (id: string) => {
-    setMilestoneId(id);
-    const existing = id ? actualsByMilestone[id] : null;
-    setActualDate(existing?.actual_date_of_payment ?? "");
-    setActualValue(existing?.actual_payment_value ?? "");
-    setStatusValue(existing?.status ?? "");
-    setRemarks(existing?.remarks ?? "");
-  };
+  const upsertActual = useUpsertMilestoneActual(projectId, milestone.id);
 
   const save = () => {
-    if (!milestoneId) return;
     upsertActual.mutate(
       {
         actual_date_of_payment: actualDate || undefined,
@@ -134,71 +157,70 @@ function PaymentActualCapture({
         remarks: remarks || undefined,
       },
       {
-        onSuccess: () => showSuccess("Payment Actual Saved"),
+        onSuccess: () => {
+          showSuccess("Payment Actual Saved");
+          onClose();
+        },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to save the payment actual."),
       },
     );
   };
 
   return (
-    <SectionCard icon={GaugeCircle} title="Record Payment Actual">
-      {milestones.length === 0 ? (
-        <EmptyState>No payment milestones have been defined for this project.</EmptyState>
-      ) : (
-        <>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Field label="Payment Milestone">
-              <NativeSelect value={milestoneId} onChange={(e) => selectMilestone(e.target.value)}>
-                <option value="" disabled>
-                  Select…
-                </option>
-                {milestones.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.milestone_name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Status">
-              <NativeSelect
-                value={statusValue}
-                onChange={(e) => setStatusValue(e.target.value as "" | MilestonePaymentStatus)}
-              >
-                <option value="">—</option>
-                {MILESTONE_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Actual Date of Payment">
-              <Input type="date" value={actualDate} onChange={(e) => setActualDate(e.target.value)} />
-            </Field>
-            <Field label="Actual Payment Value">
-              <Input
-                type="number"
-                value={actualValue}
-                onChange={(e) => setActualValue(e.target.value)}
-                placeholder="e.g. 50000"
-              />
-            </Field>
-            <Field label="Remarks" className="sm:col-span-2">
-              <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3} />
-            </Field>
-          </div>
-          <div className="mt-6 flex justify-end">
-            <Button
-              onClick={save}
-              disabled={!milestoneId || upsertActual.isPending}
-              className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+    <SheetContent className="gap-0 p-0">
+      <SheetHeader>
+        <SheetTitle>{milestone.milestone_name}</SheetTitle>
+        <SheetDescription>
+          Record payment actual · Expected {milestone.expected_date_of_payment ?? "—"}
+          {milestone.expected_payment_value ? ` · ${milestone.expected_payment_value}` : ""}
+        </SheetDescription>
+      </SheetHeader>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <Field label="Status" className="col-span-2">
+            <NativeSelect
+              value={statusValue}
+              onChange={(e) => setStatusValue(e.target.value as "" | MilestonePaymentStatus)}
             >
-              {upsertActual.isPending ? <ButtonSpinner /> : null}
-              Save Payment Actual
-            </Button>
-          </div>
-        </>
-      )}
-    </SectionCard>
+              <option value="">—</option>
+              {MILESTONE_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field label="Actual Date of Payment">
+            <Input type="date" value={actualDate} onChange={(e) => setActualDate(e.target.value)} />
+          </Field>
+          <Field label="Actual Payment Value">
+            <Input
+              type="number"
+              value={actualValue}
+              onChange={(e) => setActualValue(e.target.value)}
+              placeholder="e.g. 50000"
+            />
+          </Field>
+          <Field label="Remarks" className="col-span-2">
+            <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3} />
+          </Field>
+        </div>
+      </div>
+
+      <SheetFooter className="flex-row justify-end gap-3 border-t border-slate-200 p-4">
+        <Button variant="outline" className="h-10 px-5 text-sm font-semibold" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          onClick={save}
+          disabled={upsertActual.isPending}
+          className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
+        >
+          {upsertActual.isPending ? <ButtonSpinner /> : null}
+          Save Payment Actual
+        </Button>
+      </SheetFooter>
+    </SheetContent>
   );
 }

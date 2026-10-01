@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Briefcase,
   Building2,
@@ -35,6 +35,7 @@ import { NEW_PROJECT_SEGMENT } from "@/stores/new-project-ui";
 import type { Geo } from "@/lib/api/reference-data";
 import { MENU_LABEL_OVERRIDES, ROLE_MENU_SECTIONS, type MenuEntryId } from "@/lib/menu-config";
 import { useSession } from "@/stores/session";
+import { useReportingPeriods } from "@/lib/api/reference-data";
 import { usePatchScope } from "@/hooks/use-patch-scope";
 import { selectProjectHref } from "@/lib/project-context-targets";
 import { selectAccountHref } from "@/lib/account-context-targets";
@@ -357,6 +358,34 @@ type SidebarCtx = {
 // One render function per MenuEntryId — the single place each item's JSX is
 // defined, regardless of how many roles/sections include it. Ordering and
 // grouping come entirely from ROLE_MENU_SECTIONS, not from this registry.
+// Report Delivery Status (Weekly) / Report Project Performance (Monthly). Both
+// live under /project-reporting/:projectId; which one is active comes from the
+// hub route itself, else from the open period's type (?period=).
+function ReportingLink({ kind, ctx }: { kind: "delivery" | "performance"; ctx: SidebarCtx }) {
+  const period = useSearchParams().get("period");
+  const { data: periods = [] } = useReportingPeriods();
+  const type = periods.find((p) => p.id === period)?.period_type;
+  const hubKind = ctx.pathname.endsWith("/delivery") || ctx.pathname.endsWith("/delivery-calendar")
+    ? "delivery"
+    : ctx.pathname.endsWith("/performance")
+      ? "performance"
+      : null;
+  const openKind = hubKind ?? (type === "Weekly" ? "delivery" : type === "Monthly" ? "performance" : null);
+  const target = kind === "delivery" ? "delivery-reporting" : "performance-reporting";
+  return (
+    <SimpleLink
+      href={selectProjectHref(target)}
+      icon={kind === "delivery" ? FolderOpen : FileBarChart2}
+      label={ctx.labelFor(target, kind === "delivery" ? "Report Delivery Status" : "Report Project Performance")}
+      active={
+        (ctx.isProjectReporting && (openKind === kind || (openKind === null && kind === "delivery"))) ||
+        ctx.pathname === selectProjectHref(target)
+      }
+      bold={ctx.bold}
+    />
+  );
+}
+
 const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
   dashboard: (ctx) => (
     <SimpleLink href="/dashboard" icon={LayoutGrid} label="My Summary" active={ctx.isDashboard} bold={ctx.bold} />
@@ -544,14 +573,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       bold={ctx.bold}
     />
   ),
-  "project-reporting": (ctx) => (
-    <SimpleLink
-      href={selectProjectHref("project-reporting")}
-      icon={FolderOpen}
-      label={ctx.labelFor("project-reporting", "Report Project Status")}
-      active={ctx.isProjectReporting || ctx.pathname === selectProjectHref("project-reporting")}
-      bold={ctx.bold}
-    />
+  "delivery-reporting": (ctx) => (
+    <React.Suspense fallback={null}>
+      <ReportingLink kind="delivery" ctx={ctx} />
+    </React.Suspense>
+  ),
+  "performance-reporting": (ctx) => (
+    <React.Suspense fallback={null}>
+      <ReportingLink kind="performance" ctx={ctx} />
+    </React.Suspense>
   ),
   "geo-review": (ctx) => (
     <CollapsibleGroup
@@ -816,7 +846,8 @@ export function AppSidebar() {
   const routeActive: Partial<Record<MenuEntryId, boolean>> = {
     "maintain-project": isMaintaining,
     "view-amend-projects": isAmendProject,
-    "project-reporting": isProjectReporting,
+    "delivery-reporting": isProjectReporting,
+    "performance-reporting": isProjectReporting,
     "de-assessment-report": isDeAssessmentReport,
     "project-review": isProjectReview,
     "project-approval": isProjectApproval,

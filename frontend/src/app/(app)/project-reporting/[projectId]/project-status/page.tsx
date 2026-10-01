@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 
-import { ProjectStatusTabs } from "@/components/project-status/project-status-tabs";
+import { DeliveryStatusReport } from "@/components/project-status/delivery-status-report";
 import { ProjectHeader } from "@/components/shell/project-header";
 
 export const metadata: Metadata = {
-  title: "Project Status | Governance One",
+  title: "Delivery Status Report | Governance One",
 };
 
 export default function ProjectStatusPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <ProjectHeader dynamicSubheading />
+      <ProjectHeader dynamicSubheading showActionTracker />
       <div className="mt-8">
-        <ProjectStatusTabs />
+        <DeliveryStatusReport />
       </div>
     </div>
   );

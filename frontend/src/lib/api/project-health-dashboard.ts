@@ -174,6 +174,7 @@ export type ProjectHealthDashboardSummary = {
   customer_account_reports: CustomerAccountReportSummary;
   period_id: string | null;
   period_label: string | null;
+  previous_month_label: string | null;
 };
 
 export type ProjectHealthDashboardFilters = {

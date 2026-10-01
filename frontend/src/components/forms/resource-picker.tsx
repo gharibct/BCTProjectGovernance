@@ -33,9 +33,9 @@ export type ResourcePickerProps = {
 // Same token set as ui/native-select.tsx so the picker sits flush with the
 // other form controls in both light and dark.
 const TRIGGER_BASE =
-  "relative flex h-11 w-full items-center rounded-lg border border-blue-200 bg-blue-50 pr-9 pl-3 text-left text-base transition-colors outline-none focus-visible:border-blue-400 focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:border-blue-900/50 dark:bg-blue-950/20";
+  "relative flex h-11 w-full items-center rounded-lg border border-[#5B9BE6] bg-[#F7FAFF] text-[#000000] hover:border-[#4F91D1] hover:bg-[#F3F8FE] pr-9 pl-3 text-left text-base transition-colors outline-none focus-visible:border-[#2F80ED] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm";
 const TRIGGER_DISABLED =
-  "pointer-events-none cursor-not-allowed border-neutral-200 bg-neutral-100 text-muted-foreground opacity-70 dark:border-white/10 dark:bg-input/30";
+  "pointer-events-none cursor-not-allowed border-[#D5DAE0] bg-[#F1F3F5] text-[#98A2B3] opacity-70 hover:border-[#D5DAE0] hover:bg-[#F1F3F5]";
 
 export function ResourcePicker({
   value,
@@ -105,7 +105,7 @@ export function ResourcePicker({
           <span
             className={cn(
               "truncate",
-              selectedLabel ? "text-slate-900 dark:text-slate-100" : "text-muted-foreground",
+              disabled ? "text-[#98A2B3]" : selectedLabel ? "text-[#000000]" : "text-[#718096]",
             )}
           >
             {selectedLabel ?? placeholder}
@@ -124,7 +124,7 @@ export function ResourcePicker({
               <X className="size-3.5" />
             </span>
           ) : null}
-          <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-[#526A82]" />
         </button>
       </PopoverTrigger>
 
@@ -137,7 +137,7 @@ export function ResourcePicker({
         }}
         className="w-[var(--radix-popover-trigger-width)] p-0"
       >
-        <div className="border-b border-slate-100 p-2 dark:border-white/10">
+        <div className="border-b border-slate-100 p-2">
           <Input
             ref={inputRef}
             value={term}

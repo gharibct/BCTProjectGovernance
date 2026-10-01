@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
+import type { CopyFromLatestResult } from "./project-status";
 
 // Project Performance Report's 8 monthly-reviewable sections — Measurement,
 // Contractual Compliance's 2 tabs, and each of the 5 RAIDO logs. A section is
@@ -56,6 +57,25 @@ export function useCreateMonthlyAttestation(projectId: string | null) {
       queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId, variables.period_id] });
       queryClient.invalidateQueries({
         queryKey: ["project-performance-dashboard", projectId, variables.period_id],
+      });
+    },
+  });
+}
+
+// "Copy from latest report" for the Monthly Project Performance Report:
+// prefills this period's Measurement forms from the latest earlier month.
+export function useCopyMonthlyFromLatest(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (periodId: string) =>
+      api.post<CopyFromLatestResult>(
+        `/projects/${projectId}/monthly-attestations/copy-from-latest?period_id=${periodId}`
+      ),
+    onSuccess: (_data, periodId) => {
+      queryClient.invalidateQueries({ queryKey: ["monthly-completion", projectId, periodId] });
+      queryClient.invalidateQueries({ queryKey: ["project-performance-dashboard", projectId, periodId] });
+      queryClient.invalidateQueries({
+        predicate: (q) => typeof q.queryKey[0] === "string" && q.queryKey[0].startsWith("measurement"),
       });
     },
   });

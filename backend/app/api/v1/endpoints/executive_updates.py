@@ -15,6 +15,7 @@ from app.crud.executive_updates import executive_update_crud
 from app.models.executive_updates import ExecutiveUpdate
 from app.models.reference_data import ReportingPeriod
 from app.schemas.enums import RoleCode
+from app.services.geo_autogen import mark_geo_report_saved
 from app.schemas.executive_updates import ExecutiveUpdateCreate, ExecutiveUpdateRead, ExecutiveUpdateUpdate
 
 # Geo Head's Executive Update for CDO (see db/tables/43_executive_updates.sql)
@@ -59,7 +60,9 @@ async def create_executive_update(
     payload: ExecutiveUpdateCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    return await executive_update_crud.create(db, payload, geo_id=geo_id)
+    created = await executive_update_crud.create(db, payload, geo_id=geo_id)
+    await mark_geo_report_saved(db, geo_id, payload.period_id, create=True)
+    return created
 
 
 @router.put("/{update_id}", response_model=ExecutiveUpdateRead, dependencies=_geo_head_write)
@@ -72,7 +75,9 @@ async def update_executive_update(
     obj = await executive_update_crud.get(db, update_id)
     if obj is None or obj.geo_id != geo_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Executive Update not found")
-    return await executive_update_crud.update(db, obj, payload)
+    updated = await executive_update_crud.update(db, obj, payload)
+    await mark_geo_report_saved(db, geo_id, obj.period_id, create=True)
+    return updated
 
 
 # Image blocks — no DB row, `content`'s own `imageUrl` field is the only

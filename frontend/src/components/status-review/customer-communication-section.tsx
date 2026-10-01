@@ -34,6 +34,12 @@ export function CustomerCommunicationSection({
             {report.customer_report_date ? (
               <span className="font-semibold text-slate-900">{formatDayMonYear(report.customer_report_date)}</span>
             ) : null}
+            {report.customer_report_confidential ? (
+              <>
+                <span className="text-slate-300">|</span>
+                <span>Sent - Cannot be Disclosed</span>
+              </>
+            ) : null}
             {report.customer_report_file_name ? (
               <>
                 <span className="text-slate-300">|</span>

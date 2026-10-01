@@ -36,7 +36,10 @@ const APPLICABLE_PHASES: readonly ApplicablePhase[] = [
   "Testing",
   "UAT Support",
   "Warranty",
-  "Support",
+  "Support L0",
+  "Support L1",
+  "Support L2",
+  "Support L3",
   "Migration",
 ];
 
@@ -166,7 +169,7 @@ export function BulkProjectImportPanel() {
       kind: "text",
       hint: "Separate multiple phases with ;",
     },
-    { key: "project_revenue", label: "Project Revenue", kind: "number" },
+    { key: "project_revenue", label: "Project TCV Revenue", kind: "number" },
     { key: "project_currency", label: "Project Currency", kind: "select", options: CURRENCIES },
     // Scope & Schedule
     { key: "customer_overview", label: "Customer Overview", kind: "textarea" },

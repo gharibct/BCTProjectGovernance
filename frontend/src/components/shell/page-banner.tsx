@@ -29,21 +29,23 @@ const VARIANT_STYLES: Record<BannerVariant, { wrap: string; icon: LucideIcon; ic
 // for "important" success/error/warning feedback, per the app-wide
 // notification standard. Minor/transient notices stay as sonner toasts
 // (top-right) and don't go through this component.
-export function PageBanner() {
-  const banner = usePageBanner((state) => state.banner);
-  const dismiss = usePageBanner((state) => state.dismiss);
+type BannerData = NonNullable<ReturnType<typeof usePageBanner.getState>["banner"]>;
 
-  if (!banner) return null;
-
+export function BannerView({
+  banner,
+  onDismiss,
+  className,
+}: {
+  banner: BannerData;
+  onDismiss: () => void;
+  className?: string;
+}) {
   const { wrap, icon: Icon, iconClass } = VARIANT_STYLES[banner.variant];
 
   return (
     <div
       role="alert"
-      className={cn(
-        "mt-4 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-sm",
-        wrap
-      )}
+      className={cn("flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-sm", wrap, className)}
     >
       <Icon className={cn("mt-0.5 size-4 shrink-0", iconClass)} />
       <p className="flex-1">{banner.message}</p>
@@ -67,7 +69,7 @@ export function PageBanner() {
       ) : null}
       <button
         type="button"
-        onClick={dismiss}
+        onClick={onDismiss}
         aria-label="Dismiss"
         className="shrink-0 opacity-60 transition-opacity hover:opacity-100"
       >
@@ -75,4 +77,12 @@ export function PageBanner() {
       </button>
     </div>
   );
+}
+
+export function PageBanner() {
+  const banner = usePageBanner((state) => state.banner);
+  const dismiss = usePageBanner((state) => state.dismiss);
+
+  if (!banner) return null;
+  return <BannerView banner={banner} onDismiss={dismiss} className="mt-4" />;
 }

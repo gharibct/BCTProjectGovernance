@@ -14,10 +14,12 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   downloadCustomerCommunicationFile,
   useCreateCustomerCommunication,
+  summarizeCustomerCommunications,
   useCustomerCommunications,
 } from "@/lib/api/customer-communications";
 import { useAccounts } from "@/lib/api/reference-data";
 import { formatDayMonYear } from "@/lib/format-date";
+import { cn } from "@/lib/utils";
 import { useEffectiveRole } from "@/stores/session";
 import { usePageBanner } from "@/stores/page-banner";
 
@@ -40,6 +42,7 @@ export function CustomerCommunicationsView() {
   const accountName = accounts.find((a) => a.id === accountId)?.name;
   const listQuery = useCustomerCommunications(accountId ?? null);
   const { data: communications = [] } = listQuery;
+  const summary = React.useMemo(() => summarizeCustomerCommunications(communications), [communications]);
   const create = useCreateCustomerCommunication(accountId ?? null);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
@@ -83,7 +86,7 @@ export function CustomerCommunicationsView() {
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div>
         <Link
-          href={`/account-reporting/${accountId}`}
+          href={`/account-reporting/${accountId}/summary`}
           className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4] hover:underline"
         >
           <ArrowLeft className="size-4" />
@@ -94,6 +97,30 @@ export function CustomerCommunicationsView() {
       </div>
 
       <PageBanner />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+          <div className="text-xs font-bold tracking-wide text-slate-500 uppercase">Communications Shared</div>
+          <div className="mt-2 text-3xl font-bold text-slate-900">{summary.counts.total}</div>
+        </div>
+        {summary.counts.quarters.map((q) => (
+          <div
+            key={q.label}
+            className={cn(
+              "rounded-xl border bg-white p-4 text-center shadow-sm",
+              q.current ? "border-[#1a6fc4] ring-1 ring-[#1a6fc4]/30" : "border-slate-200"
+            )}
+          >
+            <div className="text-xs font-bold tracking-wide text-slate-500 uppercase">{q.label}</div>
+            <div className="mt-2 text-3xl font-bold text-emerald-600">{q.count}</div>
+          </div>
+        ))}
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+          <div className="text-xs font-bold tracking-wide text-slate-500 uppercase">Last Shared</div>
+          <div className="mt-2 text-base font-bold text-slate-900">{summary.last?.date ?? "—"}</div>
+          {summary.last ? <div className="truncate text-xs text-slate-500">{summary.last.title}</div> : null}
+        </div>
+      </div>
 
       {canAdd ? (
         <SectionCard icon={MessageSquare} title="Add Communication">
@@ -157,8 +184,8 @@ export function CustomerCommunicationsView() {
         </h2>
         <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-xs tracking-wide text-slate-500 uppercase">
+            <thead className="bg-[#D6E9F8]">
+              <tr className="text-xs tracking-wide text-[#205889] uppercase">
                 <th className="px-6 py-3 font-bold">Reporting Date</th>
                 <th className="px-3 py-3 font-bold">Meeting / Presentation Title</th>
                 <th className="px-3 py-3 font-bold">Presentation</th>
@@ -174,7 +201,7 @@ export function CustomerCommunicationsView() {
                 </tr>
               ) : (
                 communications.map((c) => (
-                  <tr key={c.id} className="border-t border-slate-100 transition-colors hover:bg-slate-50/70">
+                  <tr key={c.id} className="border-t border-[#E4E9EE] bg-white transition-colors even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
                     <td className="px-6 py-3.5 font-bold text-slate-900">{formatDayMonYear(c.reporting_date)}</td>
                     <td className="px-3 py-3.5 text-slate-700">{c.title}</td>
                     <td className="px-3 py-3.5">

@@ -20,8 +20,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.oracle_man_month import OracleProjectMaster as OPM
 from app.models.projects import Project, ProjectOracleId
-from app.models.reference_data import Geo, Region
-from app.schemas.oracle_project_mapping import OracleProjectRow, OracleProjectSummary
+from app.models.reference_data import Account, Geo, ProjectType, Region
+from app.schemas.oracle_project_mapping import (
+    OracleProjectDemographyEntry,
+    OracleProjectRow,
+    OracleProjectSummary,
+)
 
 MappingStatus = Literal["unmapped", "mapped", "all"]
 
@@ -80,6 +84,41 @@ async def oracle_project_summary(db: AsyncSession, scope: OracleProjectScope) ->
     return OracleProjectSummary(
         mapped_count=int(row[0]), unmapped_count=int(row[1]), unmapped_no_geo_count=int(row[2])
     )
+
+
+async def oracle_project_demography(
+    db: AsyncSession, scope: OracleProjectScope
+) -> list[OracleProjectDemographyEntry]:
+    """Count of the tool's own (approved) projects per GovOne project type,
+    largest first. Uses the same role scope / filters as the rest of the Oracle
+    Projects section, but reads `projects`, not the Oracle master data."""
+    conditions = [Project.project_status.in_(("Approved", "Under Amendment"))]
+    if scope.owned_geo_ids is not None:
+        conditions.append(Project.geo_id.in_(scope.owned_geo_ids))
+    if scope.geo_id is not None:
+        conditions.append(Project.geo_id == scope.geo_id)
+    if scope.region_id is not None:
+        conditions.append(Project.region_id == scope.region_id)
+    if scope.owned_account_names is not None or scope.account_name is not None:
+        account_name = func.lower(func.trim(Account.name))
+        if scope.owned_account_names is not None:
+            conditions.append(account_name.in_(scope.owned_account_names) if scope.owned_account_names else false())
+        if scope.account_name is not None:
+            conditions.append(account_name == scope.account_name)
+
+    count = func.count(Project.id)
+    stmt = select(ProjectType.name, ProjectType.description, count).select_from(Project)
+    stmt = stmt.outerjoin(ProjectType, ProjectType.id == Project.project_type_id)
+    if scope.owned_account_names is not None or scope.account_name is not None:
+        stmt = stmt.join(Account, Account.id == Project.account_id)
+    rows = (
+        await db.execute(
+            stmt.where(*conditions)
+            .group_by(ProjectType.id, ProjectType.name, ProjectType.description)
+            .order_by(count.desc(), ProjectType.name)
+        )
+    ).all()
+    return [OracleProjectDemographyEntry(project_type=r[0], description=r[1], count=int(r[2])) for r in rows]
 
 
 async def list_oracle_projects(

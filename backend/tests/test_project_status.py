@@ -155,6 +155,99 @@ async def test_resubmitting_rejected_report_clears_prior_review(client, override
     assert body["review_comment"] is None
 
 
+def _report_with_status(status_value, **overrides):
+    from datetime import UTC, datetime
+
+    from app.models.project_status import ProjectStatusReport
+
+    fields = dict(
+        id=uuid4(),
+        project_id=_PROJECT_ID,
+        period_id=uuid4(),
+        status=status_value,
+        customer_report_shared=False,
+        open_alerts_count=0,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+    fields.update(overrides)
+    return ProjectStatusReport(**fields)
+
+
+async def test_recall_submitted_report_goes_back_to_draft_with_remarks(client, override_auth):
+    from app.models.project_status import ProjectStatusReport
+
+    report = _report_with_status("Submitted")
+    headers = override_auth(RoleCode.ADMIN, get_map={(ProjectStatusReport, report.id): report})
+    response = await client.patch(
+        f"/api/v1/projects/{_PROJECT_ID}/status-reports/{report.id}/recall",
+        json={"remarks": "  Wrong revenue figure  "},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "Draft"
+    assert body["recall_remarks"] == "Wrong revenue figure"
+    assert body["recalled_at"] is not None
+
+
+async def test_recall_requires_remarks(client, override_auth):
+    from app.models.project_status import ProjectStatusReport
+
+    report = _report_with_status("Submitted")
+    headers = override_auth(RoleCode.ADMIN, get_map={(ProjectStatusReport, report.id): report})
+    response = await client.patch(
+        f"/api/v1/projects/{_PROJECT_ID}/status-reports/{report.id}/recall",
+        json={"remarks": "   "},
+        headers=headers,
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("current_status", ["Approved", "Rejected", "Draft"])
+async def test_recall_only_allowed_while_submitted(client, override_auth, current_status):
+    from app.models.project_status import ProjectStatusReport
+
+    report = _report_with_status(current_status)
+    headers = override_auth(RoleCode.ADMIN, get_map={(ProjectStatusReport, report.id): report})
+    response = await client.patch(
+        f"/api/v1/projects/{_PROJECT_ID}/status-reports/{report.id}/recall",
+        json={"remarks": "Need to fix"},
+        headers=headers,
+    )
+    assert response.status_code == 400
+    assert report.status == current_status
+
+
+async def test_recall_rejects_non_pm_roles(client, override_auth):
+    headers = override_auth(RoleCode.TEAM_MEMBER)
+    response = await client.patch(
+        f"/api/v1/projects/{_PROJECT_ID}/status-reports/{uuid4()}/recall",
+        json={"remarks": "x"},
+        headers=headers,
+    )
+    assert response.status_code == 403
+
+
+async def test_resubmitting_after_recall_clears_recall_note(client, override_auth):
+    from datetime import UTC, datetime
+
+    from app.models.project_status import ProjectStatusReport
+
+    report = _report_with_status("Draft", recall_remarks="Wrong figure", recalled_at=datetime.now(UTC))
+    headers = override_auth(RoleCode.ADMIN, get_map={(ProjectStatusReport, report.id): report})
+    response = await client.put(
+        f"/api/v1/projects/{_PROJECT_ID}/status-reports/{report.id}",
+        json={"status": "Submitted"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "Submitted"
+    assert body["recall_remarks"] is None
+    assert body["recalled_at"] is None
+
+
 async def test_list_status_items_returns_200(client, override_auth):
     headers = override_auth(RoleCode.DELIVERY_EXCELLENCE, get_map=_PROJECT_GET_MAP)
     response = await client.get(
@@ -229,6 +322,27 @@ async def test_submit_passes_when_shared_with_date_and_file(client, override_aut
     assert response.status_code == 200
 
 
+async def test_submit_confidential_needs_date_but_no_file(client, override_auth):
+    ok = await _put(
+        client,
+        override_auth,
+        _draft_report(
+            customer_report_shared=True, customer_report_confidential=True, customer_report_date=date(2026, 9, 1)
+        ),
+        {"status": "Submitted"},
+    )
+    assert ok.status_code == 200
+
+    no_date = await _put(
+        client,
+        override_auth,
+        _draft_report(customer_report_shared=True, customer_report_confidential=True),
+        {"status": "Submitted"},
+    )
+    assert no_date.status_code == 400
+    assert "Date Shared" in no_date.json()["detail"]
+
+
 async def test_answering_no_clears_date_and_file(client, override_auth):
     report = _draft_report(
         customer_report_shared=True,
@@ -242,3 +356,12 @@ async def test_answering_no_clears_date_and_file(client, override_auth):
     assert body["customer_report_shared"] is False
     assert body["customer_report_date"] is None
     assert body["customer_report_file_name"] is None
+
+
+async def test_copy_items_from_latest_rejects_team_member(client, override_auth):
+    headers = override_auth(RoleCode.TEAM_MEMBER)
+    response = await client.post(
+        f"/api/v1/projects/{_PROJECT_ID}/status-items/copy-from-latest?period_id={uuid4()}", headers=headers
+    )
+    assert response.status_code == 403
+

@@ -139,7 +139,7 @@ Dashboard.
   Organization (BCTPL / BCTC / FT), Project Owned (Fully Owned / Co-Owned / Customer
   Driven), GEO (APAC / MEA / US), Account Name, Project Manager, Delivery Manager,
   Delivery Excellence (assigned person), Customer Overview (free text), Project Scope
-  Description (free text), Project Revenue, Project Currency, Oracle Project ID(s),
+  Description (free text), Project TCV Revenue, Project Currency, Oracle Project ID(s),
   Billing Type (FPP / FB / T&M / Product / Unit Based Billing / Others), Engagement Type
   (Implementation / Support).
 - **Fields/elements — Progress:**

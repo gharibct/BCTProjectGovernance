@@ -50,7 +50,7 @@ export function GovernanceComplianceTable({ rows }: { rows: GovernanceCompliance
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-bold tracking-wide text-slate-500 uppercase">
+              <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                 <th className="min-w-[220px] px-5 py-3">Project</th>
                 <th className="min-w-[90px] px-3 py-3 text-center">Reporting</th>
                 <th className="min-w-[100px] px-3 py-3 text-center">Measurement</th>
@@ -62,7 +62,7 @@ export function GovernanceComplianceTable({ rows }: { rows: GovernanceCompliance
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.project_id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
+                <tr key={row.project_id} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
                   <td className="px-5 py-2.5">
                     <Link href={row.href} className="font-semibold text-slate-900 hover:underline">
                       {row.project_name}

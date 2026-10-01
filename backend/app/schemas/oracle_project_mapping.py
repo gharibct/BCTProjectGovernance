@@ -14,6 +14,13 @@ class OracleProjectSummary(BaseModel):
     unmapped_no_geo_count: int
 
 
+class OracleProjectDemographyEntry(BaseModel):
+    # GovOne project type name + description; None groups projects with no type set.
+    project_type: str | None
+    description: str | None = None
+    count: int
+
+
 class OracleProjectRow(BaseModel):
     oracle_project_id: UUID
     project_number: str

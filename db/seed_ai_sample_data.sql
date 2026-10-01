@@ -244,13 +244,13 @@ INSERT INTO ai_row_suggestions
   (id, project_id, screen, period_id, row_values, match_key, matched_entity_id, confidence, source_document, source_location, evidence, status, created_at, updated_at)
 VALUES
   (gen_random_uuid(), :'project_id'::uuid, 'commitments', :'current_period_id'::uuid,
-   '{"commitment_name":"SLA - Incident Resolution Time","frequency":"Monthly","formula":"Incidents Resolved Within SLA / Total Incidents","target":"95%","penalty_applicable":"Y","penalty_value":"5000"}'::jsonb,
+   '{"commitment_name":"SLA - Incident Resolution Time","frequency":"Monthly","commitment_details":"95% of incidents resolved within the agreed SLA window.","penalty_applicable":"Y"}'::jsonb,
    NULL, NULL, 0.78, 'Statement_of_Work.docx', 'Section 4', 'Vendor shall resolve 95% of logged incidents within the agreed SLA window, measured monthly; failure to meet this target attracts a penalty of $5,000 per occurrence.', 'pending', now(), now()),
   (gen_random_uuid(), :'project_id'::uuid, 'commitments', :'current_period_id'::uuid,
-   '{"commitment_name":"System Uptime","frequency":"Monthly","formula":"Uptime Hours / Total Hours","target":"99.5%","penalty_applicable":"Y","penalty_value":"10000"}'::jsonb,
+   '{"commitment_name":"System Uptime","frequency":"Monthly","commitment_details":"99.5% platform uptime, measured monthly.","penalty_applicable":"Y"}'::jsonb,
    NULL, NULL, 0.7, 'Purchase_Order.pdf', 'Page 2', 'The platform shall maintain 99.5% uptime measured monthly; non-compliance is subject to a $10,000 service credit.', 'pending', now(), now()),
   (gen_random_uuid(), :'project_id'::uuid, 'commitments', :'current_period_id'::uuid,
-   '{"commitment_name":"Monthly Status Reporting","frequency":"Monthly","target":"By 5th of following month","penalty_applicable":"N"}'::jsonb,
+   '{"commitment_name":"Monthly Status Reporting","frequency":"Monthly","commitment_details":"Status report submitted by the 5th of the following month.","penalty_applicable":"N"}'::jsonb,
    NULL, NULL, 0.5, 'Proposal.pdf', 'Page 6', 'A monthly status report will be submitted to the customer by the 5th of the following month.', 'pending', now(), now());
 
 -- milestones

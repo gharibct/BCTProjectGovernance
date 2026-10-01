@@ -46,7 +46,11 @@ from app.schemas.dashboard import (
     RiskRow,
 )
 from app.schemas.enums import HealthRating, RoleCode
-from app.schemas.oracle_project_mapping import OracleProjectRow, OracleProjectSummary
+from app.schemas.oracle_project_mapping import (
+    OracleProjectDemographyEntry,
+    OracleProjectRow,
+    OracleProjectSummary,
+)
 from app.services import dashboard as dashboard_service
 from app.services import oracle_project_mapping as oracle_mapping_service
 from app.services.dashboard import DashboardFilters
@@ -74,6 +78,7 @@ def _filters(
 
 @router.get("/summary", response_model=DashboardSummary)
 async def get_dashboard_summary(
+    period_id: UUID | None = Query(default=None),
     filters: DashboardFilters = Depends(_filters),
     db: AsyncSession = Depends(get_db),
 ):
@@ -88,7 +93,7 @@ async def get_dashboard_summary(
         account_health=await dashboard_service.account_health_rows(db, filters),
         contractual_compliance=await dashboard_service.contractual_compliance_summary(db, filters),
         milestone_payments=await dashboard_service.milestone_payment_summary(db, filters),
-        account_matrix=await dashboard_service.account_health_matrix(db, filters),
+        account_matrix=await dashboard_service.account_health_matrix(db, filters, period_id=period_id),
         project_matrix=await dashboard_service.project_health_matrix(db, filters),
         account_highlights=await dashboard_service.account_highlights(db, filters),
         project_highlights=await dashboard_service.project_highlights(db, filters),
@@ -535,6 +540,7 @@ async def get_project_health_dashboard(
         customer_account_reports=await dashboard_service.customer_account_report_summary(db, active_account_ids),
         period_id=week.id if week else None,
         period_label=week.label if week else None,
+        previous_month_label=month.start.strftime("%B %Y"),
     )
 
 
@@ -632,6 +638,14 @@ async def get_oracle_projects_summary(
     db: AsyncSession = Depends(get_db),
 ):
     return await oracle_mapping_service.oracle_project_summary(db, scope)
+
+
+@router.get("/project-health/oracle-projects/demography", response_model=list[OracleProjectDemographyEntry])
+async def get_oracle_projects_demography(
+    scope: oracle_mapping_service.OracleProjectScope = Depends(_oracle_project_scope),
+    db: AsyncSession = Depends(get_db),
+):
+    return await oracle_mapping_service.oracle_project_demography(db, scope)
 
 
 @router.get("/project-health/oracle-projects", response_model=Page[OracleProjectRow])

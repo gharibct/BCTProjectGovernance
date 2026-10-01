@@ -15,7 +15,7 @@ import {
   type RegionalScope,
 } from "@/lib/api/regional-status";
 import type { ProjectStatusCategory } from "@/lib/api/project-status";
-import { RollupSourcePanel, type RollupSourceItem } from "./rollup-source-panel";
+import { RollupSourceDrawer, RollupSourcePanel, type RollupSourceItem } from "./rollup-source-panel";
 
 // One line-item register per Account/Geo Status section, rendered as an
 // EditableTextList — mirrors components/project-status/status-items-tab.tsx
@@ -69,10 +69,39 @@ export function StatusItemsTab({
     );
   }
 
+  // Account reports pull from projects on demand through a drawer; the Geo
+  // report keeps its inline "Rolled Up From Accounts" panel.
+  const rollupProps = rollupItems
+    ? {
+        emptyLabel:
+          scope === "account"
+            ? "No project reports have contributed to this category yet for the selected period."
+            : "No account reports have contributed to this category yet for the selected period.",
+        category,
+        items: rollupItems,
+        onPull: onPullRollupItem!,
+        onIgnore: onIgnoreRollupItem!,
+        onUndo: onUndoRollupItem!,
+        busy: !!rollupBusy || frozen,
+      }
+    : null;
+
   return (
     <div className="flex flex-col gap-6">
-      <SectionCard icon={icon} title={title} aside={<AutoBadge label={`${items.length} logged`} />}>
+      <SectionCard
+        icon={icon}
+        title={title}
+        aside={
+          <div className="flex items-center gap-3">
+            <AutoBadge label={`${items.length} logged`} />
+            {rollupProps && scope === "account" ? (
+              <RollupSourceDrawer heading="Rolled Up From Projects" buttonLabel="Pull from Project" {...rollupProps} />
+            ) : null}
+          </div>
+        }
+      >
         <EditableTextList
+          addOpenByDefault={scope === "account"}
           items={items.map((item) => ({ id: item.id, text: item.description }))}
           disabled={frozen}
           addLabel={`Add ${title} Item`}
@@ -104,21 +133,8 @@ export function StatusItemsTab({
         />
       </SectionCard>
 
-      {rollupItems ? (
-        <RollupSourcePanel
-          heading={scope === "account" ? "Rolled Up From Projects" : "Rolled Up From Accounts"}
-          emptyLabel={
-            scope === "account"
-              ? "No project reports have contributed to this category yet for the selected period."
-              : "No account reports have contributed to this category yet for the selected period."
-          }
-          category={category}
-          items={rollupItems}
-          onPull={onPullRollupItem!}
-          onIgnore={onIgnoreRollupItem!}
-          onUndo={onUndoRollupItem!}
-          busy={!!rollupBusy || frozen}
-        />
+      {rollupProps && scope === "geo" ? (
+        <RollupSourcePanel heading="Rolled Up From Accounts" {...rollupProps} />
       ) : null}
     </div>
   );

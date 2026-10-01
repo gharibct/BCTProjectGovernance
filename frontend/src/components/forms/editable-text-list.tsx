@@ -15,11 +15,14 @@ export type EditableTextListProps = {
   disabled?: boolean;
   addLabel?: string;
   emptyLabel?: string;
+  // Show the add input from the start instead of behind a "+ Add …" button,
+  // so adding an item is one step (type, press Enter or Add).
+  addOpenByDefault?: boolean;
 };
 
 const rowClass = "flex items-center justify-between gap-3 px-4 py-3 text-sm text-slate-800";
 const inputClass =
-  "w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400";
+  "h-8 w-full rounded-md border border-[#5B9BE6] bg-[#F7FAFF] px-2.5 text-sm text-[#000000] outline-none placeholder:text-[#718096] hover:border-[#4F91D1] hover:bg-[#F3F8FE] focus:border-[#2F80ED] focus:bg-white focus:ring-2 focus:ring-blue-200";
 const iconButtonClass = "rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-[#1a6fc4]";
 const deleteButtonClass = "rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600";
 
@@ -39,12 +42,14 @@ export function EditableTextList({
   disabled = false,
   addLabel = "Add item",
   emptyLabel = "Nothing added yet.",
+  addOpenByDefault = false,
 }: EditableTextListProps) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editDraft, setEditDraft] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
   const [addDraft, setAddDraft] = React.useState("");
   const addInputRef = React.useRef<HTMLInputElement>(null);
+  const adding = isAdding || addOpenByDefault;
   // Escape sets this so the blur it triggers doesn't also commit.
   const skipNextBlurCommit = React.useRef(false);
 
@@ -91,7 +96,7 @@ export function EditableTextList({
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      {items.length === 0 && !isAdding ? (
+      {items.length === 0 && (!isAdding || addOpenByDefault) ? (
         <p className="px-4 py-6 text-center text-sm text-slate-400">{emptyLabel}</p>
       ) : (
         <div className="divide-y divide-slate-100">
@@ -165,11 +170,11 @@ export function EditableTextList({
 
       {!disabled ? (
         <div className={cn(rowClass, "border-t border-slate-200 bg-slate-50")}>
-          {isAdding ? (
+          {adding ? (
             <>
               <input
                 ref={addInputRef}
-                autoFocus
+                autoFocus={!addOpenByDefault}
                 className={inputClass}
                 value={addDraft}
                 placeholder="Type an item and press Enter…"

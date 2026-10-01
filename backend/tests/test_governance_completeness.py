@@ -172,21 +172,21 @@ async def test_planned_end_date_required_for_scope_schedule():
     result = await compute_governance_completeness(StubDB(), _project(planned_end_date=None))
     scope = next(m for m in result.modules if m.key == GovernanceModuleKey.SCOPE_SCHEDULE)
     assert scope.complete is False
-    assert (scope.fields_complete, scope.fields_total) == (3, 4)
-    assert scope.progress_pct == 75
+    assert (scope.fields_complete, scope.fields_total) == (5, 6)  # 3 core + 3 Development size/effort
+    assert scope.progress_pct == 83
     assert result.completion_pct == 97  # 31 / 32 mandatory fields
     assert result.gaps_count == 1
 
 
 async def test_measurement_is_mandatory_and_wired():
-    # A null metric target -> Measurement 10/11 -> still an incomplete gap.
+    # A null metric target -> Measurement 7/8 -> still an incomplete gap.
     db = StubDB(metric_row=_dev_target(target_productivity=None))
     result = await compute_governance_completeness(db, _project())
     measurement = next(m for m in result.modules if m.key == GovernanceModuleKey.MEASUREMENT)
     assert measurement.mandatory is True
     assert measurement.complete is False
     assert measurement.gaps
-    assert (measurement.fields_complete, measurement.fields_total) == (10, 11)
+    assert (measurement.fields_complete, measurement.fields_total) == (7, 8)
     assert result.completion_pct == 97  # 31 / 32 mandatory fields
     assert result.gaps_count == 1
 
@@ -199,3 +199,15 @@ async def test_raido_excluded_from_math():
     assert result.gaps_count == 0
     raido = next(m for m in result.modules if m.key == GovernanceModuleKey.RAIDO)
     assert raido.complete is False and raido.mandatory is False
+
+
+async def test_development_size_and_effort_belong_to_scope_schedule():
+    db = StubDB(metric_row=_dev_target(target_size_unit=None, target_overall_planned_size=None))
+    result = await compute_governance_completeness(db, _project())
+    scope = next(m for m in result.modules if m.key == GovernanceModuleKey.SCOPE_SCHEDULE)
+    assert scope.complete is False
+    assert (scope.fields_complete, scope.fields_total) == (4, 6)
+    assert scope.gaps == "Size Unit, Overall Planned Size and Overall Estimated Effort incomplete for Development"
+    # ...and no longer count against Measurement.
+    measurement = next(m for m in result.modules if m.key == GovernanceModuleKey.MEASUREMENT)
+    assert measurement.complete is True

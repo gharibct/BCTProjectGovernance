@@ -23,7 +23,7 @@ export function PmFindingsDrawer({
 
   return (
     <Sheet open={state !== null} onOpenChange={(open) => (open ? null : onClose())}>
-      <SheetContent className="gap-0 p-0 sm:w-[480px] lg:w-[38%]">
+      <SheetContent className="gap-0 p-0">
         <SheetHeader>
           <SheetTitle>{row ? `Finding #${row.sequence_no}` : "Finding"}</SheetTitle>
           <SheetDescription className="sr-only">

@@ -61,7 +61,7 @@ class AccountStatusReportRead(BaseModel):
 
 class GeoStatusReportCreate(BaseModel):
     period_id: UUID
-    status: ReportStatus = ReportStatus.DRAFT
+    status: ReportStatus = ReportStatus.DRAFT_SAVED
     revenue: Decimal | None = None
     onsite_fte: Decimal | None = None
     offshore_fte: Decimal | None = None
@@ -70,6 +70,9 @@ class GeoStatusReportCreate(BaseModel):
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
     created_by: UUID | None = None
+    # Baselining needs every account report of the period approved; the Geo Head
+    # confirms approving the still-Submitted ones by resending with this set.
+    approve_submitted_accounts: bool = False
 
 
 class GeoStatusReportUpdate(BaseModel):
@@ -81,6 +84,7 @@ class GeoStatusReportUpdate(BaseModel):
     key_accomplishments: str | None = None
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
+    approve_submitted_accounts: bool = False
 
 
 class GeoStatusReportRead(BaseModel):

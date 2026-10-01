@@ -82,9 +82,20 @@ def _like_pattern(search: str) -> str:
 
 
 async def list_resource_allocations(
-    db: AsyncSession, project_id: UUID, *, search: str | None, skip: int, limit: int
+    db: AsyncSession,
+    project_id: UUID,
+    *,
+    search: str | None,
+    skip: int,
+    limit: int,
+    scope: str | None = None,
+    today: date | None = None,
 ) -> tuple[list[ResourceAllocationRow], int]:
-    """One row per resource, ordered by name. `search` matches the name anywhere in it."""
+    """One row per resource, ordered by name. `search` matches the name anywhere in it.
+
+    `scope` splits the grid: "current" = resources with an allocation overlapping
+    the current month (the "Resources Allocated This Month" definition), "old" =
+    every other resource on the project; omitted = all."""
     ids = await oracle_master_ids(db, project_id)
     if not ids:
         return [], 0
@@ -92,6 +103,20 @@ async def list_resource_allocations(
     filters = [OracleProjectAllocation.project_id.in_(ids)]
     if search and search.strip():
         filters.append(func.lower(OracleEmployeeMaster.name).like(_like_pattern(search), escape="\\"))
+
+    if scope in ("current", "old"):
+        month_start, month_end = _month_bounds(today or date.today())
+        current_employees = select(OracleProjectAllocation.employee_id).where(
+            OracleProjectAllocation.project_id.in_(ids),
+            OracleProjectAllocation.allocation_start_date <= month_end,
+            (OracleProjectAllocation.allocation_end_date.is_(None))
+            | (OracleProjectAllocation.allocation_end_date >= month_start),
+        )
+        filters.append(
+            OracleProjectAllocation.employee_id.in_(current_employees)
+            if scope == "current"
+            else OracleProjectAllocation.employee_id.not_in(current_employees)
+        )
 
     base = (
         select(

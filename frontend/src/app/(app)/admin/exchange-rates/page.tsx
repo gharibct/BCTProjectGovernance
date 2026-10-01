@@ -12,7 +12,7 @@ export default function AdminExchangeRatesPage() {
       <header className="border-b border-slate-200 pb-5">
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">Exchange Rates</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Rate from each project currency to USD (USD per 1 unit). Used to convert Project Revenue to Revenue in USD.
+          Rate from each project currency to USD (USD per 1 unit). Used to convert Project TCV Revenue to Revenue in USD.
         </p>
       </header>
       <ExchangeRatesPanel />

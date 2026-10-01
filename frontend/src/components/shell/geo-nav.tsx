@@ -3,10 +3,17 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useSearchParams } from "next/navigation";
-import { Circle, CircleCheck, ClipboardList, LayoutGrid, Sparkles } from "lucide-react";
+import { Circle, CircleCheck, ClipboardList, LayoutGrid } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { activeClass, childClass, idleClass, StatusIcon, type NavGroup } from "./nav-primitives";
+import { ProgressHeader } from "./progress-header";
+import {
+  activeClass,
+  childClass,
+  idleClass,
+  StatusIcon,
+  type NavGroup,
+} from "./nav-primitives";
 
 // Mirrors account-nav.tsx's shell exactly, generalized for Geo Reporting.
 // No RAG Status entry — Geo has no health-declaration model (see
@@ -19,13 +26,12 @@ function buildGroups(base: string): NavGroup[] {
       icon: ClipboardList,
       items: [
         { label: "Status Reporting", href: `${base}/status`, done: true },
-        { label: "Executive Update", href: `${base}/executive-update`, done: false },
+        {
+          label: "Executive Update",
+          href: `${base}/executive-update`,
+          done: false,
+        },
       ],
-    },
-    {
-      heading: "AI Hub",
-      icon: Sparkles,
-      items: [{ label: "Document Processing", href: `${base}/ai-hub/document-processing`, done: true }],
     },
   ];
 }
@@ -33,7 +39,15 @@ function buildGroups(base: string): NavGroup[] {
 // Forwards the current ?period= (if any) onto every link, same as
 // account-nav.tsx's NavLinks. Split out because useSearchParams requires a
 // Suspense boundary at prerender.
-function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: string; base: string }) {
+function NavLinks({
+  groups,
+  pathname,
+  base,
+}: {
+  groups: NavGroup[];
+  pathname: string;
+  base: string;
+}) {
   const searchParams = useSearchParams();
   const period = searchParams.get("period");
   const suffix = period ? `?period=${period}` : "";
@@ -44,45 +58,56 @@ function NavLinks({ groups, pathname, base }: { groups: NavGroup[]; pathname: st
   const dashboardHref = `${base}/dashboard`;
   const dashboardActive = pathname === dashboardHref;
 
-  return (
-    <nav className="mt-4 flex flex-col gap-2">
-      <Link
-        href={`${dashboardHref}${suffix}`}
-        aria-current={dashboardActive ? "page" : undefined}
-        className={cn(
-          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold transition-colors",
-          dashboardActive ? "bg-[#d9eafc] text-[#15406b]" : "text-slate-800 hover:bg-slate-100"
-        )}
-      >
-        <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
-        Delivery Status Report - Geo
-      </Link>
+  const items = groups.flatMap((group) => group.items);
 
-      {groups.map((group) => (
-        <div key={group.heading}>
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
-            <group.icon className="size-5 shrink-0 text-[#1a6fc4]" />
-            {group.heading}
+  return (
+    <>
+      <ProgressHeader
+        title="Geo Report Progress"
+        completed={items.filter((item) => item.done).length}
+        total={items.length}
+      />
+      <nav className="mt-4 flex flex-col gap-2">
+        <Link
+          href={`${dashboardHref}${suffix}`}
+          aria-current={dashboardActive ? "page" : undefined}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold transition-colors",
+            dashboardActive
+              ? "bg-[#d9eafc] text-[#15406b]"
+              : "text-slate-800 hover:bg-slate-100",
+          )}
+        >
+          <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
+          Delivery Status Report - Geo
+        </Link>
+
+        {groups.map((group) => (
+          <div key={group.heading}>
+            <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
+              <group.icon className="size-5 shrink-0 text-[#1a6fc4]" />
+              {group.heading}
+            </div>
+            <div className="mt-1 mb-1 ml-5 flex flex-col gap-0.5 border-l border-slate-200 pl-3">
+              {group.items.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Link
+                    key={item.label}
+                    href={`${item.href}${suffix}`}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(childClass, active ? activeClass : idleClass)}
+                  >
+                    {item.label}
+                    <StatusIcon done={item.done} />
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-          <div className="mt-1 mb-1 ml-5 flex flex-col gap-0.5 border-l border-slate-200 pl-3">
-            {group.items.map((item) => {
-              const active = pathname === item.href;
-              return (
-                <Link
-                  key={item.label}
-                  href={`${item.href}${suffix}`}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(childClass, active ? activeClass : idleClass)}
-                >
-                  {item.label}
-                  <StatusIcon done={item.done} />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </nav>
+        ))}
+      </nav>
+    </>
   );
 }
 
@@ -99,7 +124,7 @@ export function GeoNav() {
   if (isHub) return null;
 
   return (
-    <aside className="w-72 shrink-0 border-l border-slate-200 bg-white px-4 py-8">
+    <aside className="w-72 shrink-0 border-l border-[#94A3B3] bg-white px-4 pt-0 pb-8 shadow-[-4px_0_14px_rgba(15,23,42,0.16)]">
       <Suspense fallback={null}>
         <NavLinks groups={groups} pathname={pathname} base={base} />
       </Suspense>

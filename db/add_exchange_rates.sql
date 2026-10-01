@@ -1,5 +1,5 @@
 -- Additive migration for an already-deployed DB: exchange_rates table +
--- projects.project_revenue_usd (Project Revenue converted to USD).
+-- projects.project_revenue_usd (Project TCV Revenue converted to USD).
 
 CREATE TABLE IF NOT EXISTS exchange_rates (
     id UUID PRIMARY KEY,

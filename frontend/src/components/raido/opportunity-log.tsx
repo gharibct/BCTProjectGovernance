@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { AutoBadge, ButtonSpinner, SectionCard, Segmented } from "@/components/forms/form-primitives";
@@ -21,9 +21,8 @@ import {
   filterRaidoByStatus,
   type RaidoStatusFilter,
 } from "@/lib/raido-status";
-import { AiRowSuggestionsPanel, AiRowSuggestionsTrigger } from "@/components/ai/ai-row-suggestions-panel";
 import { ReviewedNoChangesButton } from "@/components/reporting/reviewed-no-changes-button";
-import { useUsers } from "@/lib/api/reference-data";
+import { useProjectPeopleChoices, useUsersByIds } from "@/lib/api/reference-data";
 import {
   useCreateOpportunity,
   useDeleteOpportunity,
@@ -37,8 +36,7 @@ import {
 // field names — status/approved_by/actual_benefit/closure_date aren't
 // settable here (status defaults to "Identified" server-side).
 function useOpportunityFields(): FieldDef[] {
-  const { data: users } = useUsers();
-  const userChoices = (users ?? []).map((u) => ({ value: u.id, label: u.full_name }));
+  const userChoices = useProjectPeopleChoices(useParams<{ projectId: string }>().projectId);
 
   return [
     { key: "opportunity_title", label: "Opportunity Title", kind: "text", mandatory: true },
@@ -89,13 +87,6 @@ function toValues(item: OpportunityLogItem): Record<string, string> {
   } as unknown as Record<string, string>;
 }
 
-const OPPORTUNITY_PREVIEW_FIELDS = [
-  { key: "opportunity_title", label: "Title" },
-  { key: "category", label: "Category" },
-  { key: "impact", label: "Impact" },
-  { key: "expected_benefit", label: "Expected Benefit" },
-] as const;
-
 function buildOpportunityPayload(values: Record<string, string>): OpportunityLogPayload {
   return {
     ...values,
@@ -114,9 +105,26 @@ export function OpportunityLog() {
   const updateOpportunity = useUpdateOpportunity(projectId);
   const deleteOpportunity = useDeleteOpportunity(projectId);
   const fields = useOpportunityFields();
-  const { data: users } = useUsers();
+  const { data: users } = useUsersByIds(items.map((item) => item.opportunity_owner));
   const userName = (id: string | null) => users?.find((u) => u.id === id)?.full_name ?? "—";
-  const { editingId, startEdit, cancelEdit } = useEditableEntry<OpportunityLogItem>(load, reset, toValues);
+  const { editingId, startEdit: beginEdit, cancelEdit: endEdit } = useEditableEntry<OpportunityLogItem>(load, reset, toValues);
+  const [formOpen, setFormOpen] = useState(false);
+  const startAdd = () => {
+    endEdit();
+    setFormOpen(true);
+  };
+  const startEdit = (item: OpportunityLogItem) => {
+    beginEdit(item);
+    setFormOpen(true);
+  };
+  const cancelEdit = () => {
+    endEdit();
+    setFormOpen(false);
+  };
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (formOpen) formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [formOpen, editingId]);
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
@@ -149,6 +157,7 @@ export function OpportunityLog() {
       createOpportunity.mutate(payload, {
         onSuccess: () => {
           reset();
+          setFormOpen(false);
           showSuccess("Opportunity Added Successfully");
         },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to add opportunity."),
@@ -166,13 +175,7 @@ export function OpportunityLog() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <AiRowSuggestionsTrigger
-          projectId={projectId}
-          screen="opportunities"
-          periodId={periodId}
-          itemLabel="Opportunity"
-        />
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="OPPORTUNITY" />
       </div>
 
@@ -187,6 +190,13 @@ export function OpportunityLog() {
               onChange={setStatusFilter}
             />
             <AutoBadge label={`${visibleItems.length} of ${items.length}`} />
+            <Button
+              onClick={startAdd}
+              className="h-9 gap-1.5 bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
+            >
+              <Plus className="size-4" />
+              Add Opportunity
+            </Button>
           </div>
         }
       >
@@ -218,35 +228,26 @@ export function OpportunityLog() {
         />
       </SectionCard>
 
-      <AiRowSuggestionsPanel
-        projectId={projectId}
-        screen="opportunities"
-        periodId={periodId}
-        itemLabel="Opportunity"
-        previewFields={OPPORTUNITY_PREVIEW_FIELDS}
-        buildPayload={buildOpportunityPayload}
-        createMutation={createOpportunity}
-        updateMutation={updateOpportunity}
-      />
-
-      <SectionCard icon={TrendingUp} title="New Opportunity">
-        <EntryFields defs={fields} values={values} set={set} />
-        <div className="mt-6 flex justify-end gap-3">
-          {editingId ? (
-            <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
-              Cancel
-            </Button>
-          ) : null}
-          <Button
-            onClick={submit}
-            disabled={busy}
-            className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-          >
-            {busy ? <ButtonSpinner /> : null}
-            {editingId ? "Edit Opportunity" : "Add Opportunity"}
-          </Button>
+      {formOpen ? (
+        <div ref={formRef}>
+          <SectionCard icon={TrendingUp} title={editingId ? "Edit Opportunity" : "New Opportunity"}>
+            <EntryFields defs={fields} values={values} set={set} />
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" className="h-11 px-6 text-sm font-semibold" onClick={cancelEdit}>
+                Cancel
+              </Button>
+              <Button
+                onClick={submit}
+                disabled={busy}
+                className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+              >
+                {busy ? <ButtonSpinner /> : null}
+                {editingId ? "Save Opportunity" : "Add Opportunity"}
+              </Button>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+      ) : null}
     </div>
   );
 }

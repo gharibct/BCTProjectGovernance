@@ -188,6 +188,24 @@ export function useHealthDeclarationForm() {
   const setRating = (categoryKey: CategoryKey, value: HealthRating) =>
     setRatings((prev) => ({ ...prev, [categoryKey]: value }));
 
+  // "Copy from latest report" — seeds the six ratings from the most recent
+  // earlier declaration of the same period type. Only when this period has no
+  // saved declaration yet; the user still reviews and presses Save Report.
+  const copyRatingsFromLatest = (): boolean => {
+    if (existing) return false;
+    const current = periods.find((p) => p.id === periodId);
+    if (!current) return false;
+    const source = (declarations ?? [])
+      .map((declaration) => ({ declaration, period: periods.find((p) => p.id === declaration.period_id) }))
+      .filter(
+        ({ period }) => period && period.period_type === current.period_type && period.start_date < current.start_date
+      )
+      .sort((a, b) => b.period!.start_date.localeCompare(a.period!.start_date))[0];
+    if (!source) return false;
+    setRatings(fromDeclaration(source.declaration).ratings);
+    return true;
+  };
+
   const declaredOverall = worstOf(Object.values(ratings));
   const deAssessedHealth = project?.de_assessed_project_health
     ? RATING_FROM_API[project.de_assessed_project_health]
@@ -198,7 +216,10 @@ export function useHealthDeclarationForm() {
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
-  const submit = async () => {
+  // Persists the six category ratings; throws on failure so callers decide how
+  // to report it (Save RAG Status toasts it, the merged Delivery Status
+  // Report folds it into its single Save Report message).
+  const saveRatings = async () => {
     if (!projectId || !periodId) return;
     setIsSubmitting(true);
     try {
@@ -215,11 +236,18 @@ export function useHealthDeclarationForm() {
       } else {
         await createDeclaration.mutateAsync({ period_id: periodId, ...fields });
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submit = async () => {
+    if (!projectId || !periodId) return;
+    try {
+      await saveRatings();
       showSuccess("RAG Status Saved Successfully");
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to save self assessment.");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -231,6 +259,8 @@ export function useHealthDeclarationForm() {
     deAssessedHealth,
     overall,
     submit,
+    saveRatings,
+    copyRatingsFromLatest,
     isSubmitting: isSubmitting || createDeclaration.isPending || updateDeclaration.isPending,
   };
 }
@@ -317,7 +347,7 @@ export function HealthDeclaration({
       <div>
         <div className="flex items-center gap-3 pb-4 text-lg font-bold text-slate-900">
           <HeartPulse className="size-5 text-slate-700" />
-          Delivery Declared Project Health
+          RAG Status
         </div>
         <div role="tablist" className="flex gap-8 border-b border-slate-200">
           {HEALTH_CATEGORIES.map((t) => (
@@ -355,5 +385,54 @@ export function HealthDeclaration({
         </div>
       </div>
     </div>
+  );
+}
+
+// The merged Delivery Status Report renders RAG as one long section instead of
+// tabs: every category stacked, each with its rating picker and notes, and an
+// anchor id (rag-<key>) the report-progress rail scrolls to.
+export function HealthSections({
+  form,
+  disabled = false,
+}: {
+  form: ReturnType<typeof useHealthDeclarationForm>;
+  disabled?: boolean;
+}) {
+  const { ratings, setRating } = form;
+
+  if (!form.projectId) {
+    return <EmptyState>No project selected.</EmptyState>;
+  }
+
+  return (
+    <section id="rag" className="scroll-mt-6">
+      <div className="flex items-center gap-3 pb-4 text-lg font-bold text-slate-900">
+        <HeartPulse className="size-5 text-slate-700" />
+        RAG Status
+      </div>
+      <div className="flex flex-col gap-8">
+        {HEALTH_CATEGORIES.map((tab) => {
+          const category = CATEGORIES.find((c) => c.name === tab.category)!;
+          return (
+            <div key={category.key} id={`rag-${category.key}`} className="scroll-mt-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-800">{category.name}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">{category.covers}</p>
+                </div>
+                <HealthPicker
+                  value={ratings[category.key]}
+                  onChange={(value) => setRating(category.key, value)}
+                  disabled={disabled}
+                />
+              </div>
+              <div className="mt-4">
+                <HealthItemsTab category={tab.category} title={tab.label} icon={tab.icon} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

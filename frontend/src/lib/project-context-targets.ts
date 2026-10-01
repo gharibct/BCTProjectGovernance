@@ -9,7 +9,8 @@ export type ProjectTargetId = Extract<
   MenuEntryId,
   | "maintain-project"
   | "view-amend-projects"
-  | "project-reporting"
+  | "delivery-reporting"
+  | "performance-reporting"
   | "project-review"
   | "project-approval"
   | "project-performance"
@@ -24,7 +25,7 @@ export function isApproved(status: Project["project_status"]): boolean {
   return status !== "Draft" && status !== "Pending Approval";
 }
 
-// Report Project Status is narrower than isApproved: a project mid-revision
+// Report Delivery Status / Report Project Performance are narrower than isApproved: a project mid-revision
 // (Under Amendment) is back in the charter-editing flow, not a live project to
 // report on, so it's excluded there (it still shows under Amend Project).
 export function canReport(status: Project["project_status"]): boolean {
@@ -58,9 +59,15 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     eligible: (p) => projectScreenRoot(p) === "amend-project",
     emptyLabel: "No approved projects yet.",
   },
-  "project-reporting": {
-    label: "Report Project Status",
-    hrefFor: (id) => `/project-reporting/${id}`,
+  "delivery-reporting": {
+    label: "Report Delivery Status",
+    hrefFor: (id) => `/project-reporting/${id}/delivery-calendar`,
+    eligible: (p) => canReport(p.project_status),
+    emptyLabel: "No approved projects yet.",
+  },
+  "performance-reporting": {
+    label: "Report Project Performance",
+    hrefFor: (id) => `/project-reporting/${id}/performance`,
     eligible: (p) => canReport(p.project_status),
     emptyLabel: "No approved projects yet.",
   },

@@ -355,7 +355,7 @@ export function HealthDeclaration({
       <div>
         <div className="flex items-center gap-3 pb-4 text-lg font-bold text-slate-900">
           <HeartPulse className="size-5 text-slate-700" />
-          Delivery Declared Project Health
+          RAG Status
         </div>
         <div role="tablist" className="flex gap-8 border-b border-slate-200">
           {HEALTH_CATEGORIES.map((t) => (

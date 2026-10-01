@@ -1,19 +1,12 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { ContractualComplianceForm } from "@/components/contractual-compliance/contractual-compliance-form";
-import { ProjectHeader } from "@/components/shell/project-header";
-
-export const metadata: Metadata = {
-  title: "Contractual Compliance | Governance One",
-};
-
-export default function ContractualCompliancePage() {
-  return (
-    <div className="mx-auto max-w-6xl">
-      <ProjectHeader subheading="Contractual Compliance" />
-      <div className="mt-8">
-        <ContractualComplianceForm />
-      </div>
-    </div>
-  );
+// Contractual Compliance was split into Contractual Commitments and
+// Milestones — keep old links/bookmarks working.
+export default async function LegacyContractualCompliancePage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
+  const { projectId } = await params;
+  redirect(`/project-reporting/${projectId}/contractual-commitments`);
 }

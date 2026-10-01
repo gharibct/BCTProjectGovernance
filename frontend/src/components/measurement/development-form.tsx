@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { fromDevelopmentTarget } from "@/components/new-project/measurement/development-form";
 import { useDevelopmentTarget } from "@/lib/api/metric-targets";
 import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
@@ -96,7 +95,7 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
 
   const latestQuery = useLatestDevelopmentMeasurement(projectId);
   const createMutation = useCreateDevelopmentMeasurement(projectId);
-  const { latest, m, set, periodId, submit, isSaving, ai } = useMeasurementForm({
+  const { latest, m, set, periodId, submit, isSaving } = useMeasurementForm({
     projectId,
     screen: "measurement_development",
     latestQuery,
@@ -124,12 +123,6 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <LoadAiSuggestionsButton
-        projectId={projectId}
-        screen="measurement_development"
-        periodId={periodId || null}
-        ai={ai}
-      />
       <SectionCard icon={ChartColumn} title="Metrics">
         <div className="rounded-xl bg-slate-50 p-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -303,7 +296,7 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-bold tracking-wide text-slate-600 uppercase">
+              <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-left text-xs font-bold tracking-wide text-[#205889] uppercase">
                 <th className="px-4 py-3">Stage</th>
                 <th className="px-4 py-3 text-right">Internal</th>
                 <th className="px-4 py-3 text-right">External</th>

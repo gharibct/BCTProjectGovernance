@@ -18,9 +18,15 @@ import {
 import { ProjectHeader } from "@/components/shell/project-header";
 import { BigStat, Card, ErrorBlock, formatNumber, SubStat } from "@/components/dashboard/project-health-kpi";
 import { useProjectPerformanceDashboard } from "@/lib/api/project-performance";
-import { REPORT_PAGE_TYPE_LABEL, type PageCompletionStatus } from "@/lib/api/reporting-attestation";
+import { CopyFromLatestButton } from "@/components/forms/copy-from-latest-button";
+import { usePageBanner } from "@/stores/page-banner";
+import {
+  REPORT_PAGE_TYPE_LABEL,
+  useCopyMonthlyFromLatest,
+  type PageCompletionStatus,
+} from "@/lib/api/reporting-attestation";
 import { useReportingPeriods } from "@/lib/api/reference-data";
-import { useStatusReports } from "@/lib/api/project-status";
+import { isReportFrozen, useStatusReports } from "@/lib/api/project-status";
 import { currentPeriod } from "@/lib/period-utils";
 import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
 import { cn } from "@/lib/utils";
@@ -28,6 +34,27 @@ import { SubmitReportAction } from "./submit-report-action";
 
 function formatShortDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
+}
+
+// "Copy from latest report": prefills this month's Measurement forms from the
+// latest earlier month. Forms that already have data are left alone.
+function CopyMonthlyFromLatest({ projectId, periodId }: { projectId: string; periodId: string }) {
+  const copy = useCopyMonthlyFromLatest(projectId);
+  const showSuccess = usePageBanner((state) => state.showSuccess);
+  const showError = usePageBanner((state) => state.showError);
+  const onClick = () =>
+    copy.mutate(periodId, {
+      onSuccess: (result) =>
+        result.copied > 0
+          ? showSuccess("Measurements copied from the latest report. Review them before submitting.")
+          : showError("Nothing to copy — there is no earlier monthly report, or Measurement already has data."),
+      onError: (err) => showError(err instanceof Error ? err.message : "Failed to copy from the latest report."),
+    });
+  return (
+    <div className="flex justify-end">
+      <CopyFromLatestButton onClick={onClick} busy={copy.isPending} />
+    </div>
+  );
 }
 
 function CompletionChecklist({ completion }: { completion: PageCompletionStatus[] }) {
@@ -123,7 +150,7 @@ export function PerformanceDashboardBody({
           title="Commitments"
           icon={Handshake}
           iconClassName="text-teal-600"
-          href={`${base}/contractual-compliance?period=${periodId}`}
+          href={`${base}/contractual-commitments?period=${periodId}`}
         >
           <BigStat value={data.commitments.open_count} label="Open" />
           <div className="flex flex-col gap-1">
@@ -137,7 +164,7 @@ export function PerformanceDashboardBody({
           title="Payment Milestones"
           icon={Wallet}
           iconClassName="text-emerald-600"
-          href={`${base}/contractual-compliance?period=${periodId}`}
+          href={`${base}/milestones?period=${periodId}`}
         >
           <BigStat
             value={formatNumber(data.payment_milestones.value_due)}
@@ -219,6 +246,10 @@ export function PerformanceDashboardBody({
           </div>
         </Card>
       </div>
+
+      {!readOnly && !isReportFrozen(reports.find((r) => r.period_id === periodId)?.status ?? "Draft") ? (
+        <CopyMonthlyFromLatest projectId={projectId} periodId={periodId} />
+      ) : null}
 
       <CompletionChecklist completion={data.completion} />
 

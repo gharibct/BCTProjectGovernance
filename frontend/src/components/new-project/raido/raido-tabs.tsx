@@ -26,7 +26,7 @@ export function RaidoTabs() {
 
   return (
     <div>
-      <div role="tablist" className="flex gap-8 border-b border-slate-200">
+      <div role="tablist" className="flex flex-wrap gap-2 border-b-2 border-[#1a6fc4]">
         {TABS.map((t) => (
           <button
             key={t.label}
@@ -35,10 +35,10 @@ export function RaidoTabs() {
             aria-selected={tab === t.label}
             onClick={() => setTab(t.label)}
             className={cn(
-              "-mb-px border-b-2 pb-3 text-sm font-semibold whitespace-nowrap transition-colors",
+              "-mb-0.5 rounded-t-lg border-2 border-b-0 px-5 py-2.5 text-sm font-bold whitespace-nowrap transition-colors",
               tab === t.label
-                ? "border-[#1a4a7a] text-[#1a4a7a]"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+                ? "border-[#1a4a7a] bg-[#1a4a7a] text-white"
+                : "border-[#1a6fc4] bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#1a4a7a]"
             )}
           >
             {t.label}

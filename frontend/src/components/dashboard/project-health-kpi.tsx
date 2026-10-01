@@ -54,6 +54,7 @@ export function Card({
   href,
   footerLabel,
   className,
+  period,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -62,15 +63,24 @@ export function Card({
   href?: string;
   footerLabel?: string;
   className?: string;
+  // The period the KPI covers ("Selected Period: Week 12", "As of today", …),
+  // shown as a caption at the bottom of the card.
+  period?: string;
 }) {
   return (
     <div className={cn("flex flex-col justify-between rounded-xl border border-slate-200 bg-white shadow-sm", className)}>
-      <div className="p-5">
+      <div className="flex flex-1 flex-col p-5">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-900">
           <Icon className={cn("size-4", iconClassName ?? "text-slate-400")} />
           {title}
         </h3>
         {children}
+        {period ? (
+          // mt-auto pins the caption to the card bottom so it lines up across a row.
+          <div className="mt-auto pt-3">
+            <p className="border-t border-slate-100 pt-2 text-[11px] text-slate-400">{period}</p>
+          </div>
+        ) : null}
       </div>
       {href ? (
         <Link

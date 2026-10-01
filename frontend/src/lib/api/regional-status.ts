@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
 import type { OpenNcRow } from "./dashboard";
-import type { ProjectStatusCategory, ReportStatus } from "./project-status";
+import type { CopyFromLatestResult, ProjectStatusCategory, ReportStatus } from "./project-status";
 import type { ReportingActivitySeries } from "@/lib/reporting-activity";
 
 // Account Reporting / Geo Reporting — manually authored, period-scoped
@@ -45,6 +45,8 @@ export type RegionalStatusReport = {
 export type RegionalStatusReportPayload = {
   period_id: string;
   status?: ReportStatus;
+  // Geo only, with status "Baselined": confirms approving the still-Submitted account reports.
+  approve_submitted_accounts?: boolean;
   revenue?: string;
   onsite_fte?: string;
   offshore_fte?: string;
@@ -103,6 +105,16 @@ export function useRegionalReportingActivity(scope: RegionalScope, scopeId: stri
   });
 }
 
+// Same timeline for an explicit calendar year, so a rolling 12-month view can
+// span a year boundary.
+export function useRegionalReportingActivityForYear(scope: RegionalScope, scopeId: string | null, year: number) {
+  return useQuery({
+    queryKey: ["regional-reporting-activity", scope, scopeId, year],
+    queryFn: () => api.get<WeeklyReportingActivity>(`/${scope}s/${scopeId}/reporting-activity?year=${year}`),
+    enabled: !!scopeId,
+  });
+}
+
 function invalidateRegionalStatusReports(
   queryClient: ReturnType<typeof useQueryClient>,
   scope: RegionalScope,
@@ -127,6 +139,15 @@ export function useUpdateRegionalStatusReport(scope: RegionalScope, scopeId: str
     mutationFn: ({ id, payload }: { id: string; payload: RegionalStatusReportUpdatePayload }) =>
       api.put<RegionalStatusReport>(`${basePath(scope, scopeId!)}/${id}`, payload),
     onSuccess: () => invalidateRegionalStatusReports(queryClient, scope, scopeId),
+  });
+}
+
+// Geo report only: a Baselined report goes back to "Draft - Saved".
+export function useRecallGeoStatusReport(geoId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.patch<RegionalStatusReport>(`${basePath("geo", geoId!)}/${id}/recall`, {}),
+    onSuccess: () => invalidateRegionalStatusReports(queryClient, "geo", geoId),
   });
 }
 
@@ -241,5 +262,17 @@ export function useDeleteRegionalStatusItem(
   return useMutation({
     mutationFn: (id: string) => api.delete(`/${scope}s/${scopeId}/status-items/${id}`),
     onSuccess: () => invalidateRegionalStatusItems(queryClient, scope, scopeId, periodId, category),
+  });
+}
+
+export function useCopyAccountItemsFromLatest(accountId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (periodId: string) =>
+      api.post<CopyFromLatestResult>(`/accounts/${accountId}/status-items/copy-from-latest?period_id=${periodId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regional-status-items", "account", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account-health-items", accountId] });
+    },
   });
 }

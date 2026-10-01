@@ -67,8 +67,12 @@ export function ProjectHealthFilterBar({
   const hideGeoRegion = isPm || isAccountManager;
   const ownedGeoIds = useSession((s) => s.user?.geo_ids ?? []);
   const ownedAccountIds = useSession((s) => s.user?.account_ids ?? []);
-  const geoOptions = isGeoHead ? geos.filter((geo) => ownedGeoIds.includes(geo.id)) : geos;
-  const geoHeadHasSingleGeo = isGeoHead && geoOptions.length === 1;
+  // Combo loading only: an Admin sees every geo / account even while working
+  // as Geo Head / Delivery Manager (they own none; the backend is org-wide for
+  // them). Which combos are shown still follows the Work Context.
+  const isAdmin = useSession((s) => s.user?.role.code === "ADMIN");
+  const geoOptions = isGeoHead && !isAdmin ? geos.filter((geo) => ownedGeoIds.includes(geo.id)) : geos;
+  const geoHeadHasSingleGeo = isGeoHead && !isAdmin && geoOptions.length === 1;
   const defaultGeoId = geoHeadHasSingleGeo ? geoOptions[0].id : undefined;
 
   // A single-geo Geo Head always has that geo selected — apply it on load and
@@ -83,8 +87,8 @@ export function ProjectHealthFilterBar({
   // Account list cascades off the selected Geo (and Region, when shown).
   const accountOptions = accounts.filter(
     (account) =>
-      (!isAccountManager || ownedAccountIds.includes(account.id)) &&
-      (!isGeoHead || (account.geo_id !== null && ownedGeoIds.includes(account.geo_id))) &&
+      (isAdmin || !isAccountManager || ownedAccountIds.includes(account.id)) &&
+      (isAdmin || !isGeoHead || (account.geo_id !== null && ownedGeoIds.includes(account.geo_id))) &&
       (!filters.geoId || account.geo_id === filters.geoId) &&
       (!showRegion || !filters.regionId || account.region_id === filters.regionId),
   );

@@ -41,7 +41,7 @@ CREATE TABLE geo_status_reports (
     id UUID PRIMARY KEY,
     geo_id UUID NOT NULL REFERENCES geos(id) ON DELETE CASCADE,
     period_id UUID NOT NULL REFERENCES reporting_periods(id),
-    status TEXT NOT NULL DEFAULT 'Draft', -- Draft, Submitted, Approved, Rejected
+    status TEXT NOT NULL DEFAULT 'Draft - Saved', -- Auto Generated, Draft - Saved, Baselined
     -- Key Metrics — captured once per report alongside the narrative tabs.
     revenue NUMERIC(18, 2),
     onsite_fte NUMERIC(5, 2),

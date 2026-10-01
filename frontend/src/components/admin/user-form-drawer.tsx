@@ -51,7 +51,7 @@ export function UserFormDrawer({
 }) {
   return (
     <Sheet open={open} onOpenChange={(next) => (next ? null : onClose())}>
-      <SheetContent className="gap-0 p-0 sm:w-[560px] lg:w-[40%]">
+      <SheetContent className="gap-0 p-0">
         <SheetHeader>
           <SheetTitle>{user ? "Edit User" : "New User"}</SheetTitle>
           <SheetDescription>

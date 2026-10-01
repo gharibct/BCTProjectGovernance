@@ -933,6 +933,9 @@ class ProjectHealthDashboardSummary(BaseModel):
     customer_account_reports: CustomerAccountReportSummary
     period_id: UUID | None
     period_label: str | None
+    # The calendar month the month-based cards (Metrics, Commitments, DE, Project
+    # Performance) cover — the month before the selected week, e.g. "July 2026".
+    previous_month_label: str | None = None
 
 
 # One entry of the Project Health Period combo (Weekly periods only).

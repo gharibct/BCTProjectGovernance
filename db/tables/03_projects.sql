@@ -47,7 +47,7 @@ CREATE TABLE projects (
     tool_effective_date DATE,
 
     -- Treatment / Health
-    applicable_phase TEXT, -- multi-select, comma-joined: Discovery / POC / Assessment / Consulting, Requirement, Design, CUT, Build & Deployment, Testing, UAT Support, Warranty, Support, Migration
+    applicable_phase TEXT, -- multi-select, comma-joined: Discovery / POC / Assessment / Consulting, Requirement, Design, CUT, Build & Deployment, Testing, UAT Support, Warranty, Support L0, Support L1, Support L2, Support L3, Migration
     project_status TEXT NOT NULL, -- Draft, Pending Approval, Approved, Under Amendment
     lifecycle_status TEXT, -- Ongoing, Hold, Closed, Open Only for Billing (null = follow project_status)
     -- Denormalized read-only caches, kept in sync by the application whenever a

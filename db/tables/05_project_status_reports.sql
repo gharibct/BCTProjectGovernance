@@ -22,6 +22,10 @@ CREATE TABLE project_status_reports (
     reviewed_by UUID REFERENCES users(id),
     reviewed_at TIMESTAMPTZ,
     review_comment TEXT,
+    -- Recall of a Submitted report back to Draft (before approval) — see
+    -- db/add_status_report_recall.sql.
+    recall_remarks TEXT,
+    recalled_at TIMESTAMPTZ,
     -- Open Alerts snapshot, frozen at save time (as of this period's
     -- end_date) — see db/add_status_report_open_alerts_snapshot.sql.
     open_alerts_count INTEGER NOT NULL DEFAULT 0,
@@ -29,6 +33,7 @@ CREATE TABLE project_status_reports (
     -- Customer Communication — see db/add_status_report_customer_communication.sql.
     customer_report_shared BOOLEAN,
     customer_report_date DATE,
+    customer_report_confidential BOOLEAN NOT NULL DEFAULT FALSE,
     customer_report_file_name TEXT,
     customer_report_file_path TEXT,
     customer_remarks TEXT,

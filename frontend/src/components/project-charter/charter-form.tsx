@@ -33,6 +33,7 @@ import { RegisterTable } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { usePageBanner } from "@/stores/page-banner";
 import { useProjectOwnedReference } from "@/lib/api/project-owned-reference";
+import { CONTRACT_TYPE_INFO_ENTRIES, CRITICAL_FLAG_INFO_ENTRIES } from "@/lib/contract-type-reference";
 import {
   useAccounts,
   useGeos,
@@ -89,7 +90,13 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
     <div className="flex flex-col gap-8">
       <SectionCard icon={Info} title="Project Details">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Contract Type" htmlFor="contract-type">
+          <Field
+            label="Contract Type"
+            htmlFor="contract-type"
+            badge={
+              <FieldInfoButton ariaLabel="What does Contract Type mean?" entries={CONTRACT_TYPE_INFO_ENTRIES} />
+            }
+          >
             <NativeSelect id="contract-type" value={project?.contract_type ?? ""} disabled>
               <option value="" disabled>
                 Select…
@@ -171,7 +178,12 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Critical Flag">
+          <Field
+            label="Critical Flag"
+            badge={
+              <FieldInfoButton ariaLabel="What does Critical Flag mean?" entries={CRITICAL_FLAG_INFO_ENTRIES} />
+            }
+          >
             <Segmented
               options={YES_NO_OPTIONS}
               value={project?.critical_flag ?? ""}
@@ -250,7 +262,7 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
 
       <SectionCard icon={Banknote} title="Commercials">
         <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-          <Field label="Project Revenue" htmlFor="project-revenue">
+          <Field label="Project TCV Revenue" htmlFor="project-revenue">
             <Input
               id="project-revenue"
               type="number"

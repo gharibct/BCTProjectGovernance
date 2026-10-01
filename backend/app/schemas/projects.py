@@ -202,7 +202,6 @@ class ProjectRead(ProjectBase):
         return all(
             _is_filled(value)
             for value in (
-                self.customer_overview,
                 self.project_scope_description,
                 self.planned_start_date,
                 self.planned_end_date,

@@ -72,10 +72,10 @@ function MeasurementTabBody({
 
   return (
     <div className="flex flex-col gap-6">
-      <Content projectId={projectId} />
       <div className="flex justify-end">
         <ReviewedNoChangesButton projectId={projectId} periodId={periodId} pageType="MEASUREMENT" />
       </div>
+      <Content projectId={projectId} />
     </div>
   );
 }

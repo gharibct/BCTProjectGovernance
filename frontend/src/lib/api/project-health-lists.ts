@@ -321,6 +321,12 @@ export type OracleProjectSummary = {
   unmapped_no_geo_count: number;
 };
 
+export type OracleProjectDemographyEntry = {
+  project_type: string | null;
+  description: string | null;
+  count: number;
+};
+
 export type ProjectHealthListParams = ProjectHealthDashboardFilters & {
   // Customer reporting drill-downs only — narrow to one status; undefined = all.
   status?: string;
@@ -599,6 +605,22 @@ export function useProjectHealthOracleProjects(
   return useQuery({
     queryKey: ["dashboard-project-health-oracle-projects", params],
     queryFn: () => api.get<Page<OracleProjectRow>>(`${PROJECT_HEALTH_LIST_PATHS.oracleProjects}?${query}`),
+    enabled,
+  });
+}
+
+export function useProjectHealthOracleProjectDemography(filters: ProjectHealthDashboardFilters, enabled = true) {
+  const q = new URLSearchParams();
+  if (filters.geoId) q.set("geo_id", filters.geoId);
+  if (filters.regionId) q.set("region_id", filters.regionId);
+  if (filters.accountId) q.set("account_id", filters.accountId);
+  const query = q.toString();
+  return useQuery({
+    queryKey: ["dashboard-project-health-oracle-project-demography", filters],
+    queryFn: () =>
+      api.get<OracleProjectDemographyEntry[]>(
+        `${PROJECT_HEALTH_LIST_PATHS.oracleProjects}/demography${query ? `?${query}` : ""}`
+      ),
     enabled,
   });
 }

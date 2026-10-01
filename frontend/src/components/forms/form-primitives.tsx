@@ -113,7 +113,7 @@ export function MandatoryBadge() {
   );
 }
 
-// "(i)" icon that opens a popover explaining a field's options — content is
+// "ⓘ Explain" pill that opens a popover explaining a field's options — content is
 // passed in (e.g. from a YAML-backed reference endpoint like
 // GET /project-owned-reference) so it can change without a code deploy.
 export function FieldInfoButton({
@@ -121,7 +121,7 @@ export function FieldInfoButton({
   entries,
 }: {
   ariaLabel: string;
-  entries: { label: string; description: string }[];
+  entries: { label: string; description: string | string[] }[];
 }) {
   return (
     <Popover>
@@ -129,19 +129,30 @@ export function FieldInfoButton({
         <button
           type="button"
           aria-label={ariaLabel}
-          className="shrink-0 text-slate-300 transition-colors hover:text-slate-500"
+          className="inline-flex h-6 shrink-0 cursor-pointer items-center gap-[5px] rounded-[13px] border border-[#B8E6EC] bg-[#E6F7FA] px-[9px] text-xs font-normal text-[#087F8C] transition-colors hover:border-[#8FD5DE] hover:bg-[#D7F1F5] hover:text-[#066B76]"
         >
-          <Info className="size-4" />
+          <Info className="size-3.5" />
+          Explain
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-96 text-xs text-slate-600">
         <dl className="flex flex-col gap-3">
           {entries.map((entry) => (
             <div key={entry.label}>
-              <dt className="text-[10px] font-bold tracking-wide text-slate-400 uppercase">
+              <dt className="w-fit rounded-full bg-[#174F7E] px-2.5 py-0.5 text-[11px] font-bold text-white">
                 {entry.label}
               </dt>
-              <dd className="mt-0.5">{entry.description}</dd>
+              <dd className="mt-1">
+                {Array.isArray(entry.description) ? (
+                  <ul className="flex list-disc flex-col gap-1 pl-4">
+                    {entry.description.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  entry.description
+                )}
+              </dd>
             </div>
           ))}
         </dl>
@@ -179,8 +190,8 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-disabled={disabled || undefined}
       className={cn(
-        "inline-flex h-11 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1",
-        disabled && "bg-slate-100",
+        "inline-flex h-11 items-center gap-1 rounded-lg border border-[#5B9BE6] bg-[#F7FAFF] p-1",
+        disabled && "border-[#D5DAE0] bg-[#F1F3F5]",
         className
       )}
     >

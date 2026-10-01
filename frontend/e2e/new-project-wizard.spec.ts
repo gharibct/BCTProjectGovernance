@@ -83,8 +83,8 @@ test("create a project and walk every New Project screen", async ({ page }) => {
   });
 
   await test.step("Contractual Compliance — smoke", async () => {
-    await page.getByRole("link", { name: "Contractual Compliance" }).click();
-    await expect(page).toHaveURL(new RegExp(`/new-project/${projectId}/contractual-compliance$`));
+    await page.getByRole("link", { name: "Contractual Commitments" }).click();
+    await expect(page).toHaveURL(new RegExp(`/new-project/${projectId}/contractual-commitments$`));
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 

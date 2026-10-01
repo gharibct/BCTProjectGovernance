@@ -7,7 +7,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
     <textarea
       data-slot="textarea"
       className={cn(
-        "min-h-24 w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-blue-400 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-muted-foreground disabled:opacity-70 read-only:border-neutral-200 read-only:bg-neutral-100 read-only:text-muted-foreground aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:border-blue-900/50 dark:bg-blue-950/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        "min-h-24 w-full rounded-lg border border-[#5B9BE6] bg-[#F7FAFF] text-[#000000] hover:border-[#4F91D1] hover:bg-[#F3F8FE] px-3 py-2.5 text-base transition-colors outline-none placeholder:text-[#718096] focus-visible:border-[#2F80ED] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-[#D5DAE0] disabled:bg-[#F1F3F5] disabled:text-[#98A2B3] disabled:[-webkit-text-fill-color:#98A2B3] disabled:opacity-70 read-only:border-[#D5DAE0] read-only:bg-[#F1F3F5] read-only:text-[#98A2B3] read-only:[-webkit-text-fill-color:#98A2B3] read-only:hover:border-[#D5DAE0] read-only:hover:bg-[#F1F3F5] aria-invalid:border-[#D92D20] aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:aria-invalid:border-[#D92D20]/50 dark:aria-invalid:ring-destructive/40",
         className
       )}
       {...props}

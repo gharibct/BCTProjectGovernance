@@ -18,8 +18,17 @@ import { sectionAccentColor } from "@/lib/section-accent-colors";
 // Dashboard (regional-reporting/dashboard-view.tsx) — `accented` opts into
 // the "Summary" heading + blue PPT-divider header, matching the Executive
 // Update section colors on both pages.
-export function GeoAccountMatrixSection({ geoId, accented }: { geoId: string; accented?: boolean }) {
-  const { data } = useDashboardSummary({ geo_ids: [geoId] });
+export function GeoAccountMatrixSection({
+  geoId,
+  periodId,
+  accented,
+}: {
+  geoId: string;
+  // Geo report: show each account's RAG for this period (grey if none).
+  periodId?: string | null;
+  accented?: boolean;
+}) {
+  const { data } = useDashboardSummary({ geo_ids: [geoId], period_id: periodId ?? undefined });
 
   return (
     <GovernanceMatrix

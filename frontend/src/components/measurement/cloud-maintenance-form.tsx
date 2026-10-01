@@ -5,7 +5,6 @@ import { ChartColumn, Server } from "lucide-react";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LoadAiSuggestionsButton } from "@/components/ai/load-ai-suggestions-button";
 import { useCloudMaintenanceTarget } from "@/lib/api/metric-targets";
 import { useMetricReferenceLookup } from "@/lib/api/metric-reference";
 import {
@@ -39,7 +38,7 @@ export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
 
   const latestQuery = useLatestCloudMaintenanceMeasurement(projectId);
   const createMutation = useCreateCloudMaintenanceMeasurement(projectId);
-  const { latest, m, set, periodId, submit, isSaving, ai } = useMeasurementForm({
+  const { latest, m, set, periodId, submit, isSaving } = useMeasurementForm({
     projectId,
     screen: "measurement_cloud_maintenance",
     latestQuery,
@@ -50,12 +49,6 @@ export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <LoadAiSuggestionsButton
-        projectId={projectId}
-        screen="measurement_cloud_maintenance"
-        periodId={periodId || null}
-        ai={ai}
-      />
       <SectionCard icon={ChartColumn} title="Metrics">
         <div className="rounded-xl bg-slate-50 p-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

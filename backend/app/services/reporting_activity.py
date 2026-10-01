@@ -43,7 +43,7 @@ from app.schemas.reporting_activity import (
     WeeklyReportingActivityResponse,
 )
 
-_SUBMITTED = (ReportStatus.SUBMITTED, ReportStatus.APPROVED)
+_SUBMITTED = (ReportStatus.SUBMITTED, ReportStatus.APPROVED, ReportStatus.BASELINED)
 
 
 class _StatusReportLike(Protocol):

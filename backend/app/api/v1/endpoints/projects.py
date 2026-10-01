@@ -1,3 +1,4 @@
+from typing import Literal
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -416,11 +417,14 @@ async def oracle_resource_allocation_summary(project_id: UUID, db: AsyncSession 
 async def list_oracle_resource_allocations(
     project_id: UUID,
     search: str | None = Query(default=None, description="Matches the resource name anywhere in it"),
+    scope: Literal["current", "old"] | None = Query(
+        default=None, description="current = allocated this month; old = not allocated this month"
+    ),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
 ):
     items, total = await list_resource_allocations(
-        db, project_id, search=search, skip=pagination.skip, limit=pagination.limit
+        db, project_id, search=search, skip=pagination.skip, limit=pagination.limit, scope=scope
     )
     return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
 

@@ -197,11 +197,12 @@ export function MetricTile({
         type="number"
         value={value}
         onChange={onChange}
+        readOnly
         placeholder={benchmarkPlaceholder}
         aria-label={label}
         aria-invalid={error ? true : undefined}
         className={cn(
-          "mt-2 h-9 w-full bg-white text-right text-base font-bold tabular-nums",
+          "mt-2 h-9 w-full cursor-default bg-slate-100 text-right text-base font-bold tabular-nums",
           error && "border-red-500 focus-visible:ring-red-500",
         )}
       />
