@@ -348,13 +348,15 @@ class DEAssessmentWorkQueueRow(BaseModel):
     pm_health: HealthRating | None
     de_health: HealthRating | None  # from the most recent assessment this month
     pci_score: Decimal | None
-    status: str  # "Assessed" | "Draft" | "Due" (this calendar month)
+    status: str  # "Assessed" | "Draft" | "Due" | "Not Required" (this calendar month)
     assessments_this_month: int = 0
     last_assessment_date: date | None = None  # most recent assessment, any month
     assessed_by_name: str | None = None  # who filed the most recent assessment this month
     open_findings_count: int = 0
     prev_de_health: HealthRating | None = None  # latest Submitted assessment before this month
     prev_pci_score: Decimal | None = None
+    # DE Assessment is switched off for the project from this date (Admin / DE).
+    assessment_restricted_from: date | None = None
     href: str
 
 

@@ -30,7 +30,8 @@ from app.models.measurement import (
 from app.models.raid import AssumptionLog, DependencyLog, IssueLog, OpportunityLog, RiskLog
 from app.models.reference_data import ReportingPeriod
 from app.models.reporting_attestation import MonthlyReportAttestation
-from app.schemas.enums import ReportPageType
+from app.schemas.enums import ProjectActivity, ReportPageType
+from app.services.activity_restriction import is_restricted, restrictions_for_project
 from app.schemas.reporting_attestation import PageCompletionStatus
 
 DataSavedCheck = Callable[[AsyncSession, UUID, ReportingPeriod], Awaitable[bool]]
@@ -129,6 +130,14 @@ _DATA_SAVED_CHECKS: dict[ReportPageType, DataSavedCheck] = {
 }
 
 
+# Sections that can be switched off per project (the RAIDO logs cannot).
+_SECTION_ACTIVITY: dict[ReportPageType, ProjectActivity] = {
+    ReportPageType.MEASUREMENT: ProjectActivity.METRICS,
+    ReportPageType.COMMITMENTS: ProjectActivity.COMMITMENTS,
+    ReportPageType.PAYMENT_MILESTONES: ProjectActivity.PAYMENT_MILESTONES,
+}
+
+
 async def compute_monthly_completion(
     db: AsyncSession, project_id: UUID, period: ReportingPeriod
 ) -> list[PageCompletionStatus]:
@@ -146,8 +155,15 @@ async def compute_monthly_completion(
     )
     attestation_by_page = {row.page_type: row for row in attestation_rows}
 
+    # A section switched off for the project from this month on is not part of the
+    # month's checklist (and can no longer block "all sections complete").
+    restrictions = await restrictions_for_project(db, project_id)
+
     results: list[PageCompletionStatus] = []
     for page_type, check in _DATA_SAVED_CHECKS.items():
+        activity = _SECTION_ACTIVITY.get(page_type)
+        if activity is not None and is_restricted(restrictions, activity, period.start_date):
+            continue
         if await check(db, project_id, period):
             results.append(PageCompletionStatus(page_type=page_type, complete=True, reason="data_saved"))
             continue

@@ -21,6 +21,8 @@ GIT:
 git add .
 git commit -m "before sticky button"      
 git push -u origin left-menu-changes    
+
+
 git checkout -b "left-menu-changes"
 
 SQL:

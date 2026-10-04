@@ -27,6 +27,12 @@ import { useEffectiveRole } from "@/stores/session";
 import { useProject } from "@/lib/api/projects";
 import { useAccounts, useReportingPeriods, useUsers } from "@/lib/api/reference-data";
 import { latestWeeklyPeriods } from "@/lib/period-utils";
+import {
+  ACTIVITY_LABEL,
+  isRestrictedOn,
+  restrictionFor,
+  useProjectRestrictions,
+} from "@/lib/api/activity-restrictions";
 import { useLatestHealthDeclaration } from "@/lib/api/health-declarations";
 import { canWriteDeAssessment, canAssessProject } from "@/lib/api/de-assessment-permissions";
 import {
@@ -93,8 +99,14 @@ function WorkspaceInner() {
   const { data: findings = [] } = useDEAssessmentFindings(projectId);
   const { data: health } = useLatestHealthDeclaration(projectId);
 
+  // DE Assessment switched off for the project (Admin / DE): the workspace turns
+  // read-only from the date, existing assessments stay viewable.
+  const { data: restrictions } = useProjectRestrictions(projectId);
+  const assessmentRestricted = isRestrictedOn(restrictions, "DE_ASSESSMENT");
+  const assessmentRestriction = restrictionFor(restrictions, "DE_ASSESSMENT");
+
   const hasDeAllocated = !!project?.delivery_excellence_id;
-  const canWrite = canAssessProject(role, hasDeAllocated);
+  const canWrite = canAssessProject(role, hasDeAllocated) && !assessmentRestricted;
   // A non-DE viewer (or a DE looking at a project with no DE allocated) still
   // sees the read-only workspace; only the write affordances are gated.
   const roleCanWrite = canWriteDeAssessment(role);
@@ -312,7 +324,19 @@ function WorkspaceInner() {
         </div>
       </div>
 
-      {roleCanWrite && !hasDeAllocated ? (
+      {assessmentRestricted && assessmentRestriction ? (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800"
+        >
+          <span className="font-semibold">{ACTIVITY_LABEL.DE_ASSESSMENT}</span> is not required for this project from{" "}
+          {formatDate(assessmentRestriction.not_required_from)}
+          {assessmentRestriction.reason ? ` — ${assessmentRestriction.reason}` : ""}. Existing assessments are shown
+          read-only; DE findings are restricted as well.
+        </div>
+      ) : null}
+
+      {roleCanWrite && !hasDeAllocated && !assessmentRestricted ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
           No Delivery Excellence resource is allocated to this project yet. A DE must be
           allocated (DE Allocation) before an assessment can be recorded.
@@ -510,7 +534,9 @@ function WorkspaceInner() {
       <div className="sticky bottom-0 -mx-10 flex items-center justify-end border-t border-slate-200 bg-white/90 px-10 py-4 backdrop-blur">
         {readOnly ? (
           <p className="text-sm text-slate-400">
-            {roleCanWrite && !hasDeAllocated
+            {assessmentRestricted
+              ? "DE Assessment is not required for this project."
+              : roleCanWrite && !hasDeAllocated
               ? "Allocate a DE to this project to record an assessment."
               : "You have read-only access."}
           </p>

@@ -47,6 +47,8 @@ class UserAccount(Base, UUIDPrimaryKey):
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
+    # Proxy Delivery Manager (same rights as the primary, which is the is_proxy=False row).
+    is_proxy: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

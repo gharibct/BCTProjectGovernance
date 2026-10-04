@@ -73,6 +73,8 @@ class FakeDB:
 
     async def execute(self, stmt):
         compiled = str(stmt)
+        if "is_proxy IS true" in compiled:
+            return _ExecResult([])  # proxy Delivery Managers: none in these fixtures
         if "user_accounts" in compiled:
             return _ExecResult(self._owned_account_ids)
         if "user_geos" in compiled:

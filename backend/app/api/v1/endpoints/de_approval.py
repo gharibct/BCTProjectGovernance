@@ -282,9 +282,9 @@ async def submit_decision(
     await db.refresh(project)
 
     verb = "approved" if payload.decision == "Approve" else "returned"
-    await notify_svc.notify(
+    await notify_svc.notify_project_pms(
         db,
-        recipient_id=project.project_manager_id,
+        project,
         type="DE_DECISION",
         title=f"Project {project.project_code} was {verb}",
         body=(payload.remarks or None),

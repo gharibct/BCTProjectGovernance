@@ -19,6 +19,7 @@ from app.models.reference_data import Account, ReportingPeriod
 from app.models.report_attachments import ReportAttachment
 from app.models.users import User
 from app.schemas.report_attachments import ReportAttachmentRead
+from app.services.activity_restriction import assert_period_open
 from app.services.report_lock import assert_report_editable
 
 # Supporting documents on a Project / Account status report. Many per report;
@@ -117,6 +118,7 @@ async def upload_project_attachment(
 ):
     report = await _get_project_report(db, project_id, report_id)
     assert_report_editable(report.status)
+    await assert_period_open(db, project_id, report.period_id)
     project = await project_crud.get(db, project_id)
     period = await db.get(ReportingPeriod, report.period_id)
     if project is None or period is None:
@@ -139,6 +141,7 @@ async def delete_project_attachment(
 ):
     report = await _get_project_report(db, project_id, report_id)
     assert_report_editable(report.status)
+    await assert_period_open(db, project_id, report.period_id)
     obj = await _get_owned(db, ReportAttachment.project_report_id, report_id, attachment_id)
     _remove_file(obj)
     await db.delete(obj)

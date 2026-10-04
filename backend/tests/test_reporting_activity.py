@@ -44,7 +44,7 @@ async def test_returns_shape_for_de_regardless_of_ownership(client, override_aut
     response = await client.get(f"/api/v1/projects/{_PROJECT_ID}/reporting-activity", headers=headers)
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"year", "weekly", "monthly"}
+    assert set(body) == {"year", "weekly", "monthly", "weekly_restricted_from", "monthly_restricted_from"}
     for series in (body["weekly"], body["monthly"]):
         assert set(series) == {"items", "counts", "pct"}
         assert set(series["counts"]) == {

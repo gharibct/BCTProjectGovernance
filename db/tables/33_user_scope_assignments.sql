@@ -23,6 +23,9 @@ CREATE TABLE user_accounts (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    -- Proxy Delivery Manager: same rights as the account's primary DM, which is the
+    -- (single) row with is_proxy = FALSE.
+    is_proxy BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL,
 
     UNIQUE (user_id, account_id)

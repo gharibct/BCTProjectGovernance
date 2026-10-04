@@ -11,6 +11,7 @@ import {
   WORK_CONTEXTS,
   WORK_CONTEXT_LABEL,
 } from "@/lib/menu-config";
+import { roleDisplayName } from "@/lib/role-labels";
 import { useEffectiveRole, useSession } from "@/stores/session";
 import { NativeSelect } from "@/components/ui/native-select";
 import { NotificationsBell } from "@/components/shell/notifications-bell";
@@ -84,7 +85,7 @@ export function AppHeader() {
               {user.full_name} ·{" "}
               {workContext && effectiveRole
                 ? `${WORK_CONTEXT_LABEL[effectiveRole]} (acting)`
-                : user.role.name}
+                : roleDisplayName(user.role)}
             </span>
             <ProfileMenu />
           </div>

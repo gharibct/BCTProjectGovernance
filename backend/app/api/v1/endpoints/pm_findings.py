@@ -29,6 +29,7 @@ from app.schemas.de_assessment import DEAssessmentFindingRead
 from app.schemas.de_findings import DEFindingListRow, DEFindingsKpis, PmFindingActionTaken
 from app.schemas.enums import DEFindingHistoryEventType, FindingStatus, RoleCode
 from app.services import notifications as notify_svc
+from app.services.project_managers import project_pm_ids
 from app.services.de_findings import (
     DEFindingFilters,
     de_findings_kpis,
@@ -94,7 +95,7 @@ async def action_taken(
         raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Finding not found")
 
     project = await project_crud.get(db, obj.project_id)
-    if ctx.role != RoleCode.ADMIN and (project is None or project.project_manager_id != ctx.user.id):
+    if ctx.role != RoleCode.ADMIN and (project is None or ctx.user.id not in await project_pm_ids(db, project)):
         raise HTTPException(http_status.HTTP_403_FORBIDDEN, "Not the manager of this project")
 
     if obj.status not in _ACTIONABLE_STATUSES:

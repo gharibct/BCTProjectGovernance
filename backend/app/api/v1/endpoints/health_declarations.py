@@ -21,6 +21,7 @@ from app.schemas.health_declarations import (
     ProjectHealthItemRollupStatusUpdate,
     ProjectHealthItemUpdate,
 )
+from app.services.activity_restriction import assert_period_open
 from app.services.health_rollup import compute_overall_project_health, compute_overall_rating
 
 # History (UX §4.3 / §7 item 1): list + latest + create + edit, one
@@ -77,6 +78,7 @@ async def create_health_declaration(
     project = await project_crud.get(db, project_id)
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
+    await assert_period_open(db, project_id, payload.period_id)
 
     overall = compute_overall_rating(
         [
@@ -108,6 +110,7 @@ async def update_health_declaration(
     obj = await health_declaration_crud.get(db, declaration_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health declaration not found")
+    await assert_period_open(db, project_id, obj.period_id)
     project = await project_crud.get(db, project_id)
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
@@ -163,6 +166,7 @@ async def list_health_items(
 
 @items_router.post("", response_model=ProjectHealthItemRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_write)
 async def create_health_item(project_id: UUID, payload: ProjectHealthItemCreate, db: AsyncSession = Depends(get_db)):
+    await assert_period_open(db, project_id, payload.period_id)
     return await project_health_item_crud.create(db, payload, project_id=project_id)
 
 
@@ -173,6 +177,7 @@ async def update_health_item(
     obj = await project_health_item_crud.get(db, item_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    await assert_period_open(db, project_id, obj.period_id)
     return await project_health_item_crud.update(db, obj, payload)
 
 
@@ -181,6 +186,7 @@ async def delete_health_item(project_id: UUID, item_id: UUID, db: AsyncSession =
     obj = await project_health_item_crud.get(db, item_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health item not found")
+    await assert_period_open(db, project_id, obj.period_id)
     await project_health_item_crud.delete(db, obj)
 
 

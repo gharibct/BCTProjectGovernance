@@ -15,6 +15,7 @@ export type MenuEntryId =
   | "delivery-reporting"
   | "performance-reporting"
   | "de-assessment-report"
+  | "project-activity-restriction"
   | "admin-dashboard"
   | "cdo-dashboard"
   | "project-health"
@@ -87,6 +88,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
         "de-assessment",
         "de-findings",
         "de-projects",
+        "project-activity-restriction",
         "reassignment",
       ],
     },
@@ -103,7 +105,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     { items: ["account-manager-dashboard"] },
     {
       heading: "My Worklist",
-      items: ["new-project", "account-reporting", "account-communications", "project-approval", "reassignment"],
+      items: ["new-project", "account-reporting", "project-approval", "account-communications", "reassignment"],
     },
     {
       heading: "My Reports",

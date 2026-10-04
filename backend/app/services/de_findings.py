@@ -17,6 +17,7 @@ from app.crud.de_assessment import (
 )
 from app.models.de_assessment import DEAssessmentFinding, DEAssessmentFindingHistory
 from app.models.projects import Project
+from app.services.project_managers import pm_condition
 from app.models.reference_data import Account, Geo, Region
 from app.models.users import User
 from app.schemas.de_assessment import DEAssessmentFindingIn
@@ -82,7 +83,7 @@ def _conditions(filters: DEFindingFilters) -> list:
     if filters.project_id is not None:
         conditions.append(DEAssessmentFinding.project_id == filters.project_id)
     if filters.project_manager_id is not None:
-        conditions.append(Project.project_manager_id == filters.project_manager_id)
+        conditions.append(pm_condition(filters.project_manager_id))
     if filters.restrict_geo_ids is not None:
         conditions.append(Project.geo_id.in_(filters.restrict_geo_ids))
     if filters.restrict_account_ids is not None:
@@ -263,7 +264,7 @@ async def de_findings_kpis(db: AsyncSession, filters: DEFindingFilters) -> DEFin
     if filters.project_id is not None:
         scope.append(DEAssessmentFinding.project_id == filters.project_id)
     if filters.project_manager_id is not None:
-        scope.append(Project.project_manager_id == filters.project_manager_id)
+        scope.append(pm_condition(filters.project_manager_id))
     if filters.restrict_geo_ids is not None:
         scope.append(Project.geo_id.in_(filters.restrict_geo_ids))
     if filters.restrict_account_ids is not None:

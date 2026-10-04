@@ -11,6 +11,7 @@ import {
   PROJECT_TARGETS,
   isProjectTargetId,
 } from "@/lib/project-context-targets";
+import { projectActivitiesRestricted, useAllActivityRestrictions } from "@/lib/api/activity-restrictions";
 import { useProjectContext } from "@/stores/project-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +52,7 @@ function ContextBody({
   onNavigate: (href: string) => void;
 }) {
   const target = PROJECT_TARGETS[targetId];
-  const { isLoading, isError } = useProjects();
+  const { isLoading, isError, data: allProjects = [] } = useProjects();
   const { patchProjects } = usePatchScope();
   const { data: geos = [] } = useGeos();
   const { data: regions = [] } = useRegions();
@@ -61,9 +62,16 @@ function ContextBody({
   const geoName = React.useMemo(() => new Map(geos.map((g) => [g.id, g.name])), [geos]);
   const accountName = React.useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
 
+  const { data: restrictions } = useAllActivityRestrictions();
+
   const eligible = React.useMemo(
-    () => patchProjects.filter(target.eligible),
-    [patchProjects, target]
+    () =>
+      (target.scope === "all" ? allProjects : patchProjects).filter(
+        (p) =>
+          target.eligible(p) &&
+          !(target.hiddenWhenRestricted && projectActivitiesRestricted(restrictions, p.id, target.hiddenWhenRestricted)),
+      ),
+    [allProjects, patchProjects, target, restrictions]
   );
 
   const select = (project: Project) => {

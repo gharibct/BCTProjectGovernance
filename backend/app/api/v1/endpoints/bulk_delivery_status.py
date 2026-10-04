@@ -20,6 +20,7 @@ from app.schemas.enums import ProjectStatusCategory, ReportStatus, RoleCode
 from app.schemas.project_status import ProjectStatusItemCreate, ProjectStatusReportCreate, ProjectStatusReportRead
 from app.schemas.regional_status import AccountStatusItemCreate, AccountStatusReportCreate, AccountStatusReportRead
 from app.services import dashboard as dashboard_service
+from app.services.activity_restriction import assert_period_open
 
 # Admin bulk upload of Delivery Status reports (Projects / Accounts). Called
 # once per upload row, so each row commits (or fails) on its own. Reports land
@@ -90,6 +91,7 @@ async def bulk_create_project_status_report(
     if project is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Project {payload.project_code!r} not found.")
     period = await _resolve_period(db, payload.period)
+    await assert_period_open(db, project.id, period.id)
     existing = (
         await db.execute(
             select(ProjectStatusReport.id).where(

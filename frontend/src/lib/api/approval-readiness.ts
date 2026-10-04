@@ -23,6 +23,9 @@ export type ApprovalReadinessModule = {
   key: ApprovalReadinessModuleKey;
   label: string;
   mandatory: boolean;
+  // Commitments / Milestones only: switched off for the project (Project Activity
+  // Restriction), so optional for approval.
+  restricted?: boolean;
   complete: boolean;
   gaps: string | null;
   last_updated: string | null;

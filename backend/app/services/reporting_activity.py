@@ -20,6 +20,11 @@ against that scope's status reports, plus the rolled-up counts.
                services/dashboard.py's _project_reporting_bucket).
 - "late"     — a Submitted/Approved report updated after the period end.
 - "pending"  — in the reporting window, fully ended, no submitted report yet.
+
+A project can switch a report off from a date (project_activity_restrictions):
+periods starting on/after it that have no submitted report are "n/a" too, and the
+response carries the date (weekly_restricted_from / monthly_restricted_from) so
+the hubs can show them as "not applicable".
 """
 
 from datetime import date, datetime
@@ -33,7 +38,8 @@ from app.models.project_status import ProjectStatusReport
 from app.models.projects import Project
 from app.models.reference_data import Account, Geo, ReportingPeriod
 from app.models.regional_status import AccountStatusReport, GeoStatusReport
-from app.schemas.enums import ReportStatus
+from app.schemas.enums import ProjectActivity, ReportStatus
+from app.services.activity_restriction import MONTHLY_ACTIVITIES, restrictions_for_project
 from app.schemas.reporting_activity import (
     ActivityCounts,
     PeriodActivityItem,
@@ -61,6 +67,7 @@ def _classify(
     scope_start: date | None,
     window_end: date,
     today: date,
+    restricted_from: date | None = None,
 ) -> PeriodActivityStatus:
     if scope_start is not None and period.end_date < scope_start:
         return "n/a"  # entirely before the scope existed — no report was owed
@@ -68,6 +75,8 @@ def _classify(
         return "n/a"  # future, or past the scope's end date — not owed
     if report is not None and report.status in _SUBMITTED:
         return "on-time" if report.updated_at.date() <= period.end_date else "late"
+    if restricted_from is not None and period.start_date >= restricted_from:
+        return "n/a"  # switched off for the project from this period on
     if period.end_date > today:
         return "n/a"  # still running — a period is complete (and reportable) on its end date
     return "pending"
@@ -79,12 +88,13 @@ def _series(
     scope_start: date | None,
     window_end: date,
     today: date,
+    restricted_from: date | None = None,
 ) -> ReportingActivitySeries:
     items: list[PeriodActivityItem] = []
     on_time = late = pending = not_applicable = 0
     for period in sorted(periods, key=lambda p: p.start_date):
         report = by_period.get(period.id)
-        status = _classify(period, report, scope_start, window_end, today)
+        status = _classify(period, report, scope_start, window_end, today, restricted_from)
         if status == "on-time":
             on_time += 1
         elif status == "late":
@@ -180,14 +190,33 @@ async def build_reporting_activity(
         )
     by_period = {r.period_id: r for r in reports}
 
+    # Weekly Delivery Status switched off from a date; the monthly Project
+    # Performance report only once all three of its sections are.
+    restrictions = await restrictions_for_project(db, project_id)
+    weekly_from = restrictions.get(ProjectActivity.DELIVERY_STATUS.value)
+    monthly_dates = [restrictions.get(a.value) for a in MONTHLY_ACTIVITIES]
+    monthly_from = max(monthly_dates) if all(d is not None for d in monthly_dates) else None
+
     return ReportingActivityResponse(
         year=year,
         weekly=_series(
-            [p for p in periods if p.period_type == "Weekly"], by_period, project_start, window_end, today
+            [p for p in periods if p.period_type == "Weekly"],
+            by_period,
+            project_start,
+            window_end,
+            today,
+            weekly_from,
         ),
         monthly=_series(
-            [p for p in periods if p.period_type == "Monthly"], by_period, project_start, window_end, today
+            [p for p in periods if p.period_type == "Monthly"],
+            by_period,
+            project_start,
+            window_end,
+            today,
+            monthly_from,
         ),
+        weekly_restricted_from=weekly_from,
+        monthly_restricted_from=monthly_from,
     )
 
 

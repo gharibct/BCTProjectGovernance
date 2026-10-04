@@ -361,9 +361,11 @@ async def get_de_dashboard_summary(
     findings = dashboard_service.de_findings_summary(findings_by_project, month)
     attention_items = dashboard_service.de_attention_required(work_queue, findings_by_project, recent_assessments_by_project)
 
-    completed_count = sum(1 for r in work_queue if r.status == "Assessed")
-    total_count = len(work_queue)
-    pending_count = sum(1 for r in work_queue if r.status != "Assessed")
+    # Projects with DE Assessment switched off ("Not Required") owe nothing.
+    owed_queue = [r for r in work_queue if r.status != "Not Required"]
+    completed_count = sum(1 for r in owed_queue if r.status == "Assessed")
+    total_count = len(owed_queue)
+    pending_count = sum(1 for r in owed_queue if r.status != "Assessed")
     red_amber_count = sum(
         1 for r in work_queue if r.de_health in (HealthRating.AMBER, HealthRating.RED, HealthRating.POTENTIAL_RED)
     )

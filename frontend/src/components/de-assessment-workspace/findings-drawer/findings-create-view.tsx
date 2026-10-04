@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { ActivityGate } from "@/components/forms/activity-gate";
 import { ButtonSpinner, Field, MandatoryBadge } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useProjects } from "@/lib/api/projects";
@@ -22,13 +23,7 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function FindingsCreateView({
-  projectId,
-  onDone,
-}: {
-  projectId: string;
-  onDone: () => void;
-}) {
+export function FindingsCreateView({ projectId, onDone }: { projectId: string; onDone: () => void }) {
   const { data: projects = [] } = useProjects();
   const createFinding = useCreateDEAssessmentFinding(projectId);
   const showSuccess = usePageBanner((s) => s.showSuccess);
@@ -79,119 +74,116 @@ export function FindingsCreateView({
           onDone();
         },
         onError: (err) => showError(err instanceof Error ? err.message : "Failed to add finding."),
-      }
+      },
     );
   };
 
   return (
-    <div className="flex flex-col gap-5 p-6">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold tracking-wider text-slate-500 uppercase">Status</span>
-        <StatusBadge value="Open" />
-      </div>
+    <ActivityGate projectId={projectId} activity="DE_ASSESSMENT">
+      <div className="flex flex-col gap-5 p-6">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold tracking-wider text-slate-500 uppercase">Status</span>
+          <StatusBadge value="Open" />
+        </div>
 
-      <Field label="Finding" htmlFor="finding-description" badge={<MandatoryBadge />} error={descriptionError ?? undefined}>
-        <Textarea
-          id="finding-description"
-          value={description}
-          onChange={(e) => {
-            setDescription(e.target.value);
-            if (descriptionError) setDescriptionError(null);
-          }}
-          rows={3}
-          placeholder="Describe the finding…"
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-4">
         <Field
-          label="Category"
-          htmlFor="finding-category"
+          label="Finding"
+          htmlFor="finding-description"
           badge={<MandatoryBadge />}
-          error={categoryError ?? undefined}
+          error={descriptionError ?? undefined}
         >
-          <NativeSelect
-            id="finding-category"
-            value={category}
+          <Textarea
+            id="finding-description"
+            value={description}
             onChange={(e) => {
-              setCategory(e.target.value as FindingCategory);
-              if (categoryError) setCategoryError(null);
+              setDescription(e.target.value);
+              if (descriptionError) setDescriptionError(null);
             }}
-          >
-            <option value="" disabled>
-              Select…
-            </option>
-            {FINDING_CATEGORY_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
-        <Field
-          label="Classification"
-          htmlFor="finding-classification"
-          badge={<MandatoryBadge />}
-          error={classificationError ?? undefined}
-        >
-          <NativeSelect
-            id="finding-classification"
-            value={classification}
-            onChange={(e) => {
-              setClassification(e.target.value as FindingClassification);
-              if (classificationError) setClassificationError(null);
-            }}
-          >
-            <option value="" disabled>
-              Select…
-            </option>
-            {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Finding Date" htmlFor="finding-date">
-          <Input
-            id="finding-date"
-            type="date"
-            value={findingDate}
-            onChange={(e) => setFindingDate(e.target.value)}
+            rows={3}
+            placeholder="Describe the finding…"
           />
         </Field>
-        <Field label="Due Date" htmlFor="finding-due-date">
-          <Input
-            id="finding-due-date"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Category"
+            htmlFor="finding-category"
+            badge={<MandatoryBadge />}
+            error={categoryError ?? undefined}
+          >
+            <NativeSelect
+              id="finding-category"
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value as FindingCategory);
+                if (categoryError) setCategoryError(null);
+              }}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {FINDING_CATEGORY_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field
+            label="Classification"
+            htmlFor="finding-classification"
+            badge={<MandatoryBadge />}
+            error={classificationError ?? undefined}
+          >
+            <NativeSelect
+              id="finding-classification"
+              value={classification}
+              onChange={(e) => {
+                setClassification(e.target.value as FindingClassification);
+                if (classificationError) setClassificationError(null);
+              }}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              {FINDING_CLASSIFICATION_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Finding Date" htmlFor="finding-date">
+            <Input id="finding-date" type="date" value={findingDate} onChange={(e) => setFindingDate(e.target.value)} />
+          </Field>
+          <Field label="Due Date" htmlFor="finding-due-date">
+            <Input id="finding-due-date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          </Field>
+        </div>
+
+        <Field label="Remarks" htmlFor="finding-remarks">
+          <Textarea
+            id="finding-remarks"
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            rows={4}
+            placeholder="Additional context or observations…"
           />
         </Field>
-      </div>
 
-      <Field label="Remarks" htmlFor="finding-remarks">
-        <Textarea
-          id="finding-remarks"
-          value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
-          rows={4}
-          placeholder="Additional context or observations…"
-        />
-      </Field>
-
-      <div className="mt-2 flex justify-end gap-3">
-        <Button variant="outline" onClick={onDone} disabled={createFinding.isPending}>
-          Cancel
-        </Button>
-        <Button onClick={submit} disabled={createFinding.isPending} className="gap-2">
-          {createFinding.isPending ? <ButtonSpinner /> : null}
-          Create Finding
-        </Button>
+        <div className="mt-2 flex justify-end gap-3">
+          <Button variant="outline" onClick={onDone} disabled={createFinding.isPending}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={createFinding.isPending} className="gap-2">
+            {createFinding.isPending ? <ButtonSpinner /> : null}
+            Create Finding
+          </Button>
+        </div>
       </div>
-    </div>
+    </ActivityGate>
   );
 }

@@ -8,6 +8,8 @@ import { api } from "./client";
 // project/amendment workflow. The server scopes each list by role: a Geo Head
 // only sees entities within their own owned geo(s); DE / Admin see everything.
 
+export type ProxyUser = { id: string; name: string | null };
+
 export type ReassignProjectRow = {
   project_id: string;
   project_code: string;
@@ -17,6 +19,8 @@ export type ReassignProjectRow = {
   region_name: string | null;
   project_manager_id: string | null;
   project_manager_name: string | null;
+  /** Extra PMs with the same rights as the Primary. */
+  proxy_managers: ProxyUser[];
 };
 
 export type ReassignAccountRow = {
@@ -25,6 +29,8 @@ export type ReassignAccountRow = {
   geo_name: string | null;
   account_manager_id: string | null;
   account_manager_name: string | null;
+  /** Extra Delivery Managers with the same rights as the primary. */
+  proxy_managers: ProxyUser[];
 };
 
 export type ReassignGeoRow = {
@@ -90,6 +96,56 @@ export function useReassignGeoHead() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reassignment", "geos"] });
       queryClient.invalidateQueries({ queryKey: ["geo-head"] });
+    },
+  });
+}
+
+// Proxy PMs / proxy DMs: same rights as the primary, open-ended. Added and
+// removed here; the server applies the same scope rules as a reassignment.
+export function useAddProjectProxy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, userId }: { projectId: string; userId: string }) =>
+      api.post<ReassignProjectRow>(`/reassignment/projects/${projectId}/proxies`, { user_id: userId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reassignment", "projects"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+}
+
+export function useRemoveProjectProxy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ projectId, userId }: { projectId: string; userId: string }) =>
+      api.delete(`/reassignment/projects/${projectId}/proxies/${userId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reassignment", "projects"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+}
+
+export function useAddAccountProxy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, userId }: { accountId: string; userId: string }) =>
+      api.post<ReassignAccountRow>(`/reassignment/accounts/${accountId}/proxies`, { user_id: userId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reassignment", "accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["account-head"] });
+    },
+  });
+}
+
+export function useRemoveAccountProxy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, userId }: { accountId: string; userId: string }) =>
+      api.delete(`/reassignment/accounts/${accountId}/proxies/${userId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reassignment", "accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["account-head"] });
     },
   });
 }

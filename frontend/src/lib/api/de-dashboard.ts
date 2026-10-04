@@ -24,7 +24,9 @@ export type DEAssessmentWorkQueueRow = {
   pm_health: HealthRating | null;
   de_health: HealthRating | null;
   pci_score: string | null;
-  status: "Assessed" | "Draft" | "Due";
+  status: "Assessed" | "Draft" | "Due" | "Not Required";
+  // DE Assessment is switched off for the project from this date (Admin / DE).
+  assessment_restricted_from?: string | null;
   assessments_this_month: number;
   last_assessment_date: string | null;
   assessed_by_name: string | null;

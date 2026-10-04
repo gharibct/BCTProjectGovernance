@@ -18,6 +18,7 @@ import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useProject, useProjectOracleIds } from "@/lib/api/projects";
 import { useCommitments, useMilestonePayments } from "@/lib/api/contractual";
+import { restrictionFor, useProjectRestrictions } from "@/lib/api/activity-restrictions";
 import { useProjectTypes } from "@/lib/api/reference-data";
 import {
   useCloudMaintenanceTarget,
@@ -303,6 +304,11 @@ export function NewProjectNav() {
   const sizeEffortComplete = useSizeEffortComplete(newProjectId, projectTypeCode);
   const { data: commitments } = useCommitments(newProjectId);
   const { data: milestones } = useMilestonePayments(newProjectId);
+  // Commitments / Payment Milestones switched off for the project (Project Activity
+  // Restriction) are not required for approval, so they count as done.
+  const { data: restrictions } = useProjectRestrictions(newProjectId);
+  const commitmentsRestricted = !!restrictionFor(restrictions, "COMMITMENTS");
+  const milestonesRestricted = !!restrictionFor(restrictions, "PAYMENT_MILESTONES");
   const { data: risks } = useRisks(newProjectId);
   const { data: issues } = useIssues(newProjectId);
   const { data: dependencies } = useDependencies(newProjectId);
@@ -317,8 +323,8 @@ export function NewProjectNav() {
     project?.profile_completion_flag ?? false,
     (project?.schedule_completion_flag ?? false) && sizeEffortComplete,
     (oracleIds?.length ?? 0) > 0,
-    (commitments?.length ?? 0) > 0,
-    (milestones?.length ?? 0) > 0,
+    commitmentsRestricted || (commitments?.length ?? 0) > 0,
+    milestonesRestricted || (milestones?.length ?? 0) > 0,
     (risks?.length ?? 0) > 0 &&
       (issues?.length ?? 0) > 0 &&
       (dependencies?.length ?? 0) > 0 &&

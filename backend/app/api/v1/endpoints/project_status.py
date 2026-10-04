@@ -34,6 +34,7 @@ from app.services import dashboard as dashboard_service
 from app.services.copy_from_latest import copy_category_items
 from app.services import notifications as notify_svc
 from app.services.report_lock import assert_report_editable
+from app.services.activity_restriction import assert_period_open
 from app.services.reporting_activity import build_reporting_activity
 
 # Weekly/Monthly history (UX §4.4 / §7 items 2-3): list (period-sorted) +
@@ -158,6 +159,7 @@ async def create_status_report(
     period = await db.get(ReportingPeriod, payload.period_id)
     if period is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Reporting period not found")
+    await assert_period_open(db, project_id, payload.period_id)
 
     # Default Revenue / FTE / narrative from the previous period's report for
     # any field the caller left blank.
@@ -220,6 +222,7 @@ async def update_status_report(
     # edited here (a Submitted report is only ever decided, via the separate
     # /review endpoint, never edited back through this one).
     assert_report_editable(obj.status)
+    await assert_period_open(db, project_id, obj.period_id)
     was_rejected = obj.status == ReportStatus.REJECTED
     updated = await project_status_report_crud.update(db, obj, payload)
 
@@ -277,9 +280,9 @@ async def update_status_report(
     if updated.status == ReportStatus.SUBMITTED:
         project = await project_crud.get(db, project_id)
         if project is not None:
-            await notify_svc.notify(
+            await notify_svc.notify_many(
                 db,
-                recipient_id=await notify_svc.account_head_id(db, project.account_id),
+                await notify_svc.account_manager_ids(db, project.account_id),
                 type="REPORT_SUBMITTED",
                 title=f"{project.project_code} submitted a status report",
                 body="Awaiting your review.",
@@ -311,6 +314,7 @@ async def upload_customer_report_file(
 ):
     obj = await _get_report_or_404(db, project_id, report_id)
     assert_report_editable(obj.status)
+    await assert_period_open(db, project_id, obj.period_id)
 
     original_name = file.filename or "untitled"
     ext = original_name.rsplit(".", 1)[-1].lower() if "." in original_name else ""
@@ -387,9 +391,9 @@ async def recall_status_report(
 
     project = await project_crud.get(db, project_id)
     if project is not None:
-        await notify_svc.notify(
+        await notify_svc.notify_many(
             db,
-            recipient_id=await notify_svc.account_head_id(db, project.account_id),
+            await notify_svc.account_manager_ids(db, project.account_id),
             type="REPORT_RECALLED",
             title=f"{project.project_code} recalled its submitted status report",
             body=payload.remarks,
@@ -427,9 +431,9 @@ async def review_status_report(
 
     project = await project_crud.get(db, project_id)
     if project is not None:
-        await notify_svc.notify(
+        await notify_svc.notify_project_pms(
             db,
-            recipient_id=project.project_manager_id,
+            project,
             type="REPORT_REVIEWED",
             title=f"Your {project.project_code} status report was {str(payload.decision).lower()}",
             body=(payload.comment or None),
@@ -459,6 +463,7 @@ async def _assert_period_editable(db: AsyncSession, project_id: UUID, period_id:
     )
     report_status = (await db.execute(stmt)).scalars().first()
     assert_report_editable(report_status)
+    await assert_period_open(db, project_id, period_id)
 
 
 # "Copy from latest report": prefill this period's Project Status and RAG Status

@@ -25,8 +25,9 @@ from app.models.raid import (
     RiskLog,
 )
 from app.schemas.de_approval import GovernanceCompleteness, GovernanceModuleStatus
-from app.schemas.enums import GovernanceModuleKey
+from app.schemas.enums import GovernanceModuleKey, ProjectActivity
 from app.schemas.projects import _is_filled
+from app.services.activity_restriction import restrictions_for_project
 from app.services.approval_readiness import (
     measurement_progress,
     profile_field_progress,
@@ -78,9 +79,16 @@ async def _module_progress(
     if key is GovernanceModuleKey.MAP_ORACLE_PROJECTS:
         return (1 if await _count(db, ProjectOracleId, project.id) > 0 else 0), 1, None
     if key is GovernanceModuleKey.CONTRACTUAL_COMPLIANCE:
-        commitments = await _count(db, ContractualCommitment, project.id)
-        milestones = await _count(db, MilestonePayment, project.id)
-        return (1 if commitments > 0 else 0) + (1 if milestones > 0 else 0), 2, None
+        # A restricted half (Commitments / Payment Milestones) is not expected.
+        restrictions = await restrictions_for_project(db, project.id)
+        fc = ft = 0
+        if ProjectActivity.COMMITMENTS.value not in restrictions:
+            ft += 1
+            fc += 1 if await _count(db, ContractualCommitment, project.id) > 0 else 0
+        if ProjectActivity.PAYMENT_MILESTONES.value not in restrictions:
+            ft += 1
+            fc += 1 if await _count(db, MilestonePayment, project.id) > 0 else 0
+        return fc, ft, None
     if key is GovernanceModuleKey.RAIDO:
         counts = [
             await _count(db, RiskLog, project.id),
@@ -99,6 +107,9 @@ async def compute_governance_completeness(db: AsyncSession, project: Project) ->
     modules: list[GovernanceModuleStatus] = []
     for key, label, mandatory in MODULES:
         fc, ft, gap_override = await _module_progress(db, key, project)
+        # Nothing expected (both contractual halves restricted) -> not mandatory.
+        if key is GovernanceModuleKey.CONTRACTUAL_COMPLIANCE and ft == 0:
+            mandatory = False
         complete = ft > 0 and fc >= ft
         modules.append(
             GovernanceModuleStatus(

@@ -13,6 +13,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePageBanner } from "@/stores/page-banner";
 import { useRoles, useUserDirectory, type User } from "@/lib/api/reference-data";
 import { useDeleteUser } from "@/lib/api/users";
+import { roleDisplayName } from "@/lib/role-labels";
 import { UserFormDrawer } from "./user-form-drawer";
 
 const PAGE_SIZE = 10;
@@ -46,7 +47,10 @@ export function CreateUserPanel() {
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
-  const roleName = (id: string) => roles.find((r) => r.id === id)?.name ?? "—";
+  const roleName = (id: string) => {
+    const role = roles.find((r) => r.id === id);
+    return role ? roleDisplayName(role) : "—";
+  };
 
   const filtersActive = Boolean(search || roleCode || active);
   const resetFilters = () => {
@@ -110,7 +114,7 @@ export function CreateUserPanel() {
               <option value="">Role [All]</option>
               {roles.map((r) => (
                 <option key={r.id} value={r.code}>
-                  {r.name}
+                  {roleDisplayName(r)}
                 </option>
               ))}
             </NativeSelect>

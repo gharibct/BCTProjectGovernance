@@ -277,3 +277,45 @@ async def test_development_size_and_effort_belong_to_scope_schedule():
     assert scope.gaps == "Size Unit, Overall Planned Size and Overall Estimated Effort incomplete for Development"
     measurement = next(m for m in result.modules if m.key == "measurement")
     assert measurement.complete is True
+
+
+class _RestrictedDB(StubDB):
+    """StubDB that also answers the project_activity_restrictions lookup."""
+
+    def __init__(self, restricted, **kwargs):
+        super().__init__(**kwargs)
+        self._restricted = restricted
+
+    async def execute(self, stmt):
+        if "project_activity_restrictions" in str(stmt).lower():
+            return _Result(rows=[(activity, date(2026, 9, 1)) for activity in self._restricted])
+        return await super().execute(stmt)
+
+
+async def test_restricted_commitments_and_milestones_are_not_mandatory():
+    db = _RestrictedDB(
+        ["COMMITMENTS", "PAYMENT_MILESTONES"],
+        counts={"contractual_commitments": 0, "milestone_payments": 0},
+    )
+    result = await compute_approval_readiness(db, _project())
+    by_key = {m.key: m for m in result.modules}
+    for key in ("commitments", "milestones"):
+        assert by_key[key].restricted is True
+        assert by_key[key].mandatory is False
+        assert by_key[key].gaps is None
+    assert result.modules_incomplete == 0
+    assert result.can_submit is True
+
+
+async def test_only_the_restricted_half_stops_being_mandatory():
+    db = _RestrictedDB(["COMMITMENTS"], counts={"contractual_commitments": 0, "milestone_payments": 0})
+    result = await compute_approval_readiness(db, _project())
+    by_key = {m.key: m for m in result.modules}
+    assert by_key["commitments"].mandatory is False
+    assert by_key["milestones"].mandatory is True and by_key["milestones"].complete is False
+    assert result.can_submit is False
+
+
+async def test_unrestricted_modules_report_restricted_false():
+    result = await compute_approval_readiness(StubDB(), _project())
+    assert all(m.restricted is False for m in result.modules)

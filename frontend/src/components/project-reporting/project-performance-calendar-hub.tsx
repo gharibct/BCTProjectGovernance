@@ -35,6 +35,7 @@ export function ProjectPerformanceCalendarHub() {
       hrefForPeriod={(periodId) => `/project-reporting/${projectId}/dashboard?period=${periodId}`}
       scopeStart={project?.tool_effective_date ?? project?.actual_start_date ?? project?.planned_start_date ?? null}
       scopeEnd={project?.actual_end_date ?? project?.planned_end_date ?? null}
+      restrictedFrom={current.data?.monthly_restricted_from ?? previous.data?.monthly_restricted_from ?? null}
     />
   );
 }

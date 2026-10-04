@@ -178,7 +178,10 @@ async def bulk_create_project(
     if payload.account_id is not None:
         data["delivery_manager_id"] = (
             await db.execute(
-                select(UserAccount.user_id).where(UserAccount.account_id == payload.account_id).limit(1)
+                select(UserAccount.user_id)
+                .where(UserAccount.account_id == payload.account_id)
+                .order_by(UserAccount.is_proxy, UserAccount.created_at)
+                .limit(1)
             )
         ).scalar_one_or_none()
     data["created_by"] = current_user.id

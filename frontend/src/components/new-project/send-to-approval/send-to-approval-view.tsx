@@ -359,7 +359,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
                     {m.label}
                     {!m.mandatory ? (
                       <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-500 uppercase">
-                        Optional
+                        {m.restricted ? "Restricted - not required" : "Optional"}
                       </span>
                     ) : null}
                   </td>

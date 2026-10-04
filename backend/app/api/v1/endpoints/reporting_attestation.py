@@ -23,9 +23,10 @@ from app.models.reference_data import ReportingPeriod
 from app.models.reporting_attestation import MonthlyReportAttestation
 from app.models.users import User
 from app.schemas.copy_from_latest import CopyFromLatestResult
-from app.schemas.enums import RoleCode
+from app.schemas.enums import ProjectActivity, ReportPageType, RoleCode
 from app.services.copy_from_latest import copy_period_rows
 from app.services.report_lock import assert_report_editable
+from app.services.activity_restriction import assert_period_open
 from app.schemas.reporting_attestation import MonthlyReportAttestationCreate, MonthlyReportAttestationRead
 
 router = APIRouter(prefix="/projects/{project_id}/monthly-attestations", tags=["Monthly Report Attestation"])
@@ -36,6 +37,14 @@ _write_dep = require_project_access(
     RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN
 )
 _pm_read = [Depends(require_project_read_access())]
+
+# Attestation section -> the activity that can be restricted for it. The RAIDO
+# sections are not restrictable.
+_ATTESTATION_ACTIVITY = {
+    str(ReportPageType.MEASUREMENT): ProjectActivity.METRICS,
+    str(ReportPageType.COMMITMENTS): ProjectActivity.COMMITMENTS,
+    str(ReportPageType.PAYMENT_MILESTONES): ProjectActivity.PAYMENT_MILESTONES,
+}
 
 
 @router.get("", response_model=list[MonthlyReportAttestationRead], dependencies=_pm_read)
@@ -69,6 +78,10 @@ async def create_attestation(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporting period not found")
     if period.period_type != "Monthly":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Attestations only apply to Monthly periods")
+    # Each Performance section can be switched off for the project on its own.
+    section_activity = _ATTESTATION_ACTIVITY.get(str(payload.page_type))
+    if section_activity is not None:
+        await assert_period_open(db, project_id, payload.period_id, activity=section_activity)
 
     existing, _ = await monthly_report_attestation_crud.list(
         db,
@@ -120,6 +133,7 @@ async def copy_monthly_report_from_latest(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reporting period not found")
     if period.period_type != "Monthly":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only Monthly periods can be copied here")
+    await assert_period_open(db, project_id, period_id, activity=ProjectActivity.METRICS)
     report_status = (
         await db.execute(
             select(ProjectStatusReport.status).where(

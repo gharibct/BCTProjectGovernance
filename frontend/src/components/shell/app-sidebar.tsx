@@ -21,6 +21,7 @@ import {
   LayoutGrid,
   ListChecks,
   CalendarDays,
+  Ban,
   Coins,
   Map as MapIcon,
   Plug,
@@ -751,6 +752,18 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       icon={ShieldCheck}
       label={ctx.labelFor("de-assessment-report", "DE Assessment")}
       active={ctx.isDeAssessmentReport || ctx.pathname === selectProjectHref("de-assessment-report")}
+      bold={ctx.bold}
+    />
+  ),
+  "project-activity-restriction": (ctx) => (
+    <SimpleLink
+      href={selectProjectHref("project-activity-restriction")}
+      icon={Ban}
+      label={ctx.labelFor("project-activity-restriction", "Project Activity Restriction")}
+      active={
+        ctx.pathname.startsWith("/project-activity-restriction") ||
+        ctx.pathname === selectProjectHref("project-activity-restriction")
+      }
       bold={ctx.bold}
     />
   ),

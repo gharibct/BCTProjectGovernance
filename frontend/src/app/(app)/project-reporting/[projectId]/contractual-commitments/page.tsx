@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ActivityGate } from "@/components/forms/activity-gate";
 import { CommitmentsTab } from "@/components/contractual-compliance/commitments-tab";
 import { ProjectHeader } from "@/components/shell/project-header";
 
@@ -12,7 +13,9 @@ export default function CommitmentsPage() {
     <div className="mx-auto max-w-6xl">
       <ProjectHeader subheading="Contractual Commitments" />
       <div className="mt-8">
-        <CommitmentsTab />
+        <ActivityGate activity="COMMITMENTS" usePeriodParam>
+          <CommitmentsTab />
+        </ActivityGate>
       </div>
     </div>
   );

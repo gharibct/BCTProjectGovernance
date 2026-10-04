@@ -10,7 +10,8 @@ from app.api.v1.factory import build_crud_router
 from app.core.db import get_db
 from app.core.security import hash_password
 from app.crud.users import user_crud
-from app.models.projects import Project
+from app.models.projects import Project, ProjectProxyManager
+from app.services.project_managers import proxy_pm_ids
 from app.models.reference_data import Account, Geo
 from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.common import Page
@@ -156,6 +157,7 @@ async def _unallocate_user(db: AsyncSession, user_id: UUID) -> None:
         .where(Project.project_manager_id == user_id)
         .values(project_manager_id=None)
     )
+    await db.execute(delete(ProjectProxyManager).where(ProjectProxyManager.user_id == user_id))
     await db.execute(delete(UserAccount).where(UserAccount.user_id == user_id))
     await db.execute(delete(UserGeo).where(UserGeo.user_id == user_id))
     await db.flush()
@@ -219,7 +221,7 @@ async def _resolve_account_head(db: AsyncSession, account_id: UUID) -> User | No
         select(User)
         .join(UserAccount, UserAccount.user_id == User.id)
         .where(UserAccount.account_id == account_id, User.role_id.in_(role_ids))
-        .order_by(User.created_at)
+        .order_by(UserAccount.is_proxy, User.created_at)
         .limit(1)
     )
     return result.scalars().first()
@@ -261,7 +263,7 @@ async def get_project_raido_people(project_id: UUID, db: AsyncSession = Depends(
             seen.add(user.id)
             people.append(user)
 
-    for user_id in (project.project_manager_id, project.delivery_manager_id):
+    for user_id in (project.project_manager_id, project.delivery_manager_id, *await proxy_pm_ids(db, project_id)):
         if user_id is not None:
             _add(await db.get(User, user_id))
     if project.account_id is not None:
@@ -272,10 +274,18 @@ async def get_project_raido_people(project_id: UUID, db: AsyncSession = Depends(
 
 
 async def _replace_entity_head(db: AsyncSession, link_model: type, link_col, entity_id: UUID, user_id: UUID | None) -> None:
-    """Single-owner: drop every existing link row for this account/geo, then
+    """Single-owner: drop the existing primary link row(s) for this account/geo, then
     add one for `user_id` (or none when clearing). Mirrors
     reassignment._replace_owner."""
-    existing = (await db.execute(select(link_model).where(link_col == entity_id))).scalars().all()
+    stmt = select(link_model).where(link_col == entity_id)
+    if link_model is UserAccount:
+        # Proxy Delivery Managers stay; only the primary (and the new head's own
+        # proxy row, if they were one) is replaced.
+        stmt = select(link_model).where(
+            link_col == entity_id,
+            or_(UserAccount.is_proxy.is_(False), UserAccount.user_id == user_id),
+        )
+    existing = (await db.execute(stmt)).scalars().all()
     for row in existing:
         await db.delete(row)
     # Flush the deletes first: the unit of work otherwise INSERTs before it

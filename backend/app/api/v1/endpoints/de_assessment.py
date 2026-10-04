@@ -22,7 +22,8 @@ from app.schemas.de_assessment import (
     DEAssessmentUpdate,
 )
 from app.schemas.de_findings import DEFindingHistoryRead
-from app.schemas.enums import DEAssessmentStatus, DEFindingHistoryEventType, RoleCode
+from app.schemas.enums import DEAssessmentStatus, DEFindingHistoryEventType, ProjectActivity, RoleCode
+from app.services.activity_restriction import assert_activity_open
 from app.services import notifications as notify_svc
 from app.services.de_findings import (
     FindingStatusError,
@@ -114,6 +115,9 @@ async def create_assessment(
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     await _require_weekly_period(db, payload.period_id)
+    await assert_activity_open(
+        db, project_id, ProjectActivity.DE_ASSESSMENT, payload.assessment_date or date.today()
+    )
 
     now = datetime.now(UTC)
     assessment = DEAssessment(
@@ -156,6 +160,12 @@ async def update_assessment(
 
     data = payload.model_dump(exclude_unset=True)
     await _require_weekly_period(db, data.get("period_id"))
+    await assert_activity_open(
+        db,
+        project_id,
+        ProjectActivity.DE_ASSESSMENT,
+        data.get("assessment_date") or assessment.assessment_date or date.today(),
+    )
     for field, value in data.items():
         setattr(assessment, field, value)
     assessment.updated_at = datetime.now(UTC)
@@ -199,6 +209,8 @@ async def add_finding(
     current_user: User = Depends(_de_write),
     db: AsyncSession = Depends(get_db),
 ):
+    # DE findings follow DE Assessment: restricted together.
+    await assert_activity_open(db, project_id, ProjectActivity.DE_ASSESSMENT, date.today())
     sequence_no = payload.sequence_no
     if sequence_no is None:
         current_max = (
@@ -217,9 +229,9 @@ async def add_finding(
     )
     project = await project_crud.get(db, project_id)
     if project is not None:
-        await notify_svc.notify(
+        await notify_svc.notify_project_pms(
             db,
-            recipient_id=project.project_manager_id,
+            project,
             type="FINDING_RAISED",
             title=f"New DE finding on {project.project_code}",
             body=obj.description,
@@ -251,6 +263,7 @@ async def update_finding(
     obj = await de_assessment_finding_crud.get(db, finding_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Finding not found")
+    await assert_activity_open(db, project_id, ProjectActivity.DE_ASSESSMENT, date.today())
 
     old_status = obj.status
     new_status = payload.status
@@ -268,9 +281,9 @@ async def update_finding(
     if new_status != old_status:
         project = await project_crud.get(db, project_id)
         if project is not None:
-            await notify_svc.notify(
+            await notify_svc.notify_project_pms(
                 db,
-                recipient_id=project.project_manager_id,
+                project,
                 type="FINDING_STATUS",
                 title=f"Finding on {project.project_code} is now {new_status}",
                 body=updated.description,

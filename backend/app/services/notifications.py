@@ -82,6 +82,13 @@ async def notify_many(
     return out
 
 
+async def notify_project_pms(db: AsyncSession, project, **kwargs) -> list[Notification]:
+    """Notify the project's Primary PM and every proxy PM (each once)."""
+    from app.services.project_managers import project_pm_ids
+
+    return await notify_many(db, list(await project_pm_ids(db, project)), **kwargs)
+
+
 # --- Recipient resolvers (same query shapes as users.py::get_account_head /
 #     get_geo_head — "the earliest-created user in role R mapped to scope S").
 
@@ -103,6 +110,27 @@ async def _first_user_in_role_for_scope(
             .limit(1)
         )
     ).scalars().first()
+
+
+async def account_manager_ids(db: AsyncSession, account_id: UUID | None) -> list[UUID]:
+    """Every Delivery Manager of the account — primary and proxies."""
+    if account_id is None:
+        return []
+    role_id = (
+        await db.execute(select(Role.id).where(Role.code == RoleCode.ACCOUNT_MANAGER))
+    ).scalar_one_or_none()
+    if role_id is None:
+        return []
+    return list(
+        (
+            await db.execute(
+                select(User.id)
+                .join(UserAccount, UserAccount.user_id == User.id)
+                .where(UserAccount.account_id == account_id, User.role_id == role_id)
+                .order_by(UserAccount.is_proxy, User.created_at)
+            )
+        ).scalars().all()
+    )
 
 
 async def account_head_id(db: AsyncSession, account_id: UUID | None) -> UUID | None:

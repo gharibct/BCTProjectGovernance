@@ -1,4 +1,5 @@
 import { projectScreenRoot, type Project } from "@/lib/api/projects";
+import type { ProjectActivity } from "@/lib/api/activity-restrictions";
 import type { MenuEntryId } from "@/lib/menu-config";
 
 // Project-level menu entries. Clicking one no longer expands a project list in
@@ -14,6 +15,7 @@ export type ProjectTargetId = Extract<
   | "project-review"
   | "project-performance"
   | "de-assessment-report"
+  | "project-activity-restriction"
 >;
 
 // A project counts as "Approved" once it's past Pending Approval — Draft and
@@ -40,6 +42,12 @@ type ProjectTarget = {
   eligible: (project: Project) => boolean;
   /** Message when there is nothing to pick. */
   emptyLabel: string;
+  /** "all": list every project the server returns (DE / Admin see them all, Drafts included)
+   *  instead of the signed-in user's patch (a DE's patch is only its allocated projects). */
+  scope?: "all";
+  /** The project is left out once EVERY one of these activities is restricted for it
+   *  (Project Activity Restriction) — a screen that records nothing any more. */
+  hiddenWhenRestricted?: ProjectActivity[];
 };
 
 export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
@@ -62,12 +70,15 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     label: "Report Delivery Status",
     hrefFor: (id) => `/project-reporting/${id}/delivery-calendar`,
     eligible: (p) => canReport(p.project_status),
+    hiddenWhenRestricted: ["DELIVERY_STATUS"],
     emptyLabel: "No approved projects yet.",
   },
   "performance-reporting": {
     label: "Report Project Performance",
     hrefFor: (id) => `/project-reporting/${id}/performance`,
     eligible: (p) => canReport(p.project_status),
+    // The monthly report is only gone once all three of its sections are switched off.
+    hiddenWhenRestricted: ["METRICS", "COMMITMENTS", "PAYMENT_MILESTONES"],
     emptyLabel: "No approved projects yet.",
   },
   "project-review": {
@@ -80,13 +91,26 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     label: "Project Performance",
     hrefFor: (id) => `/project-performance/${id}`,
     eligible: (p) => isApproved(p.project_status),
+    // Same rule as Report Project Performance: gone once all three sections are switched off.
+    hiddenWhenRestricted: ["METRICS", "COMMITMENTS", "PAYMENT_MILESTONES"],
     emptyLabel: "No projects yet.",
   },
   "de-assessment-report": {
     label: "DE Assessment",
     hrefFor: (id) => `/de-assessment/${id}`,
     eligible: (p) => canReport(p.project_status),
+    hiddenWhenRestricted: ["DE_ASSESSMENT"],
     emptyLabel: "No approved projects yet.",
+  },
+  // Delivery Excellence only (menu-config.ts): switch activities off for a live project.
+  "project-activity-restriction": {
+    label: "Project Activity Restriction",
+    hrefFor: (id) => `/project-activity-restriction/${id}`,
+    // Draft and Pending Approval projects too: a restriction set during setup also decides
+    // whether Commitments / Milestones are mandatory for approval.
+    eligible: () => true,
+    scope: "all",
+    emptyLabel: "No projects yet.",
   },
 };
 

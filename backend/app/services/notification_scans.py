@@ -21,8 +21,9 @@ from app.models.de_assessment import DEAssessment
 from app.models.project_status import ProjectStatusReport
 from app.models.projects import Project
 from app.models.reference_data import ReportingPeriod
-from app.schemas.enums import ActionStatus, ProjectStatus, ReportStatus
+from app.schemas.enums import ActionStatus, ProjectActivity, ProjectStatus, ReportStatus
 from app.services import notifications as notify_svc
+from app.services.dashboard import drop_restricted_projects, project_period_restriction
 
 # Actions within this many days of their due date (or already past) are surfaced.
 _ACTION_DUE_WINDOW_DAYS = 2
@@ -50,6 +51,12 @@ async def scan_overdue_assessments(db: AsyncSession) -> int:
     if not overdue_project_ids:
         return 0
 
+    # Projects whose DE Assessment is switched off no longer owe one.
+    overdue_project_ids = await drop_restricted_projects(
+        db, overdue_project_ids, ProjectActivity.DE_ASSESSMENT, today
+    )
+    if not overdue_project_ids:
+        return 0
     projects = (
         await db.execute(select(Project).where(Project.id.in_(overdue_project_ids)))
     ).scalars().all()
@@ -113,6 +120,8 @@ async def scan_report_defaulters(db: AsyncSession) -> int:
         if r.status in _SUBMITTED_REPORT_STATUSES
     }
 
+    restricted = await project_period_restriction(db, project_ids, "delivery")
+
     created = 0
     for project in projects:
         project_start = project.tool_effective_date or project.actual_start_date or project.planned_start_date
@@ -121,9 +130,11 @@ async def scan_report_defaulters(db: AsyncSession) -> int:
                 continue
             if (project.id, period.id) in submitted:
                 continue
-            row = await notify_svc.notify(
+            if restricted is not None and restricted(project.id, period):
+                continue  # report switched off for the project from this period on
+            rows = await notify_svc.notify_project_pms(
                 db,
-                recipient_id=project.project_manager_id,
+                project,
                 type="REPORT_DEFAULTER",
                 title=f"Status report missing for {project.project_code}",
                 body=f"The {period.label} reporting period has ended without a submitted report.",
@@ -133,8 +144,7 @@ async def scan_report_defaulters(db: AsyncSession) -> int:
                 data={"project_code": project.project_code, "period_id": str(period.id)},
                 dedupe_key=f"report-defaulter:{project.id}:{period.id}",
             )
-            if row is not None:
-                created += 1
+            created += len(rows)
     return created
 
 

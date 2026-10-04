@@ -7,7 +7,7 @@ defects, per-priority response/lead time) so they get bespoke routers below.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -76,6 +76,7 @@ from app.services.measurement_metrics import (
     compute_support_metrics,
     compute_testing_metrics,
 )
+from app.services.activity_restriction import assert_activity_open, assert_period_open
 from app.services.status_report import ensure_draft_report
 
 router = APIRouter()
@@ -118,6 +119,19 @@ class MeasurementConfig:
     # The column that identifies "the same snapshot" for an upsert on POST.
     # None for event-based tabs (Cloud Migration) that allow repeats.
     dedup_field: str | None = "period_id"
+
+
+async def _ensure_draft_report(db: AsyncSession, project_id: UUID, period_id: UUID) -> None:
+    """Every period-scoped measurement write ends here: refuse it when Metrics is
+    no longer required for the period (the request then rolls back), otherwise make
+    sure the period shows a Draft report."""
+    await assert_period_open(db, project_id, period_id, activity=ProjectActivity.METRICS)
+    await ensure_draft_report(db, project_id, period_id)
+
+
+async def _assert_metrics_open_today(db: AsyncSession, project_id: UUID) -> None:
+    """Event-based measurements (Cloud Migration) have no period — compare today."""
+    await assert_activity_open(db, project_id, ProjectActivity.METRICS, date.today())
 
 
 def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
@@ -179,7 +193,9 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
         # the Project Dashboard shows a Draft even if Project Status was never
         # touched. Cloud Migration is event-based (as_of_date, no period_id).
         if hasattr(model, "period_id"):
-            await ensure_draft_report(db, project_id, data["period_id"])
+            await _ensure_draft_report(db, project_id, data["period_id"])
+        else:
+            await _assert_metrics_open_today(db, project_id)
         return obj
 
     @sub.get("/{item_id}", response_model=cfg.read_schema, dependencies=_pm_read)
@@ -202,7 +218,9 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
             setattr(obj, key, value)
         await db.flush()
         if hasattr(model, "period_id"):
-            await ensure_draft_report(db, project_id, obj.period_id)
+            await _ensure_draft_report(db, project_id, obj.period_id)
+        else:
+            await _assert_metrics_open_today(db, project_id)
         return obj
 
     @sub.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
@@ -210,6 +228,10 @@ def build_measurement_router(cfg: MeasurementConfig) -> APIRouter:
         obj = await crud.get(db, item_id)
         if obj is None or obj.project_id != project_id:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+        if hasattr(obj, "period_id"):
+            await assert_period_open(db, project_id, obj.period_id, activity=ProjectActivity.METRICS)
+        else:
+            await _assert_metrics_open_today(db, project_id)
         await crud.delete(db, obj)
 
     return sub
@@ -388,7 +410,7 @@ async def create_development(project_id: UUID, payload: MeasurementDevelopmentCr
     await db.flush()
     await db.refresh(measurement)
 
-    await ensure_draft_report(db, project_id, payload.period_id)
+    await _ensure_draft_report(db, project_id, payload.period_id)
     return await _load_development_with_defects(db, measurement)
 
 
@@ -421,7 +443,7 @@ async def update_development(
     _recompute_defect_leakage(obj, defects)
     await db.flush()
 
-    await ensure_draft_report(db, project_id, obj.period_id)
+    await _ensure_draft_report(db, project_id, obj.period_id)
     return await _load_development_with_defects(db, obj)
 
 
@@ -430,6 +452,7 @@ async def delete_development(project_id: UUID, measurement_id: UUID, db: AsyncSe
     obj = await measurement_development_crud.get(db, measurement_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    await assert_period_open(db, project_id, obj.period_id, activity=ProjectActivity.METRICS)
     await measurement_development_crud.delete(db, obj)
 
 
@@ -465,7 +488,7 @@ async def upsert_defect(
     await db.flush()
     await db.refresh(existing)
 
-    await ensure_draft_report(db, project_id, measurement.period_id)
+    await _ensure_draft_report(db, project_id, measurement.period_id)
     return existing
 
 
@@ -567,7 +590,7 @@ async def create_staffing(project_id: UUID, payload: MeasurementStaffingCreate, 
     await db.flush()
     await db.refresh(measurement)
 
-    await ensure_draft_report(db, project_id, payload.period_id)
+    await _ensure_draft_report(db, project_id, payload.period_id)
     return await _load_staffing_with_priorities(db, measurement)
 
 
@@ -596,7 +619,7 @@ async def update_staffing(
         setattr(obj, key, value)
     await db.flush()
 
-    await ensure_draft_report(db, project_id, obj.period_id)
+    await _ensure_draft_report(db, project_id, obj.period_id)
     return await _load_staffing_with_priorities(db, obj)
 
 
@@ -605,6 +628,7 @@ async def delete_staffing(project_id: UUID, measurement_id: UUID, db: AsyncSessi
     obj = await measurement_staffing_crud.get(db, measurement_id)
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    await assert_period_open(db, project_id, obj.period_id, activity=ProjectActivity.METRICS)
     await measurement_staffing_crud.delete(db, obj)
 
 
@@ -644,7 +668,7 @@ async def upsert_priority_metric(
     await db.flush()
     await db.refresh(existing)
 
-    await ensure_draft_report(db, project_id, measurement.period_id)
+    await _ensure_draft_report(db, project_id, measurement.period_id)
     return existing
 
 

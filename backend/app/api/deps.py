@@ -14,6 +14,7 @@ from app.models.projects import Project
 from app.models.reference_data import Account
 from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.enums import ProjectStatus, RoleCode
+from app.services.project_managers import pm_condition
 
 
 @dataclass
@@ -69,7 +70,7 @@ async def project_scope_conditions(db: AsyncSession, user: User) -> list:
     - ADMIN / DELIVERY_EXCELLENCE / PMO / CDO: no restriction (they need
       cross-portfolio reads — the DE Projects browser, Project Health, the
       account/geo dashboards).
-    - PROJECT_MANAGER: only projects they manage.
+    - PROJECT_MANAGER: only projects they manage (as Primary or proxy PM).
     - ACCOUNT_MANAGER: only projects in their owned accounts.
     - GEO_HEAD: only projects in their owned geo(s), directly or via the
       project's account (mirrors require_project_access).
@@ -79,7 +80,7 @@ async def project_scope_conditions(db: AsyncSession, user: User) -> list:
     if role_code in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CDO):
         return []
     if role_code == RoleCode.PROJECT_MANAGER:
-        return [Project.project_manager_id == user.id]
+        return [pm_condition(user.id)]
     if role_code == RoleCode.ACCOUNT_MANAGER:
         account_ids = await _owned_account_ids(db, user)
         return [Project.account_id.in_(account_ids)] if account_ids else [false()]

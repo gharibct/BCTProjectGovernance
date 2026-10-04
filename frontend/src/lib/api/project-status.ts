@@ -138,6 +138,10 @@ export type ReportingActivity = {
   year: number;
   weekly: ReportingActivitySeries;
   monthly: ReportingActivitySeries;
+  // Dates from which the project no longer owes the weekly Delivery Status / the
+  // monthly Project Performance report (Admin / DE restriction), or null.
+  weekly_restricted_from?: string | null;
+  monthly_restricted_from?: string | null;
 };
 
 export function useReportingActivity(projectId: string | null) {

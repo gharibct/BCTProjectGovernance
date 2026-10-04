@@ -89,6 +89,17 @@ class ProjectStatus(StrEnum):
     UNDER_AMENDMENT = "Under Amendment"
 
 
+class ProjectActivity(StrEnum):
+    """The activities that can be switched off for a project from a date
+    (project_activity_restrictions)."""
+
+    DELIVERY_STATUS = "DELIVERY_STATUS"
+    METRICS = "METRICS"
+    COMMITMENTS = "COMMITMENTS"
+    PAYMENT_MILESTONES = "PAYMENT_MILESTONES"
+    DE_ASSESSMENT = "DE_ASSESSMENT"
+
+
 class ProjectLifecycleStatus(StrEnum):
     """Set by the PM on the Amend charter page, independent of the approval
     workflow. Null on a project means "follow project_status"."""

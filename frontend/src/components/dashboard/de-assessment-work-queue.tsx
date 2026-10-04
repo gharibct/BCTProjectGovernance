@@ -22,6 +22,7 @@ const STATUS_BADGE_CLASS: Record<DEAssessmentWorkQueueRow["status"], string> = {
   Due: "bg-slate-100 text-slate-600",
   Draft: "bg-amber-50 text-amber-700",
   Assessed: "bg-emerald-50 text-emerald-700",
+  "Not Required": "bg-slate-50 text-slate-400 ring-1 ring-slate-200",
 };
 
 export function DeAssessmentWorkQueue({ rows }: { rows: DEAssessmentWorkQueueRow[] }) {
@@ -83,12 +84,16 @@ export function DeAssessmentWorkQueue({ rows }: { rows: DEAssessmentWorkQueueRow
                     </span>
                   </td>
                   <td className="px-5 py-2.5">
-                    <Link
-                      href={row.href}
-                      className="rounded-md bg-[#1a6fc4] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a6fc4]/90"
-                    >
-                      {row.status === "Draft" ? "Continue" : "Assess"}
-                    </Link>
+                    {row.status === "Not Required" ? (
+                      <span className="text-xs font-semibold text-slate-400">Not required</span>
+                    ) : (
+                      <Link
+                        href={row.href}
+                        className="rounded-md bg-[#1a6fc4] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a6fc4]/90"
+                      >
+                        {row.status === "Draft" ? "Continue" : "Assess"}
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))}

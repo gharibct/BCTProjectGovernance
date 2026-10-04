@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -32,7 +33,8 @@ from app.schemas.contractual import (
     MilestonePaymentRead,
     MilestonePaymentUpdate,
 )
-from app.schemas.enums import RoleCode
+from app.schemas.enums import ProjectActivity, RoleCode
+from app.services.activity_restriction import assert_activity_open
 
 router = APIRouter(tags=["Contractual Compliance"])
 
@@ -133,6 +135,7 @@ async def create_commitment_actual(
     commitment = await contractual_commitment_crud.get(db, commitment_id)
     if commitment is None or commitment.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Commitment not found")
+    await assert_activity_open(db, project_id, ProjectActivity.COMMITMENTS, payload.period_date)
 
     existing, _ = await contractual_commitment_actual_crud.list(
         db,
@@ -185,6 +188,7 @@ async def update_commitment_actual(
     user: User = Depends(_pm_write_dep),
 ):
     actual = await _get_actual_or_404(db, project_id, commitment_id, actual_id)
+    await assert_activity_open(db, project_id, ProjectActivity.COMMITMENTS, actual.period_date)
     row = await contractual_commitment_actual_crud.update(db, actual, payload)
     row.recorded_by = user.id
     await db.flush()
@@ -204,6 +208,7 @@ async def delete_commitment_actual(
     db: AsyncSession = Depends(get_db),
 ):
     actual = await _get_actual_or_404(db, project_id, commitment_id, actual_id)
+    await assert_activity_open(db, project_id, ProjectActivity.COMMITMENTS, actual.period_date)
     await contractual_commitment_actual_crud.delete(db, actual)
 
 
@@ -276,6 +281,7 @@ async def upsert_milestone_actual(
     milestone = await milestone_payment_crud.get(db, milestone_id)
     if milestone is None or milestone.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Milestone not found")
+    await assert_activity_open(db, project_id, ProjectActivity.PAYMENT_MILESTONES, date.today())
 
     items, _ = await milestone_payment_actual_crud.list(
         db, filters={MilestonePaymentActual.milestone_id: milestone_id}, limit=1

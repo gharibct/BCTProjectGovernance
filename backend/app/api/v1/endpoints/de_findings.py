@@ -8,6 +8,8 @@ The project-scoped register lives at /projects/{id}/de-assessment-findings
 (de_assessment.py) and shares the create helper.
 """
 
+from datetime import date
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -38,7 +40,8 @@ from app.schemas.de_findings import (
     DEFindingListRow,
     DEFindingsKpis,
 )
-from app.schemas.enums import DEFindingHistoryEventType, RoleCode
+from app.schemas.enums import DEFindingHistoryEventType, ProjectActivity, RoleCode
+from app.services.activity_restriction import assert_activity_open
 from app.services import notifications as notify_svc
 from app.services.de_findings import (
     DEFindingFilters,
@@ -109,14 +112,15 @@ async def create_finding(
         raise HTTPException(
             http_status.HTTP_403_FORBIDDEN, "Project has no Delivery Excellence allocated"
         )
+    await assert_activity_open(db, payload.project_id, ProjectActivity.DE_ASSESSMENT, date.today())
     finding_in = DEAssessmentFindingIn(**payload.model_dump(exclude={"project_id"}))
     obj = await create_project_finding(db, payload.project_id, finding_in)
     await record_finding_history(
         db, obj.id, DEFindingHistoryEventType.CREATED, ctx.user.id, new_value=obj.status
     )
-    await notify_svc.notify(
+    await notify_svc.notify_project_pms(
         db,
-        recipient_id=project.project_manager_id,
+        project,
         type="FINDING_RAISED",
         title=f"New DE finding on {project.project_code}",
         body=obj.description,
@@ -144,6 +148,7 @@ async def update_finding(
         raise HTTPException(
             http_status.HTTP_403_FORBIDDEN, "Project has no Delivery Excellence allocated"
         )
+    await assert_activity_open(db, obj.project_id, ProjectActivity.DE_ASSESSMENT, date.today())
 
     old_status = obj.status
     new_status = payload.status
@@ -159,9 +164,9 @@ async def update_finding(
     await record_status_change(db, updated.id, ctx.user.id, old_status, new_status)
 
     if new_status != old_status and project is not None:
-        await notify_svc.notify(
+        await notify_svc.notify_project_pms(
             db,
-            recipient_id=project.project_manager_id,
+            project,
             type="FINDING_STATUS",
             title=f"Finding on {project.project_code} is now {new_status}",
             body=updated.description,

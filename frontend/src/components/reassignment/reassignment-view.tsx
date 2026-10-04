@@ -1,19 +1,25 @@
 "use client";
 
 import * as React from "react";
-import { Building2, FolderOpen, Globe, UserCog, type LucideIcon } from "lucide-react";
+import { Building2, FolderOpen, Globe, UserCog, X, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/client";
 import {
+  useAddAccountProxy,
+  useAddProjectProxy,
   useReassignableAccounts,
   useReassignableGeos,
   useReassignableProjects,
   useReassignAccountManager,
   useReassignGeoHead,
   useReassignProjectManager,
+  useRemoveAccountProxy,
+  useRemoveProjectProxy,
+  type ProxyUser,
 } from "@/lib/api/reassignment";
 import {
+  canChangePrimaryAccountManager,
   canReassignAccountManager,
   canReassignGeoHead,
   canReassignOwners,
@@ -63,7 +69,59 @@ type ReassignRowProps = {
   canWrite: boolean;
   saving: boolean;
   onSave: (userId: string) => void;
+  /** Proxy column (Project / Delivery Manager tabs only). */
+  proxy?: {
+    proxies: ProxyUser[];
+    roleCodes: readonly string[];
+    canEdit: boolean;
+    busy: boolean;
+    onAdd: (userId: string) => void;
+    onRemove: (userId: string) => void;
+  };
 };
+
+// Proxies share the primary's rights and have no end date: shown as removable
+// chips, with a picker to add another.
+function ProxyCell({ proxy }: { proxy: NonNullable<ReassignRowProps["proxy"]> }) {
+  return (
+    <div className="flex min-w-[220px] flex-col gap-2">
+      {proxy.proxies.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {proxy.proxies.map((p) => (
+            <span
+              key={p.id}
+              className="inline-flex items-center gap-1 rounded-full bg-slate-100 py-0.5 pr-1 pl-2.5 text-xs font-semibold text-slate-700"
+            >
+              {p.name ?? "—"}
+              {proxy.canEdit ? (
+                <button
+                  type="button"
+                  aria-label={`Remove ${p.name ?? "proxy"}`}
+                  disabled={proxy.busy}
+                  onClick={() => proxy.onRemove(p.id)}
+                  className="rounded-full p-0.5 text-slate-500 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-50"
+                >
+                  <X className="size-3" />
+                </button>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span className="text-slate-400">—</span>
+      )}
+      {proxy.canEdit ? (
+        <ResourcePicker
+          value={null}
+          onChange={(id) => id && proxy.onAdd(id)}
+          roleCodes={proxy.roleCodes}
+          disabled={proxy.busy}
+          placeholder="Add proxy…"
+        />
+      ) : null}
+    </div>
+  );
+}
 
 function ReassignRow({
   leading,
@@ -73,6 +131,7 @@ function ReassignRow({
   canWrite,
   saving,
   onSave,
+  proxy,
 }: ReassignRowProps) {
   // `undefined` = untouched (show the current owner); a string / null = an
   // explicit pick that differs from what's stored.
@@ -88,6 +147,11 @@ function ReassignRow({
         </td>
       ))}
       <td className="px-3 py-2.5 text-slate-600">{currentOwnerName ?? "—"}</td>
+      {proxy ? (
+        <td className="px-3 py-2.5 text-slate-600">
+          <ProxyCell proxy={proxy} />
+        </td>
+      ) : null}
       <td className="px-3 py-2.5 min-w-[240px]">
         <ResourcePicker
           value={chosen}
@@ -248,6 +312,8 @@ export function ReassignmentView() {
   const canWrite = canReassignOwners(roleCode);
   const showGeoTab = canReassignGeoHead(roleCode);
   const showAmTab = canReassignAccountManager(roleCode);
+  // An Account Head sees the Delivery Manager tab to manage proxies only.
+  const canChangeAm = canChangePrimaryAccountManager(roleCode);
   const tabs = React.useMemo(
     () =>
       TABS.filter((t) => (t.id === "geo" ? showGeoTab : t.id === "am" ? showAmTab : true)),
@@ -264,6 +330,10 @@ export function ReassignmentView() {
   const reassignPm = useReassignProjectManager();
   const reassignAm = useReassignAccountManager();
   const reassignGeoHead = useReassignGeoHead();
+  const addProjectProxy = useAddProjectProxy();
+  const removeProjectProxy = useRemoveProjectProxy();
+  const addAccountProxy = useAddAccountProxy();
+  const removeAccountProxy = useRemoveAccountProxy();
 
   const [tab, setTab] = React.useState<TabId>("pm");
   const active = tabs.find((t) => t.id === tab) ?? tabs[0];
@@ -278,8 +348,10 @@ export function ReassignmentView() {
   const [pmRegion, setPmRegion] = React.useState("");
   const [pmAccount, setPmAccount] = React.useState("");
   const [pmPm, setPmPm] = React.useState("");
+  const [pmProxy, setPmProxy] = React.useState("");
   const [amGeo, setAmGeo] = React.useState("");
   const [amAm, setAmAm] = React.useState("");
+  const [amProxy, setAmProxy] = React.useState("");
 
   // Per-tab pagination — each tab keeps its own page position. Every filter /
   // search change routes through these setters so it also jumps back to page 1
@@ -301,6 +373,7 @@ export function ReassignmentView() {
       regions: distinct(byGeo.map((r) => r.region_name)),
       accounts: distinct(byRegion.map((r) => r.account_name)),
       pms: distinct(allProjects.map((r) => r.project_manager_name)),
+      proxies: distinct(allProjects.flatMap((r) => r.proxy_managers.map((p) => p.name))),
     };
   }, [allProjects, pmGeo, pmRegion]);
 
@@ -310,6 +383,8 @@ export function ReassignmentView() {
     if (pmAccount && r.account_name !== pmAccount) return false;
     if (pmPm === NOT_ALLOCATED && r.project_manager_id) return false;
     if (pmPm && pmPm !== NOT_ALLOCATED && r.project_manager_name !== pmPm) return false;
+    if (pmProxy === NOT_ALLOCATED && r.proxy_managers.length > 0) return false;
+    if (pmProxy && pmProxy !== NOT_ALLOCATED && !r.proxy_managers.some((p) => p.name === pmProxy)) return false;
     const q = pSearch.trim().toLowerCase();
     if (q && !`${r.project_code} ${r.project_name}`.toLowerCase().includes(q)) return false;
     return true;
@@ -321,6 +396,7 @@ export function ReassignmentView() {
     () => ({
       geos: distinct(allAccounts.map((r) => r.geo_name)),
       ams: distinct(allAccounts.map((r) => r.account_manager_name)),
+      proxies: distinct(allAccounts.flatMap((r) => r.proxy_managers.map((p) => p.name))),
     }),
     [allAccounts],
   );
@@ -329,6 +405,8 @@ export function ReassignmentView() {
     if (amGeo && r.geo_name !== amGeo) return false;
     if (amAm === NOT_ALLOCATED && r.account_manager_id) return false;
     if (amAm && amAm !== NOT_ALLOCATED && r.account_manager_name !== amAm) return false;
+    if (amProxy === NOT_ALLOCATED && r.proxy_managers.length > 0) return false;
+    if (amProxy && amProxy !== NOT_ALLOCATED && !r.proxy_managers.some((p) => p.name === amProxy)) return false;
     const q = aSearch.trim().toLowerCase();
     if (q && !r.account_name.toLowerCase().includes(q)) return false;
     return true;
@@ -378,7 +456,8 @@ export function ReassignmentView() {
         </h1>
         <p className="mt-1 text-sm text-slate-500">
           Change a project&apos;s Project Manager, an account&apos;s {ACCOUNT_MANAGER_LABEL}, or a geo&apos;s
-          Geo Head — any time.
+          Geo Head — any time. Large projects and accounts can also have proxy managers, who have the same
+          rights as the primary.
         </p>
       </header>
 
@@ -412,7 +491,7 @@ export function ReassignmentView() {
       <SectionCard icon={active.icon} title={active.label}>
         {tab === "pm" ? (
           <TableFrame
-            headers={["Project", "Geo", "Region", "Account", "Current PM", "New PM"]}
+            headers={["Project", "Geo", "Region", "Account", "Current PM", "Proxy PMs", "New PM"]}
             toolbar={
               <>
                 <FilterSelect
@@ -450,6 +529,14 @@ export function ReassignmentView() {
                   width="w-48"
                   notAllocated
                 />
+                <FilterSelect
+                  label="Proxy PM"
+                  value={pmProxy}
+                  onChange={withPmReset(setPmProxy)}
+                  options={pmOptions.proxies}
+                  width="w-48"
+                  notAllocated
+                />
                 {searchInput(pSearch, withPmReset(setPSearch), "Search projects")}
               </>
             }
@@ -483,6 +570,34 @@ export function ReassignmentView() {
                 currentOwnerName={row.project_manager_name}
                 roleCodes={PM_CANDIDATE_ROLES}
                 canWrite={canWrite}
+                proxy={{
+                  proxies: row.proxy_managers,
+                  roleCodes: PM_CANDIDATE_ROLES,
+                  canEdit: canWrite,
+                  busy: savingId === row.project_id,
+                  onAdd: (userId) => {
+                    setSavingId(row.project_id);
+                    addProjectProxy.mutate(
+                      { projectId: row.project_id, userId },
+                      {
+                        onSuccess: () => showSuccess(`Proxy Project Manager added for ${row.project_code}`),
+                        onError,
+                        onSettled: () => setSavingId(null),
+                      },
+                    );
+                  },
+                  onRemove: (userId) => {
+                    setSavingId(row.project_id);
+                    removeProjectProxy.mutate(
+                      { projectId: row.project_id, userId },
+                      {
+                        onSuccess: () => showSuccess(`Proxy Project Manager removed for ${row.project_code}`),
+                        onError,
+                        onSettled: () => setSavingId(null),
+                      },
+                    );
+                  },
+                }}
                 saving={savingId === row.project_id}
                 onSave={(userId) => {
                   setSavingId(row.project_id);
@@ -503,7 +618,7 @@ export function ReassignmentView() {
 
         {tab === "am" && showAmTab ? (
           <TableFrame
-            headers={["Account", "Geo", "Current AM", "New AM"]}
+            headers={["Account", "Geo", `Current ${ACCOUNT_MANAGER_LABEL}`, `Proxy ${ACCOUNT_MANAGER_LABEL}s`, `New ${ACCOUNT_MANAGER_LABEL}`]}
             toolbar={
               <>
                 <FilterSelect
@@ -519,6 +634,14 @@ export function ReassignmentView() {
                   onChange={withAmReset(setAmAm)}
                   options={amOptions.ams}
                   width="w-48"
+                  notAllocated
+                />
+                <FilterSelect
+                  label={`Proxy ${ACCOUNT_MANAGER_LABEL}`}
+                  value={amProxy}
+                  onChange={withAmReset(setAmProxy)}
+                  options={amOptions.proxies}
+                  width="w-56"
                   notAllocated
                 />
                 {searchInput(aSearch, withAmReset(setASearch), "Search accounts")}
@@ -550,7 +673,35 @@ export function ReassignmentView() {
                 currentOwnerId={row.account_manager_id}
                 currentOwnerName={row.account_manager_name}
                 roleCodes={ACCOUNT_HEAD_CANDIDATE_ROLES}
-                canWrite={canWrite}
+                canWrite={canChangeAm}
+                proxy={{
+                  proxies: row.proxy_managers,
+                  roleCodes: ["ACCOUNT_MANAGER"],
+                  canEdit: canWrite,
+                  busy: savingId === row.account_id,
+                  onAdd: (userId) => {
+                    setSavingId(row.account_id);
+                    addAccountProxy.mutate(
+                      { accountId: row.account_id, userId },
+                      {
+                        onSuccess: () => showSuccess(`Proxy ${ACCOUNT_MANAGER_LABEL} added for ${row.account_name}`),
+                        onError,
+                        onSettled: () => setSavingId(null),
+                      },
+                    );
+                  },
+                  onRemove: (userId) => {
+                    setSavingId(row.account_id);
+                    removeAccountProxy.mutate(
+                      { accountId: row.account_id, userId },
+                      {
+                        onSuccess: () => showSuccess(`Proxy ${ACCOUNT_MANAGER_LABEL} removed for ${row.account_name}`),
+                        onError,
+                        onSettled: () => setSavingId(null),
+                      },
+                    );
+                  },
+                }}
                 saving={savingId === row.account_id}
                 onSave={(userId) => {
                   setSavingId(row.account_id);

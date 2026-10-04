@@ -16,6 +16,7 @@ import { Field, ButtonSpinner } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
 import { usePageBanner } from "@/stores/page-banner";
 import { useRoles, type User } from "@/lib/api/reference-data";
+import { roleDisplayName } from "@/lib/role-labels";
 import {
   useClearUserPassword,
   useCreateUser,
@@ -89,7 +90,7 @@ function UserForm({ user, onClose }: { user: User | null; onClose: () => void })
       label: "Role",
       kind: "select",
       mandatory: true,
-      choices: roles.map((r) => ({ value: r.id, label: r.name })),
+      choices: roles.map((r) => ({ value: r.id, label: roleDisplayName(r) })),
     },
     { key: "is_active", label: "Active", kind: "select", options: ["Yes", "No"] },
   ];

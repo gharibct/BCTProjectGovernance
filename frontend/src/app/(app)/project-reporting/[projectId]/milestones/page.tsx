@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { ActivityGate } from "@/components/forms/activity-gate";
 import { MilestonesTab } from "@/components/contractual-compliance/milestones-tab";
 import { ProjectHeader } from "@/components/shell/project-header";
 
@@ -12,7 +13,9 @@ export default function MilestonesPage() {
     <div className="mx-auto max-w-6xl">
       <ProjectHeader subheading="Payment Milestones" />
       <div className="mt-8">
-        <MilestonesTab />
+        <ActivityGate activity="PAYMENT_MILESTONES" usePeriodParam>
+          <MilestonesTab />
+        </ActivityGate>
       </div>
     </div>
   );

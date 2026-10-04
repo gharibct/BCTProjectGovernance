@@ -27,6 +27,7 @@ const STATUS_BADGE_CLASS: Record<DEAssessmentWorkQueueRow["status"], string> = {
   Due: "bg-slate-100 text-slate-600",
   Draft: "bg-amber-50 text-amber-700",
   Assessed: "bg-emerald-50 text-emerald-700",
+  "Not Required": "bg-slate-50 text-slate-400 ring-1 ring-slate-200",
 };
 
 export function DeAssessmentQueue() {
@@ -203,12 +204,25 @@ function QueueAction({ row }: { row: DEAssessmentWorkQueueRow }) {
   const label = row.status === "Draft" ? "Continue" : "Assess";
   return (
     <div className="flex flex-col items-center gap-1">
-      <Link
-        href={`/de-assessment/${row.project_id}`}
-        className="rounded-md bg-[#1a6fc4] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a6fc4]/90"
-      >
-        {label}
-      </Link>
+      {row.status === "Not Required" ? (
+        <span
+          title={
+            row.assessment_restricted_from
+              ? `DE Assessment is not required from ${row.assessment_restricted_from}`
+              : undefined
+          }
+          className="text-xs font-semibold text-slate-400"
+        >
+          Not required
+        </span>
+      ) : (
+        <Link
+          href={`/de-assessment/${row.project_id}`}
+          className="rounded-md bg-[#1a6fc4] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1a6fc4]/90"
+        >
+          {label}
+        </Link>
+      )}
       <Link
         href={`/de-assessment/${row.project_id}/history`}
         className="text-xs font-semibold text-[#1a6fc4] hover:underline"

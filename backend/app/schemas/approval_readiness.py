@@ -24,6 +24,9 @@ class ApprovalReadinessModule(BaseModel):
     key: str
     label: str
     mandatory: bool
+    # Commitments / Milestones only: switched off for the project (Admin / DE), so
+    # not mandatory and never blocks submission.
+    restricted: bool = False
     complete: bool
     gaps: str | None = None
     last_updated: datetime | None = None

@@ -13,11 +13,14 @@ workflow. Scope:
 - ACCOUNT_MANAGER: only Project Managers of projects within their own owned
   account(s) (user_accounts); no Delivery Manager or Geo Head reassignment.
 
-Delivery Manager and Geo Head are single-owner here: a reassignment deletes any
-existing user_accounts / user_geos rows for that account/geo and inserts one,
-matching how the rest of the app already assumes one AM / Geo Head per
-account/geo (GET /accounts/{id}/account-head, GET /geos/{id}/geo-head both
-pick "oldest wins").
+Delivery Manager and Geo Head are single-owner here: a reassignment deletes the
+existing primary user_accounts / user_geos row(s) for that account/geo and
+inserts one, matching how the rest of the app already assumes one AM / Geo Head
+per account/geo (GET /accounts/{id}/account-head, GET /geos/{id}/geo-head both
+pick "oldest wins"). Large projects / accounts can additionally carry any number
+of proxy PMs (project_proxy_managers) / proxy DMs (user_accounts.is_proxy), added
+and removed here with the same scope rules; proxies have the same rights as the
+primary and are open-ended.
 """
 
 from datetime import UTC, datetime
@@ -25,7 +28,7 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -37,11 +40,13 @@ from app.api.deps import (
     project_scope_conditions,
 )
 from app.core.db import get_db
-from app.models.projects import Project
+from app.models.projects import Project, ProjectProxyManager
 from app.models.reference_data import Account, Geo, Region
 from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.enums import RoleCode
 from app.schemas.reassignment import (
+    AddProxyBody,
+    ProxyUser,
     ReassignAccountManagerBody,
     ReassignAccountRow,
     ReassignGeoHeadBody,
@@ -86,6 +91,13 @@ async def _user_name(db: AsyncSession, user_id: UUID | None) -> str | None:
     return user.full_name if user is not None else None
 
 
+def _owner_order(link_model: type) -> tuple:
+    """Oldest wins, but a primary Delivery Manager beats a proxy."""
+    if link_model is UserAccount:
+        return (UserAccount.is_proxy, User.created_at)
+    return (User.created_at,)
+
+
 async def _current_owner(
     db: AsyncSession, role_codes: tuple[RoleCode, ...], link_model: type, link_col, entity_id: UUID
 ) -> User | None:
@@ -105,7 +117,7 @@ async def _current_owner(
                 select(User)
                 .join(link_model, link_model.user_id == User.id)
                 .where(link_col == entity_id, User.role_id.in_(role_ids))
-                .order_by(User.created_at)
+                .order_by(*_owner_order(link_model))
                 .limit(1)
             )
         )
@@ -117,11 +129,18 @@ async def _current_owner(
 async def _replace_owner(
     db: AsyncSession, link_model: type, link_col, entity_id: UUID, user_id: UUID
 ) -> None:
-    """Single-owner enforcement: drop every existing link row for this entity,
-    then add exactly one for `user_id`."""
-    existing = (await db.execute(select(link_model).where(link_col == entity_id))).scalars().all()
+    """Single-owner enforcement: drop the existing primary link row(s) for this
+    entity, then add exactly one for `user_id`. Proxy Delivery Managers are kept,
+    except the new owner's own proxy row (they are being promoted)."""
+    stmt = select(link_model).where(link_col == entity_id)
+    if link_model is UserAccount:
+        stmt = stmt.where(or_(UserAccount.is_proxy.is_(False), UserAccount.user_id == user_id))
+    existing = (await db.execute(stmt)).scalars().all()
     for row in existing:
         await db.delete(row)
+    # Flush the deletes first: the unit of work otherwise INSERTs before it
+    # DELETEs, so re-saving the same owner would trip the UNIQUE (user, entity).
+    await db.flush()
     now = datetime.now(UTC)
     if link_model is UserAccount:
         db.add(UserAccount(id=uuid4(), user_id=user_id, account_id=entity_id, created_at=now))
@@ -179,7 +198,53 @@ async def _ref_name(db: AsyncSession, model: type, ref_id: UUID | None) -> str |
     return ref.name if ref is not None else None
 
 
+async def _project_proxies(db: AsyncSession, project_ids: list[UUID]) -> dict[UUID, list[ProxyUser]]:
+    if not project_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(ProjectProxyManager.project_id, User.id, User.full_name)
+            .join(User, User.id == ProjectProxyManager.user_id)
+            .where(ProjectProxyManager.project_id.in_(project_ids))
+            .order_by(ProjectProxyManager.created_at)
+        )
+    ).all()
+    out: dict[UUID, list[ProxyUser]] = {}
+    for project_id, user_id, name in rows:
+        out.setdefault(project_id, []).append(ProxyUser(id=user_id, name=name))
+    return out
+
+
+async def _account_proxies(db: AsyncSession, account_ids: list[UUID]) -> dict[UUID, list[ProxyUser]]:
+    if not account_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(UserAccount.account_id, User.id, User.full_name)
+            .join(User, User.id == UserAccount.user_id)
+            .where(UserAccount.account_id.in_(account_ids), UserAccount.is_proxy.is_(True))
+            .order_by(UserAccount.created_at)
+        )
+    ).all()
+    out: dict[UUID, list[ProxyUser]] = {}
+    for account_id, user_id, name in rows:
+        out.setdefault(account_id, []).append(ProxyUser(id=user_id, name=name))
+    return out
+
+
+async def _require_user_with_role(
+    db: AsyncSession, user_id: UUID, role_codes: tuple[RoleCode, ...], label: str
+) -> User:
+    user = await db.get(User, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No active user with that id.")
+    if await _role_code(db, user) not in role_codes:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"The user must have the {label} role.")
+    return user
+
+
 async def _project_row(db: AsyncSession, project: Project) -> ReassignProjectRow:
+    proxies = (await _project_proxies(db, [project.id])).get(project.id, [])
     return ReassignProjectRow(
         project_id=project.id,
         project_code=project.project_code,
@@ -189,6 +254,7 @@ async def _project_row(db: AsyncSession, project: Project) -> ReassignProjectRow
         region_name=await _ref_name(db, Region, project.region_id),
         project_manager_id=project.project_manager_id,
         project_manager_name=await _user_name(db, project.project_manager_id),
+        proxy_managers=proxies,
     )
 
 
@@ -208,6 +274,7 @@ async def list_projects(
         .order_by(Project.project_code)
     )
     rows = (await db.execute(stmt)).all()
+    proxies = await _project_proxies(db, [row[0].id for row in rows])
     return [
         ReassignProjectRow(
             project_id=project.id,
@@ -218,6 +285,7 @@ async def list_projects(
             region_name=region_name,
             project_manager_id=project.project_manager_id,
             project_manager_name=pm_name,
+            proxy_managers=proxies.get(project.id, []),
         )
         for project, pm_name, account_name, geo_name, region_name in rows
     ]
@@ -235,6 +303,65 @@ async def reassign_project_manager(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
     await _assert_project_scope(db, ctx, project)
     project.project_manager_id = payload.project_manager_id
+    # A proxy who becomes the Primary is no longer listed as a proxy.
+    await db.execute(
+        delete(ProjectProxyManager).where(
+            ProjectProxyManager.project_id == project_id,
+            ProjectProxyManager.user_id == payload.project_manager_id,
+        )
+    )
+    await db.flush()
+    return await _project_row(db, project)
+
+
+@router.post("/projects/{project_id}/proxies", response_model=ReassignProjectRow)
+async def add_project_proxy(
+    project_id: UUID,
+    payload: AddProxyBody,
+    ctx: SimpleNamespace = Depends(_reassigner),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a proxy Project Manager (same rights as the Primary, open-ended)."""
+    project = await db.get(Project, project_id)
+    if project is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
+    await _assert_project_scope(db, ctx, project)
+    user = await _require_user_with_role(db, payload.user_id, (RoleCode.PROJECT_MANAGER,), "Project Manager")
+    if user.id == project.project_manager_id:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="This user is already the Primary Project Manager.")
+    existing = (
+        await db.execute(
+            select(ProjectProxyManager).where(
+                ProjectProxyManager.project_id == project_id, ProjectProxyManager.user_id == user.id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        db.add(
+            ProjectProxyManager(
+                id=uuid4(), project_id=project_id, user_id=user.id, created_by=ctx.user.id, created_at=datetime.now(UTC)
+            )
+        )
+        await db.flush()
+    return await _project_row(db, project)
+
+
+@router.delete("/projects/{project_id}/proxies/{user_id}", response_model=ReassignProjectRow)
+async def remove_project_proxy(
+    project_id: UUID,
+    user_id: UUID,
+    ctx: SimpleNamespace = Depends(_reassigner),
+    db: AsyncSession = Depends(get_db),
+):
+    project = await db.get(Project, project_id)
+    if project is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
+    await _assert_project_scope(db, ctx, project)
+    await db.execute(
+        delete(ProjectProxyManager).where(
+            ProjectProxyManager.project_id == project_id, ProjectProxyManager.user_id == user_id
+        )
+    )
     await db.flush()
     return await _project_row(db, project)
 
@@ -243,6 +370,7 @@ async def reassign_project_manager(
 
 
 async def _account_row(db: AsyncSession, account: Account) -> ReassignAccountRow:
+    proxies = (await _account_proxies(db, [account.id])).get(account.id, [])
     owner = await _current_owner(
         db, (RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD), UserAccount, UserAccount.account_id, account.id
     )
@@ -253,6 +381,7 @@ async def _account_row(db: AsyncSession, account: Account) -> ReassignAccountRow
         geo_name=geo.name if geo is not None else None,
         account_manager_id=owner.id if owner is not None else None,
         account_manager_name=owner.full_name if owner is not None else None,
+        proxy_managers=proxies,
     )
 
 
@@ -260,11 +389,12 @@ async def _account_row(db: AsyncSession, account: Account) -> ReassignAccountRow
 async def list_accounts(
     ctx: SimpleNamespace = Depends(_reassigner), db: AsyncSession = Depends(get_db)
 ):
-    # Account Heads only reassign Project Managers — the Delivery Manager tab is
-    # hidden for them on the client; return nothing here too.
-    if ctx.role == RoleCode.ACCOUNT_MANAGER:
-        return []
+    # An Account Head cannot change the primary Delivery Manager, but sees their
+    # own accounts to add / remove proxy Delivery Managers.
     stmt = select(Account).order_by(Account.name)
+    if ctx.role == RoleCode.ACCOUNT_MANAGER:
+        owned_accounts = await _owned_account_ids(db, ctx.user)
+        stmt = stmt.where(Account.id.in_(owned_accounts)) if owned_accounts else stmt.where(Account.id.is_(None))
     if ctx.role == RoleCode.GEO_HEAD:
         owned = await _owned_geo_ids(db, ctx.user)
         stmt = stmt.where(Account.geo_id.in_(owned)) if owned else stmt.where(Account.id.is_(None))
@@ -284,6 +414,60 @@ async def reassign_account_manager(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Account not found")
     await _assert_account_scope(db, ctx, account)
     await _replace_owner(db, UserAccount, UserAccount.account_id, account_id, payload.user_id)
+    return await _account_row(db, account)
+
+
+async def _assert_account_proxy_scope(db: AsyncSession, ctx: SimpleNamespace, account: Account) -> None:
+    """Proxy Delivery Manager write-guard: an Account Head only for their own
+    accounts, a Geo Head only for accounts in their geo(s); DE / ADMIN anywhere."""
+    if ctx.role == RoleCode.ACCOUNT_MANAGER:
+        if account.id not in await _owned_account_ids(db, ctx.user):
+            raise _NO_ACCOUNT_ACCESS
+        return
+    await _assert_account_scope(db, ctx, account)
+
+
+@router.post("/accounts/{account_id}/proxies", response_model=ReassignAccountRow)
+async def add_account_proxy(
+    account_id: UUID,
+    payload: AddProxyBody,
+    ctx: SimpleNamespace = Depends(_reassigner),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a proxy Delivery Manager (same rights as the primary, open-ended)."""
+    account = await db.get(Account, account_id)
+    if account is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Account not found")
+    await _assert_account_proxy_scope(db, ctx, account)
+    user = await _require_user_with_role(db, payload.user_id, (RoleCode.ACCOUNT_MANAGER,), "Delivery Manager")
+    existing = (
+        await db.execute(select(UserAccount).where(UserAccount.account_id == account_id, UserAccount.user_id == user.id))
+    ).scalar_one_or_none()
+    if existing is not None and not existing.is_proxy:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="This user is already the primary Delivery Manager.")
+    if existing is None:
+        db.add(UserAccount(id=uuid4(), user_id=user.id, account_id=account_id, is_proxy=True, created_at=datetime.now(UTC)))
+        await db.flush()
+    return await _account_row(db, account)
+
+
+@router.delete("/accounts/{account_id}/proxies/{user_id}", response_model=ReassignAccountRow)
+async def remove_account_proxy(
+    account_id: UUID,
+    user_id: UUID,
+    ctx: SimpleNamespace = Depends(_reassigner),
+    db: AsyncSession = Depends(get_db),
+):
+    account = await db.get(Account, account_id)
+    if account is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Account not found")
+    await _assert_account_proxy_scope(db, ctx, account)
+    await db.execute(
+        delete(UserAccount).where(
+            UserAccount.account_id == account_id, UserAccount.user_id == user_id, UserAccount.is_proxy.is_(True)
+        )
+    )
+    await db.flush()
     return await _account_row(db, account)
 
 

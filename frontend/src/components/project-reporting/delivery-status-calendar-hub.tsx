@@ -34,6 +34,7 @@ export function DeliveryStatusCalendarHub() {
       hrefForPeriod={(periodId) => `/project-reporting/${projectId}/project-status?period=${periodId}`}
       scopeStart={project?.tool_effective_date ?? project?.actual_start_date ?? project?.planned_start_date ?? null}
       scopeEnd={project?.actual_end_date ?? project?.planned_end_date ?? null}
+      restrictedFrom={current.data?.weekly_restricted_from ?? previous.data?.weekly_restricted_from ?? null}
     />
   );
 }

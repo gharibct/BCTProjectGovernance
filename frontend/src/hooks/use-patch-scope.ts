@@ -42,7 +42,7 @@ export function usePatchScope() {
     if (seesAllAccountsAndProjects) return projects;
     // A PM only sees the projects allocated to them. The server enforces
     // the same scope on GET /projects.
-    if (realRole === "PROJECT_MANAGER") return projects.filter((p) => p.project_manager_id === user?.id);
+    if (realRole === "PROJECT_MANAGER") return projects; // GET /projects already returns Primary + proxy PM projects
     // DE's allocation is per-project (delivery_excellence_id), not
     // account/geo membership — DE has no user_accounts/user_geos rows to
     // fall back on, unlike every other non-Admin/CDO role below.

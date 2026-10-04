@@ -9,6 +9,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from collections.abc import Callable
 from typing import NamedTuple
 from uuid import UUID
 
@@ -47,6 +48,8 @@ from app.models.metric_target import (
 )
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
 from app.models.projects import Project
+from app.services.project_managers import pm_condition
+from app.services.activity_restriction import MONTHLY_ACTIVITIES, restricted_from_by_project
 from app.models.raid import AssumptionLog, DependencyLog, IssueLog, OpportunityLog, RiskLog
 from app.models.reference_data import Account, Geo, ProjectType, Region, ReportingPeriod
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusReport
@@ -135,6 +138,7 @@ from app.schemas.enums import (
     IssueStatus,
     OpportunityImpact,
     OpportunityStatus,
+    ProjectActivity,
     ProjectLifecycleStatus,
     ReportStatus,
     RoleCode,
@@ -205,7 +209,7 @@ def _project_conditions(filters: DashboardFilters) -> list:
     if filters.health_status is not None:
         conditions.append(Project.overall_project_health == filters.health_status)
     if filters.project_manager_id is not None:
-        conditions.append(Project.project_manager_id == filters.project_manager_id)
+        conditions.append(pm_condition(filters.project_manager_id))
     if filters.de_allocated:
         conditions.append(Project.delivery_excellence_id.is_not(None))
     if filters.approved_only or filters.active_only:
@@ -737,6 +741,7 @@ def _owed_pairs(
     start_by_entity: dict[UUID, date | None],
     periods: list[ReportingPeriod],
     today: date,
+    restricted: "Callable[[UUID, ReportingPeriod], bool] | None" = None,
 ) -> list[tuple[UUID, UUID]]:
     pairs: list[tuple[UUID, UUID]] = []
     for entity_id in entity_ids:
@@ -746,8 +751,50 @@ def _owed_pairs(
                 continue  # not started — nothing owed yet
             if start is not None and period.start_date < start:
                 continue  # period predates onboarding — nothing was owed
+            if restricted is not None and restricted(entity_id, period):
+                continue  # report switched off for the project from this period on
             pairs.append((entity_id, period.id))
     return pairs
+
+
+async def project_period_restriction(
+    db: AsyncSession, project_ids: list[UUID], kind: str
+) -> "Callable[[UUID, ReportingPeriod], bool] | None":
+    """Predicate "is this project's `kind` report no longer required for this
+    period?" — kind "delivery": the weekly Delivery Status report, or (monthly
+    period) the Project Performance report once all three of its sections are
+    restricted; kind "metrics": the Metrics section. A period is restricted when
+    it starts on/after the restriction's date. None when nothing is restricted."""
+    if not project_ids:
+        return None
+    delivery = await restricted_from_by_project(db, project_ids, ProjectActivity.DELIVERY_STATUS)
+    metrics = await restricted_from_by_project(db, project_ids, ProjectActivity.METRICS)
+    monthly = await restricted_from_by_project(db, project_ids, *MONTHLY_ACTIVITIES)
+    if not (delivery or metrics or monthly):
+        return None
+
+    def restricted(project_id: UUID, period: ReportingPeriod) -> bool:
+        if kind == "metrics":
+            from_date = metrics.get(project_id)
+        elif period.period_type == "Weekly":
+            from_date = delivery.get(project_id)
+        else:
+            from_date = monthly.get(project_id)
+        return from_date is not None and period.start_date >= from_date
+
+    return restricted
+
+
+async def drop_restricted_projects(
+    db: AsyncSession, project_ids: list[UUID], activity: ProjectActivity, on_date: date | None
+) -> list[UUID]:
+    """`project_ids` without the projects for which `activity` is restricted on
+    `on_date` (a period's / window's start). Used by the Project Health cards so
+    a switched-off project is not counted as "not reported"."""
+    if not project_ids or on_date is None:
+        return project_ids
+    restricted = await restricted_from_by_project(db, project_ids, activity)
+    return [pid for pid in project_ids if not (pid in restricted and on_date >= restricted[pid])]
 
 
 async def _geo_report_scope(db: AsyncSession, filters: DashboardFilters) -> list[UUID]:
@@ -788,7 +835,20 @@ async def report_submissions_summary(
                 )
             ).all()
         )
-        owed = _owed_pairs(project_ids, start_by_project, project_periods, today)
+        owed = _owed_pairs(
+            project_ids,
+            start_by_project,
+            project_periods,
+            today,
+            await project_period_restriction(db, project_ids, "delivery"),
+        )
+        owed_metrics = _owed_pairs(
+            project_ids,
+            start_by_project,
+            project_periods,
+            today,
+            await project_period_restriction(db, project_ids, "metrics"),
+        )
         period_ids = [p.id for p in project_periods]
 
         status_reports = (
@@ -840,7 +900,7 @@ async def report_submissions_summary(
                 if period.start_date <= as_of <= period.end_date:
                     filed_metrics.add((pid, period.id))
         metrics_projects = _submission_kpi(
-            sum(1 for pair in owed if pair in filed_metrics), len(owed)
+            sum(1 for pair in owed_metrics if pair in filed_metrics), len(owed_metrics)
         )
 
     # --- Accounts: Delivery Status (Weekly) ---
@@ -988,6 +1048,9 @@ async def list_report_submissions_for_health(
         meta = {r[0]: r for r in meta_rows}
         start_by_project = {r[0]: r[8] for r in meta_rows}
         owed = _owed_pairs(project_ids, start_by_project, project_periods, today)
+        period_by_id = {p.id: p for p in project_periods}
+        restricted_delivery = await project_period_restriction(db, project_ids, "delivery")
+        restricted_metrics = await project_period_restriction(db, project_ids, "metrics")
         period_ids = [p.id for p in project_periods]
 
         status_dates: dict[tuple[UUID, UUID], date] = {}
@@ -1047,6 +1110,11 @@ async def list_report_submissions_for_health(
                     _note_metric(pid, period.id, created)
 
         for pid, per_id in owed:
+            period = period_by_id[per_id]
+            show_dsp = want_dsp and not (restricted_delivery and restricted_delivery(pid, period))
+            show_mp = want_mp and not (restricted_metrics and restricted_metrics(pid, period))
+            if not (show_dsp or show_mp):
+                continue
             m = meta.get(pid)
             code, name = (m[1], m[2]) if m else ("", "")
             geo_id, account_id = (m[3], m[4]) if m else (None, None)
@@ -1060,7 +1128,7 @@ async def list_report_submissions_for_health(
                 geo_head_name=geo_head_by_id.get(geo_id),
                 period_label=label_by_period.get(per_id, ""),
             )
-            if want_dsp:
+            if show_dsp:
                 ds_date = status_dates.get((pid, per_id))
                 rows.append(
                     ReportSubmissionDetailRow(
@@ -1073,7 +1141,7 @@ async def list_report_submissions_for_health(
                         **base,
                     )
                 )
-            if want_mp:
+            if show_mp:
                 m_date = metric_dates.get((pid, per_id))
                 rows.append(
                     ReportSubmissionDetailRow(
@@ -2089,6 +2157,11 @@ async def de_assessment_work_queue(
     for project_id, count in finding_rows:
         open_findings_count[project_id] = count
 
+    # DE Assessment switched off for a project from a date: once that date is
+    # reached, a project with no assessment this month no longer owes one.
+    assessment_restricted = await restricted_from_by_project(db, project_ids, ProjectActivity.DE_ASSESSMENT)
+    today = date.today()
+
     work_queue = []
     for project, pm_name, account_name, geo_name, region_name, project_type_name in rows:
         this_month = sorted(
@@ -2101,6 +2174,8 @@ async def de_assessment_work_queue(
             row_status = "Assessed"
         elif this_month:
             row_status = "Draft"
+        elif project.id in assessment_restricted and today >= assessment_restricted[project.id]:
+            row_status = "Not Required"
         else:
             row_status = "Due"
         work_queue.append(
@@ -2126,6 +2201,7 @@ async def de_assessment_work_queue(
                 open_findings_count=open_findings_count.get(project.id, 0),
                 prev_de_health=prev.de_assessed_project_health if prev is not None else None,
                 prev_pci_score=prev.pci_score if prev is not None else None,
+                assessment_restricted_from=assessment_restricted.get(project.id),
                 href=f"/de-assessment/{project.id}",
             )
         )
@@ -3001,6 +3077,18 @@ async def list_rag_rows(db: AsyncSession, filters: DashboardFilters, period_id: 
     projects = await project_health_rows(db, filters)
     if not projects:
         return []
+    if period_id is not None:
+        # Projects whose Delivery Status is switched off for the period owe no RAG.
+        rag_period = await db.get(ReportingPeriod, period_id)
+        if rag_period is not None:
+            keep = set(
+                await drop_restricted_projects(
+                    db, [p.project_id for p in projects], ProjectActivity.DELIVERY_STATUS, rag_period.start_date
+                )
+            )
+            projects = [p for p in projects if p.project_id in keep]
+            if not projects:
+                return []
     project_ids = [p.project_id for p in projects]
 
     project_geo = (
@@ -3882,6 +3970,7 @@ async def list_findings_for_health(
 async def de_assessments_card_summary(
     db: AsyncSession, project_ids: list[UUID], window: "MonthRange"
 ) -> DEAssessmentsCardSummary:
+    project_ids = await drop_restricted_projects(db, project_ids, ProjectActivity.DE_ASSESSMENT, window.start)
     latest_by_project: dict[UUID, DEAssessment] = {}
     if project_ids:
         assessments = (
@@ -4184,6 +4273,9 @@ async def list_metrics_for_health(
 ) -> list[MetricRow]:
     if period is None or not project_ids:
         return []
+    project_ids = await drop_restricted_projects(db, project_ids, ProjectActivity.METRICS, period.start_date)
+    if not project_ids:
+        return []
 
     projects = (
         await db.execute(
@@ -4475,6 +4567,10 @@ async def active_account_ids(db: AsyncSession, filters: DashboardFilters) -> lis
 async def project_health_week_summary(
     db: AsyncSession, project_ids: list[UUID], period: ReportingPeriod | None
 ) -> WeeklyHealthBuckets:
+    if period is not None:
+        project_ids = await drop_restricted_projects(
+            db, project_ids, ProjectActivity.DELIVERY_STATUS, period.start_date
+        )
     return await _weekly_health_buckets(
         db,
         project_ids,
@@ -4506,7 +4602,12 @@ async def project_metrics_bucket_summary(
     """Compliant / Critical Variance / Not Reported per project, from the
     previous month's Project Performance report. Any single metric missing its
     target makes the project Critical Variance; no comparable metric at all
-    (or no report) is Not Reported. Sums to len(project_ids)."""
+    (or no report) is Not Reported. Sums to len(project_ids). Projects whose
+    Metrics are switched off for the month are left out."""
+    if month_period is not None:
+        project_ids = await drop_restricted_projects(
+            db, project_ids, ProjectActivity.METRICS, month_period.start_date
+        )
     field_statuses = await _project_field_statuses(db, project_ids, month_period) if month_period else {}
     compliant = critical = 0
     for pid in project_ids:
@@ -4530,7 +4631,9 @@ async def commitments_bucket_summary(
     """Met / Not Met / Not Reported per project, from commitment actuals dated
     within the previous month. Each commitment counts by its latest actual in
     that month; a project is Not Met if any of those is not Met. Sums to
-    len(project_ids)."""
+    len(project_ids). Projects whose Commitments are switched off for the month
+    are left out."""
+    project_ids = await drop_restricted_projects(db, project_ids, ProjectActivity.COMMITMENTS, month.start)
     statuses_by_project: dict[UUID, list[str | None]] = defaultdict(list)
     if project_ids:
         rows = (
@@ -4615,7 +4718,13 @@ async def report_submissions_week_summary(
                     )
                 ).all()
             )
-            owed = _owed_pairs(active_project_ids, start_by_project, [week], today)
+            owed = _owed_pairs(
+                active_project_ids,
+                start_by_project,
+                [week],
+                today,
+                await project_period_restriction(db, active_project_ids, "delivery"),
+            )
             by_status = await _status_by_pair(db, ProjectStatusReport, ProjectStatusReport.project_id, active_project_ids, week)
             delivery_projects = _submission_kpi(
                 sum(1 for pair in owed if by_status.get(pair) in _SUBMITTED_REPORT_STATUSES),
@@ -4695,7 +4804,19 @@ async def _customer_project_report_statuses(
             )
         ).all()
     )
-    owed = [pid for pid in dict.fromkeys(p for p, _ in _owed_pairs(active_project_ids, start_by_project, [week], date.today()))]
+    owed = [
+        pid
+        for pid in dict.fromkeys(
+            p
+            for p, _ in _owed_pairs(
+                active_project_ids,
+                start_by_project,
+                [week],
+                date.today(),
+                await project_period_restriction(db, active_project_ids, "delivery"),
+            )
+        )
+    ]
     filed: dict[UUID, ProjectStatusReport] = {
         report.project_id: report
         for report in (

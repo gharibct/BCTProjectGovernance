@@ -7,6 +7,10 @@ metric for the project's type), Commitments (>=1 row), Milestones (>=1 row).
 RAIDO is reported but never blocks. Each module also reports partial progress
 (fields filled / fields expected); the overall % is field-weighted over the
 mandatory subset. Mirrors the shape of services.governance_completeness.
+
+When Admin / DE restrict Contractual Commitments and / or Payment Milestones for the
+project (project_activity_restrictions), the matching module is no longer mandatory:
+it is shown as restricted and does not block submission.
 """
 
 from datetime import datetime
@@ -39,10 +43,12 @@ from app.models.reference_data import ProjectType
 from app.schemas.approval_readiness import ApprovalReadiness, ApprovalReadinessModule
 from app.schemas.enums import (
     DeModuleReviewAction,
+    ProjectActivity,
     ProjectStatus,
     StaffingPriority,
     YesNo,
 )
+from app.services.activity_restriction import restrictions_for_project
 from app.schemas.metric_target import (
     MetricTargetCloudMaintenanceIn,
     MetricTargetCloudMigrationIn,
@@ -73,6 +79,13 @@ _DE_MODULE_FOR_READINESS: dict[str, str] = {
     "commitments": "contractual_compliance",
     "milestones": "contractual_compliance",
     "raido": "raido",
+}
+
+# Modules the project can switch off (project_activity_restrictions) — a
+# restricted one is not mandatory for approval, whatever the restriction date.
+_RESTRICTABLE_MODULE: dict[str, ProjectActivity] = {
+    "commitments": ProjectActivity.COMMITMENTS,
+    "milestones": ProjectActivity.PAYMENT_MILESTONES,
 }
 
 _GAP_TEXT: dict[str, str] = {
@@ -259,6 +272,7 @@ async def _module_status(
     mandatory: bool,
     project: Project,
     de_reviews: dict[str, DeProjectModuleReview],
+    restricted: bool = False,
 ) -> ApprovalReadinessModule:
     gap_default: str | None = _GAP_TEXT.get(key)
     gap_override: str | None = None
@@ -314,9 +328,10 @@ async def _module_status(
     return ApprovalReadinessModule(
         key=key,
         label=label,
-        mandatory=mandatory,
+        mandatory=mandatory and not restricted,
+        restricted=restricted,
         complete=complete,
-        gaps=None if complete else (gap_override or gap_default),
+        gaps=None if complete or restricted else (gap_override or gap_default),
         last_updated=last_updated,
         fields_complete=fc,
         fields_total=ft,
@@ -345,8 +360,17 @@ async def _de_module_reviews(
 
 async def compute_approval_readiness(db: AsyncSession, project: Project) -> ApprovalReadiness:
     de_reviews = await _de_module_reviews(db, project.id)
+    restrictions = await restrictions_for_project(db, project.id)
     modules = [
-        await _module_status(db, key, label, mandatory, project, de_reviews)
+        await _module_status(
+            db,
+            key,
+            label,
+            mandatory,
+            project,
+            de_reviews,
+            restricted=key in _RESTRICTABLE_MODULE and _RESTRICTABLE_MODULE[key].value in restrictions,
+        )
         for key, label, mandatory in MODULES
     ]
 

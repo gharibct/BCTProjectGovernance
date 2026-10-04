@@ -26,6 +26,7 @@ from app.api.v1.endpoints import (
     health_declarations,
     integrations,
     measurement,
+    project_activity_restrictions,
     reporting_period_admin,
     metric_reference,
     metric_target,
@@ -53,6 +54,8 @@ api_router = APIRouter()
 api_router.include_router(reference_data.router)
 api_router.include_router(exchange_rates.router)
 api_router.include_router(reporting_period_admin.router)
+api_router.include_router(project_activity_restrictions.router)
+api_router.include_router(project_activity_restrictions.all_router)
 api_router.include_router(metric_reference.router)
 api_router.include_router(project_owned_reference.router)
 api_router.include_router(users.router)

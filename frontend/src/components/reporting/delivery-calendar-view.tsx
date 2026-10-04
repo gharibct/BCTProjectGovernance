@@ -80,6 +80,7 @@ export function DeliveryCalendarView({
   scopeEnd = null,
   baselineMode = false,
   fixedYear = false,
+  restrictedFrom = null,
   children,
 }: {
   title: string;
@@ -96,6 +97,9 @@ export function DeliveryCalendarView({
   baselineMode?: boolean;
   // Always show the last 12 months (4 x 3 grid) with no range combo — used by Project Performance.
   fixedYear?: boolean;
+  // From this date the project no longer owes these reports (Admin / DE restriction):
+  // periods starting on/after it with no filed report read as Not Applicable.
+  restrictedFrom?: string | null;
   // Rendered below the calendar; receives the selected window so extra
   // sections can follow the same Last 3 / 6 / 12 Months range.
   children?: (ctx: { months: number }) => ReactNode;
@@ -118,7 +122,9 @@ export function DeliveryCalendarView({
       else if (owed) state = "due";
       else if (
         item.status === "n/a" &&
-        ((scopeStart !== null && item.end_date < scopeStart) || (scopeEnd !== null && item.start_date > scopeEnd))
+        ((scopeStart !== null && item.end_date < scopeStart) ||
+          (scopeEnd !== null && item.start_date > scopeEnd) ||
+          (restrictedFrom !== null && item.start_date >= restrictedFrom))
       )
         state = "not-applicable";
       const filed = state === "approved" || state === "submitted";
@@ -129,7 +135,7 @@ export function DeliveryCalendarView({
         submittedOn: filed && report ? report.updated_at : null,
       };
     });
-  }, [reports, weeklyItems, scopeStart, scopeEnd, baselineMode]);
+  }, [reports, weeklyItems, scopeStart, scopeEnd, baselineMode, restrictedFrom]);
 
   // Rolling window, newest first: the current month, then the (months - 1) before it, grouped
   // by the month of each period's reporting (end) date.

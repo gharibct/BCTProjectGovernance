@@ -11,6 +11,11 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
+class ProxyUser(BaseModel):
+    id: UUID
+    name: str | None = None
+
+
 class ReassignProjectRow(BaseModel):
     project_id: UUID
     project_code: str
@@ -20,6 +25,8 @@ class ReassignProjectRow(BaseModel):
     region_name: str | None = None
     project_manager_id: UUID | None = None
     project_manager_name: str | None = None
+    # Extra PMs with the same rights as the Primary.
+    proxy_managers: list[ProxyUser] = []
 
 
 class ReassignAccountRow(BaseModel):
@@ -28,6 +35,8 @@ class ReassignAccountRow(BaseModel):
     geo_name: str | None = None
     account_manager_id: UUID | None = None
     account_manager_name: str | None = None
+    # Extra Delivery Managers with the same rights as the primary.
+    proxy_managers: list[ProxyUser] = []
 
 
 class ReassignGeoRow(BaseModel):
@@ -47,4 +56,8 @@ class ReassignAccountManagerBody(BaseModel):
 
 
 class ReassignGeoHeadBody(BaseModel):
+    user_id: UUID
+
+
+class AddProxyBody(BaseModel):
     user_id: UUID

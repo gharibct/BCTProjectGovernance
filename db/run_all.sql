@@ -58,3 +58,5 @@
 \ir tables/54_account_customer_communications.sql
 \ir tables/55_oracle_man_month.sql
 \ir tables/56_report_attachments.sql
+\ir tables/57_project_proxy_managers.sql
+\ir tables/58_project_activity_restrictions.sql

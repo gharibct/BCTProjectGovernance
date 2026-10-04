@@ -43,6 +43,10 @@ class ReportingActivityResponse(BaseModel):
     year: int
     weekly: ReportingActivitySeries
     monthly: ReportingActivitySeries
+    # Dates from which the project no longer owes the weekly Delivery Status /
+    # the monthly Project Performance report (project_activity_restrictions).
+    weekly_restricted_from: date | None = None
+    monthly_restricted_from: date | None = None
 
 
 class WeeklyReportingActivityResponse(BaseModel):

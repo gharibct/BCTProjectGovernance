@@ -109,3 +109,29 @@ Project.has_active_amendment = column_property(
         _project_amendments.c.status.in_(("In Progress", "Submitted")),
     )
 )
+
+
+class ProjectProxyManager(Base, UUIDPrimaryKey):
+    """An extra (proxy) Project Manager beyond projects.project_manager_id (the
+    Primary). Same rights as the Primary; open-ended."""
+
+    __tablename__ = "project_proxy_managers"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ProjectActivityRestriction(Base, UUIDPrimaryKey, TimestampColumns):
+    """From `not_required_from`, the project no longer owes / accepts `activity`
+    (see db/tables/58_project_activity_restrictions.sql). One row per
+    (project, activity)."""
+
+    __tablename__ = "project_activity_restrictions"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    activity: Mapped[str]  # ProjectActivity
+    not_required_from: Mapped[date]
+    reason: Mapped[str | None]
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
