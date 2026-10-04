@@ -8,27 +8,40 @@ import { ArrowLeft, History } from "lucide-react";
 
 import { SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
-import { useEffectiveRole } from "@/stores/session";
 import { useProject } from "@/lib/api/projects";
-import { useUsers } from "@/lib/api/reference-data";
+import { useReportingPeriods, useUsers } from "@/lib/api/reference-data";
+import { useHealthDeclarations } from "@/lib/api/health-declarations";
 import { useDEAssessments } from "@/lib/api/de-assessment";
-import { canWriteDeAssessment } from "@/lib/api/de-assessment-permissions";
 import { HealthDot } from "./shared";
 
 function HistoryInner() {
   const { projectId: rawProjectId } = useParams<{ projectId: string }>();
   const projectId = rawProjectId ?? null;
 
-  const roleCanWrite = canWriteDeAssessment(useEffectiveRole());
-  // Same as de-assessment-workspace.tsx: a read-only viewer (e.g. PM) has no
-  // queue to return to — /de-assessment 403s for them — so send them back to
-  // the project instead.
-  const backHref = roleCanWrite ? "/de-assessment" : `/project-reporting/${projectId}`;
-  const backLabel = roleCanWrite ? "Back to Queue" : "Back to Project";
+  // History hangs off the assessment screen, so Back returns to it for every role.
+  const backHref = `/de-assessment/${projectId}`;
+  const backLabel = "Back to Assessment";
 
   const { data: project } = useProject(projectId);
   const { data: users = [] } = useUsers();
   const { data: assessments = [] } = useDEAssessments(projectId);
+  const { data: declarations = [] } = useHealthDeclarations(projectId);
+  const { data: periods = [] } = useReportingPeriods();
+
+  // The PM's declared overall health for the assessment's period — the period
+  // saved on the assessment, else the weekly period its date falls in.
+  const overallHealthFor = (a: (typeof assessments)[number]) => {
+    const periodId =
+      a.period_id ??
+      periods.find(
+        (p) =>
+          p.period_type === "Weekly" &&
+          !!a.assessment_date &&
+          p.start_date <= a.assessment_date &&
+          a.assessment_date <= p.end_date,
+      )?.id;
+    return declarations.find((d) => d.period_id === periodId)?.overall_rating ?? null;
+  };
 
   const userName = (id: string | null) => users.find((u) => u.id === id)?.full_name ?? "—";
 
@@ -41,7 +54,7 @@ function HistoryInner() {
   );
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
@@ -58,14 +71,6 @@ function HistoryInner() {
             All submitted Delivery Excellence assessments for this project
           </p>
         </div>
-        {projectId ? (
-          <Link
-            href={`/de-assessment/${projectId}`}
-            className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#1a6fc4] hover:bg-slate-50"
-          >
-            Open Assessment
-          </Link>
-        ) : null}
       </div>
 
       <SectionCard icon={History} title="Assessments">
@@ -78,9 +83,9 @@ function HistoryInner() {
                 <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                   <th className="py-2 pr-3">Date</th>
                   <th className="py-2 pr-3">Assessed By</th>
+                  <th className="py-2 pr-3">Overall Project Health</th>
                   <th className="py-2 pr-3">DE Health</th>
                   <th className="py-2 pr-3 text-right">DE Score</th>
-                  <th className="py-2 pr-3">Next Due</th>
                   <th className="py-2">Remarks</th>
                 </tr>
               </thead>
@@ -95,15 +100,18 @@ function HistoryInner() {
                     </td>
                     <td className="py-2 pr-3">
                       <span className="inline-flex items-center gap-2">
+                        <HealthDot health={overallHealthFor(a)} />
+                        {overallHealthFor(a) ?? "—"}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <span className="inline-flex items-center gap-2">
                         <HealthDot health={a.de_assessed_project_health} />
                         {a.de_assessed_project_health}
                       </span>
                     </td>
                     <td className="py-2 pr-3 text-right font-mono text-slate-600">
                       {a.pci_score ? `${a.pci_score}%` : "—"}
-                    </td>
-                    <td className="py-2 pr-3 whitespace-nowrap text-slate-600">
-                      {a.next_assessment_due_date ?? "—"}
                     </td>
                     <td className="py-2 whitespace-pre-wrap text-slate-600">{a.remarks ?? "—"}</td>
                   </tr>

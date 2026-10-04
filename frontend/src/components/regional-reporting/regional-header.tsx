@@ -15,7 +15,7 @@ import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-d
 import { useRegionalStatusReports, type RegionalScope } from "@/lib/api/regional-status";
 
 const SCOPE_LABEL: Record<RegionalScope, string> = {
-  account: "Account Reporting",
+  account: "Report Account Status",
   geo: "Geo Reporting",
 };
 
@@ -91,7 +91,8 @@ function PeriodAwareHeading({
   return (
     <>
       <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-        <Link href={`/${scope}-reporting/${scopeId}`} className="font-semibold text-[#1a6fc4] hover:underline">
+        <Link
+          href={scope === "account" ? `/account-reporting/${scopeId}/summary` : `/geo-reporting/${scopeId}`} className="font-semibold text-[#1a6fc4] hover:underline">
           {SCOPE_LABEL[scope]}
         </Link>
         {period ? (

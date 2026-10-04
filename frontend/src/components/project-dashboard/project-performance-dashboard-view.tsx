@@ -284,7 +284,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <ProjectHeader subheading="Project Performance" periodId={periodId} showActionTracker />
+      <ProjectHeader subheading="Preview Report and Submit" periodId={periodId} showActionTracker />
       {!periodId ? (
         <p className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-slate-400">
           No reporting period available yet.

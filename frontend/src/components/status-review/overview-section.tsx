@@ -6,6 +6,8 @@ import { BarChart3 } from "lucide-react";
 import { HealthPill, RATING_FROM_API } from "@/components/project-charter/health-declaration";
 import { STATUS_CATEGORIES } from "@/lib/status-categories";
 import { useOpenAlertsForReport } from "@/lib/api/dashboard";
+import { useProject } from "@/lib/api/projects";
+import { useAccounts } from "@/lib/api/reference-data";
 import {
   useReviewHealthDeclaration,
   useReviewStatusItems,
@@ -84,6 +86,13 @@ export function OverviewSection({
   scopeId: string;
   periodId: string;
 }) {
+  const { data: project } = useProject(scope === "project" ? scopeId : null);
+  const { data: accounts } = useAccounts();
+  const account = scope === "account" ? accounts?.find((a) => a.id === scopeId) : undefined;
+  const detailsLabel =
+    scope === "project" ? "Project Scope" : scope === "account" ? "Account Details" : null;
+  const detailsText =
+    scope === "project" ? project?.project_scope_description : account?.description;
   const { data: reports = [] } = useReviewStatusReports(scope, scopeId);
   const report = reports.find((r) => r.period_id === periodId);
   const { data: declaration } = useReviewHealthDeclaration(scope, scopeId, periodId);
@@ -103,6 +112,13 @@ export function OverviewSection({
         <BarChart3 className="size-5 text-[#1a6fc4]" />
         {OVERVIEW_HEADING[scope]}
       </h2>
+
+      {detailsLabel ? (
+        <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+          <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">{detailsLabel}</p>
+          <p className="mt-2 text-sm whitespace-pre-wrap text-slate-700">{detailsText || "—"}</p>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
         <SnapshotStat label="Revenue (USD)" value={report?.revenue ?? "—"} />

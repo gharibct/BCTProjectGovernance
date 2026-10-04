@@ -20,10 +20,12 @@ import {
   HeartPulse,
   LayoutGrid,
   ListChecks,
+  CalendarDays,
   Coins,
   Map as MapIcon,
   Plug,
   Plus,
+  Presentation,
   ShieldCheck,
   UserCog,
   Users,
@@ -555,6 +557,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       bold={ctx.bold}
     />
   ),
+  "account-communications": (ctx) => (
+    <SimpleLink
+      href={selectAccountHref("account-communications")}
+      icon={Presentation}
+      label={ctx.labelFor("account-communications", "Record Account Presentation")}
+      active={!!ctx.routeActive["account-communications"] || ctx.pathname === selectAccountHref("account-communications")}
+      bold={ctx.bold}
+    />
+  ),
   "maintain-project": (ctx) => (
     <SimpleLink
       href={selectProjectHref("maintain-project")}
@@ -610,10 +621,10 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
   ),
   "account-approval": (ctx) => (
     <SimpleLink
-      href={selectAccountHref("account-approval")}
+      href="/account-approval"
       icon={CheckCircle2}
       label={ctx.labelFor("account-approval", "Approve Account Delivery Status")}
-      active={ctx.routeActive["account-approval"] || ctx.pathname === selectAccountHref("account-approval")}
+      active={!!ctx.routeActive["account-approval"]}
       bold={ctx.bold}
     />
   ),
@@ -662,6 +673,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       bold={ctx.bold}
     />
   ),
+  "admin-reporting-periods": (ctx) => (
+    <SimpleLink
+      href="/admin/reporting-periods"
+      icon={CalendarDays}
+      label="Reporting Periods"
+      active={ctx.pathname.startsWith("/admin/reporting-periods")}
+      bold={ctx.bold}
+    />
+  ),
   "admin-bulk-projects": (ctx) => (
     <SimpleLink
       href="/admin/projects/bulk"
@@ -700,10 +720,10 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
   ),
   "project-approval": (ctx) => (
     <SimpleLink
-      href={selectProjectHref("project-approval")}
+      href="/project-approval"
       icon={CheckCircle2}
       label={ctx.labelFor("project-approval", "Approve Project Delivery Status")}
-      active={ctx.routeActive["project-approval"] || ctx.pathname === selectProjectHref("project-approval")}
+      active={!!ctx.routeActive["project-approval"]}
       bold={ctx.bold}
     />
   ),
@@ -784,7 +804,8 @@ export function AppSidebar() {
   const isDashboard = pathname === "/dashboard";
   const isNewProject = pathname.startsWith("/new-project");
   const isProjectReporting = pathname.startsWith("/project-reporting");
-  const isAccountReporting = pathname.startsWith("/account-reporting");
+  const isAccountCommunications = /^\/account-reporting\/[^/]+\/customer-communications/.test(pathname);
+  const isAccountReporting = pathname.startsWith("/account-reporting") && !isAccountCommunications;
   const isGeoReporting = pathname.startsWith("/geo-reporting");
   const isProjectReview = pathname.startsWith("/project-review");
   const isProjectApproval = pathname.startsWith("/project-approval");
@@ -856,6 +877,7 @@ export function AppSidebar() {
     "account-approval": isAccountApproval,
     "geo-review": isGeoReview,
     "account-reporting": isAccountReporting,
+    "account-communications": isAccountCommunications,
     "geo-reporting": isGeoReporting,
     "new-project": isNewProject && !isMaintaining,
     reassignment: pathname.startsWith("/reassignment"),

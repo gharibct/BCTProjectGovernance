@@ -70,7 +70,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
       <RegionalHeader
         scope={scope}
         paramName={scope === "account" ? "accountId" : "geoId"}
-        subheading={scope === "account" ? "Preview Report and Submit" : "Delivery Status Report - Geo"}
+        subheading={scope === "account" ? "Preview Report and Submit" : "Preview Report and Baseline"}
         periodId={periodId}
         showActionTracker
       />

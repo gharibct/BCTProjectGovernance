@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
-import { RegionalReportingHub } from "@/components/reporting/regional-reporting-hub";
+import { GeoDeliveryCalendarHub } from "@/components/reporting/geo-delivery-calendar-hub";
 
 export const metadata: Metadata = {
-  title: "Geo Reporting | Governance One",
+  title: "Report Geo Status | Governance One",
 };
 
 export default function GeoReportingPage() {
-  return <RegionalReportingHub scope="geo" />;
+  return <GeoDeliveryCalendarHub />;
 }

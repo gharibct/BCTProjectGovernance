@@ -50,6 +50,8 @@ class AccountStatusReportRead(BaseModel):
     reviewed_by: UUID | None = None
     reviewed_at: datetime | None = None
     review_comment: str | None = None
+    recall_remarks: str | None = None
+    recalled_at: datetime | None = None
     # Open Alerts as of this period's end date, snapshotted server-side on
     # every save (see regional_status.py) so a Submitted/Approved report
     # keeps showing exactly what was open when it was filed.
@@ -70,9 +72,6 @@ class GeoStatusReportCreate(BaseModel):
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
     created_by: UUID | None = None
-    # Baselining needs every account report of the period approved; the Geo Head
-    # confirms approving the still-Submitted ones by resending with this set.
-    approve_submitted_accounts: bool = False
 
 
 class GeoStatusReportUpdate(BaseModel):
@@ -84,7 +83,6 @@ class GeoStatusReportUpdate(BaseModel):
     key_accomplishments: str | None = None
     upcoming_key_releases: str | None = None
     leadership_support_required: str | None = None
-    approve_submitted_accounts: bool = False
 
 
 class GeoStatusReportRead(BaseModel):
@@ -104,6 +102,8 @@ class GeoStatusReportRead(BaseModel):
     reviewed_by: UUID | None = None
     reviewed_at: datetime | None = None
     review_comment: str | None = None
+    recall_remarks: str | None = None
+    recalled_at: datetime | None = None
     # Open Alerts as of this period's end date, snapshotted server-side on
     # every save (see regional_status.py) so a Submitted/Approved report
     # keeps showing exactly what was open when it was filed.

@@ -23,6 +23,9 @@ CREATE TABLE account_status_reports (
     reviewed_by UUID REFERENCES users(id),
     reviewed_at TIMESTAMPTZ,
     review_comment TEXT,
+    -- Recall remarks — see db/add_account_geo_report_recall.sql.
+    recall_remarks TEXT,
+    recalled_at TIMESTAMPTZ,
     -- Open Alerts snapshot, frozen at save time (as of this period's
     -- end_date) — see db/add_status_report_open_alerts_snapshot.sql.
     open_alerts_count INTEGER NOT NULL DEFAULT 0,
@@ -56,6 +59,9 @@ CREATE TABLE geo_status_reports (
     reviewed_by UUID REFERENCES users(id),
     reviewed_at TIMESTAMPTZ,
     review_comment TEXT,
+    -- Recall remarks — see db/add_account_geo_report_recall.sql.
+    recall_remarks TEXT,
+    recalled_at TIMESTAMPTZ,
     -- Open Alerts snapshot, frozen at save time (as of this period's
     -- end_date) — see db/add_status_report_open_alerts_snapshot.sql.
     open_alerts_count INTEGER NOT NULL DEFAULT 0,

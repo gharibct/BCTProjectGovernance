@@ -367,6 +367,18 @@ async def recall_status_report(
             status.HTTP_400_BAD_REQUEST,
             "Only a Submitted report can be recalled - it has already been reviewed or was never submitted.",
         )
+    # Monthly (Project Performance) reports can only be recalled up to the period's due date.
+    period = await db.get(ReportingPeriod, obj.period_id)
+    if (
+        period is not None
+        and period.period_type == "Monthly"
+        and period.due_date is not None
+        and date.today() > period.due_date
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"The due date for this report ({period.due_date.isoformat()}) has passed, so it can no longer be recalled.",
+        )
     obj.status = ReportStatus.DRAFT
     obj.recall_remarks = payload.remarks
     obj.recalled_at = datetime.now(UTC)

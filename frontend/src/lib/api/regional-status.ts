@@ -32,6 +32,8 @@ export type RegionalStatusReport = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_comment: string | null;
+  recall_remarks: string | null;
+  recalled_at: string | null;
   // Open Alerts as of this period's end date, snapshotted server-side on
   // every save. Kept for history, but the dashboard/Review "Open Alerts"
   // sections no longer read it — they always show the live, unfiltered set
@@ -45,8 +47,6 @@ export type RegionalStatusReport = {
 export type RegionalStatusReportPayload = {
   period_id: string;
   status?: ReportStatus;
-  // Geo only, with status "Baselined": confirms approving the still-Submitted account reports.
-  approve_submitted_accounts?: boolean;
   revenue?: string;
   onsite_fte?: string;
   offshore_fte?: string;
@@ -142,12 +142,23 @@ export function useUpdateRegionalStatusReport(scope: RegionalScope, scopeId: str
   });
 }
 
-// Geo report only: a Baselined report goes back to "Draft - Saved".
+// Geo report only: a Baselined report goes back to "Draft - Saved". Remarks are mandatory.
 export function useRecallGeoStatusReport(geoId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.patch<RegionalStatusReport>(`${basePath("geo", geoId!)}/${id}/recall`, {}),
+    mutationFn: ({ id, remarks }: { id: string; remarks: string }) =>
+      api.patch<RegionalStatusReport>(`${basePath("geo", geoId!)}/${id}/recall`, { remarks }),
     onSuccess: () => invalidateRegionalStatusReports(queryClient, "geo", geoId),
+  });
+}
+
+// Account report only: a Submitted report goes back to Draft (until reviewed).
+export function useRecallAccountStatusReport(accountId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, remarks }: { id: string; remarks: string }) =>
+      api.patch<RegionalStatusReport>(`${basePath("account", accountId!)}/${id}/recall`, { remarks }),
+    onSuccess: () => invalidateRegionalStatusReports(queryClient, "account", accountId),
   });
 }
 

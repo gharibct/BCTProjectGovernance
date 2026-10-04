@@ -26,9 +26,11 @@ from app.api.v1.endpoints import (
     health_declarations,
     integrations,
     measurement,
+    reporting_period_admin,
     metric_reference,
     metric_target,
     notifications,
+    pending_approvals,
     pm_findings,
     project_creation_requests,
     project_owned_reference,
@@ -50,6 +52,7 @@ api_router = APIRouter()
 # without an existing session — login/callback/config).
 api_router.include_router(reference_data.router)
 api_router.include_router(exchange_rates.router)
+api_router.include_router(reporting_period_admin.router)
 api_router.include_router(metric_reference.router)
 api_router.include_router(project_owned_reference.router)
 api_router.include_router(users.router)
@@ -100,3 +103,4 @@ api_router.include_router(executive_updates.router)
 api_router.include_router(customer_communications.router)
 api_router.include_router(actions.router)
 api_router.include_router(notifications.router)
+api_router.include_router(pending_approvals.router)

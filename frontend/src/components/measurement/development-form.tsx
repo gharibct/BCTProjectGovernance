@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import {
   ChartColumn,
   CircleCheckBig,
@@ -412,7 +413,7 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
         </div>
       </SectionCard>
 
-      <div className="flex justify-end">
+      <StickyActionBar>
         <Button
           onClick={submit}
           disabled={!periodId || isSaving}
@@ -421,7 +422,7 @@ export function DevelopmentTab({ projectId }: { projectId: string }) {
           {isSaving ? <ButtonSpinner /> : null}
           Save Measurements
         </Button>
-      </div>
+      </StickyActionBar>
     </div>
   );
 }

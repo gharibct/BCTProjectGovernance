@@ -33,6 +33,9 @@ class AccountStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_comment: Mapped[str | None]
+    # Recall remarks + time (cleared on resubmit/rebaseline) — see db/add_account_geo_report_recall.sql.
+    recall_remarks: Mapped[str | None]
+    recalled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Open Alerts snapshot (see api/v1/endpoints/regional_status.py) — a
     # frozen count + row-detail list of Open Alerts as of this period's end
     # date, refreshed on every save while the report is still editable.
@@ -60,6 +63,9 @@ class GeoStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_comment: Mapped[str | None]
+    # Recall remarks + time (cleared on resubmit/rebaseline) — see db/add_account_geo_report_recall.sql.
+    recall_remarks: Mapped[str | None]
+    recalled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Open Alerts snapshot (see api/v1/endpoints/regional_status.py) — a
     # frozen count + row-detail list of Open Alerts as of this period's end
     # date, refreshed on every save while the report is still editable.

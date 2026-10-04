@@ -1,9 +1,8 @@
 "use client";
 
-import * as React from "react";
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import { TrendingUp } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +11,10 @@ import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
 import { StatusItemsTab } from "./status-items-tab";
 import { useRegionalStatusForm } from "./use-regional-status-form";
 
-// Mirrors the old tabbed project status page, generalized by scope. Geo still
-// uses this tabbed layout; Account has the long-page layout instead.
+// Geo's long-page status layout: Key Metrics, then every status category
+// expanded one after another (Account has its own long-page layout).
 
 export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: string }) {
-  const [tab, setTab] = React.useState<(typeof TABS)[number]["label"]>(TABS[0].label);
-  const active = TABS.find((t) => t.label === tab)!;
   const {
     periodId,
     frozen,
@@ -86,44 +83,27 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
         </SectionCard>
       ) : null}
 
-      <div role="tablist" className="mt-8 flex gap-8 border-b border-slate-200">
+      <div className="mt-8 flex flex-col gap-8">
         {TABS.map((t) => (
-          <button
+          <StatusItemsTab
             key={t.label}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.label}
-            onClick={() => setTab(t.label)}
-            className={cn(
-              "-mb-px border-b-2 pb-3 text-sm font-semibold whitespace-nowrap transition-colors",
-              tab === t.label
-                ? "border-[#1a4a7a] text-[#1a4a7a]"
-                : "border-transparent text-slate-500 hover:text-slate-800"
-            )}
-          >
-            {t.label}
-          </button>
+            scope={scope}
+            scopeId={scopeId}
+            category={t.category}
+            title={t.label}
+            icon={t.icon}
+            frozen={frozen}
+            rollupItems={rollupItems}
+            onPullRollupItem={handlePull}
+            onIgnoreRollupItem={handleIgnore}
+            onUndoRollupItem={handleUndo}
+            rollupBusy={rollupBusy}
+          />
         ))}
       </div>
 
-      <div className="mt-8">
-        <StatusItemsTab
-          scope={scope}
-          scopeId={scopeId}
-          category={active.category}
-          title={active.label}
-          icon={active.icon}
-          frozen={frozen}
-          rollupItems={rollupItems}
-          onPullRollupItem={handlePull}
-          onIgnoreRollupItem={handleIgnore}
-          onUndoRollupItem={handleUndo}
-          rollupBusy={rollupBusy}
-        />
-      </div>
-
       {periodId && !frozen ? (
-        <div className="mt-8 flex justify-end">
+        <StickyActionBar>
           <Button
             className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
             disabled={isSaving}
@@ -132,7 +112,7 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
             {isSaving ? <ButtonSpinner /> : null}
             Save Details
           </Button>
-        </div>
+        </StickyActionBar>
       ) : null}
     </div>
   );

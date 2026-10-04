@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -317,7 +318,7 @@ export function SupportTab({ projectId }: { projectId: string }) {
         </div>
       </SectionCard>
 
-      <div className="flex justify-end">
+      <StickyActionBar>
         <Button
           onClick={submit}
           disabled={!periodId || isSaving}
@@ -326,7 +327,7 @@ export function SupportTab({ projectId }: { projectId: string }) {
           {isSaving ? <ButtonSpinner /> : null}
           Save Measurements
         </Button>
-      </div>
+      </StickyActionBar>
     </div>
   );
 }

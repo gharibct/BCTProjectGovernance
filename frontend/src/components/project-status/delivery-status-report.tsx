@@ -1,8 +1,12 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { TrendingUp } from "lucide-react";
+import { Lock, TrendingUp } from "lucide-react";
+
+import { LOCK_BAR_CLASS } from "@/components/new-project/baseline-lock";
+import { cn } from "@/lib/utils";
 
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { CopyFromLatestButton } from "@/components/forms/copy-from-latest-button";
@@ -30,7 +34,6 @@ import {
   BLANK_CUSTOMER_COMMUNICATION,
   CustomerCommunicationSection,
   customerCommunicationFromReport,
-  validateCustomerCommunication,
   type CustomerCommunicationErrors,
 } from "./customer-communication-section";
 import { SECTION_IDS, statusSectionId } from "@/components/reporting/report-progress";
@@ -107,13 +110,10 @@ export function DeliveryStatusReport() {
   // (status-items-tab.tsx), so after this the whole page is saved.
   const saveDetails = async (): Promise<boolean> => {
     if (!periodId) return false;
-    const errors = validateCustomerCommunication(customer, !!existing?.customer_report_file_name);
-    setCustomerErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      showError("Complete the mandatory Customer Communication fields.");
-      document.getElementById(SECTION_IDS.customer)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return false;
-    }
+    // Customer Communication is optional on save (a half-filled section is kept
+    // as typed); it is only mandatory when the report is submitted, which the
+    // Submit action and the server both enforce.
+    setCustomerErrors({});
     const sharedWithCustomer = customer.shared === "Sent" || customer.shared === "Sent - Cannot be Disclosed";
     const confidential = customer.shared === "Sent - Cannot be Disclosed";
     const fields = {
@@ -121,10 +121,11 @@ export function DeliveryStatusReport() {
       onsite_fte: metrics.onsite_fte || undefined,
       offshore_fte: metrics.offshore_fte || undefined,
       projects_count: metrics.projects_count ? Number(metrics.projects_count) : undefined,
-      customer_report_shared: sharedWithCustomer,
-      customer_report_confidential: confidential,
+      // Left unset until an answer is picked, so an unanswered section isn't saved as "Not Sent".
+      customer_report_shared: customer.shared ? sharedWithCustomer : undefined,
+      customer_report_confidential: customer.shared ? confidential : undefined,
       // The server drops the date and file when the answer is Not Sent, and the file when it is Cannot be Disclosed.
-      customer_report_date: sharedWithCustomer ? customer.date : undefined,
+      customer_report_date: sharedWithCustomer && customer.date ? customer.date : undefined,
       customer_remarks: customer.remarks.trim(),
     };
     try {
@@ -212,17 +213,13 @@ export function DeliveryStatusReport() {
         <>
           <section id={SECTION_IDS.metrics} className="scroll-mt-6">
             <SectionCard icon={TrendingUp} title="Overview">
-              {frozen ? (
-                <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                  This report has been submitted and is now read-only.
-                </p>
-              ) : carriedFromLabel ? (
+              {!frozen && carriedFromLabel ? (
                 <p className="mb-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
                   Pre-filled from {carriedFromLabel}. Review and adjust before saving.
                 </p>
               ) : null}
               <Field label="Project Scope" className="mb-6">
-                <p className="rounded-md bg-slate-50 px-3 py-2.5 text-sm whitespace-pre-wrap text-slate-700">
+                <p className="text-sm whitespace-pre-wrap text-slate-700">
                   {project?.project_scope_description || "—"}
                 </p>
               </Field>
@@ -318,17 +315,27 @@ export function DeliveryStatusReport() {
         </section>
       ) : null}
 
-      {periodId && !frozen ? (
-        <div className="flex justify-end">
+      {periodId ? (
+        <StickyActionBar
+          className={frozen ? cn("z-40", LOCK_BAR_CLASS) : undefined}
+          secondary={
+            frozen ? (
+              <p role="status" className="flex items-center gap-2 text-sm text-amber-800">
+                <Lock className="size-4 shrink-0" />
+                This report has been submitted and is now read-only.
+              </p>
+            ) : undefined
+          }
+        >
           <Button
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-            disabled={isBusy}
+            disabled={isBusy || frozen}
             onClick={saveReport}
           >
             {isBusy ? <ButtonSpinner /> : null}
             Save Report
           </Button>
-        </div>
+        </StickyActionBar>
       ) : null}
     </div>
   );

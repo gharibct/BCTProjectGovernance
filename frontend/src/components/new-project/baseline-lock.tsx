@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { Lock } from "lucide-react";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
+import { cn } from "@/lib/utils";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { isBaselineEditable, projectScreenRoot, useProject, type Project } from "@/lib/api/projects";
 
@@ -33,37 +35,46 @@ export function useBaselineEditable(): {
 export function baselineLockInfo(project: Project): { message: string; href: string; label: string } {
   if (project.project_status === "Pending Approval") {
     return {
-      message: "With Delivery Excellence: this project is frozen while it is being reviewed.",
+      message: "This project is frozen while it is being reviewed. To make changes, recall the project.",
       href: `/${projectScreenRoot(project)}/${project.id}/send-to-approval`,
-      label: "Recall it to make changes",
+      label: "Goto \"Sent to Approval\" to recall →",
     };
   }
   return {
     message: `${project.project_status}: this project's baseline is locked.`,
     href: `/amend-project/${project.id}/initiate-amend`,
-    label: "Initiate an amendment to edit",
+    label: "Go to Amendment Request →",
   };
 }
 
 export function BaselineLockLink({ project }: { project: Project }) {
   const { href, label } = baselineLockInfo(project);
   return (
-    <Link href={href} className="font-semibold text-[#1a6fc4] hover:underline">
+    <Link href={href} className="font-semibold text-[#1a6fc4] underline underline-offset-2 hover:text-[#15559a]">
       {label}
     </Link>
   );
 }
 
-export function BaselineLockNotice({ project }: { project: Project }) {
+// Amber bar styling shared by every screen that shows the lock message.
+export const LOCK_BAR_CLASS = "border-amber-200 bg-amber-50";
+
+export function BaselineLockMessage({ project }: { project: Project }) {
   return (
-    <div
-      role="status"
-      className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-    >
+    <p role="status" className="flex items-center gap-2 text-sm text-amber-800">
       <Lock className="size-4 shrink-0" />
-      <span>{baselineLockInfo(project).message}</span>
+      {baselineLockInfo(project).message}
+    </p>
+  );
+}
+
+export function BaselineLockNotice({ project }: { project: Project }) {
+  // Pinned to the bottom of the screen (z-40 so it sits over a form's own,
+  // disabled, action bar rather than stacking beside it).
+  return (
+    <StickyActionBar className={cn("z-40", LOCK_BAR_CLASS)} secondary={<BaselineLockMessage project={project} />}>
       <BaselineLockLink project={project} />
-    </div>
+    </StickyActionBar>
   );
 }
 

@@ -71,8 +71,9 @@ const COMMITMENT_FIELDS: FieldDef[] = [
     label: "Penalty Applicability",
     kind: "select",
     options: ["Yes", "No"],
+    mandatory: true,
   },
-  { key: "commitment_details", label: "Commitment Details", kind: "textarea", fullWidth: true },
+  { key: "commitment_details", label: "Commitment Details", kind: "textarea", mandatory: true, fullWidth: true },
 ];
 
 export function CommitmentsTab() {
@@ -124,6 +125,8 @@ export function CommitmentsTab() {
     const nextErrors: Record<string, string> = {};
     if (!values.commitment_name?.trim()) nextErrors.commitment_name = "Name of the Commitment is required.";
     if (!values.frequency) nextErrors.frequency = "Frequency is required.";
+    if (!values.penalty_applicable) nextErrors.penalty_applicable = "Penalty Applicability is required.";
+    if (!values.commitment_details?.trim()) nextErrors.commitment_details = "Commitment Details is required.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     const payload = buildCommitmentPayload(values);

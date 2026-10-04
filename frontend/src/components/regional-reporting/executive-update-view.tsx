@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -108,12 +109,12 @@ export function ExecutiveUpdateView() {
         resolveImageUrl={resolveImageUrl}
       />
 
-      <div className="flex justify-end">
+      <StickyActionBar>
         <Button className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]" disabled={!periodId || isSaving} onClick={handleSave}>
           {isSaving ? <ButtonSpinner /> : <Send className="size-4" />}
           Save Details
         </Button>
-      </div>
+      </StickyActionBar>
     </div>
   );
 }

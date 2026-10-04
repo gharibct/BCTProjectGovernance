@@ -12,7 +12,6 @@ export type ProjectTargetId = Extract<
   | "delivery-reporting"
   | "performance-reporting"
   | "project-review"
-  | "project-approval"
   | "project-performance"
   | "de-assessment-report"
 >;
@@ -76,14 +75,6 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     hrefFor: (id) => `/project-review/${id}`,
     eligible: (p) => isApproved(p.project_status),
     emptyLabel: "No projects to review yet.",
-  },
-  // Same report as Project Delivery Status, but with the Approve / Reject bar —
-  // the Account Manager's worklist item (Project Delivery Status is view-only).
-  "project-approval": {
-    label: "Approve Project Delivery Status",
-    hrefFor: (id) => `/project-approval/${id}`,
-    eligible: (p) => isApproved(p.project_status),
-    emptyLabel: "No projects to approve yet.",
   },
   "project-performance": {
     label: "Project Performance",

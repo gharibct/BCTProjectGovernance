@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Database, IdCard, Trash2, UserRound } from "lucide-react";
@@ -451,7 +452,7 @@ export function ProjectCreationForm() {
         </div>
       </SectionCard>
 
-      <div className="flex justify-end">
+      <StickyActionBar>
         <Button
           className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
           disabled={createRequest.isPending}
@@ -460,7 +461,7 @@ export function ProjectCreationForm() {
           {createRequest.isPending ? <ButtonSpinner /> : null}
           Submit for Approval
         </Button>
-      </div>
+      </StickyActionBar>
     </div>
   );
 }

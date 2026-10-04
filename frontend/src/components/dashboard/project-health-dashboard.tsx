@@ -21,7 +21,11 @@ import {
 
 import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
-import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import {
+  useProjectHealthDashboardSummary,
+  type ProjectHealthDashboardFilters,
+  type ReportSubmissionKpi,
+} from "@/lib/api/project-health-dashboard";
 import { REPORT_SUBMISSION_STREAMS } from "@/lib/api/project-health-lists";
 import { useEffectiveRole } from "@/stores/session";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
@@ -119,16 +123,21 @@ function adherenceTone(pct: number): string {
   return "text-red-600";
 }
 
+// "geo" reports are baselined (never submitted / approved) and can still be
+// Auto Generated; project and account reports go Not Submitted -> Submitted -> Approved.
+// Project Performance (monthly) keeps the plain Submitted / Not Submitted pair.
 function ReportSubmissionCard({
   title,
   kpi,
   href,
   period,
+  variant = "submission",
 }: {
   title: string;
   period: string;
-  kpi: { submitted_count: number; expected_count: number; adherence_pct: number };
+  kpi: ReportSubmissionKpi;
   href: string;
+  variant?: "submission" | "approval" | "baseline";
 }) {
   const notSubmitted = Math.max(kpi.expected_count - kpi.submitted_count, 0);
   return (
@@ -146,8 +155,28 @@ function ReportSubmissionCard({
         valueClass={adherenceTone(kpi.adherence_pct)}
       />
       <div className="flex flex-col gap-1">
-        <SubStat label="Submitted" value={kpi.submitted_count} />
-        <SubStat label="Not Submitted" value={notSubmitted} valueClass={notSubmitted > 0 ? "text-red-600" : undefined} />
+        {variant === "baseline" ? (
+          <>
+            <SubStat label="Baselined" value={kpi.submitted_count} />
+            <SubStat
+              label="Not Baselined"
+              value={Math.max(notSubmitted - kpi.auto_generated_count, 0)}
+              valueClass={notSubmitted - kpi.auto_generated_count > 0 ? "text-red-600" : undefined}
+            />
+            <SubStat label="Auto Generated" value={kpi.auto_generated_count} />
+          </>
+        ) : variant === "approval" ? (
+          <>
+            <SubStat label="Not Submitted" value={notSubmitted} valueClass={notSubmitted > 0 ? "text-red-600" : undefined} />
+            <SubStat label="Submitted" value={Math.max(kpi.submitted_count - kpi.approved_count, 0)} />
+            <SubStat label="Approved" value={kpi.approved_count} />
+          </>
+        ) : (
+          <>
+            <SubStat label="Submitted" value={kpi.submitted_count} />
+            <SubStat label="Not Submitted" value={notSubmitted} valueClass={notSubmitted > 0 ? "text-red-600" : undefined} />
+          </>
+        )}
       </div>
     </Card>
   );
@@ -289,7 +318,7 @@ export function ProjectHealthDashboard() {
               iconClassName="text-[#1a6fc4]"
               href="/project-health/assessments"
               footerLabel="View DE Assessments"
-              period={monthPeriod}
+              period={weekPeriod}
             >
               <RagCounts
                 green={data.de_assessments.green_count}
@@ -467,6 +496,7 @@ export function ProjectHealthDashboard() {
                 kpi={data.report_submissions.delivery_status_projects}
                 href={REPORT_SUBMISSION_STREAMS["delivery-status-projects"].route}
                 period={weekPeriod}
+                variant="approval"
               />
               {isPm ? null : (
                 <>
@@ -475,6 +505,7 @@ export function ProjectHealthDashboard() {
                     kpi={data.report_submissions.delivery_status_accounts}
                     href={REPORT_SUBMISSION_STREAMS["delivery-status-account"].route}
                     period={weekPeriod}
+                    variant="approval"
                   />
                   {showGeoDeliveryStatus ? (
                     <ReportSubmissionCard
@@ -482,6 +513,7 @@ export function ProjectHealthDashboard() {
                       kpi={data.report_submissions.delivery_status_geos}
                       href={REPORT_SUBMISSION_STREAMS["delivery-status-geo"].route}
                       period={weekPeriod}
+                      variant="baseline"
                     />
                   ) : null}
                 </>

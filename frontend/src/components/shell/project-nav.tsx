@@ -8,10 +8,11 @@ import {
   CircleCheck,
   ClipboardList,
   FileText,
-  LayoutGrid,
+  Send,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import { ProgressHeader } from "@/components/shell/progress-header";
 import { ProjectReportRail } from "@/components/project-status/project-report-rail";
 import { useReportingPeriods } from "@/lib/api/reference-data";
@@ -175,10 +176,10 @@ function NavLinks({
     );
   };
 
-  // Standalone entry (not part of a heading+items group like the ones
-  // below) — the Project Manager's read-first counterpart to the Account
-  // Manager's Project Review screen, always available regardless of the
-  // Weekly/Monthly filtering that only applies to the reporting checklist.
+  // Preview / submit entry, pinned below the checklist groups — the Project
+  // Manager's read-first counterpart to the Account Manager's Project Review
+  // screen, always available regardless of the Weekly/Monthly filtering that
+  // only applies to the reporting checklist.
   const dashboardHref = `${base}/dashboard`;
   const dashboardActive = pathname === dashboardHref;
 
@@ -194,20 +195,6 @@ function NavLinks({
         />
       ) : null}
       <nav className={cn("flex flex-col gap-2", isMonthly ? "mt-4" : "mt-8")}>
-        <Link
-          href={`${dashboardHref}${suffix}`}
-          aria-current={dashboardActive ? "page" : undefined}
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold transition-colors",
-            dashboardActive
-              ? "bg-[#d9eafc] text-[#15406b]"
-              : "text-slate-800 hover:bg-slate-100",
-          )}
-        >
-          <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
-          {isWeekly ? "Preview Report and Submit" : "Project Performance"}
-        </Link>
-
         {visibleGroups.map((group) => (
           <div key={group.heading}>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
@@ -271,6 +258,19 @@ function NavLinks({
           </div>
         ))}
       </nav>
+
+      <Link
+        href={`${dashboardHref}${suffix}`}
+        aria-current={dashboardActive ? "page" : undefined}
+        className={cn(
+          buttonVariants({ size: "lg" }),
+          "mt-4 w-full justify-between bg-[#1a4a7a] font-semibold text-white hover:bg-[#15406b]",
+          dashboardActive && "ring-2 ring-[#1a4a7a]/40",
+        )}
+      >
+        Preview Report and Submit
+        <Send className="size-4 shrink-0" />
+      </Link>
     </>
   );
 }

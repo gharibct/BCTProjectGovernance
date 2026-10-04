@@ -97,6 +97,7 @@ CREATE TABLE reporting_periods (
     label TEXT NOT NULL,       -- Weekly: the Friday end date, e.g. 'Sep 11, 2026'; Monthly: 'Jul 2026'
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
+    due_date DATE,             -- submission due date: Weekly = the Tuesday after the end date, Monthly = the 7th of the next month (editable per period in Admin)
     is_active BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,

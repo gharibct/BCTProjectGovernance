@@ -637,6 +637,10 @@ class ReportSubmissionKpi(BaseModel):
     submitted_count: int
     expected_count: int
     adherence_pct: int  # round(submitted / expected * 100); 0 when nothing owed
+    # Breakdown used by the Delivery Status cards (submitted_count above still
+    # counts every filed report: Submitted + Approved + Baselined).
+    approved_count: int = 0  # filed reports already Approved (projects / accounts)
+    auto_generated_count: int = 0  # Geo reports still Auto Generated (not yet baselined)
 
 
 class ReportSubmissionsSummary(BaseModel):

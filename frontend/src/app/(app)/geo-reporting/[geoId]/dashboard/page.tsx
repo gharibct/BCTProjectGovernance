@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { RegionalDashboardView } from "@/components/regional-reporting/dashboard-view";
 
 export const metadata: Metadata = {
-  title: "Delivery Status Report - Geo | Governance One",
+  title: "Preview Report and Baseline | Governance One",
 };
 
 export default function GeoDashboardPage() {

@@ -3,9 +3,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useSearchParams } from "next/navigation";
-import { Circle, CircleCheck, ClipboardList, LayoutGrid } from "lucide-react";
+import { Circle, CircleCheck, ClipboardList, Send } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 import { ProgressHeader } from "./progress-header";
 import {
   activeClass,
@@ -52,9 +53,8 @@ function NavLinks({
   const period = searchParams.get("period");
   const suffix = period ? `?period=${period}` : "";
 
-  // Standalone entry (not part of a heading+items group like the ones
-  // below) — the Geo Head's read-first counterpart to the CDO's Geo Review
-  // screen, mirrors account-nav.tsx's "Delivery Status Report - Account".
+  // Preview / baseline entry, pinned below the groups like the Account rail's
+  // "Preview Report and Submit" button.
   const dashboardHref = `${base}/dashboard`;
   const dashboardActive = pathname === dashboardHref;
 
@@ -68,20 +68,6 @@ function NavLinks({
         total={items.length}
       />
       <nav className="mt-4 flex flex-col gap-2">
-        <Link
-          href={`${dashboardHref}${suffix}`}
-          aria-current={dashboardActive ? "page" : undefined}
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold transition-colors",
-            dashboardActive
-              ? "bg-[#d9eafc] text-[#15406b]"
-              : "text-slate-800 hover:bg-slate-100",
-          )}
-        >
-          <LayoutGrid className="size-5 shrink-0 text-[#1a6fc4]" />
-          Delivery Status Report - Geo
-        </Link>
-
         {groups.map((group) => (
           <div key={group.heading}>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold text-slate-800">
@@ -107,6 +93,19 @@ function NavLinks({
           </div>
         ))}
       </nav>
+
+      <Link
+        href={`${dashboardHref}${suffix}`}
+        aria-current={dashboardActive ? "page" : undefined}
+        className={cn(
+          buttonVariants({ size: "lg" }),
+          "mt-4 w-full justify-between bg-[#1a4a7a] font-semibold text-white hover:bg-[#15406b]",
+          dashboardActive && "ring-2 ring-[#1a4a7a]/40",
+        )}
+      >
+        Preview Report and Baseline
+        <Send className="size-4 shrink-0" />
+      </Link>
     </>
   );
 }

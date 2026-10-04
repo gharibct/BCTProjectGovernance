@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import { ChartColumn, Server } from "lucide-react";
 
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
@@ -109,7 +110,7 @@ export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
         </div>
       </SectionCard>
 
-      <div className="flex justify-end">
+      <StickyActionBar>
         <Button
           onClick={submit}
           disabled={!periodId || isSaving}
@@ -118,7 +119,7 @@ export function CloudMaintenanceTab({ projectId }: { projectId: string }) {
           {isSaving ? <ButtonSpinner /> : null}
           Save Measurements
         </Button>
-      </div>
+      </StickyActionBar>
     </div>
   );
 }

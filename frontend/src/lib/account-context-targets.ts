@@ -4,7 +4,7 @@ import type { MenuEntryId } from "@/lib/menu-config";
 // (/select-account/{entry}), which picks an account and then forwards to that
 // entry's own screen — mirrors project-context-targets.ts.
 
-export type AccountTargetId = Extract<MenuEntryId, "account-reporting" | "account-review" | "account-approval">;
+export type AccountTargetId = Extract<MenuEntryId, "account-reporting" | "account-communications" | "account-review">;
 
 type AccountTarget = {
   /** Screen name shown on the Context page ("Continue to …"). */
@@ -21,17 +21,15 @@ export const ACCOUNT_TARGETS: Record<AccountTargetId, AccountTarget> = {
     hrefFor: (id) => `/account-reporting/${id}/summary`,
     emptyLabel: "No accounts assigned yet.",
   },
+  "account-communications": {
+    label: "Record Account Presentation",
+    hrefFor: (id) => `/account-reporting/${id}/customer-communications`,
+    emptyLabel: "No accounts assigned yet.",
+  },
   "account-review": {
     label: "Account Delivery Status",
     hrefFor: (id) => `/account-review/${id}`,
     emptyLabel: "No accounts to review yet.",
-  },
-  // Same report as Account Delivery Status, but with the Approve / Reject bar —
-  // the Geo Head's worklist item (Account Delivery Status is view-only).
-  "account-approval": {
-    label: "Approve Account Delivery Status",
-    hrefFor: (id) => `/account-approval/${id}`,
-    emptyLabel: "No accounts to approve yet.",
   },
 };
 

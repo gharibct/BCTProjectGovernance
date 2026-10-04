@@ -15,7 +15,7 @@ import {
   type RegionalScope,
 } from "@/lib/api/regional-status";
 import type { ProjectStatusCategory } from "@/lib/api/project-status";
-import { RollupSourceDrawer, RollupSourcePanel, type RollupSourceItem } from "./rollup-source-panel";
+import { RollupSourceDrawer, type RollupSourceItem } from "./rollup-source-panel";
 
 // One line-item register per Account/Geo Status section, rendered as an
 // EditableTextList — mirrors components/project-status/status-items-tab.tsx
@@ -69,8 +69,8 @@ export function StatusItemsTab({
     );
   }
 
-  // Account reports pull from projects on demand through a drawer; the Geo
-  // report keeps its inline "Rolled Up From Accounts" panel.
+  // Account reports pull from projects, and Geo reports from accounts, on
+  // demand through a drawer.
   const rollupProps = rollupItems
     ? {
         emptyLabel:
@@ -94,14 +94,18 @@ export function StatusItemsTab({
         aside={
           <div className="flex items-center gap-3">
             <AutoBadge label={`${items.length} logged`} />
-            {rollupProps && scope === "account" ? (
-              <RollupSourceDrawer heading="Rolled Up From Projects" buttonLabel="Pull from Project" {...rollupProps} />
+            {rollupProps ? (
+              <RollupSourceDrawer
+                heading={scope === "account" ? "Rolled Up From Projects" : "Rolled Up From Accounts"}
+                buttonLabel={scope === "account" ? "Pull from Project" : "Pull from Account"}
+                {...rollupProps}
+              />
             ) : null}
           </div>
         }
       >
         <EditableTextList
-          addOpenByDefault={scope === "account"}
+          addOpenByDefault
           items={items.map((item) => ({ id: item.id, text: item.description }))}
           disabled={frozen}
           addLabel={`Add ${title} Item`}
@@ -132,10 +136,6 @@ export function StatusItemsTab({
           }
         />
       </SectionCard>
-
-      {rollupProps && scope === "geo" ? (
-        <RollupSourcePanel heading="Rolled Up From Accounts" {...rollupProps} />
-      ) : null}
     </div>
   );
 }

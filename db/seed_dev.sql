@@ -97,17 +97,17 @@ INSERT INTO user_geos (id, user_id, geo_id, created_at) VALUES
 -- Reporting Period lookup (see 01_reference_data.sql) — all ISO weeks/months
 -- of 2026 so Measurement and Project Status have periods to report against.
 -- Bump the year bounds below when seeding a fresh dev DB in a later year.
-INSERT INTO reporting_periods (id, period_type, code, label, start_date, end_date, is_active, created_at, updated_at)
+INSERT INTO reporting_periods (id, period_type, code, label, start_date, end_date, due_date, is_active, created_at, updated_at)
 SELECT gen_random_uuid(), 'Weekly',
        to_char(d, 'IYYY') || '-W' || to_char(d, 'IW'),
        to_char(d::date + 4, 'Mon DD, YYYY'),
-       d::date, (d::date + 4), true, now(), now()
+       d::date, (d::date + 4), (d::date + 8), true, now(), now()
 FROM generate_series('2025-12-29'::date, '2027-01-03'::date, '7 days') AS d;
 
-INSERT INTO reporting_periods (id, period_type, code, label, start_date, end_date, is_active, created_at, updated_at)
+INSERT INTO reporting_periods (id, period_type, code, label, start_date, end_date, due_date, is_active, created_at, updated_at)
 SELECT gen_random_uuid(), 'Monthly',
        to_char(d, 'YYYY-MM'), to_char(d, 'Mon YYYY'),
-       d::date, (d::date + interval '1 month - 1 day')::date, true, now(), now()
+       d::date, (d::date + interval '1 month - 1 day')::date, (d::date + interval '1 month 6 days')::date, true, now(), now()
 FROM generate_series('2026-01-01'::date, '2026-12-01'::date, '1 month') AS d;
 
 -- Sentinel "Baseline" period for the New Project wizard's one-time initial

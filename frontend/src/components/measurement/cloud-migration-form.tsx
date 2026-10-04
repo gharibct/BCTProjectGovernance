@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { ChartColumn, CloudUpload } from "lucide-react";
@@ -208,7 +209,7 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
         </div>
       </SectionCard>
 
-      <div className="flex justify-end">
+      <StickyActionBar>
         <Button
           onClick={submit}
           disabled={!asOfDate || createMutation.isPending}
@@ -217,7 +218,7 @@ export function CloudMigrationTab({ projectId }: { projectId: string }) {
           {createMutation.isPending ? <ButtonSpinner /> : null}
           Save Measurements
         </Button>
-      </div>
+      </StickyActionBar>
     </div>
   );
 }

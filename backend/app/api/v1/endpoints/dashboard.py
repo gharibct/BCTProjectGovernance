@@ -530,7 +530,9 @@ async def get_project_health_dashboard(
         actions=await dashboard_service.actions_card_summary(db, filters, project_ids),
         findings=await dashboard_service.findings_card_summary(db, filters),
         alerts=await dashboard_service.alerts_card_summary(db, filters),
-        de_assessments=await dashboard_service.de_assessments_card_summary(db, active_project_ids, month),
+        de_assessments=await dashboard_service.de_assessments_card_summary(
+            db, active_project_ids, dashboard_service.selected_week_window(week)
+        ),
         report_submissions=await dashboard_service.report_submissions_week_summary(
             db, active_filters, active_project_ids, week, month_period
         ),

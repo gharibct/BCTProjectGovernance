@@ -31,6 +31,7 @@ export type MenuEntryId =
   | "reassignment"
   | "pmo-dashboard"
   | "account-reporting"
+  | "account-communications"
   | "geo-reporting"
   | "project-review"
   | "project-approval"
@@ -43,6 +44,7 @@ export type MenuEntryId =
   | "admin-integrations"
   | "admin-regions"
   | "admin-exchange-rates"
+  | "admin-reporting-periods"
   | "admin-bulk-projects"
   | "admin-bulk-status-projects"
   | "admin-bulk-status-accounts";
@@ -101,7 +103,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     { items: ["account-manager-dashboard"] },
     {
       heading: "My Worklist",
-      items: ["new-project", "account-reporting", "project-approval", "reassignment"],
+      items: ["new-project", "account-reporting", "account-communications", "project-approval", "reassignment"],
     },
     {
       heading: "My Reports",
@@ -146,6 +148,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
         "delivery-reporting",
         "performance-reporting",
         "account-reporting",
+        "account-communications",
       ],
     },
   ],
@@ -175,6 +178,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
         "admin-integrations",
         "admin-regions",
         "admin-exchange-rates",
+        "admin-reporting-periods",
         "admin-bulk-projects",
         "admin-bulk-status-projects",
         "admin-bulk-status-accounts",

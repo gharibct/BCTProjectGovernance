@@ -44,7 +44,7 @@ export function DeAssessmentQueue() {
   });
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">DE Assessment</h1>

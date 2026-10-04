@@ -5,7 +5,7 @@ import { ProjectRouteGuard } from "@/components/new-project/project-route-guard"
 
 // Amend Project reuses the New Project setup screens and rail (see
 // new-project-nav.tsx — under this route prefix the "Approval" group becomes
-// "Amend & Approve": Initiate Amend + Send To Approve) for an already-approved
+// "Amend & Approve": Amendment Request + Send To Approve) for an already-approved
 // project. Editability is status-driven: the baseline is locked until the
 // amendment is initiated (status → Under Amendment). ProjectRouteGuard sends a
 // Draft project (and a first-time Pending Approval one) back to Project Setup.

@@ -53,7 +53,7 @@ const MILESTONE_FIELDS: FieldDef[] = [
     kind: "date",
     mandatory: true,
   },
-  { key: "expected_payment_value", label: "Expected Payment Value", kind: "number" },
+  { key: "expected_payment_value", label: "Expected Payment Value", kind: "number", mandatory: true },
   { key: "milestone_description", label: "Milestone Description", kind: "textarea" },
 ];
 
@@ -107,6 +107,8 @@ export function MilestonesTab() {
     const nextErrors: Record<string, string> = {};
     if (!values.milestone_name?.trim()) nextErrors.milestone_name = "Milestone Name is required.";
     if (!values.expected_date_of_payment) nextErrors.expected_date_of_payment = "Expected Date of Payment is required.";
+    if (!values.expected_payment_value?.toString().trim())
+      nextErrors.expected_payment_value = "Expected Payment Value is required.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     const payload = buildMilestonePayload(values);

@@ -43,8 +43,8 @@ const APPROVE_NAV_LABEL: Partial<Record<ReviewScope, string>> = {
   account: "Approve Account Delivery Status",
 };
 const APPROVE_NAV_HREF: Partial<Record<ReviewScope, string>> = {
-  project: "/select-project/project-approval",
-  account: "/select-account/account-approval",
+  project: "/project-approval",
+  account: "/account-approval",
 };
 
 const SCOPE_NAV_HREF: Record<ReviewScope, string> = {
@@ -84,7 +84,13 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
   // Reports are ordered by the period's start_date desc (same convention as
   // the Reporting hubs), so the first row is the latest report.
   const urlPeriodId = searchParams.get("period");
-  const periodId = urlPeriodId ?? reports[0]?.period_id ?? null;
+  // A ?period= that is no longer listed (e.g. just approved, so it left the
+  // approve worklist) falls back to the first remaining report, so the
+  // Approve / Reject bar is available by default.
+  const periodId =
+    (urlPeriodId && reports.some((r) => r.period_id === urlPeriodId) ? urlPeriodId : null) ??
+    reports[0]?.period_id ??
+    null;
   const period = periods.find((p) => p.id === periodId);
   const report = reports.find((r) => r.period_id === periodId);
 

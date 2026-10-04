@@ -708,11 +708,15 @@ CUSTOMER_NOT_SHARED = "Not Shared"
 CUSTOMER_NOT_SUBMITTED = "Not Submitted"
 
 
-def _submission_kpi(submitted: int, expected: int) -> ReportSubmissionKpi:
+def _submission_kpi(
+    submitted: int, expected: int, *, approved: int = 0, auto_generated: int = 0
+) -> ReportSubmissionKpi:
     return ReportSubmissionKpi(
         submitted_count=submitted,
         expected_count=expected,
         adherence_pct=round(submitted / expected * 100) if expected else 0,
+        approved_count=approved,
+        auto_generated_count=auto_generated,
     )
 
 
@@ -3873,10 +3877,10 @@ async def list_findings_for_health(
 
 # Project-level DE Assessment buckets — each project lands in exactly one, so
 # Green + Amber + Potential Red + Red + Not Assessed == len(project_ids). Source: the
-# project's latest Submitted assessment dated within `month` (the calendar month
-# before the selected week — see previous_month_window).
+# project's latest Submitted assessment dated within `window` (the selected
+# week — see selected_week_window).
 async def de_assessments_card_summary(
-    db: AsyncSession, project_ids: list[UUID], month: "MonthRange"
+    db: AsyncSession, project_ids: list[UUID], window: "MonthRange"
 ) -> DEAssessmentsCardSummary:
     latest_by_project: dict[UUID, DEAssessment] = {}
     if project_ids:
@@ -3885,8 +3889,8 @@ async def de_assessments_card_summary(
                 select(DEAssessment).where(
                     DEAssessment.project_id.in_(project_ids),
                     DEAssessment.status == "Submitted",
-                    DEAssessment.assessment_date >= month.start,
-                    DEAssessment.assessment_date <= month.end,
+                    DEAssessment.assessment_date >= window.start,
+                    DEAssessment.assessment_date <= window.end,
                 )
             )
         ).scalars().all()
@@ -4375,6 +4379,13 @@ def previous_month_window(week: ReportingPeriod | None) -> MonthRange:
     return MonthRange(last_of_previous.replace(day=1), last_of_previous)
 
 
+def selected_week_window(week: ReportingPeriod | None) -> MonthRange:
+    """The selected week as a full Monday-Sunday date range (the current week when
+    none is selected) — a DE assessment dated on the weekend still counts."""
+    anchor = week.start_date if week is not None else date.today() - timedelta(days=date.today().weekday())
+    return MonthRange(anchor, anchor + timedelta(days=6))
+
+
 async def monthly_period_for(db: AsyncSession, month: MonthRange) -> ReportingPeriod | None:
     """The Monthly reporting period covering `month`, if one exists."""
     stmt = select(ReportingPeriod).where(
@@ -4561,17 +4572,19 @@ async def commitments_bucket_summary(
     )
 
 
-async def _submitted_pairs(db: AsyncSession, model, entity_fk, entity_ids: list[UUID], week: ReportingPeriod) -> set:
+async def _status_by_pair(db: AsyncSession, model, entity_fk, entity_ids: list[UUID], week: ReportingPeriod) -> dict:
+    """(entity, period) -> report status for the week's filed (Submitted / Approved /
+    Baselined) and Auto Generated reports."""
     rows = (
         await db.execute(
-            select(entity_fk, model.period_id).where(
+            select(entity_fk, model.period_id, model.status).where(
                 entity_fk.in_(entity_ids),
                 model.period_id == week.id,
-                model.status.in_(_SUBMITTED_REPORT_STATUSES),
+                model.status.in_((*_SUBMITTED_REPORT_STATUSES, ReportStatus.AUTO_GENERATED)),
             )
         )
     ).all()
-    return {(entity_id, period_id) for entity_id, period_id in rows}
+    return {(entity_id, period_id): report_status for entity_id, period_id, report_status in rows}
 
 
 async def report_submissions_week_summary(
@@ -4603,8 +4616,12 @@ async def report_submissions_week_summary(
                 ).all()
             )
             owed = _owed_pairs(active_project_ids, start_by_project, [week], today)
-            filed = await _submitted_pairs(db, ProjectStatusReport, ProjectStatusReport.project_id, active_project_ids, week)
-            delivery_projects = _submission_kpi(sum(1 for pair in owed if pair in filed), len(owed))
+            by_status = await _status_by_pair(db, ProjectStatusReport, ProjectStatusReport.project_id, active_project_ids, week)
+            delivery_projects = _submission_kpi(
+                sum(1 for pair in owed if by_status.get(pair) in _SUBMITTED_REPORT_STATUSES),
+                len(owed),
+                approved=sum(1 for pair in owed if by_status.get(pair) == ReportStatus.APPROVED),
+            )
 
         account_ids = await active_account_ids(db, filters)
         if account_ids:
@@ -4612,8 +4629,12 @@ async def report_submissions_week_summary(
                 (await db.execute(select(Account.id, Account.tool_effective_date).where(Account.id.in_(account_ids)))).all()
             )
             owed_acc = _owed_pairs(account_ids, start_by_account, [week], today)
-            filed_acc = await _submitted_pairs(db, AccountStatusReport, AccountStatusReport.account_id, account_ids, week)
-            delivery_accounts = _submission_kpi(sum(1 for pair in owed_acc if pair in filed_acc), len(owed_acc))
+            by_status_acc = await _status_by_pair(db, AccountStatusReport, AccountStatusReport.account_id, account_ids, week)
+            delivery_accounts = _submission_kpi(
+                sum(1 for pair in owed_acc if by_status_acc.get(pair) in _SUBMITTED_REPORT_STATUSES),
+                len(owed_acc),
+                approved=sum(1 for pair in owed_acc if by_status_acc.get(pair) == ReportStatus.APPROVED),
+            )
 
         if filters.geo_id is not None:
             geo_ids = [filters.geo_id]
@@ -4626,8 +4647,12 @@ async def report_submissions_week_summary(
                 (await db.execute(select(Geo.id, Geo.tool_effective_date).where(Geo.id.in_(geo_ids)))).all()
             )
             owed_geo = _owed_pairs(geo_ids, start_by_geo, [week], today)
-            filed_geo = await _submitted_pairs(db, GeoStatusReport, GeoStatusReport.geo_id, geo_ids, week)
-            delivery_geos = _submission_kpi(sum(1 for pair in owed_geo if pair in filed_geo), len(owed_geo))
+            by_status_geo = await _status_by_pair(db, GeoStatusReport, GeoStatusReport.geo_id, geo_ids, week)
+            delivery_geos = _submission_kpi(
+                sum(1 for pair in owed_geo if by_status_geo.get(pair) in _SUBMITTED_REPORT_STATUSES),
+                len(owed_geo),
+                auto_generated=sum(1 for pair in owed_geo if by_status_geo.get(pair) == ReportStatus.AUTO_GENERATED),
+            )
 
     # Project Performance is the monthly report. "Submitted" = every section of
     # the previous month's report is complete (saved, or attested "Reviewed -

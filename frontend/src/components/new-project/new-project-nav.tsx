@@ -149,7 +149,7 @@ function buildGroups(
         ]),
     // PM governance-completeness + submission. In the Maintain tree this is the
     // one-shot "Send To Approval"; in the Amend tree it's the two-step "Amend &
-    // Approve" group (Initiate Amend, then Send To Approve).
+    // Approve" group (Amendment Request, then Send To Approve).
     ...(isAmend
       ? [
           {
@@ -157,7 +157,7 @@ function buildGroups(
             icon: SendHorizontal,
             items: [
               {
-                label: "Initiate Amend",
+                label: "Amendment Request",
                 href: `${base}/initiate-amend`,
                 done: amendmentActive,
               },

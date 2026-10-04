@@ -144,6 +144,9 @@ export type ReportSubmissionKpi = {
   submitted_count: number;
   expected_count: number;
   adherence_pct: number;
+  // submitted_count counts every filed report (Submitted + Approved + Baselined).
+  approved_count: number; // Delivery Status — Projects / Account: filed reports already Approved
+  auto_generated_count: number; // Delivery Status — Geo: reports still Auto Generated
 };
 
 export type ReportSubmissionsSummary = {

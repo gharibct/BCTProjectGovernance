@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field, MandatoryBadge, SectionCard } from "@/components/forms/form-primitives";
+import { CopyFromLatestButton } from "@/components/forms/copy-from-latest-button";
 import { EmptyState } from "@/components/forms/empty-state";
 import {
   CATEGORIES,
@@ -167,6 +168,20 @@ function WorkspaceInner() {
   }, [allPeriods, displaySource?.period_id]);
   const periodId = periodChoice || (readOnly ? "" : (periodOptions[0]?.id ?? ""));
 
+  // Prefill the form from the latest Submitted assessment. Health always comes
+  // across; PCI score and remarks only fill blanks, so typed text is never lost.
+  // Assessment date and period stay as they are — they belong to this assessment.
+  const copyFromPrevious = () => {
+    if (!previous) return;
+    setHealthValue(RATING_FROM_API[previous.de_assessed_project_health]);
+    if (!pciScore.trim()) setPciScore(previous.pci_score ?? "");
+    if (!remarks.trim()) setRemarks(previous.remarks ?? "");
+    setErrors({});
+    showSuccess(
+      `Copied from the previous assessment${previous.assessment_date ? ` (${formatDate(previous.assessment_date)})` : ""}. Review and update before submitting.`
+    );
+  };
+
   const createAssessment = useCreateDEAssessment(projectId);
   const updateAssessment = useUpdateDEAssessment(projectId);
   const busy = createAssessment.isPending || updateAssessment.isPending;
@@ -255,7 +270,7 @@ function WorkspaceInner() {
       : "No Assessment Recorded Yet";
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <Link
@@ -340,6 +355,16 @@ function WorkspaceInner() {
               ))}
             </NativeSelect>
           </Field>
+          {!readOnly && previous ? (
+            <div className="self-end">
+              <CopyFromLatestButton
+                onClick={copyFromPrevious}
+                disabled={busy}
+                label="Copy from previous period"
+                description="Prefill this assessment from the project's latest submitted assessment: health rating always, PCI score and remarks where still empty. Date and period are not copied."
+              />
+            </div>
+          ) : null}
         </div>
       </SectionCard>
 
@@ -491,10 +516,11 @@ function WorkspaceInner() {
           </p>
         ) : (
           <div className="flex gap-3">
-            <Button variant="ghost" onClick={() => router.push(backHref)}>
-              Cancel
-            </Button>
-            <Button variant="outline" onClick={() => persist("Draft")} disabled={busy} className="gap-2">
+            <Button
+              onClick={() => persist("Draft")}
+              disabled={busy}
+              className="gap-2 bg-[#1a4a7a] px-6 font-semibold text-white hover:bg-[#15406b]"
+            >
               {busy ? <ButtonSpinner /> : null}
               Save Draft
             </Button>

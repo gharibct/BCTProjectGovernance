@@ -16,16 +16,18 @@ import {
   type ApprovalReadiness,
   type SendToApprovalError,
 } from "@/lib/api/approval-readiness";
-import { effectiveProjectStatus, useProject } from "@/lib/api/projects";
+import { effectiveProjectStatus, isBaselineEditable, useProject } from "@/lib/api/projects";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { usePageBanner } from "@/stores/page-banner";
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
+import { BaselineLockMessage, LOCK_BAR_CLASS } from "@/components/new-project/baseline-lock";
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import { ConfirmationDialog } from "@/components/forms/confirmation-dialog";
 
 // "maintain"       — Maintain Project: Send To Approve + Recall (Draft flow).
-// "amend-initiate" — Amend Project / Initiate Amend screen: one Initiate button.
+// "amend-initiate" — Amend Project / Amendment Request screen: one Initiate button.
 // "amend-approve"  — Amend Project / Send To Approve screen: Send To Approve + Recall
 //                    against the Under Amendment flow.
 export type SendToApprovalMode = "maintain" | "amend-initiate" | "amend-approve";
@@ -184,88 +186,90 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
     });
   };
 
-  const submitCard =
+  const initiateIntro =
     mode === "amend-initiate" ? (
       <SectionCard icon={GitPullRequestArrow} title="Initiate Amendment">
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-slate-600">
-            Initiating an amendment snapshots the current project data for audit and unlocks the
-            charter and baseline for edits — every field except <strong>Project Type</strong>. When
-            done, submit the changes from <strong>Send To Approve</strong>.
-          </p>
-
-          {isUnderAmendment ? (
-            <p className="text-sm text-violet-700">
-              An amendment is already in progress. Make your edits, then go to Send To Approve.
-            </p>
-          ) : !canInitiate ? (
-            <p className="text-sm text-slate-400">
-              This project is {effectiveProjectStatus(view)} — only an Approved project that isn&apos;t
-              Closed can be amended.
-            </p>
-          ) : null}
-
-          <div>
-            <Button
-              onClick={onInitiate}
-              disabled={busy || !canInitiate}
-              className="gap-2 bg-[#5b3aa8] font-semibold text-white hover:bg-[#4a2f8c]"
-            >
-              {initiate.isPending ? <ButtonSpinner /> : <GitPullRequestArrow className="size-4" />}
-              Initiate Amendment
-            </Button>
-          </div>
-        </div>
+        <p className="text-sm text-slate-600">
+          Initiating an amendment snapshots the current project data for audit and unlocks the
+          charter and baseline for edits — every field except <strong>Project Type</strong>. When
+          done, submit the changes from <strong>Send To Approve</strong>.
+        </p>
       </SectionCard>
-    ) : (
+    ) : null;
+
+  const initiateStatus = isUnderAmendment ? (
+    <p className="text-sm text-violet-700">
+      An amendment is already in progress. Make your edits, then go to Send To Approve.
+    </p>
+  ) : !canInitiate ? (
+    <p className="text-sm text-slate-400">
+      This project is {effectiveProjectStatus(view)} — only an Approved project that isn&apos;t
+      Closed can be amended.
+    </p>
+  ) : null;
+
+  const initiateBar =
+    mode === "amend-initiate" ? (
+      <StickyActionBar secondary={initiateStatus}>
+        <Button
+          onClick={onInitiate}
+          disabled={busy || !canInitiate}
+          className="h-11 gap-2 bg-[#1a4a7a] px-6 font-semibold text-white hover:bg-[#15406b]"
+        >
+          {initiate.isPending ? <ButtonSpinner /> : <GitPullRequestArrow className="size-4" />}
+          Initiate Amendment
+        </Button>
+      </StickyActionBar>
+    ) : null;
+
+  const submitIntro =
+    mode === "amend-initiate" ? null : (
       <SectionCard icon={SendHorizontal} title="Submit for Approval">
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-slate-600">
-            Project Profile, Scope &amp; Schedule, Measurement, Commitments and Milestones must all
-            be complete before this project can go to Delivery Excellence. The RAIDO register is
-            informational and does not block submission.
-          </p>
-
-          {isPendingApproval ? (
-            <p className="text-sm text-slate-500">
-              This project is with Delivery Excellence for approval. Recall it to move it back to{" "}
-              {recallTarget} and make changes.
-            </p>
-          ) : isAmend && !isUnderAmendment ? (
-            <p className="text-sm text-slate-400">
-              This project is {view.project_status}. Initiate an amendment first.
-            </p>
-          ) : !isAmend && view.project_status !== "Draft" ? (
-            <p className="text-sm text-slate-400">
-              This project is {view.project_status}. Nothing to submit.
-            </p>
-          ) : view.modules_incomplete > 0 ? (
-            <p className="text-xs text-amber-600">
-              {view.modules_incomplete} mandatory module(s) still incomplete.
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              onClick={() => setConfirm("send")}
-              disabled={busy || !view.can_submit}
-              className="gap-2 bg-[#1a4a7a] font-semibold text-white hover:bg-[#15406b]"
-            >
-              {send.isPending ? <ButtonSpinner /> : <SendHorizontal className="size-4" />}
-              Send To Approve
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setConfirm("recall")}
-              disabled={busy || !isPendingApproval}
-              className="gap-2 border-red-200 bg-red-50 font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
-            >
-              {recall.isPending ? <ButtonSpinner /> : <Undo2 className="size-4" />}
-              {`Recall to ${recallTarget}`}
-            </Button>
-          </div>
-        </div>
+        <p className="text-sm text-slate-600">
+          Project Profile, Scope &amp; Schedule, Measurement, Commitments and Milestones must all
+          be complete before this project can go to Delivery Excellence. The RAIDO register is
+          informational and does not block submission.
+        </p>
       </SectionCard>
+    );
+
+  const submitStatus =
+    project && !isBaselineEditable(project.project_status) ? (
+      <BaselineLockMessage project={project} />
+    ) : isAmend && !isUnderAmendment ? (
+      <p className="text-sm text-slate-400">
+        This project is {view.project_status}. Initiate an amendment first.
+      </p>
+  ) : view.modules_incomplete > 0 ? (
+    <p className="text-xs text-amber-600">
+      {view.modules_incomplete} mandatory module(s) still incomplete.
+    </p>
+  ) : null;
+
+  const submitBar =
+    mode === "amend-initiate" ? null : (
+      <StickyActionBar
+        secondary={submitStatus}
+        className={project && !isBaselineEditable(project.project_status) ? LOCK_BAR_CLASS : undefined}
+      >
+        <Button
+          variant="outline"
+          onClick={() => setConfirm("recall")}
+          disabled={busy || !isPendingApproval}
+          className="h-11 gap-2 px-6 text-sm font-semibold"
+        >
+          {recall.isPending ? <ButtonSpinner /> : <Undo2 className="size-4" />}
+          {`Recall to ${recallTarget}`}
+        </Button>
+        <Button
+          onClick={() => setConfirm("send")}
+          disabled={busy || !view.can_submit}
+          className="h-11 gap-2 bg-[#1a4a7a] px-6 font-semibold text-white hover:bg-[#15406b]"
+        >
+          {send.isPending ? <ButtonSpinner /> : <SendHorizontal className="size-4" />}
+          Send To Approve
+        </Button>
+      </StickyActionBar>
     );
 
   return (
@@ -316,6 +320,9 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
           tone={view.critical_gaps > 0 ? "red" : undefined}
         />
       </div>
+
+      {initiateIntro}
+      {submitIntro}
 
       {wasReturnedByDe ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4">
@@ -396,7 +403,8 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
         </div>
       </SectionCard>
 
-      {submitCard}
+      {initiateBar}
+      {submitBar}
     </div>
   );
 }

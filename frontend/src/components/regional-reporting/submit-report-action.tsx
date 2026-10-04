@@ -1,16 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { RotateCcw, Send } from "lucide-react";
+import { Lock, Send, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner } from "@/components/forms/form-primitives";
 import { ConfirmationDialog } from "@/components/forms/confirmation-dialog";
+import { RecallReportDialog } from "@/components/forms/recall-report-dialog";
 import { StatusBadge } from "@/components/forms/status-badge";
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
+import { LOCK_BAR_CLASS } from "@/components/new-project/baseline-lock";
+import { cn } from "@/lib/utils";
 import { usePageBanner } from "@/stores/page-banner";
-import { ApiError } from "@/lib/api/client";
 import {
   useCreateRegionalStatusReport,
+  useRecallAccountStatusReport,
   useRecallGeoStatusReport,
   useUpdateRegionalStatusReport,
   type RegionalScope,
@@ -63,105 +67,86 @@ export function SubmitReportAction({
   const createReport = useCreateRegionalStatusReport(scope, scopeId);
   const updateReport = useUpdateRegionalStatusReport(scope, scopeId);
   const recallReport = useRecallGeoStatusReport(scope === "geo" ? scopeId : null);
+  const recallAccountReport = useRecallAccountStatusReport(scope === "account" ? scopeId : null);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
-  const [confirm, setConfirm] = React.useState<"baseline" | "approve-accounts" | "recall" | "submit" | null>(null);
-  const [pendingAccounts, setPendingAccounts] = React.useState(0);
+  const [confirm, setConfirm] = React.useState<"baseline" | "recall" | "submit" | null>(null);
 
   // Geo reports aren't submitted for review: the Geo Head baselines them
   // (frozen) and can recall a baselined report back to "Draft - Saved".
   if (scope === "geo") {
-    // The server refuses to baseline while account reports of the period are
-    // still Submitted; that comes back as ACCOUNT_REPORTS_PENDING_APPROVAL and
-    // the Geo Head is asked to approve them, then the baseline is retried.
-    const baseline = (approveSubmittedAccounts = false) => {
-      const onSuccess = () =>
-        showSuccess(
-          approveSubmittedAccounts
-            ? "Submitted account reports approved and report baselined successfully"
-            : "Report Baselined Successfully"
-        );
-      const onError = (err: unknown) => {
-        if (err instanceof ApiError && err.code === "ACCOUNT_REPORTS_PENDING_APPROVAL") {
-          const count = (err.detail as { count?: number }).count ?? 0;
-          setPendingAccounts(count);
-          setConfirm("approve-accounts");
-          return;
-        }
+    // Baselining also approves every still-Submitted delivery (account) and
+    // project report of the period — the server does that automatically.
+    const baseline = () => {
+      const onSuccess = () => showSuccess("Report Baselined Successfully");
+      const onError = (err: unknown) =>
         showError(err instanceof Error ? err.message : "Failed to baseline report.");
-      };
-      const payload = approveSubmittedAccounts ? { status: "Baselined" as const, approve_submitted_accounts: true } : { status: "Baselined" as const };
+      const payload = { status: "Baselined" as const };
       if (report) {
         updateReport.mutate({ id: report.id, payload }, { onSuccess, onError });
       } else {
         createReport.mutate({ period_id: periodId, ...payload }, { onSuccess, onError });
       }
     };
-    const recall = () =>
-      recallReport.mutate(report!.id, {
-        onSuccess: () => showSuccess("Report Recalled — now Draft - Saved"),
-        onError: (err) => showError(err instanceof Error ? err.message : "Failed to recall report."),
-      });
+    const recall = async (remarks: string) => {
+      await recallReport.mutateAsync({ id: report!.id, remarks });
+      showSuccess("Report Recalled — now Draft - Saved");
+    };
 
-    if (report?.status === "Baselined") {
-      return (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-slate-700">
-            <StatusBadge value={report.status} />
-            <span>Baselined — the report is frozen. Recall it to make changes.</span>
-          </div>
+    const isBaselined = report?.status === "Baselined";
+    const isSavingBaseline = createReport.isPending || updateReport.isPending;
+
+    return (
+      <>
+        <StickyActionBar
+          className={isBaselined ? cn("z-40", LOCK_BAR_CLASS) : undefined}
+          secondary={
+            <p
+              role="status"
+              className={cn("flex items-center gap-2 text-sm", isBaselined ? "text-amber-800" : "text-slate-600")}
+            >
+              {isBaselined ? <Lock className="size-4 shrink-0" /> : null}
+              {isBaselined
+                ? "Baselined — the report is frozen. Recall it to make changes."
+                : report?.status === "Auto Generated"
+                  ? "Generated from the accounts' reports. Review it, edit if needed, then baseline."
+                  : "Review the report above. If anything is missing, add or update it on Geo Reporting, then baseline here."}
+            </p>
+          }
+        >
           <Button
             variant="outline"
-            className="h-10 shrink-0 gap-2 px-5 text-sm font-semibold"
-            disabled={recallReport.isPending}
+            className="h-10 gap-2 border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
+            disabled={!isBaselined || recallReport.isPending}
             onClick={() => setConfirm("recall")}
           >
-            {recallReport.isPending ? <ButtonSpinner /> : <RotateCcw className="size-4" />}
-            Recall
+            {recallReport.isPending ? <ButtonSpinner /> : <Undo2 className="size-4" />}
+            Recall Report
           </Button>
-          <ConfirmationDialog
+          <Button
+            className="h-10 shrink-0 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
+            disabled={isBaselined || isSavingBaseline}
+            onClick={() => setConfirm("baseline")}
+          >
+            {isSavingBaseline ? <ButtonSpinner /> : <Send className="size-4" />}
+            Baseline Report
+          </Button>
+        </StickyActionBar>
+        <RecallReportDialog
           open={confirm === "recall"}
           onOpenChange={(open) => {
             if (!open) setConfirm(null);
           }}
-          title="Recall report?"
-          message={"The report will go back to Draft - Saved so it can be edited. Do you want to proceed?"}
-          confirmLabel="Proceed"
-          confirmVariant="default"
-          onConfirm={() => {
-            setConfirm(null);
-            recall();
-          }}
+          description="The report will go back to Draft - Saved so it can be edited. Do you want to proceed?"
+          onRecall={recall}
         />
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          {report ? <StatusBadge value={report.status} /> : null}
-          <span>
-            {report?.status === "Auto Generated"
-              ? "Generated from the accounts' reports. Review it, edit if needed, then baseline."
-              : "Review the report above. If anything is missing, add or update it on Geo Reporting, then baseline here."}
-          </span>
-        </div>
-        <Button
-          className="h-10 shrink-0 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
-          disabled={createReport.isPending || updateReport.isPending}
-          onClick={() => setConfirm("baseline")}
-        >
-          {createReport.isPending || updateReport.isPending ? <ButtonSpinner /> : <Send className="size-4" />}
-          Baseline Report
-        </Button>
         <ConfirmationDialog
           open={confirm === "baseline"}
           onOpenChange={(open) => {
             if (!open) setConfirm(null);
           }}
           title="Baseline report?"
-          message={"The report will be baselined and frozen until it is recalled. Do you want to proceed?"}
+          message={"The report will be baselined and frozen until it is recalled. All the submitted delivery reports and project reports will be approved. Do you want to proceed?"}
           confirmLabel="Proceed"
           confirmVariant="default"
           onConfirm={() => {
@@ -169,45 +154,23 @@ export function SubmitReportAction({
             baseline();
           }}
         />
-        <ConfirmationDialog
-          open={confirm === "approve-accounts"}
-          onOpenChange={(open) => {
-            if (!open) setConfirm(null);
-          }}
-          title="Approve submitted account reports?"
-          message={`${pendingAccounts} account report(s) for this period are still Submitted. They will be approved and the geo report baselined; account reports can no longer be submitted for this period afterwards. Do you want to proceed?`}
-          confirmLabel="Approve & Baseline"
-          confirmVariant="default"
-          onConfirm={() => {
-            setConfirm(null);
-            baseline(true);
-          }}
-        />
-      </div>
+      </>
     );
   }
 
   // Submitted / Approved lock the report — the owner is done and can't edit
   // the submission. A Rejected report is NOT locked: the owner has to revise
-  // and resubmit it, so it falls through to the submit bar below (with the
-  // rejection reason shown above it).
-  if (report && (report.status === "Submitted" || report.status === "Approved")) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-700 shadow-sm">
-        <StatusBadge value={report.status} />
-        <span>
-          {report.status === "Submitted"
-            ? `Submitted — awaiting ${REVIEWER_LABEL[scope]} review.`
-            : `Reviewed${report.reviewed_at ? ` on ${formatDateTime(report.reviewed_at)}` : ""}${
-                report.review_comment ? ` — ${report.review_comment}` : ""
-              }`}
-        </span>
-      </div>
-    );
-  }
-
+  // and resubmit it (with the rejection reason shown above the bar).
+  const isSubmitted = report?.status === "Submitted";
+  const isApproved = report?.status === "Approved";
+  const locked = isSubmitted || isApproved;
   const wasRejected = report?.status === "Rejected";
   const isSaving = createReport.isPending || updateReport.isPending;
+  const barMessage = isApproved
+    ? "This report has been approved and is now read-only."
+    : isSubmitted
+      ? `This report has been submitted and is now read-only. Recall it to make changes while it awaits ${REVIEWER_LABEL[scope]} review.`
+      : `Review the report above. If anything is missing, add or update it on ${ENTRY_SCREEN_LABEL[scope]}, then submit here.`;
 
   const submit = () => {
     const onSuccess = () =>
@@ -224,6 +187,11 @@ export function SubmitReportAction({
     }
   };
 
+  const recallAccount = async (remarks: string) => {
+    await recallAccountReport.mutateAsync({ id: report!.id, remarks });
+    showSuccess("Status Report Recalled — it is back to Draft");
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {wasRejected && report ? (
@@ -236,39 +204,74 @@ export function SubmitReportAction({
           </span>
         </div>
       ) : null}
-      {disabled && disabledReason ? (
+      {report?.status === "Draft" && report.recall_remarks ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 shadow-sm">
+          <StatusBadge value="Draft" />
+          <span>
+            Recalled{report.recalled_at ? ` on ${formatDateTime(report.recalled_at)}` : ""} — {report.recall_remarks}.
+            Update the report, then resubmit.
+          </span>
+        </div>
+      ) : null}
+      {!locked && disabled && disabledReason ? (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 shadow-sm">
           {disabledReason}
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-600">
-          Review the report above. If anything is missing, add or update it on{" "}
-          {ENTRY_SCREEN_LABEL[scope]}, then submit here.
-        </p>
+      <StickyActionBar
+        className={locked ? cn("z-40", LOCK_BAR_CLASS) : undefined}
+        secondary={
+          <p
+            role="status"
+            className={cn("flex items-center gap-2 text-sm", locked ? "text-amber-800" : "text-slate-600")}
+          >
+            {locked ? <Lock className="size-4 shrink-0" /> : null}
+            {barMessage}
+          </p>
+        }
+      >
+        {locked ? (
+          <Button
+            variant="outline"
+            className="h-10 gap-2 border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
+            disabled={!isSubmitted || recallAccountReport.isPending}
+            onClick={() => setConfirm("recall")}
+          >
+            {recallAccountReport.isPending ? <ButtonSpinner /> : <Undo2 className="size-4" />}
+            Recall Report
+          </Button>
+        ) : null}
         <Button
           className="h-10 shrink-0 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
-          disabled={isSaving || disabled}
+          disabled={isSaving || disabled || locked}
           onClick={() => setConfirm("submit")}
         >
           {isSaving ? <ButtonSpinner /> : <Send className="size-4" />}
           {wasRejected ? "Resubmit Report" : "Submit Report"}
         </Button>
-        <ConfirmationDialog
-          open={confirm === "submit"}
-          onOpenChange={(open) => {
-            if (!open) setConfirm(null);
-          }}
-          title="Submit report?"
-          message={`The report will be sent to the ${REVIEWER_LABEL[scope]} for review and locked from further edits. Do you want to proceed?`}
-          confirmLabel="Proceed"
-          confirmVariant="default"
-          onConfirm={() => {
-            setConfirm(null);
-            submit();
-          }}
-        />
-      </div>
+      </StickyActionBar>
+      <ConfirmationDialog
+        open={confirm === "submit"}
+        onOpenChange={(open) => {
+          if (!open) setConfirm(null);
+        }}
+        title="Submit report?"
+        message={`The report will be sent to the ${REVIEWER_LABEL[scope]} for review and locked from further edits. Do you want to proceed?`}
+        confirmLabel="Proceed"
+        confirmVariant="default"
+        onConfirm={() => {
+          setConfirm(null);
+          submit();
+        }}
+      />
+      <RecallReportDialog
+        open={confirm === "recall" && scope === "account"}
+        onOpenChange={(open) => {
+          if (!open) setConfirm(null);
+        }}
+        description={`The report will go back to Draft so you can edit and resubmit it. This is only possible until the ${REVIEWER_LABEL[scope]} reviews it. Do you want to proceed?`}
+        onRecall={recallAccount}
+      />
     </div>
   );
 }

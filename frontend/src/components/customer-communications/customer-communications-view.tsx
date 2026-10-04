@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, History, MessageSquare, Plus } from "lucide-react";
 
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
+import { PaginationBar } from "@/components/forms/pagination-bar";
 import { PageBanner } from "@/components/shell/page-banner";
 import { QueryErrorState } from "@/components/shared/query-error-state";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,15 @@ import { usePageBanner } from "@/stores/page-banner";
 
 const ACCEPT = ".ppt,.pptx,.pdf";
 const WRITER_ROLES = ["ACCOUNT_MANAGER", "GEO_HEAD", "ADMIN"];
+// Communication History shows the last 12 months only, four records per page.
+const HISTORY_PAGE_SIZE = 4;
+
+function oneYearAgoISO(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 type FieldErrors = Partial<Record<"date" | "title" | "file", string>>;
 
@@ -43,6 +53,14 @@ export function CustomerCommunicationsView() {
   const listQuery = useCustomerCommunications(accountId ?? null);
   const { data: communications = [] } = listQuery;
   const summary = React.useMemo(() => summarizeCustomerCommunications(communications), [communications]);
+  const [historySkip, setHistorySkip] = React.useState(0);
+  const history = React.useMemo(() => {
+    const since = oneYearAgoISO();
+    return communications
+      .filter((c) => c.reporting_date >= since)
+      .sort((a, b) => b.reporting_date.localeCompare(a.reporting_date));
+  }, [communications]);
+  const historyPage = history.slice(historySkip, historySkip + HISTORY_PAGE_SIZE);
   const create = useCreateCustomerCommunication(accountId ?? null);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
@@ -92,7 +110,7 @@ export function CustomerCommunicationsView() {
           <ArrowLeft className="size-4" />
           Reporting Summary
         </Link>
-        <h1 className="text-4xl font-bold tracking-tight text-slate-900">Customer Communications (Account)</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-slate-900">Record Account Presentation</h1>
         {accountName ? <p className="mt-2 max-w-3xl text-slate-500">{accountName}</p> : null}
       </div>
 
@@ -193,14 +211,14 @@ export function CustomerCommunicationsView() {
               </tr>
             </thead>
             <tbody>
-              {communications.length === 0 ? (
+              {history.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-6 text-center text-slate-400">
-                    No communications recorded yet.
+                    No communications recorded in the last year.
                   </td>
                 </tr>
               ) : (
-                communications.map((c) => (
+                historyPage.map((c) => (
                   <tr key={c.id} className="border-t border-[#E4E9EE] bg-white transition-colors even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
                     <td className="px-6 py-3.5 font-bold text-slate-900">{formatDayMonYear(c.reporting_date)}</td>
                     <td className="px-3 py-3.5 text-slate-700">{c.title}</td>
@@ -224,6 +242,14 @@ export function CustomerCommunicationsView() {
               )}
             </tbody>
           </table>
+          {history.length > HISTORY_PAGE_SIZE ? (
+            <PaginationBar
+              skip={historySkip}
+              limit={HISTORY_PAGE_SIZE}
+              total={history.length}
+              onPageChange={setHistorySkip}
+            />
+          ) : null}
         </div>
       </section>
     </div>

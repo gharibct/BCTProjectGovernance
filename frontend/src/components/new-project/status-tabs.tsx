@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TrendingUp } from "lucide-react";
@@ -209,7 +210,7 @@ export function NewProjectStatusTabs() {
       </div>
 
       {periodId ? (
-        <div className="mt-8 flex items-center justify-end gap-3">
+        <StickyActionBar>
           <Button
             variant="outline"
             className="h-11 gap-2 px-6 text-sm font-semibold"
@@ -227,7 +228,7 @@ export function NewProjectStatusTabs() {
             {isSaving ? <ButtonSpinner /> : null}
             Submit Report
           </Button>
-        </div>
+        </StickyActionBar>
       ) : null}
     </div>
   );

@@ -76,6 +76,7 @@ class ReportingPeriod(Base, UUIDPrimaryKey, TimestampColumns):
     label: Mapped[str]  # e.g. 'Week 31, 2026', 'Jul 2026'
     start_date: Mapped[date]
     end_date: Mapped[date]
+    due_date: Mapped[date | None]  # Weekly: Tuesday after end_date; Monthly: 7th of next month
     is_active: Mapped[bool]
 
 

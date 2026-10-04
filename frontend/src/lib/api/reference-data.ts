@@ -44,6 +44,8 @@ export type ReportingPeriod = {
   label: string;
   start_date: string;
   end_date: string;
+  // Submission due date (Weekly: the following Tuesday, Monthly: the 7th of the next month).
+  due_date: string | null;
   is_active: boolean;
 };
 

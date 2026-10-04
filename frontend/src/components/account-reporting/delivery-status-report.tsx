@@ -1,7 +1,11 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
-import { TrendingUp } from "lucide-react";
+import { Lock, TrendingUp } from "lucide-react";
+
+import { LOCK_BAR_CLASS } from "@/components/new-project/baseline-lock";
+import { cn } from "@/lib/utils";
 
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { CopyFromLatestButton } from "@/components/forms/copy-from-latest-button";
@@ -108,13 +112,8 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
       {periodId ? (
         <section id={SECTION_IDS.metrics} className="scroll-mt-6">
           <SectionCard icon={TrendingUp} title="Overview">
-            {frozen ? (
-              <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                This report has been submitted and is now read-only.
-              </p>
-            ) : null}
             <Field label="Account Details" className="mb-6">
-              <p className="rounded-md bg-slate-50 px-3 py-2.5 text-sm whitespace-pre-wrap text-slate-700">
+              <p className="text-sm whitespace-pre-wrap text-slate-700">
                 {account?.description || "—"}
               </p>
             </Field>
@@ -201,17 +200,27 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
         </section>
       ) : null}
 
-      {periodId && !frozen ? (
-        <div className="flex justify-end">
+      {periodId ? (
+        <StickyActionBar
+          className={frozen ? cn("z-40", LOCK_BAR_CLASS) : undefined}
+          secondary={
+            frozen ? (
+              <p role="status" className="flex items-center gap-2 text-sm text-amber-800">
+                <Lock className="size-4 shrink-0" />
+                This report has been submitted and is now read-only.
+              </p>
+            ) : undefined
+          }
+        >
           <Button
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
-            disabled={isBusy}
+            disabled={isBusy || frozen}
             onClick={saveReport}
           >
             {isBusy ? <ButtonSpinner /> : null}
             Save Report
           </Button>
-        </div>
+        </StickyActionBar>
       ) : null}
     </div>
   );

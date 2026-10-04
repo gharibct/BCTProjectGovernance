@@ -153,6 +153,7 @@ class ReportingPeriodBase(BaseModel):
     label: str
     start_date: date
     end_date: date
+    due_date: date | None = None
     is_active: bool = True
 
 
@@ -166,6 +167,7 @@ class ReportingPeriodUpdate(BaseModel):
     label: str | None = None
     start_date: date | None = None
     end_date: date | None = None
+    due_date: date | None = None
     is_active: bool | None = None
 
 
@@ -202,3 +204,24 @@ class ExchangeRateRead(BaseModel):
     currency: str
     rate_to_usd: Decimal
     updated_at: datetime
+
+
+class ReportingPeriodGenerate(BaseModel):
+    year: int
+
+    @field_validator("year")
+    @classmethod
+    def _sane_year(cls, value: int) -> int:
+        if not 2000 <= value <= 2100:
+            raise ValueError("Year must be between 2000 and 2100")
+        return value
+
+
+class ReportingPeriodGenerateResult(BaseModel):
+    year: int
+    weekly_created: int
+    monthly_created: int
+
+
+class ReportingPeriodDueDateUpdate(BaseModel):
+    due_date: date

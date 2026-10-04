@@ -175,7 +175,7 @@ export function AccountHeadMySummary() {
                 </div>
                 {data.account_portfolio_health.length > 0 ? (
                   <Link
-                    href={`/account-reporting/${data.account_portfolio_health[0].account_id}`}
+                    href={`/account-reporting/${data.account_portfolio_health[0].account_id}/summary`}
                     className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-[#1a6fc4] hover:underline"
                   >
                     Go to Account Reporting →

@@ -4,13 +4,13 @@ import { SendToApprovalView } from "@/components/new-project/send-to-approval/se
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — Initiate Amend | Governance One",
+  title: "Amend Project — Amendment Request | Governance One",
 };
 
 export default function AmendProjectInitiatePage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <NewProjectHeader subheading="Initiate Amend" />
+      <NewProjectHeader subheading="Amendment Request" />
       <div className="mt-8">
         <SendToApprovalView mode="amend-initiate" />
       </div>

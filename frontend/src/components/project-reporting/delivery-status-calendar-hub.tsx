@@ -32,7 +32,7 @@ export function DeliveryStatusCalendarHub() {
       weeklyItems={weeklyItems}
       reports={reports}
       hrefForPeriod={(periodId) => `/project-reporting/${projectId}/project-status?period=${periodId}`}
-      scopeStart={project?.actual_start_date ?? project?.planned_start_date ?? null}
+      scopeStart={project?.tool_effective_date ?? project?.actual_start_date ?? project?.planned_start_date ?? null}
       scopeEnd={project?.actual_end_date ?? project?.planned_end_date ?? null}
     />
   );

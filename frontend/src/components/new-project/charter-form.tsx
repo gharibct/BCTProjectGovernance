@@ -1,5 +1,6 @@
 "use client";
 
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -503,21 +504,12 @@ function ProjectDescriptionTab({
               ai={fieldAi("project_manager_id")}
               hint="Assigned when the project creation request is approved — not editable here."
             >
-              <NativeSelect
+              <div
                 id="project-manager"
-                value={values.project_manager_id ?? ""}
-                onChange={(e) => setAndClear("project_manager_id")(e.target.value)}
-                disabled
+                className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600"
               >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {(users ?? []).map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.full_name}
-                  </option>
-                ))}
-              </NativeSelect>
+                {(users ?? []).find((user) => user.id === values.project_manager_id)?.full_name ?? "Not Assigned"}
+              </div>
             </Field>
             <Field label={ACCOUNT_MANAGER_LABEL} badge={<AutoBadge />}>
               <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
@@ -813,7 +805,7 @@ function ProjectDescriptionActions({
 
   return (
     <>
-      <div className="flex items-center justify-end gap-3">
+      <StickyActionBar>
         {!isCreated ? (
           <Button
             className={cn(primaryClass, "gap-2")}
@@ -830,12 +822,12 @@ function ProjectDescriptionActions({
             onClick={handleSave}
           >
             {pendingAction === "save" ? <ButtonSpinner /> : null}
-            Save
+            Save Project Profile
           </Button>
         ) : project ? (
           <BaselineLockLink project={project} />
         ) : null}
-      </div>
+      </StickyActionBar>
       <p className="flex items-center gap-2 text-sm text-slate-500">
         <Lock className="size-4" />
         {statusMessage}
@@ -949,7 +941,7 @@ export function ScopeScheduleForm() {
         onSizeEffortChange={(patch) => setSizeEffort((prev) => ({ ...prev, ...patch }))}
       />
       <div className="mt-10 flex flex-col gap-4">
-        <div className="flex items-center justify-end gap-3">
+        <StickyActionBar>
           {locked && project ? (
             <BaselineLockLink project={project} />
           ) : (
@@ -962,7 +954,7 @@ export function ScopeScheduleForm() {
               Save Scope &amp; Schedule
             </Button>
           )}
-        </div>
+        </StickyActionBar>
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Lock className="size-4" />
           {status === "Under Amendment"
@@ -984,7 +976,7 @@ function SelfAssessmentFormInner() {
     <div>
       <HealthDeclaration form={form} />
       <div className="mt-10 flex flex-col gap-4">
-        <div className="flex justify-end gap-3">
+        <StickyActionBar>
           <Button
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
             disabled={!form.projectId || form.isSubmitting}
@@ -993,7 +985,7 @@ function SelfAssessmentFormInner() {
             {form.isSubmitting ? <ButtonSpinner /> : null}
             Submit Self Assessment
           </Button>
-        </div>
+        </StickyActionBar>
         <p className="flex items-center gap-2 text-sm text-slate-500">
           <Lock className="size-4" />
           Editable by the Project Manager while the project is unlocked.
