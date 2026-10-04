@@ -6,4 +6,5 @@ __pycache__/
 *.db
 storage/
 *.xlsx
+integration/*.xlsx
 master_data_nullable_proposal_*.md
