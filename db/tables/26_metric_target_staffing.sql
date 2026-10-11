@@ -8,8 +8,8 @@ CREATE TABLE metric_target_staffing (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
 
-    target_pct_profiles_qualifying NUMERIC(5, 2),
-    target_pct_candidates_joining NUMERIC(5, 2),
+    target_pct_profiles_qualifying NUMERIC(12, 2),
+    target_pct_candidates_joining NUMERIC(12, 2),
 
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

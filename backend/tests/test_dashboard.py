@@ -93,6 +93,17 @@ async def test_dashboard_summary_returns_200_for_any_role(client, override_auth)
     assert body["open_ncs"] == []
 
 
+async def test_high_risks_requires_auth(client):
+    response = await client.get("/api/v1/dashboard/high-risks")
+    assert response.status_code == 401
+
+
+async def test_high_risks_is_cxo_and_geo_head_only(client, override_auth):
+    for role in (RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.TEAM_MEMBER):
+        response = await client.get("/api/v1/dashboard/high-risks", headers=override_auth(role))
+        assert response.status_code == 403, role
+
+
 async def test_my_summary_requires_auth(client):
     response = await client.get("/api/v1/dashboard/my-summary")
     assert response.status_code == 401

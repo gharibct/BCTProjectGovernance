@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { NativeSelect } from "@/components/ui/native-select";
 import { PageBanner } from "@/components/shell/page-banner";
+import { PageBreadcrumb, type BreadcrumbItem } from "@/components/shell/page-breadcrumb";
 import type { PeriodActivityItem } from "@/lib/reporting-activity";
 
 // Shared calendar-style landing page body for the weekly Delivery Status
@@ -73,6 +74,7 @@ export type CalendarReport = {
 export function DeliveryCalendarView({
   title,
   subtitle,
+  breadcrumb,
   weeklyItems,
   reports,
   hrefForPeriod,
@@ -85,6 +87,7 @@ export function DeliveryCalendarView({
 }: {
   title: string;
   subtitle?: string;
+  breadcrumb?: BreadcrumbItem[];
   // Weekly activity items covering the current and previous year.
   weeklyItems: PeriodActivityItem[];
   reports: CalendarReport[];
@@ -267,9 +270,10 @@ export function DeliveryCalendarView({
   const submittedLen = stats.expected ? (stats.submitted / stats.expected) * C : 0;
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
+          {breadcrumb ? <div className="mb-4"><PageBreadcrumb items={breadcrumb} /></div> : null}
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">{title}</h1>
           {subtitle ? <p className="mt-2 text-slate-500">{subtitle}</p> : null}
         </div>
@@ -349,8 +353,10 @@ export function DeliveryCalendarView({
             </span>
           </div>
           <p className="mt-4 text-sm text-slate-600">
-            {baselineMode ? "Last baselined:" : "Last submission:"}{" "}
-            <b className="text-slate-900">{lastSubmitted ? formatDate(lastSubmitted) : "—"}</b>
+            {baselineMode ? "Last baselined:" : "Late Submission:"}{" "}
+            <b className="text-slate-900">
+              {baselineMode ? (lastSubmitted ? formatDate(lastSubmitted) : "—") : stats.late}
+            </b>
           </p>
         </section>
 

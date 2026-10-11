@@ -11,9 +11,9 @@ CREATE TABLE metric_target_support (
     target_incident_mttr_p3_hours NUMERIC(10, 2),
     target_service_request_mttr_hours NUMERIC(10, 2),
     target_user_clarification_mttr_hours NUMERIC(10, 2),
-    target_incident_sla_compliance_p1_pct NUMERIC(5, 2),
-    target_incident_sla_compliance_p2_pct NUMERIC(5, 2),
-    target_incident_sla_compliance_p3_pct NUMERIC(5, 2),
+    target_incident_sla_compliance_p1_pct NUMERIC(12, 2),
+    target_incident_sla_compliance_p2_pct NUMERIC(12, 2),
+    target_incident_sla_compliance_p3_pct NUMERIC(12, 2),
 
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

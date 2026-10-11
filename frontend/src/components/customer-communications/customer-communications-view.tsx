@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, History, MessageSquare, Plus } from "lucide-react";
+import { History, MessageSquare, Plus } from "lucide-react";
 
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { PaginationBar } from "@/components/forms/pagination-bar";
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { PageBanner } from "@/components/shell/page-banner";
 import { QueryErrorState } from "@/components/shared/query-error-state";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { usePageBanner } from "@/stores/page-banner";
 
 // Customer Communications (Account) — reached from the Account Reporting hub's
 // Add Communication button. Record a meeting / presentation shared with the
-// customer, and see the history below it. CDO / Delivery Excellence can read
+// customer, and see the history below it. CXO / Delivery Excellence can read
 // the history but not add to it (the backend enforces the same).
 
 const ACCEPT = ".ppt,.pptx,.pdf";
@@ -101,16 +101,15 @@ export function CustomerCommunicationsView() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <div>
-        <Link
-          href={`/account-reporting/${accountId}/summary`}
-          className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4] hover:underline"
-        >
-          <ArrowLeft className="size-4" />
-          Reporting Summary
-        </Link>
-        <h1 className="text-4xl font-bold tracking-tight text-slate-900">Record Account Presentation</h1>
+        <PageBreadcrumb
+          items={[
+            { label: "Reporting Summary", href: `/account-reporting/${accountId}/summary` },
+            { label: "Record Account Presentation" },
+          ]}
+        />
+        <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900">Record Account Presentation</h1>
         {accountName ? <p className="mt-2 max-w-3xl text-slate-500">{accountName}</p> : null}
       </div>
 

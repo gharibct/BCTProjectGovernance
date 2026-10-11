@@ -1,10 +1,9 @@
 "use client";
 
 import { Suspense } from "react";
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { ReportingPeriodPill } from "@/components/shell/reporting-period-badge";
 import { PageBanner } from "@/components/shell/page-banner";
 import { QueryErrorState } from "@/components/shared/query-error-state";
@@ -90,18 +89,15 @@ function PeriodAwareHeading({
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-        <Link
-          href={scope === "account" ? `/account-reporting/${scopeId}/summary` : `/geo-reporting/${scopeId}`} className="font-semibold text-[#1a6fc4] hover:underline">
-          {SCOPE_LABEL[scope]}
-        </Link>
-        {period ? (
-          <>
-            <ChevronRight className="size-4 text-slate-400" />
-            <span className="font-semibold text-slate-600">{period.label}</span>
-          </>
-        ) : null}
-      </nav>
+      <PageBreadcrumb
+        items={[
+          {
+            label: SCOPE_LABEL[scope],
+            href: scope === "account" ? `/account-reporting/${scopeId}/summary` : `/geo-reporting/${scopeId}`,
+          },
+          ...(period ? [{ label: period.label }] : []),
+        ]}
+      />
       <div className="mt-4 flex flex-col gap-3">
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">{heading}</h1>
         <div className="flex flex-wrap items-center justify-between gap-4">

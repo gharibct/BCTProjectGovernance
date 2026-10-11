@@ -11,7 +11,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.inspection import inspect
 
@@ -53,23 +53,30 @@ async def copy_category_items(
     owner_column: Any,
     owner_id: UUID,
     period_id: UUID,
-) -> tuple[int, UUID | None]:
+    replace: bool = False,
+) -> tuple[int, UUID | None, int]:
     """Copy (category, description) rows from the latest earlier period into
-    `period_id`, for categories that are still empty there. Returns
-    (rows copied, source period id)."""
+    `period_id`. By default only categories that are still empty there are
+    filled; with `replace=True` the period's existing rows are deleted first and
+    everything is copied (only when there is a source period to copy from).
+    Returns (rows copied, source period id, source rows skipped)."""
     period = await _target_period(db, period_id)
     owner_filter = owner_column == owner_id
     source_id = await _latest_earlier_period_id(db, model, owner_filter, period)
     if source_id is None:
-        return 0, None
+        return 0, None, 0
 
-    filled = set(
-        (
-            await db.execute(
-                select(model.category).where(owner_filter, model.period_id == period_id).distinct()
-            )
-        ).scalars()
-    )
+    if replace:
+        await db.execute(delete(model).where(owner_filter, model.period_id == period_id))
+        filled: set = set()
+    else:
+        filled = set(
+            (
+                await db.execute(
+                    select(model.category).where(owner_filter, model.period_id == period_id).distinct()
+                )
+            ).scalars()
+        )
     source_rows = (
         (
             await db.execute(
@@ -81,8 +88,10 @@ async def copy_category_items(
     )
     now = datetime.now(UTC)
     copied = 0
+    skipped = 0
     for row in source_rows:
         if row.category in filled:
+            skipped += 1
             continue
         db.add(
             model(
@@ -97,7 +106,7 @@ async def copy_category_items(
         )
         copied += 1
     await db.flush()
-    return copied, source_id
+    return copied, source_id, skipped
 
 
 def _clone(row: Any, **overrides: Any) -> Any:

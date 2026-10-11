@@ -8,6 +8,8 @@ import { CalendarDays, ChartColumn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PageBanner } from "@/components/shell/page-banner";
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
+import { selectProjectHref } from "@/lib/project-context-targets";
 import { QueryErrorState } from "@/components/shared/query-error-state";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useProject } from "@/lib/api/projects";
@@ -29,7 +31,7 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
 }
 
-// One hub per report type: Report Delivery Status (Weekly) and Report Project
+// One hub per report type: Report Project Status (Weekly) and Report Project
 // Performance (Monthly) each get their own landing page.
 export function ReportingHub({ kind }: { kind: "delivery" | "performance" }) {
   const isDelivery = kind === "delivery";
@@ -40,7 +42,7 @@ export function ReportingHub({ kind }: { kind: "delivery" | "performance" }) {
   const { data: reports = [] } = useStatusReports(projectId ?? null);
   const { data: activity } = useReportingActivity(projectId ?? null);
 
-  // Report Delivery Status opens the merged Delivery Status Report (Project
+  // Report Project Status opens the merged Delivery Status Report (Project
   // Status + RAG Status, submitted from Project Delivery Status); Report
   // Project Performance lands on the monthly Project Performance dashboard.
   const dashboardHref = isDelivery
@@ -76,11 +78,22 @@ export function ReportingHub({ kind }: { kind: "delivery" | "performance" }) {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <div>
+        <div className="mb-4">
+          <PageBreadcrumb
+            items={[
+              {
+                label: isDelivery ? "Report Project Status" : "Report Project Performance",
+                href: selectProjectHref(isDelivery ? "delivery-reporting" : "performance-reporting"),
+              },
+              ...(project?.project_code ? [{ label: project.project_code }] : []),
+            ]}
+          />
+        </div>
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">
           {project?.project_code
-            ? `${project.project_code} - ${isDelivery ? "Report Delivery Status" : "Report Project Performance"}`
+            ? `${project.project_code} - ${isDelivery ? "Report Project Status" : "Report Project Performance"}`
             : isDelivery
-              ? "Report Delivery Status"
+              ? "Report Project Status"
               : "Report Project Performance"}
         </h1>
         <p className="mt-2 max-w-3xl text-slate-500">

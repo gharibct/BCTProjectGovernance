@@ -66,8 +66,8 @@ class TestGeoHealthDeclarations:
         response = await client.get(f"/api/v1/geos/{self._GEO_ID}/health-declarations")
         assert response.status_code == 401
 
-    async def test_list_returns_200_for_cdo_regardless_of_ownership(self, client, override_auth):
-        headers = override_auth(RoleCode.CDO)
+    async def test_list_returns_200_for_cxo_regardless_of_ownership(self, client, override_auth):
+        headers = override_auth(RoleCode.CXO)
         response = await client.get(f"/api/v1/geos/{self._GEO_ID}/health-declarations", headers=headers)
         assert response.status_code == 200
         assert response.json() == []

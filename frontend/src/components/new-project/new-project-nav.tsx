@@ -18,7 +18,12 @@ import { CURRENT_PERIOD } from "@/components/shell/reporting-period-badge";
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useProject, useProjectOracleIds } from "@/lib/api/projects";
 import { useCommitments, useMilestonePayments } from "@/lib/api/contractual";
-import { restrictionFor, useProjectRestrictions } from "@/lib/api/activity-restrictions";
+import {
+  isRestrictedOn,
+  restrictionFor,
+  useProjectRestrictions,
+  type ProjectActivity,
+} from "@/lib/api/activity-restrictions";
 import { useProjectTypes } from "@/lib/api/reference-data";
 import {
   useCloudMaintenanceTarget,
@@ -56,6 +61,8 @@ type NavItem = {
   label: string;
   href: string;
   done: boolean;
+  /** Switched off in Configure Project Activities — shown greyed, not a link. */
+  activity?: ProjectActivity;
 };
 
 // Every href is relative to the current :projectId route segment (see
@@ -115,6 +122,7 @@ function buildGroups(
           label: "Measurement",
           href: `${base}/measurement`,
           done: measurementReviewed,
+          activity: "METRICS",
         },
         // Contractual Compliance stays on the Amend rail (full add/edit/delete
         // of commitments & milestones); Project Reporting only records actuals.
@@ -123,11 +131,13 @@ function buildGroups(
           label: "Contractual Commitments",
           href: `${base}/contractual-commitments`,
           done: commitmentsComplete,
+          activity: "COMMITMENTS",
         },
         {
           label: "Payment Milestones",
           href: `${base}/milestones`,
           done: milestonesComplete,
+          activity: "PAYMENT_MILESTONES",
         },
       ],
     },
@@ -304,11 +314,12 @@ export function NewProjectNav() {
   const sizeEffortComplete = useSizeEffortComplete(newProjectId, projectTypeCode);
   const { data: commitments } = useCommitments(newProjectId);
   const { data: milestones } = useMilestonePayments(newProjectId);
-  // Commitments / Payment Milestones switched off for the project (Project Activity
-  // Restriction) are not required for approval, so they count as done.
+  // Commitments / Payment Milestones switched off for the project (Configure Project
+  // Activities) are not required for approval, so they count as done.
   const { data: restrictions } = useProjectRestrictions(newProjectId);
   const commitmentsRestricted = !!restrictionFor(restrictions, "COMMITMENTS");
   const milestonesRestricted = !!restrictionFor(restrictions, "PAYMENT_MILESTONES");
+  const measurementRestricted = !!restrictionFor(restrictions, "METRICS");
   const { data: risks } = useRisks(newProjectId);
   const { data: issues } = useIssues(newProjectId);
   const { data: dependencies } = useDependencies(newProjectId);
@@ -330,7 +341,7 @@ export function NewProjectNav() {
       (dependencies?.length ?? 0) > 0 &&
       (assumptions?.length ?? 0) > 0 &&
       (opportunities?.length ?? 0) > 0,
-    measurementReviewed,
+    measurementRestricted || measurementReviewed,
     isAmend
       ? project?.project_status === "Pending Approval"
       : !!project && project.project_status !== "Draft",
@@ -364,11 +375,18 @@ export function NewProjectNav() {
                   // project exists — there's nothing to show them yet.
                   const locked =
                     !newProjectId && item.label !== "Project Profile";
-                  if (locked) {
+                  const switchedOff =
+                    !!item.activity && isRestrictedOn(restrictions, item.activity);
+                  if (locked || switchedOff) {
                     return (
                       <span
                         key={item.label}
                         aria-disabled="true"
+                        title={
+                          switchedOff
+                            ? "Not required for this project — switched off in Configure Project Activities"
+                            : undefined
+                        }
                         className={cn(
                           childClass,
                           "cursor-not-allowed text-slate-300",

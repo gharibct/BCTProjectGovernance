@@ -1,11 +1,15 @@
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_read_access
+from app.api.deps import get_current_user, project_scope_conditions, require_project_read_access
 from app.core.db import get_db
+from app.models.projects import Project
 from app.models.reference_data import ReportingPeriod
+from app.models.users import User
 from app.schemas.project_performance import ProjectPerformanceDashboardSummary
 from app.schemas.reporting_attestation import PageCompletionStatus
 from app.services import dashboard as dashboard_service
@@ -16,7 +20,7 @@ router = APIRouter(prefix="/projects/{project_id}", tags=["Project Performance D
 
 # Read access for the PM's own monthly dashboard and the Account/Geo Head's
 # read-only Project Performance Dashboard view — also unconditionally open to
-# DE/PMO/CDO/ADMIN, matching every other project-scoped read (see deps.py's
+# DE/PMO/CXO/ADMIN, matching every other project-scoped read (see deps.py's
 # require_project_read_access docstring).
 _read_dep = require_project_read_access()
 
@@ -66,3 +70,33 @@ async def get_performance_dashboard(
         completion=completion,
         all_complete=all(item.complete for item in completion),
     )
+
+
+# Select-Project grid (Report Project Performance): where each project stands on the
+# monthly report for a chosen period — Completed (every section saved/attested),
+# In Progress (some), Not Started (none). Scoped like GET /projects.
+period_router = APIRouter(prefix="/project-performance", tags=["Project Performance Dashboard"])
+
+
+@period_router.get("/status-by-period")
+async def performance_status_by_period(
+    period_id: UUID = Query(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    period = await _monthly_period_or_error(db, period_id)
+    project_ids = (
+        await db.execute(select(Project.id).where(*await project_scope_conditions(db, current_user)))
+    ).scalars().all()
+    rows: list[dict[str, Any]] = []
+    for pid in project_ids:
+        completion = await compute_monthly_completion(db, pid, period)
+        done = sum(1 for item in completion if item.complete)
+        if completion and done == len(completion):
+            label = "Completed"
+        elif done:
+            label = "In Progress"
+        else:
+            label = "Not Started"
+        rows.append({"project_id": pid, "status": label})
+    return rows

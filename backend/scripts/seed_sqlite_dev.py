@@ -39,7 +39,7 @@ from app.schemas.users import UserCreate
 
 ROLES = [
     ("ADMIN", "Admin", "Full system administration"),
-    ("CDO", "CDO", "CEO / CDO / Delivery Manager read-mostly access"),
+    ("CXO", "CXO", "CXO (CEO, CDO, CHRO and other C-level executives) read-mostly access"),
     ("ACCOUNT_MANAGER", ACCOUNT_MANAGER_LABEL, "Owns account-level commercial relationship and oversight"),
     ("GEO_HEAD", "Geo Head", "Read-mostly oversight across projects in their GEO"),
     ("PROJECT_MANAGER", "Project Manager", "Owns project charter and delivery"),
@@ -117,7 +117,7 @@ USERS = [
     # prefix) so testing each new role's menu/dashboard doesn't require
     # remembering a person's name.
     ("pm", "Project Manager", "pm@bahwancybertek.com", "PROJECT_MANAGER"),
-    ("cdo", "CDO", "cdo@bahwancybertek.com", "CDO"),
+    ("cxo", "CXO", "cxo@bahwancybertek.com", "CXO"),
     ("acchead", ACCOUNT_MANAGER_LABEL, "acchead@bahwancybertek.com", "ACCOUNT_MANAGER"),
     ("geohead", "Geo Head", "geohead@bahwancybertek.com", "GEO_HEAD"),
 ]

@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
 import { useProjects, type Project } from "@/lib/api/projects";
-import { useAccounts, useGeos, useRegions } from "@/lib/api/reference-data";
+import { useAccounts, useGeos, useRegions, useReportingPeriods, useUsersByIds } from "@/lib/api/reference-data";
+import { submissionStatusLabel, useProjectPerformanceStatusByPeriod, useProjectReportStatusByPeriod } from "@/lib/api/project-status";
+import { completedMonthlyPeriods, completedWeeklyPeriods } from "@/lib/period-utils";
 import { usePatchScope } from "@/hooks/use-patch-scope";
 import {
   PROJECT_TARGETS,
@@ -26,6 +28,41 @@ function formatAccessed(iso: string | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  Approved: "bg-emerald-100 text-emerald-800",
+  Submitted: "bg-blue-100 text-blue-800",
+  Rejected: "bg-red-100 text-red-800",
+  "Not Submitted": "bg-amber-100 text-amber-800",
+  Completed: "bg-emerald-100 text-emerald-800",
+  "In Progress": "bg-blue-100 text-blue-800",
+  "Not Started": "bg-slate-100 text-slate-700",
+};
+
+const PROJECT_STATUS_BADGE: Record<string, string> = {
+  Approved: "bg-emerald-100 text-emerald-800",
+  "Under Amendment": "bg-amber-100 text-amber-800",
+  "Pending Approval": "bg-blue-100 text-blue-800",
+};
+
+// The status labels a period's report can show, per cadence (also the filter options).
+const WEEKLY_REPORT_STATUSES = ["Not Submitted", "Submitted", "Approved", "Rejected"];
+const MONTHLY_REPORT_STATUSES = ["Not Started", "In Progress", "Completed"];
+
+function reportStatusLabel(status: string | undefined, monthly: boolean): string {
+  if (monthly) return status ?? "Not Started";
+  return status ? submissionStatusLabel(status as Parameters<typeof submissionStatusLabel>[0]) : "Not Submitted";
+}
+
+function ReportStatusBadge({ status, loading, monthly }: { status: string | undefined; loading: boolean; monthly: boolean }) {
+  if (loading) return <span className="text-slate-400">…</span>;
+  const label = reportStatusLabel(status, monthly);
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[label] ?? "bg-slate-100 text-slate-700"}`}>
+      {label}
+    </span>
+  );
 }
 
 export function ProjectContextPage() {
@@ -84,7 +121,32 @@ function ContextBody({
   const [geoId, setGeoId] = React.useState(ALL);
   const [regionId, setRegionId] = React.useState(ALL);
   const [accountId, setAccountId] = React.useState(ALL);
+  const [projectStatus, setProjectStatus] = React.useState(ALL);
+  const [reportStatus, setReportStatus] = React.useState(ALL);
   const [skip, setSkip] = React.useState(0);
+
+  // Report Project Status / Project Delivery Status (weekly) and Report Project Performance /
+  // Project Performance (monthly): pick one of
+  // the last 12 completed periods and show each project's report state for it.
+  const monthly = targetId === "performance-reporting" || targetId === "project-performance";
+  const showPeriod = targetId === "delivery-reporting" || targetId === "project-review" || monthly;
+  const { data: allPeriods = [] } = useReportingPeriods();
+  const weekOptions = React.useMemo(
+    () => (monthly ? completedMonthlyPeriods(allPeriods, 12) : completedWeeklyPeriods(allPeriods, 12)),
+    [allPeriods, monthly]
+  );
+  const [pickedPeriodId, setPickedPeriodId] = React.useState("");
+  const periodId = showPeriod ? pickedPeriodId || weekOptions[0]?.id || "" : "";
+  const weeklyStatus = useProjectReportStatusByPeriod(showPeriod && !monthly ? periodId || null : null);
+  const monthlyStatus = useProjectPerformanceStatusByPeriod(monthly ? periodId || null : null);
+  const statusByProject = monthly ? monthlyStatus.data : weeklyStatus.data;
+
+  // Amend Project only: show each project's lifecycle state and let it be filtered.
+  const showProjectStatus = targetId === "view-amend-projects";
+  const statusOptions = React.useMemo(
+    () => [...new Set(eligible.map((p) => p.project_status))].sort((a, b) => a.localeCompare(b)),
+    [eligible]
+  );
 
   const geoOptions = React.useMemo(() => {
     const ids = new Set(eligible.map((p) => p.geo_id).filter((id): id is string => !!id));
@@ -114,10 +176,14 @@ function ContextBody({
     const q = search.trim().toLowerCase();
     return eligible
       .filter((p) => {
+        if (projectStatus && p.project_status !== projectStatus) return false;
         if (geoId && p.geo_id !== geoId) return false;
         if (regionId && p.region_id !== regionId) return false;
         if (accountId && p.account_id !== accountId) return false;
         if (q && !`${p.project_code} ${p.project_name}`.toLowerCase().includes(q)) return false;
+        // Report Status filter: only once the period's statuses have loaded.
+        if (showPeriod && reportStatus && statusByProject && reportStatusLabel(statusByProject.get(p.id), monthly) !== reportStatus)
+          return false;
         return true;
       })
       .sort((a, b) => {
@@ -126,12 +192,20 @@ function ContextBody({
         if (la !== lb) return lb.localeCompare(la);
         return a.project_code.localeCompare(b.project_code);
       });
-  }, [eligible, search, geoId, regionId, accountId, lastAccessed]);
+  }, [eligible, search, projectStatus, geoId, regionId, accountId, lastAccessed, showPeriod, reportStatus, statusByProject, monthly]);
 
   const page = filtered.slice(skip, skip + PAGE_SIZE);
-  const filtersActive = !!(search || geoId || regionId || accountId);
+  const filtersActive = !!(search || projectStatus || geoId || regionId || accountId || reportStatus);
+
+  // Project Manager / Delivery Manager names for the rows on screen (Report Status grids).
+  const { data: people = [] } = useUsersByIds(
+    showPeriod ? page.flatMap((p) => [p.project_manager_id, p.delivery_manager_id]) : [],
+  );
+  const personName = React.useMemo(() => new Map(people.map((u) => [u.id, u.full_name])), [people]);
   const reset = () => {
     setSearch("");
+    setProjectStatus(ALL);
+    setReportStatus(ALL);
     setGeoId(ALL);
     setRegionId(ALL);
     setAccountId(ALL);
@@ -174,6 +248,62 @@ function ContextBody({
               className="h-10 pl-9"
             />
           </div>
+          {showPeriod ? (
+            <div className="w-56">
+              <NativeSelect
+                aria-label={monthly ? "Monthly period" : "Weekly period"}
+                className="h-10 text-sm"
+                value={periodId}
+                onChange={(e) => setPickedPeriodId(e.target.value)}
+              >
+                {weekOptions.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.id === weekOptions[0]?.id ? `${w.label} (Current)` : w.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          ) : null}
+          {showPeriod ? (
+            <div className="w-44">
+              <NativeSelect
+                aria-label="Report Status"
+                className="h-10 text-sm"
+                value={reportStatus}
+                onChange={(e) => {
+                  setReportStatus(e.target.value);
+                  setSkip(0);
+                }}
+              >
+                <option value={ALL}>All Report Statuses</option>
+                {(monthly ? MONTHLY_REPORT_STATUSES : WEEKLY_REPORT_STATUSES).map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          ) : null}
+          {showProjectStatus ? (
+            <div className="w-44">
+              <NativeSelect
+                aria-label="Status"
+                className="h-10 text-sm"
+                value={projectStatus}
+                onChange={(e) => {
+                  setProjectStatus(e.target.value);
+                  setSkip(0);
+                }}
+              >
+                <option value={ALL}>All Statuses</option>
+                {statusOptions.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          ) : null}
           <div className="w-44">
             <NativeSelect
               aria-label="Geo"
@@ -260,7 +390,11 @@ function ContextBody({
                     <th className="px-3 py-3">Project Code</th>
                     <th className="px-3 py-3">Project Name</th>
                     <th className="px-3 py-3">Account</th>
+                    {showPeriod ? <th className="px-3 py-3">Project Manager</th> : null}
+                    {showPeriod ? <th className="px-3 py-3">Delivery Manager</th> : null}
                     <th className="px-3 py-3">Geo</th>
+                    {showProjectStatus ? <th className="px-3 py-3">Status</th> : null}
+                    {showPeriod ? <th className="px-3 py-3">Report Status</th> : null}
                     <th className="px-3 py-3">Last Accessed</th>
                   </tr>
                 </thead>
@@ -290,9 +424,33 @@ function ContextBody({
                         <td className="px-3 py-2.5 text-[#172033]">
                           {(p.account_id && accountName.get(p.account_id)) || "—"}
                         </td>
+                        {showPeriod ? (
+                          <td className="px-3 py-2.5 text-[#172033]">
+                            {(p.project_manager_id && personName.get(p.project_manager_id)) || "—"}
+                          </td>
+                        ) : null}
+                        {showPeriod ? (
+                          <td className="px-3 py-2.5 text-[#172033]">
+                            {(p.delivery_manager_id && personName.get(p.delivery_manager_id)) || "—"}
+                          </td>
+                        ) : null}
                         <td className="px-3 py-2.5 text-[#172033]">
                           {(p.geo_id && geoName.get(p.geo_id)) || "—"}
                         </td>
+                        {showProjectStatus ? (
+                          <td className="px-3 py-2.5">
+                            <span
+                              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${PROJECT_STATUS_BADGE[p.project_status] ?? "bg-slate-100 text-slate-700"}`}
+                            >
+                              {p.project_status}
+                            </span>
+                          </td>
+                        ) : null}
+                        {showPeriod ? (
+                          <td className="px-3 py-2.5">
+                            <ReportStatusBadge status={statusByProject ? statusByProject.get(p.id) : undefined} loading={!statusByProject} monthly={monthly} />
+                          </td>
+                        ) : null}
                         <td className="px-3 py-2.5 text-[#172033]">{formatAccessed(lastAccessed[p.id])}</td>
                       </tr>
                     );

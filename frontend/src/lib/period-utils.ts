@@ -49,6 +49,18 @@ export function completedWeeklyPeriods(periods: ReportingPeriod[], limit = 15): 
     .slice(0, limit);
 }
 
+// Completed Monthly periods, most recent first (same rule as completedWeeklyPeriods):
+// the Project Performance report is filed once the month has ended.
+export function completedMonthlyPeriods(periods: ReportingPeriod[], limit = 12): ReportingPeriod[] {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return periods
+    .filter((p) => p.period_type === "Monthly" && p.is_active && p.end_date <= todayStr)
+    .sort((a, b) => b.end_date.localeCompare(a.end_date))
+    .slice(0, limit);
+}
+
 // The latest Weekly periods that have started, most recent first — the current
 // (in-progress) week plus the ones before it, `limit` in total. The DE
 // Assessment period combo uses this: unlike completedWeeklyPeriods, an

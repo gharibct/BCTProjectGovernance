@@ -67,7 +67,7 @@ async def project_scope_conditions(db: AsyncSession, user: User) -> list:
     """SQLAlchemy WHERE conditions restricting a `select(Project)` to what the
     caller may see in a project LIST (GET /projects):
 
-    - ADMIN / DELIVERY_EXCELLENCE / PMO / CDO: no restriction (they need
+    - ADMIN / DELIVERY_EXCELLENCE / PMO / CXO: no restriction (they need
       cross-portfolio reads — the DE Projects browser, Project Health, the
       account/geo dashboards).
     - PROJECT_MANAGER: only projects they manage (as Primary or proxy PM).
@@ -77,7 +77,7 @@ async def project_scope_conditions(db: AsyncSession, user: User) -> list:
     - anything else (e.g. TEAM_MEMBER): nothing.
     """
     role_code = await _role_code(db, user)
-    if role_code in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CDO):
+    if role_code in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CXO):
         return []
     if role_code == RoleCode.PROJECT_MANAGER:
         return [pm_condition(user.id)]
@@ -140,9 +140,9 @@ def require_geo_scope(*allowed_roles: RoleCode, bypass_roles: tuple[RoleCode, ..
     """Role check plus: the `geo_id` path param must be one of the caller's
     owned geos (user_geos), unless the caller's role is in `bypass_roles`
     (defaults to ADMIN only, preserving every existing caller's behavior).
-    Action Tracker's GEO-level write gate passes bypass_roles=(ADMIN, CDO) —
-    CDO already reviews geo-level reports without ownership scoping (see
-    regional_status.py's `_cdo_review = require_role(CDO, ADMIN)`)."""
+    Action Tracker's GEO-level write gate passes bypass_roles=(ADMIN, CXO) —
+    CXO already reviews geo-level reports without ownership scoping (see
+    regional_status.py's `_cxo_review = require_role(CXO, ADMIN)`)."""
 
     async def dependency(
         geo_id: UUID,
@@ -263,8 +263,8 @@ async def require_de_findings_read_scope(
 ) -> DEFindingReadScope:
     """Read gate + patch scoping for the portfolio DE Findings list/KPI routes.
 
-    DELIVERY_EXCELLENCE / ADMIN / CDO read unrestricted (DE and ADMIN always
-    have; CDO is org-wide everywhere else too — see project_scope_conditions).
+    DELIVERY_EXCELLENCE / ADMIN / CXO read unrestricted (DE and ADMIN always
+    have; CXO is org-wide everywhere else too — see project_scope_conditions).
     GEO_HEAD is restricted to their own owned geos: an explicit `geo_id` must
     be one of them (else 403), otherwise the query is force-restricted to all
     of them. ACCOUNT_MANAGER is restricted the same way over owned accounts.
@@ -273,12 +273,12 @@ async def require_de_findings_read_scope(
     if role_code not in (
         RoleCode.DELIVERY_EXCELLENCE,
         RoleCode.ADMIN,
-        RoleCode.CDO,
+        RoleCode.CXO,
         RoleCode.GEO_HEAD,
         RoleCode.ACCOUNT_MANAGER,
     ):
         raise _FORBIDDEN
-    if role_code in (RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN, RoleCode.CDO):
+    if role_code in (RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN, RoleCode.CXO):
         return DEFindingReadScope(geo_id=geo_id, account_id=account_id, project_id=project_id)
     if role_code == RoleCode.GEO_HEAD:
         owned_geos = await _owned_geo_ids(db, current_user)
@@ -305,7 +305,7 @@ async def check_de_finding_history_access(db: AsyncSession, user: User, project:
     a missing project (delivery_excellence_id-less or already deleted) is
     treated as "no access" for GEO_HEAD/ACCOUNT_MANAGER."""
     role_code = await _role_code(db, user)
-    if role_code in (RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN, RoleCode.CDO):
+    if role_code in (RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN, RoleCode.CXO):
         return
     if role_code == RoleCode.GEO_HEAD and project is not None:
         owned_geos = await _owned_geo_ids(db, user)
@@ -401,12 +401,12 @@ def require_project_read_access(*extra_bypass_roles: RoleCode):
     behavior — see test_get_project_not_found_returns_404_not_403) instead of
     403ing for AM/GEO_HEAD before the DB is even consulted.
 
-    ADMIN / PROJECT_MANAGER / DELIVERY_EXCELLENCE / PMO / CDO bypass
+    ADMIN / PROJECT_MANAGER / DELIVERY_EXCELLENCE / PMO / CXO bypass
     unconditionally — this mirrors project_scope_conditions' treatment of
-    these roles on GET /projects (list), which already grants PMO/CDO
+    these roles on GET /projects (list), which already grants PMO/CXO
     unrestricted cross-portfolio reads. (require_project_access's own bypass
     set only covers ADMIN/PROJECT_MANAGER/DELIVERY_EXCELLENCE — reusing it
-    verbatim for reads would wrongly narrow PMO/CDO's existing access.)
+    verbatim for reads would wrongly narrow PMO/CXO's existing access.)
     ACCOUNT_MANAGER / GEO_HEAD are ownership-scoped exactly as in
     require_project_access. Every other role gets 403."""
 
@@ -415,7 +415,7 @@ def require_project_read_access(*extra_bypass_roles: RoleCode):
         RoleCode.PROJECT_MANAGER,
         RoleCode.DELIVERY_EXCELLENCE,
         RoleCode.PMO,
-        RoleCode.CDO,
+        RoleCode.CXO,
         *extra_bypass_roles,
     )
 

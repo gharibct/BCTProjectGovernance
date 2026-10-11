@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ClipboardCheck, CircleAlert, ThumbsUp } from "lucide-react";
 
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
+
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -121,13 +123,9 @@ export function GovernanceReviewWorkspace() {
   return (
     <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <div>
-        <Link
-          href="/de-approval"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Project Details Approval
-        </Link>
+        <PageBreadcrumb
+          items={[{ label: "Project Details Approval", href: "/de-approval" }, { label: detail.project_code }]}
+        />
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
           Project Governance Review — {detail.project_name}
         </h1>

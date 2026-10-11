@@ -14,9 +14,9 @@ CREATE TABLE measurement_testing (
     effort_test_execution NUMERIC(10, 2),
 
     -- Computed, read-only in the UI.
-    test_execution_coverage_pct NUMERIC(5, 2),
-    test_pass_rate_pct NUMERIC(5, 2),
-    automation_coverage_pct NUMERIC(5, 2),
+    test_execution_coverage_pct NUMERIC(12, 2),
+    test_pass_rate_pct NUMERIC(12, 2),
+    automation_coverage_pct NUMERIC(12, 2),
     test_design_productivity NUMERIC(10, 4),
     test_execution_productivity NUMERIC(10, 4),
 

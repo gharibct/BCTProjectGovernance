@@ -11,6 +11,7 @@ import {
   type RegionalScope,
 } from "@/lib/api/regional-status";
 import { isReportFrozen } from "@/lib/api/project-status";
+import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useAccountRollup, usePullRollupItem, useSetItemRollupStatus } from "@/lib/api/account-rollup";
 import { useGeoRollup, usePullGeoRollupItem, useSetAccountItemRollupStatus } from "@/lib/api/geo-rollup";
 import type { RollupSourceItem } from "./rollup-source-panel";
@@ -61,7 +62,7 @@ export function useRegionalStatusForm(scope: RegionalScope, scopeId: string) {
       ? accountRollup?.items.map((item) => ({
           id: item.id,
           sourceEntityId: item.project_id,
-          sourceLabel: `${item.project_code} · ${item.project_name}`,
+          sourceLabel: item.project_name,
           category: item.category,
           description: item.description,
           account_rollup_status: item.account_rollup_status,
@@ -109,6 +110,29 @@ export function useRegionalStatusForm(scope: RegionalScope, scopeId: string) {
 
   const setMetric = (key: keyof typeof metrics) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setMetrics((prev) => ({ ...prev, [key]: e.target.value }));
+
+  // "Copy from latest report" (after the user confirmed replacing saved values):
+  // Key Metrics from the most recent earlier report of the same period type.
+  // Pre-filled only — they persist with Save Report. Returns false if none.
+  const { data: periods = [] } = useReportingPeriods();
+  const copyMetricsFromLatest = (): boolean => {
+    const current = periods.find((p) => p.id === periodId);
+    if (!current) return false;
+    const source = (reports ?? [])
+      .map((report) => ({ report, period: periods.find((p) => p.id === report.period_id) }))
+      .filter(
+        ({ period }) => period && period.period_type === current.period_type && period.start_date < current.start_date
+      )
+      .sort((a, b) => b.period!.start_date.localeCompare(a.period!.start_date))[0]?.report;
+    if (!source) return false;
+    setMetrics({
+      revenue: source.revenue ?? "",
+      onsite_fte: source.onsite_fte ?? "",
+      offshore_fte: source.offshore_fte ?? "",
+      projects_count: source.projects_count?.toString() ?? "",
+    });
+    return true;
+  };
 
   const handlePull = (item: RollupSourceItem) => {
     const onSuccess = () => showSuccess(`Pulled into ${item.category}`);
@@ -176,6 +200,7 @@ export function useRegionalStatusForm(scope: RegionalScope, scopeId: string) {
     frozen,
     metrics,
     setMetric,
+    copyMetricsFromLatest,
     rollupItems,
     handlePull,
     handleIgnore,

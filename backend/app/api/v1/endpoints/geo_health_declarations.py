@@ -22,17 +22,17 @@ from app.services.health_rollup import compute_overall_rating
 router = APIRouter(prefix="/geos/{geo_id}/health-declarations", tags=["Geo Reporting"])
 
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
-# Reads: same as write plus CDO and Delivery Excellence, who both view
+# Reads: same as write plus CXO and Delivery Excellence, who both view
 # geo-level reporting without owning the geo (see regional_status.py's
-# _cdo_review / _geo_read).
+# _cxo_review / _geo_read).
 _geo_read = [
     Depends(
         require_geo_scope(
             RoleCode.GEO_HEAD,
-            RoleCode.CDO,
+            RoleCode.CXO,
             RoleCode.DELIVERY_EXCELLENCE,
             RoleCode.ADMIN,
-            bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE),
         )
     )
 ]

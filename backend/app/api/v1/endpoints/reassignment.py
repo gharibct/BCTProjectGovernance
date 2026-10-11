@@ -232,6 +232,10 @@ async def _account_proxies(db: AsyncSession, account_ids: list[UUID]) -> dict[UU
     return out
 
 
+# Proxy PMs and proxy DMs may be any of these roles.
+_PROXY_ROLES = (RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD)
+
+
 async def _require_user_with_role(
     db: AsyncSession, user_id: UUID, role_codes: tuple[RoleCode, ...], label: str
 ) -> User:
@@ -326,7 +330,7 @@ async def add_project_proxy(
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
     await _assert_project_scope(db, ctx, project)
-    user = await _require_user_with_role(db, payload.user_id, (RoleCode.PROJECT_MANAGER,), "Project Manager")
+    user = await _require_user_with_role(db, payload.user_id, _PROXY_ROLES, "Project Manager, Delivery Manager or Geo Head")
     if user.id == project.project_manager_id:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="This user is already the Primary Project Manager.")
     existing = (
@@ -439,7 +443,7 @@ async def add_account_proxy(
     if account is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Account not found")
     await _assert_account_proxy_scope(db, ctx, account)
-    user = await _require_user_with_role(db, payload.user_id, (RoleCode.ACCOUNT_MANAGER,), "Delivery Manager")
+    user = await _require_user_with_role(db, payload.user_id, _PROXY_ROLES, "Project Manager, Delivery Manager or Geo Head")
     existing = (
         await db.execute(select(UserAccount).where(UserAccount.account_id == account_id, UserAccount.user_id == user.id))
     ).scalar_one_or_none()

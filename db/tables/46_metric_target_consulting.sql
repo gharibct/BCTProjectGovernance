@@ -5,9 +5,9 @@ CREATE TABLE metric_target_consulting (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
 
-    target_effort_variation_pct NUMERIC(6, 2),
-    target_schedule_performance_index NUMERIC(6, 3),
-    target_cost_performance_index NUMERIC(6, 3),
+    target_effort_variation_pct NUMERIC(12, 2),
+    target_schedule_performance_index NUMERIC(12, 3),
+    target_cost_performance_index NUMERIC(12, 3),
 
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

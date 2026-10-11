@@ -29,12 +29,12 @@ import {
 import { REPORT_SUBMISSION_STREAMS } from "@/lib/api/project-health-lists";
 import { useEffectiveRole } from "@/stores/session";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
-import { BigStat, Card, SubStat } from "./project-health-kpi";
+import { BigStat, Card, RagCountCell, SubStat } from "./project-health-kpi";
 import { useCanSeeOracleProjects } from "./project-health-oracle-projects";
 import { ProjectHealthOracleProjectsSection } from "./project-health-oracle-projects-section";
 
 // Project Health dashboard (design-reference/Project-Health.html) — an
-// org-wide, portfolio-level KPI page for PMO/Admin/CDO. Restyled to this
+// org-wide, portfolio-level KPI page for PMO/Admin/CXO. Restyled to this
 // app's real design system (plain white/slate cards, emerald/amber/red RAG,
 // #1a6fc4 accent — see account-head-my-summary.tsx/pmo-my-summary.tsx for
 // the established pattern) rather than the mockup's own Material palette.
@@ -88,30 +88,11 @@ function RagCounts({
 }) {
   return (
     <div className="grid grid-cols-5 gap-1">
-      <RagCell label="Green" value={green} className="border-emerald-100 bg-emerald-50 text-emerald-700" valueClassName="text-emerald-600" />
-      <RagCell label="Amber" value={amber} className="border-amber-100 bg-amber-50 text-amber-700" valueClassName="text-amber-500" />
-      <RagCell label="Pot. Red" value={potentialRed} className="border-orange-100 bg-orange-50 text-orange-700" valueClassName="text-orange-600" />
-      <RagCell label="Red" value={red} className="border-red-100 bg-red-50 text-red-700" valueClassName="text-red-600" />
-      <RagCell label={notLabel} value={notSubmitted} className="border-slate-200 bg-slate-50 text-slate-500" valueClassName="text-slate-900" />
-    </div>
-  );
-}
-
-function RagCell({
-  label,
-  value,
-  className,
-  valueClassName,
-}: {
-  label: string;
-  value: React.ReactNode;
-  className: string;
-  valueClassName: string;
-}) {
-  return (
-    <div className={cn("rounded-md border p-1 text-center", className)}>
-      <p className="text-[9px] font-semibold tracking-wide uppercase">{label}</p>
-      <p className={cn("text-sm font-bold", valueClassName)}>{value}</p>
+      <RagCountCell label="Green" value={green} className="border-emerald-100 bg-emerald-50 text-emerald-700" valueClassName="text-emerald-600" />
+      <RagCountCell label="Amber" value={amber} className="border-amber-100 bg-amber-50 text-amber-700" valueClassName="text-amber-500" />
+      <RagCountCell label="Pot. Red" value={potentialRed} className="border-orange-100 bg-orange-50 text-orange-700" valueClassName="text-orange-600" />
+      <RagCountCell label="Red" value={red} className="border-red-100 bg-red-50 text-red-700" valueClassName="text-red-600" />
+      <RagCountCell label={notLabel} value={notSubmitted} className="border-slate-200 bg-slate-50 text-slate-500" valueClassName="text-slate-900" />
     </div>
   );
 }
@@ -232,13 +213,11 @@ export function ProjectHealthDashboard() {
   const weekPeriod = `Selected Period: ${data?.period_label ?? "current week"}`;
   const monthPeriod = `Previous Month: ${data?.previous_month_label ?? "—"}`;
   const asOfToday = "As of today";
-  // Geo Delivery Status reports belong to Geo Heads and above.
-  const showGeoDeliveryStatus = !isPm && effectiveRole !== "ACCOUNT_MANAGER";
   // Oracle projects with no governance project yet — not for PMs / Team Members.
   const showOracleProjects = useCanSeeOracleProjects();
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Project Health</h1>
@@ -490,7 +469,7 @@ export function ProjectHealthDashboard() {
             <p className="text-xs text-slate-400">
               The selected week&apos;s weekly Delivery Status report. Draft reports count as Not Submitted.
             </p>
-            <div className={cn("grid grid-cols-1 gap-4", showGeoDeliveryStatus ? "md:grid-cols-3" : "md:grid-cols-2")}>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <ReportSubmissionCard
                 title="Delivery Status — Projects"
                 kpi={data.report_submissions.delivery_status_projects}
@@ -507,15 +486,6 @@ export function ProjectHealthDashboard() {
                     period={weekPeriod}
                     variant="approval"
                   />
-                  {showGeoDeliveryStatus ? (
-                    <ReportSubmissionCard
-                      title="Delivery Status — Geo"
-                      kpi={data.report_submissions.delivery_status_geos}
-                      href={REPORT_SUBMISSION_STREAMS["delivery-status-geo"].route}
-                      period={weekPeriod}
-                      variant="baseline"
-                    />
-                  ) : null}
                 </>
               )}
             </div>

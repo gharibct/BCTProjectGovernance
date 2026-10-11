@@ -21,13 +21,14 @@ import {
   LayoutGrid,
   ListChecks,
   CalendarDays,
-  Ban,
+  SlidersHorizontal,
   Coins,
   Map as MapIcon,
   Plug,
   Plus,
   Presentation,
   ShieldCheck,
+  TriangleAlert,
   UserCog,
   Users,
   Wrench,
@@ -361,7 +362,7 @@ type SidebarCtx = {
 // One render function per MenuEntryId — the single place each item's JSX is
 // defined, regardless of how many roles/sections include it. Ordering and
 // grouping come entirely from ROLE_MENU_SECTIONS, not from this registry.
-// Report Delivery Status (Weekly) / Report Project Performance (Monthly). Both
+// Report Project Status (Weekly) / Report Project Performance (Monthly). Both
 // live under /project-reporting/:projectId; which one is active comes from the
 // hub route itself, else from the open period's type (?period=).
 function ReportingLink({ kind, ctx }: { kind: "delivery" | "performance"; ctx: SidebarCtx }) {
@@ -379,7 +380,7 @@ function ReportingLink({ kind, ctx }: { kind: "delivery" | "performance"; ctx: S
     <SimpleLink
       href={selectProjectHref(target)}
       icon={kind === "delivery" ? FolderOpen : FileBarChart2}
-      label={ctx.labelFor(target, kind === "delivery" ? "Report Delivery Status" : "Report Project Performance")}
+      label={ctx.labelFor(target, kind === "delivery" ? "Report Project Status" : "Report Project Performance")}
       active={
         (ctx.isProjectReporting && (openKind === kind || (openKind === null && kind === "delivery"))) ||
         ctx.pathname === selectProjectHref(target)
@@ -485,11 +486,11 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       bold={ctx.bold}
     />
   ),
-  "cdo-dashboard": (ctx) => (
+  "cxo-dashboard": (ctx) => (
     <SimpleLink
       href="/project-health"
       icon={LayoutGrid}
-      label={ctx.labelFor("cdo-dashboard", "Project Health Dashboard")}
+      label={ctx.labelFor("cxo-dashboard", "Project Health Dashboard")}
       active={ctx.pathname.startsWith("/project-health")}
       bold={ctx.bold}
       tone="dashboard"
@@ -610,6 +611,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
         emptyLabel="No geos to review yet."
       />
     </CollapsibleGroup>
+  ),
+  "high-risks": (ctx) => (
+    <SimpleLink
+      href="/high-risks"
+      icon={TriangleAlert}
+      label={ctx.labelFor("high-risks", "High Risks")}
+      active={ctx.pathname.startsWith("/high-risks")}
+      bold={ctx.bold}
+    />
   ),
   "account-review": (ctx) => (
     <SimpleLink
@@ -758,8 +768,8 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
   "project-activity-restriction": (ctx) => (
     <SimpleLink
       href={selectProjectHref("project-activity-restriction")}
-      icon={Ban}
-      label={ctx.labelFor("project-activity-restriction", "Project Activity Restriction")}
+      icon={SlidersHorizontal}
+      label={ctx.labelFor("project-activity-restriction", "Configure Project Activities")}
       active={
         ctx.pathname.startsWith("/project-activity-restriction") ||
         ctx.pathname === selectProjectHref("project-activity-restriction")
@@ -806,7 +816,7 @@ export function AppSidebar() {
 
   // The user's real patch — the accounts / geo(s) / projects they own,
   // independent of the chosen context (Geo Head: everything in their geo;
-  // Account Head: their accounts; PM/Admin/CDO: everything). Shared with the
+  // Account Head: their accounts; PM/Admin/CXO: everything). Shared with the
   // standalone Actions page — see use-patch-scope.ts.
   const { reportingGeos } = usePatchScope();
 
@@ -889,6 +899,7 @@ export function AppSidebar() {
     "account-review": isAccountReview,
     "account-approval": isAccountApproval,
     "geo-review": isGeoReview,
+    "high-risks": pathname.startsWith("/high-risks"),
     "account-reporting": isAccountReporting,
     "account-communications": isAccountCommunications,
     "geo-reporting": isGeoReporting,

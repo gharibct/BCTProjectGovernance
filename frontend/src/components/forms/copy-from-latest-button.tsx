@@ -2,12 +2,37 @@
 
 import { Copy } from "lucide-react";
 
+import { ConfirmationDialog } from "@/components/forms/confirmation-dialog";
 import { ButtonSpinner } from "@/components/forms/form-primitives";
 import { Button } from "@/components/ui/button";
 
 // Page-level "Copy from latest report" action shared by the Project Status,
 // Account Status and Project Performance reports. The caller does the copy and
 // reports the outcome; this only renders the button + busy state.
+// Asked before "Copy from latest report" when this report already has saved
+// content — confirming replaces everything with the latest report's values.
+export function ReplaceFromLatestDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <ConfirmationDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Replace with your latest report?"
+      message="This report already has saved information. Copying from your latest report will replace everything you've entered here — key metrics, status items, RAG items and RAG ratings. Any changes you made by hand will be lost."
+      confirmLabel="Yes, replace it"
+      cancelLabel="Keep my changes"
+      onConfirm={onConfirm}
+    />
+  );
+}
+
 export function CopyFromLatestButton({
   onClick,
   busy,

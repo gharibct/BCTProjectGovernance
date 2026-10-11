@@ -116,7 +116,7 @@ function ProxyCell({ proxy }: { proxy: NonNullable<ReassignRowProps["proxy"]> })
           onChange={(id) => id && proxy.onAdd(id)}
           roleCodes={proxy.roleCodes}
           disabled={proxy.busy}
-          placeholder="Add proxy…"
+          placeholder="Add secondary…"
         />
       ) : null}
     </div>
@@ -147,11 +147,6 @@ function ReassignRow({
         </td>
       ))}
       <td className="px-3 py-2.5 text-slate-600">{currentOwnerName ?? "—"}</td>
-      {proxy ? (
-        <td className="px-3 py-2.5 text-slate-600">
-          <ProxyCell proxy={proxy} />
-        </td>
-      ) : null}
       <td className="px-3 py-2.5 min-w-[240px]">
         <ResourcePicker
           value={chosen}
@@ -165,6 +160,11 @@ function ReassignRow({
           className={cn(dirty && "border-[#1a6fc4]")}
         />
       </td>
+      {proxy ? (
+        <td className="px-3 py-2.5 text-slate-600">
+          <ProxyCell proxy={proxy} />
+        </td>
+      ) : null}
       <td className="px-3 py-2.5 text-right">
         <Button
           size="sm"
@@ -240,7 +240,7 @@ function TableFrame({
                   {headers.map((h, i) => (
                     <th
                       key={h}
-                      className={cn("px-3 py-3", i === headers.length - 1 && "min-w-[240px]")}
+                      className={cn("px-3 py-3", i === headers.length - 2 && "min-w-[240px]")}
                     >
                       {h}
                     </th>
@@ -491,7 +491,7 @@ export function ReassignmentView() {
       <SectionCard icon={active.icon} title={active.label}>
         {tab === "pm" ? (
           <TableFrame
-            headers={["Project", "Geo", "Region", "Account", "Current PM", "Proxy PMs", "New PM"]}
+            headers={["Project", "Geo", "Region", "Account", "Current PM", "New PM", "Secondary PM"]}
             toolbar={
               <>
                 <FilterSelect
@@ -530,7 +530,7 @@ export function ReassignmentView() {
                   notAllocated
                 />
                 <FilterSelect
-                  label="Proxy PM"
+                  label="Secondary PM"
                   value={pmProxy}
                   onChange={withPmReset(setPmProxy)}
                   options={pmOptions.proxies}
@@ -580,7 +580,7 @@ export function ReassignmentView() {
                     addProjectProxy.mutate(
                       { projectId: row.project_id, userId },
                       {
-                        onSuccess: () => showSuccess(`Proxy Project Manager added for ${row.project_code}`),
+                        onSuccess: () => showSuccess(`Secondary Project Manager added for ${row.project_code}`),
                         onError,
                         onSettled: () => setSavingId(null),
                       },
@@ -591,7 +591,7 @@ export function ReassignmentView() {
                     removeProjectProxy.mutate(
                       { projectId: row.project_id, userId },
                       {
-                        onSuccess: () => showSuccess(`Proxy Project Manager removed for ${row.project_code}`),
+                        onSuccess: () => showSuccess(`Secondary Project Manager removed for ${row.project_code}`),
                         onError,
                         onSettled: () => setSavingId(null),
                       },
@@ -618,7 +618,7 @@ export function ReassignmentView() {
 
         {tab === "am" && showAmTab ? (
           <TableFrame
-            headers={["Account", "Geo", `Current ${ACCOUNT_MANAGER_LABEL}`, `Proxy ${ACCOUNT_MANAGER_LABEL}s`, `New ${ACCOUNT_MANAGER_LABEL}`]}
+            headers={["Account", "Geo", `Current ${ACCOUNT_MANAGER_LABEL}`, `New ${ACCOUNT_MANAGER_LABEL}`, `Secondary ${ACCOUNT_MANAGER_LABEL}`]}
             toolbar={
               <>
                 <FilterSelect
@@ -637,7 +637,7 @@ export function ReassignmentView() {
                   notAllocated
                 />
                 <FilterSelect
-                  label={`Proxy ${ACCOUNT_MANAGER_LABEL}`}
+                  label={`Secondary ${ACCOUNT_MANAGER_LABEL}`}
                   value={amProxy}
                   onChange={withAmReset(setAmProxy)}
                   options={amOptions.proxies}
@@ -676,7 +676,7 @@ export function ReassignmentView() {
                 canWrite={canChangeAm}
                 proxy={{
                   proxies: row.proxy_managers,
-                  roleCodes: ["ACCOUNT_MANAGER"],
+                  roleCodes: PM_CANDIDATE_ROLES,
                   canEdit: canWrite,
                   busy: savingId === row.account_id,
                   onAdd: (userId) => {
@@ -684,7 +684,7 @@ export function ReassignmentView() {
                     addAccountProxy.mutate(
                       { accountId: row.account_id, userId },
                       {
-                        onSuccess: () => showSuccess(`Proxy ${ACCOUNT_MANAGER_LABEL} added for ${row.account_name}`),
+                        onSuccess: () => showSuccess(`Secondary ${ACCOUNT_MANAGER_LABEL} added for ${row.account_name}`),
                         onError,
                         onSettled: () => setSavingId(null),
                       },
@@ -695,7 +695,7 @@ export function ReassignmentView() {
                     removeAccountProxy.mutate(
                       { accountId: row.account_id, userId },
                       {
-                        onSuccess: () => showSuccess(`Proxy ${ACCOUNT_MANAGER_LABEL} removed for ${row.account_name}`),
+                        onSuccess: () => showSuccess(`Secondary ${ACCOUNT_MANAGER_LABEL} removed for ${row.account_name}`),
                         onError,
                         onSettled: () => setSavingId(null),
                       },

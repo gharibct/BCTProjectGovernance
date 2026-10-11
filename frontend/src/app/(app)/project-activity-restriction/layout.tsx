@@ -1,7 +1,7 @@
 import { PageBanner } from "@/components/shell/page-banner";
 
 // Own top-level route (sibling to /de-assessment, /de-projects, ...) so the
-// Project Activity Restriction screen gets a full-width <main>. No right-hand
+// Configure Project Activities screen gets a full-width <main>. No right-hand
 // nav rail. PageBanner is mounted here so Save / Lift feedback is visible.
 export default function ProjectActivityRestrictionLayout({
   children,

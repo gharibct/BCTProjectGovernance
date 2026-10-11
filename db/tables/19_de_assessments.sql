@@ -12,7 +12,7 @@ CREATE TABLE de_assessments (
     assessment_date DATE,
     period_id UUID REFERENCES reporting_periods(id), -- Weekly period, aligned with Delivery Status reporting; NULL on older rows
     de_assessed_project_health TEXT NOT NULL, -- Red, Potential Red, Amber, Green
-    pci_score NUMERIC(6, 2),
+    pci_score NUMERIC(12, 2),
     remarks TEXT, -- DE's justification for the rating (DE Assessment Workspace)
     status TEXT NOT NULL DEFAULT 'Submitted', -- Draft, Submitted ("Not Started" = no row)
     next_assessment_due_date DATE,

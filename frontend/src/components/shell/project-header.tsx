@@ -20,7 +20,7 @@ type ProjectHeaderProps = {
   // to read the raw ?period= off the URL directly (Project Status's
   // behavior: no fallback).
   periodId?: string | null;
-  // Project Status only: ignore `subheading`, use "{period.period_type} Report" instead.
+  // Project Status only: ignore `subheading`, use "Project Status Report" instead.
   dynamicSubheading?: boolean;
   // Project Delivery Status only — the Action Tracker trigger
   // lives on Project Delivery Status and Project Review, not every
@@ -51,7 +51,7 @@ function HeadingRow({
   const period = periods.find((p) => p.id === periodId);
   const report = reports.find((r) => r.period_id === periodId);
 
-  const suffix = dynamicSubheading ? (period ? `${period.period_type} Report` : undefined) : subheading;
+  const suffix = dynamicSubheading ? "Project Status Report" : subheading;
   const heading = suffix ? `${base} - ${suffix}` : base;
 
   return (

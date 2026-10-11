@@ -42,7 +42,7 @@ class DEFindingFilters:
     # Set server-side (never a query param) to narrow a Geo Head's or Account
     # Manager's read to their own patch, applied whether or not they also
     # passed an explicit geo_id/account_id filter (see
-    # require_de_findings_read_scope) — DE/ADMIN/CDO leave these None.
+    # require_de_findings_read_scope) — DE/ADMIN/CXO leave these None.
     restrict_geo_ids: set[UUID] | None = None
     restrict_account_ids: set[UUID] | None = None
     classification: str | None = None

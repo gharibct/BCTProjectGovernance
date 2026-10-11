@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { useProject } from "@/lib/api/projects";
 import { useAccounts } from "@/lib/api/reference-data";
 import { EmptyState } from "@/components/forms/empty-state";
@@ -33,17 +32,13 @@ export function ProjectPerformanceModuleView({
   if (!projectId) return <EmptyState>No project selected.</EmptyState>;
 
   const backLink = (
-    <Link
-      href={`/project-performance/${projectId}`}
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
-    >
-      <ArrowLeft className="size-4" />
-      Back to Project Performance
-    </Link>
+    <PageBreadcrumb
+      items={[{ label: "Project Performance", href: `/project-performance/${projectId}` }, { label: title }]}
+    />
   );
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <div>
         {backLink}
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">

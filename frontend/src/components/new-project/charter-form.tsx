@@ -42,7 +42,12 @@ import {
   type ProjectLifecycleStatus,
   type ProjectPayload,
 } from "@/lib/api/projects";
-import { useAccountHead, useGeoHead } from "@/lib/api/users";
+import {
+  useAccountHead,
+  useAccountProxyDeliveryManagers,
+  useGeoHead,
+  useProjectProxyManagers,
+} from "@/lib/api/users";
 import { useDevelopmentTarget, useSaveDevelopmentSizeEffort } from "@/lib/api/metric-targets";
 
 import {
@@ -221,6 +226,10 @@ function ProjectDescriptionTab({
   );
   const { data: geoHead } = useGeoHead(values.geo_id ?? null);
   const { data: accountHead, isLoading: accountHeadLoading } = useAccountHead(values.account_id ?? null);
+  const { data: secondaryPms } = useProjectProxyManagers(projectId ?? null);
+  const { data: secondaryDms } = useAccountProxyDeliveryManagers(values.account_id ?? null);
+  const names = (list: { full_name: string }[] | undefined) =>
+    list && list.length > 0 ? list.map((u) => u.full_name).join(", ") : "None";
 
   // Delivery Manager is read-only, defaulted from the Account Head mapping
   // for the selected account rather than picked manually. Skipped while the
@@ -511,9 +520,19 @@ function ProjectDescriptionTab({
                 {(users ?? []).find((user) => user.id === values.project_manager_id)?.full_name ?? "Not Assigned"}
               </div>
             </Field>
+            <Field label="Secondary Project Manager" badge={<AutoBadge />}>
+              <div className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+                {names(secondaryPms)}
+              </div>
+            </Field>
             <Field label={ACCOUNT_MANAGER_LABEL} badge={<AutoBadge />}>
               <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
                 {accountHead?.full_name ?? "Not Assigned"}
+              </div>
+            </Field>
+            <Field label={`Secondary ${ACCOUNT_MANAGER_LABEL}`} badge={<AutoBadge />}>
+              <div className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+                {names(secondaryDms)}
               </div>
             </Field>
             {/* Delivery Excellence is no longer assigned here — a DE (or Admin)
@@ -558,7 +577,7 @@ function ProjectDescriptionTab({
                 ))}
               </NativeSelect>
             </Field>
-            <Field label="Revenue in USD" htmlFor="project-revenue-usd">
+            <Field label="TCV Revenue (USD)" htmlFor="project-revenue-usd">
               <Input
                 id="project-revenue-usd"
                 value={project?.project_revenue_usd ?? ""}

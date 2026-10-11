@@ -4,11 +4,12 @@ import { useParams } from "next/navigation";
 
 import { QueryErrorState } from "@/components/shared/query-error-state";
 import { DeliveryCalendarView } from "@/components/reporting/delivery-calendar-view";
+import { selectProjectHref } from "@/lib/project-context-targets";
 import { useProject } from "@/lib/api/projects";
 import { useReportingActivityForYear, useStatusReports } from "@/lib/api/project-status";
 
 // Landing page for Report Project Performance (monthly) — same calendar-style
-// layout as Report Delivery Status, fed by the monthly reporting periods. A
+// layout as Report Project Status, fed by the monthly reporting periods. A
 // date opens the monthly Project Performance dashboard for that period.
 export function ProjectPerformanceCalendarHub() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -29,6 +30,10 @@ export function ProjectPerformanceCalendarHub() {
     <DeliveryCalendarView
       title={project?.project_code ? `${project.project_code} - Report Project Performance` : "Report Project Performance"}
       subtitle={project?.project_name}
+      breadcrumb={[
+        { label: "Report Project Performance", href: selectProjectHref("performance-reporting") },
+        ...(project?.project_code ? [{ label: project.project_code }] : []),
+      ]}
       weeklyItems={monthlyItems}
       reports={reports}
       fixedYear

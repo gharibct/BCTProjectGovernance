@@ -43,7 +43,7 @@ router = APIRouter(prefix="/projects/{project_id}/de-assessments", tags=["DE Ass
 _de_write = require_project_de_assessment_access(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN)
 # Reads don't require a DE to actually be allocated yet (unlike _de_write) —
 # a PM/AM/GEO_HEAD viewing their own project's DE tab should just see an
-# empty list, not a 403, and DE/PMO/CDO/ADMIN read unconditionally as usual.
+# empty list, not a 403, and DE/PMO/CXO/ADMIN read unconditionally as usual.
 _de_read = [Depends(require_project_read_access())]
 
 

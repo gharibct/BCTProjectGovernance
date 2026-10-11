@@ -20,13 +20,13 @@ function KpiCard({ label, value, hint, valueClass }: { label: string; value: num
   );
 }
 
-// Reusable dashboard for the role-specific screens (Admin/CDO unfiltered,
+// Reusable dashboard for the role-specific screens (Admin/CXO unfiltered,
 // Delivery Manager/Geo Head pre-filtered by their mapped account(s)/geo(s)) —
 // backed by the real /dashboard/summary aggregation, unlike the sample-data
 // "My Summary" page (dashboard.tsx) at /dashboard.
 //
 // `rowScope` picks which Governance Matrix/Highlights the page shows one
-// level of the org hierarchy: "account" (CDO/Admin/Geo Head — matrix rows
+// level of the org hierarchy: "account" (CXO/Admin/Geo Head — matrix rows
 // are Accounts, selector narrows by Geo) or "project" (Delivery Manager —
 // matrix rows are Projects, selector narrows by Account).
 export function DashboardView({
@@ -45,7 +45,7 @@ export function DashboardView({
 
   // Selector options are the role's own base scope narrowed down one level
   // (Geo Head only ever sees their own geos, Delivery Manager only their own
-  // accounts) — CDO/Admin pass an unrestricted base scope, so they see every
+  // accounts) — CXO/Admin pass an unrestricted base scope, so they see every
   // geo. Same restriction convention as app-sidebar.tsx's reportingGeos.
   const options =
     rowScope === "account"

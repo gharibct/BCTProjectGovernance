@@ -4,7 +4,11 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
-import { useAccounts, useGeos, useRegions, type Account } from "@/lib/api/reference-data";
+import { useAccounts, useGeos, useRegions, useReportingPeriods, type Account } from "@/lib/api/reference-data";
+import { useAccountReportStatusByPeriod } from "@/lib/api/regional-status";
+import { submissionStatusLabel } from "@/lib/api/project-status";
+import { useAccountHead } from "@/lib/api/users";
+import { completedWeeklyPeriods } from "@/lib/period-utils";
 import { usePatchScope } from "@/hooks/use-patch-scope";
 import { ACCOUNT_TARGETS, isAccountTargetId } from "@/lib/account-context-targets";
 import { useAccountContext } from "@/stores/account-context";
@@ -21,6 +25,35 @@ function formatAccessed(iso: string | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  Approved: "bg-emerald-100 text-emerald-800",
+  Submitted: "bg-blue-100 text-blue-800",
+  Rejected: "bg-red-100 text-red-800",
+  "Not Submitted": "bg-amber-100 text-amber-800",
+};
+
+const REPORT_STATUSES = ["Not Submitted", "Submitted", "Approved", "Rejected"];
+
+function reportStatusLabel(status: string | undefined): string {
+  return status ? submissionStatusLabel(status as Parameters<typeof submissionStatusLabel>[0]) : "Not Submitted";
+}
+
+// The account's Delivery Manager (primary Account Head), resolved per visible row.
+function DeliveryManagerCell({ accountId }: { accountId: string }) {
+  const { data: head, isLoading } = useAccountHead(accountId);
+  return <>{isLoading ? "…" : head?.full_name || "—"}</>;
+}
+
+function ReportStatusBadge({ status, loading }: { status: string | undefined; loading: boolean }) {
+  if (loading) return <span className="text-slate-400">…</span>;
+  const label = reportStatusLabel(status);
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[label] ?? "bg-slate-100 text-slate-700"}`}>
+      {label}
+    </span>
+  );
 }
 
 export function AccountContextPage() {
@@ -63,7 +96,17 @@ function ContextBody({
   const [search, setSearch] = React.useState("");
   const [geoId, setGeoId] = React.useState(ALL);
   const [regionId, setRegionId] = React.useState(ALL);
+  const [reportStatus, setReportStatus] = React.useState(ALL);
   const [skip, setSkip] = React.useState(0);
+
+  // Report Account Status / Account Delivery Status (weekly): pick one of the last 12
+  // completed periods and show each account's report state for it.
+  const showPeriod = targetId === "account-reporting" || targetId === "account-review";
+  const { data: allPeriods = [] } = useReportingPeriods();
+  const weekOptions = React.useMemo(() => completedWeeklyPeriods(allPeriods, 12), [allPeriods]);
+  const [pickedPeriodId, setPickedPeriodId] = React.useState("");
+  const periodId = showPeriod ? pickedPeriodId || weekOptions[0]?.id || "" : "";
+  const statusByAccount = useAccountReportStatusByPeriod(showPeriod ? periodId || null : null).data;
 
   const geoOptions = React.useMemo(() => {
     const ids = new Set(reportingAccounts.map((a) => a.geo_id).filter((id): id is string => !!id));
@@ -87,6 +130,9 @@ function ContextBody({
         if (geoId && a.geo_id !== geoId) return false;
         if (regionId && a.region_id !== regionId) return false;
         if (q && !a.name.toLowerCase().includes(q)) return false;
+        // Report Status filter: only once the period's statuses have loaded.
+        if (showPeriod && reportStatus && statusByAccount && reportStatusLabel(statusByAccount.get(a.id)) !== reportStatus)
+          return false;
         return true;
       })
       .sort((a, b) => {
@@ -95,12 +141,13 @@ function ContextBody({
         if (la !== lb) return lb.localeCompare(la);
         return a.name.localeCompare(b.name);
       });
-  }, [reportingAccounts, search, geoId, regionId, lastAccessed]);
+  }, [reportingAccounts, search, geoId, regionId, lastAccessed, showPeriod, reportStatus, statusByAccount]);
 
   const page = filtered.slice(skip, skip + PAGE_SIZE);
-  const filtersActive = !!(search || geoId || regionId);
+  const filtersActive = !!(search || geoId || regionId || reportStatus);
   const reset = () => {
     setSearch("");
+    setReportStatus(ALL);
     setGeoId(ALL);
     setRegionId(ALL);
     setSkip(0);
@@ -142,6 +189,42 @@ function ContextBody({
               className="h-10 pl-9"
             />
           </div>
+          {showPeriod ? (
+            <div className="w-56">
+              <NativeSelect
+                aria-label="Weekly period"
+                className="h-10 text-sm"
+                value={periodId}
+                onChange={(e) => setPickedPeriodId(e.target.value)}
+              >
+                {weekOptions.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.id === weekOptions[0]?.id ? `${w.label} (Current)` : w.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          ) : null}
+          {showPeriod ? (
+            <div className="w-44">
+              <NativeSelect
+                aria-label="Report Status"
+                className="h-10 text-sm"
+                value={reportStatus}
+                onChange={(e) => {
+                  setReportStatus(e.target.value);
+                  setSkip(0);
+                }}
+              >
+                <option value={ALL}>All Report Statuses</option>
+                {REPORT_STATUSES.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          ) : null}
           <div className="w-44">
             <NativeSelect
               aria-label="Geo"
@@ -206,7 +289,9 @@ function ContextBody({
                   <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                     <th className="px-4 py-3">Actions</th>
                     <th className="px-3 py-3">Account</th>
+                    {showPeriod ? <th className="px-3 py-3">Delivery Manager</th> : null}
                     <th className="px-3 py-3">Geo</th>
+                    {showPeriod ? <th className="px-3 py-3">Report Status</th> : null}
                     <th className="px-3 py-3">Last Accessed</th>
                   </tr>
                 </thead>
@@ -232,7 +317,17 @@ function ContextBody({
                           </Button>
                         </td>
                         <td className="px-3 py-2.5 text-[#172033]">{a.name}</td>
+                        {showPeriod ? (
+                          <td className="px-3 py-2.5 text-[#172033]">
+                            <DeliveryManagerCell accountId={a.id} />
+                          </td>
+                        ) : null}
                         <td className="px-3 py-2.5 text-[#172033]">{geoLabel(a)}</td>
+                        {showPeriod ? (
+                          <td className="px-3 py-2.5">
+                            <ReportStatusBadge status={statusByAccount ? statusByAccount.get(a.id) : undefined} loading={!statusByAccount} />
+                          </td>
+                        ) : null}
                         <td className="px-3 py-2.5 text-[#172033]">{formatAccessed(lastAccessed[a.id])}</td>
                       </tr>
                     );

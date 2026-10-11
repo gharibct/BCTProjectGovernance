@@ -120,8 +120,8 @@ export function ProjectHealthOracleProjects() {
 
   if (!canSee) {
     return (
-      <div className="mx-auto flex max-w-7xl flex-col gap-4">
-        <BackToProjectHealth />
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-4">
+        <BackToProjectHealth current="Oracle Projects" />
         <p className="rounded-xl border border-slate-200 bg-white px-5 py-4 text-slate-500">
           Oracle projects are not available for your role.
         </p>
@@ -133,9 +133,9 @@ export function ProjectHealthOracleProjects() {
   const total = summary ? summary.mapped_count + summary.unmapped_count : "—";
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <BackToProjectHealth />
+        <BackToProjectHealth current="Oracle Projects" />
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Oracle Projects</h1>
         <p className="text-slate-500">
           Oracle projects and whether a governance project has been created for them. Projects not onboarded in

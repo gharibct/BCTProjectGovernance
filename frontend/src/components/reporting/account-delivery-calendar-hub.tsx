@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 
 import { QueryErrorState } from "@/components/shared/query-error-state";
 import { DeliveryCalendarView } from "@/components/reporting/delivery-calendar-view";
+import { selectAccountHref } from "@/lib/account-context-targets";
 import { useAccounts } from "@/lib/api/reference-data";
 import {
   useRegionalReportingActivityForYear,
@@ -36,6 +37,10 @@ export function AccountDeliveryCalendarHub() {
     <DeliveryCalendarView
       title="Report Account Status"
       subtitle={account?.name}
+      breadcrumb={[
+        { label: "Report Account Status", href: selectAccountHref("account-reporting") },
+        ...(account?.name ? [{ label: account.name }] : []),
+      ]}
       weeklyItems={weeklyItems}
       reports={reports}
       hrefForPeriod={(periodId) => `/account-reporting/${accountId}/status?period=${periodId}`}

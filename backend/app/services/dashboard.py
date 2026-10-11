@@ -49,12 +49,15 @@ from app.models.metric_target import (
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
 from app.models.projects import Project
 from app.services.project_managers import pm_condition
-from app.services.activity_restriction import MONTHLY_ACTIVITIES, restricted_from_by_project
+from app.services.activity_restriction import restricted_from_by_project
 from app.models.raid import AssumptionLog, DependencyLog, IssueLog, OpportunityLog, RiskLog
 from app.models.reference_data import Account, Geo, ProjectType, Region, ReportingPeriod
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusReport
 from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.dashboard import (
+    HighRiskAccountRow,
+    HighRiskKpis,
+    HighRisksResponse,
     AccountHealthRow,
     AccountPortfolioHealthRow,
     AccountRagCardSummary,
@@ -449,7 +452,7 @@ async def milestone_payment_summary(db: AsyncSession, filters: DashboardFilters)
     return MilestonePaymentSummary(upcoming_count=upcoming, overdue_count=overdue, paid_count=paid)
 
 
-# Governance Matrix (CDO/Geo Head/Delivery Manager dashboard redesign) — full
+# Governance Matrix (CXO/Geo Head/Delivery Manager dashboard redesign) — full
 # 6-category breakdown per account/project, unlike account_health_rows'/
 # project_health_rows' single rolled-up overall_health. No bulk "latest
 # declaration per entity" query exists elsewhere, so this fetches every
@@ -762,15 +765,14 @@ async def project_period_restriction(
 ) -> "Callable[[UUID, ReportingPeriod], bool] | None":
     """Predicate "is this project's `kind` report no longer required for this
     period?" — kind "delivery": the weekly Delivery Status report, or (monthly
-    period) the Project Performance report once all three of its sections are
-    restricted; kind "metrics": the Metrics section. A period is restricted when
+    period) never — the Project Performance report is always owed (RAIDO);
+    kind "metrics": the Metrics section. A period is restricted when
     it starts on/after the restriction's date. None when nothing is restricted."""
     if not project_ids:
         return None
     delivery = await restricted_from_by_project(db, project_ids, ProjectActivity.DELIVERY_STATUS)
     metrics = await restricted_from_by_project(db, project_ids, ProjectActivity.METRICS)
-    monthly = await restricted_from_by_project(db, project_ids, *MONTHLY_ACTIVITIES)
-    if not (delivery or metrics or monthly):
+    if not (delivery or metrics):
         return None
 
     def restricted(project_id: UUID, period: ReportingPeriod) -> bool:
@@ -779,7 +781,7 @@ async def project_period_restriction(
         elif period.period_type == "Weekly":
             from_date = delivery.get(project_id)
         else:
-            from_date = monthly.get(project_id)
+            from_date = None
         return from_date is not None and period.start_date >= from_date
 
     return restricted
@@ -2243,7 +2245,7 @@ async def count_open_findings(db: AsyncSession, filters: DashboardFilters) -> in
 
 # Open Alerts — the subset of open findings classified "Alert", as opposed to
 # Observation / Recommendation. Backs the "Open Alerts" KPI + list section on
-# the PM, Account and CDO dashboards; scope comes from _matching_project_ids,
+# the PM, Account and CXO dashboards; scope comes from _matching_project_ids,
 # so the same pair works for a single PM's projects and for an
 # account-/geo-wide rollup.
 async def count_open_ncs(db: AsyncSession, filters: DashboardFilters, as_of: date | None = None) -> int:
@@ -2909,7 +2911,7 @@ async def pmo_governance_exceptions(
 
 
 # Project Health dashboard (design-reference/Project-Health.html) — an
-# org-wide, portfolio-level bento-grid of KPI cards for PMO/Admin/CDO, built
+# org-wide, portfolio-level bento-grid of KPI cards for PMO/Admin/CXO, built
 # with the same DashboardFilters()/_project_conditions()/_matching_project_ids()
 # pattern as every section above, but exposing the real Geo/Account/Project
 # Type/Period filter bar this page has (unlike pmo_governance_compliance_matrix's
@@ -3133,6 +3135,125 @@ async def list_rag_rows(db: AsyncSession, filters: DashboardFilters, period_id: 
             )
         )
     return rows
+
+
+# "High Risks" — see HighRiskAccountRow. An account counts as filed when its
+# status report for the period is Submitted/Approved (same rule as the
+# Governance Matrix); its overall rating then comes from that period's
+# declaration. Draft / Rejected / missing reports (and a filed report with no
+# rating) are "Not Submitted". Green accounts are left out. KPI counts reflect
+# the geo/region scope but not the `overall` filter, so the tiles stay a summary.
+NOT_SUBMITTED = "Not Submitted"
+_HIGH_RISK_ORDER = {
+    HealthRating.RED.value: 0,
+    HealthRating.POTENTIAL_RED.value: 1,
+    HealthRating.AMBER.value: 2,
+    NOT_SUBMITTED: 3,
+}
+_HIGH_RISK_KPI_KEY = {
+    HealthRating.RED.value: "red",
+    HealthRating.POTENTIAL_RED.value: "potential_red",
+    HealthRating.AMBER.value: "amber",
+    NOT_SUBMITTED: "not_submitted",
+}
+
+
+async def high_risk_accounts(
+    db: AsyncSession, filters: DashboardFilters, period_id: UUID, overall: str | None = None
+) -> HighRisksResponse:
+    account_rows = (
+        await db.execute(
+            select(Account.id, Account.name, Account.geo_id, Geo.name, Account.region_id, Region.name)
+            .outerjoin(Geo, Geo.id == Account.geo_id)
+            .outerjoin(Region, Region.id == Account.region_id)
+            .where(Account.is_active.is_(True), *_account_conditions(filters))
+        )
+    ).all()
+    kpis = {"red": 0, "potential_red": 0, "amber": 0, "not_submitted": 0}
+    if not account_rows:
+        return HighRisksResponse(kpis=HighRiskKpis(**kpis), items=[])
+    account_ids = [row[0] for row in account_rows]
+
+    filed_ids = set(
+        (
+            await db.execute(
+                select(AccountStatusReport.account_id).where(
+                    AccountStatusReport.period_id == period_id,
+                    AccountStatusReport.account_id.in_(account_ids),
+                    AccountStatusReport.status.in_((ReportStatus.SUBMITTED, ReportStatus.APPROVED)),
+                )
+            )
+        ).scalars()
+    )
+    declarations: dict[UUID, AccountHealthDeclaration] = {}
+    if filed_ids:
+        decls = (
+            (
+                await db.execute(
+                    select(AccountHealthDeclaration).where(
+                        AccountHealthDeclaration.period_id == period_id,
+                        AccountHealthDeclaration.account_id.in_(filed_ids),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for decl in decls:
+            current = declarations.get(decl.account_id)
+            if current is None or decl.created_at > current.created_at:
+                declarations[decl.account_id] = decl
+
+    # Delivery Manager = the primary Account Head (a proxy only if no primary).
+    dm_rows = (
+        await db.execute(
+            select(UserAccount.account_id, User.full_name)
+            .join(User, User.id == UserAccount.user_id)
+            .join(Role, Role.id == User.role_id)
+            .where(
+                UserAccount.account_id.in_(account_ids),
+                Role.code.in_((RoleCode.ACCOUNT_MANAGER.value, RoleCode.GEO_HEAD.value)),
+            )
+            .order_by(UserAccount.is_proxy, User.created_at)
+        )
+    ).all()
+    dm_by_account: dict[UUID, str] = {}
+    for dm_account_id, full_name in dm_rows:
+        dm_by_account.setdefault(dm_account_id, full_name)
+
+    items: list[HighRiskAccountRow] = []
+    for account_id, name, geo_id, geo_name, region_id, region_name in account_rows:
+        decl = declarations.get(account_id)
+        if decl is None:
+            risk_status = NOT_SUBMITTED
+        elif decl.overall_rating == HealthRating.GREEN:
+            continue
+        else:
+            risk_status = HealthRating(decl.overall_rating).value
+        kpis[_HIGH_RISK_KPI_KEY[risk_status]] += 1
+        if overall and risk_status != overall:
+            continue
+        items.append(
+            HighRiskAccountRow(
+                entity_id=account_id,
+                entity_label=name,
+                geo_id=geo_id,
+                geo_name=geo_name,
+                region_id=region_id,
+                region_name=region_name,
+                delivery_manager_name=dm_by_account.get(account_id),
+                risk_status=risk_status,
+                core_delivery_rating=decl.core_delivery_rating if decl else None,
+                people_rating=decl.people_rating if decl else None,
+                operational_rating=decl.operational_rating if decl else None,
+                customer_rating=decl.customer_rating if decl else None,
+                financial_rating=decl.financial_rating if decl else None,
+                compliance_rating=decl.compliance_rating if decl else None,
+                overall_rating=decl.overall_rating if decl else None,
+            )
+        )
+    items.sort(key=lambda r: (_HIGH_RISK_ORDER[r.risk_status], r.entity_label.lower()))
+    return HighRisksResponse(kpis=HighRiskKpis(**kpis), items=items)
 
 
 # Account-level sibling of list_rag_rows — one row per in-scope account, its

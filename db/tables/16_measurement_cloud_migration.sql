@@ -15,8 +15,8 @@ CREATE TABLE measurement_cloud_migration (
     migration_end_time TIMESTAMPTZ,
 
     -- Computed, read-only in the UI.
-    applications_migrated_pct NUMERIC(5, 2),
-    migration_success_rate_pct NUMERIC(5, 2),
+    applications_migrated_pct NUMERIC(12, 2),
+    migration_success_rate_pct NUMERIC(12, 2),
     migration_downtime_hours NUMERIC(10, 2),
 
     last_updated_date DATE,

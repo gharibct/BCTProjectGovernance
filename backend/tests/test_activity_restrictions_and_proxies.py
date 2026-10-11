@@ -77,7 +77,7 @@ async def test_monthly_section_checks_its_own_activity():
     await assert_period_open(db, pid, uuid4(), activity=ProjectActivity.COMMITMENTS)
 
 
-async def test_monthly_report_blocked_only_when_all_three_sections_restricted():
+async def test_monthly_report_never_blocked_as_a_whole():
     pid = uuid4()
     period = _period("Monthly", _FROM)
     one = _RestrictionDB({ProjectActivity.METRICS: _FROM}, period)
@@ -91,9 +91,8 @@ async def test_monthly_report_blocked_only_when_all_three_sections_restricted():
         },
         period,
     )
-    with pytest.raises(HTTPException) as exc:
-        await assert_period_open(all_three, pid, uuid4())
-    assert exc.value.status_code == 409
+    # Still owed: RAIDO is always reported, whatever the three sections.
+    await assert_period_open(all_three, pid, uuid4())
 
 
 async def test_period_without_restrictions_or_unknown_period_is_open():
@@ -141,7 +140,7 @@ async def test_only_admin_and_de_may_set_a_restriction(client, override_auth):
     project = _project()
     body = {"not_required_from": "2026-09-01", "reason": "Closing"}
     path = f"/api/v1/projects/{project.id}/activity-restrictions/METRICS"
-    for role in (RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.CDO):
+    for role in (RoleCode.PROJECT_MANAGER, RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.CXO):
         headers = override_auth(role, get_map={(Project, project.id): project})
         assert (await client.put(path, json=body, headers=headers)).status_code == 403
         assert (await client.delete(path, headers=headers)).status_code == 403
@@ -225,8 +224,8 @@ async def test_de_adds_a_proxy_project_manager(client, override_auth):
     assert db.added[0].project_id == project.id and db.added[0].user_id == proxy.id
 
 
-async def test_proxy_project_manager_must_have_the_pm_role(client, override_auth):
-    dm_role = Role(id=uuid4(), code=RoleCode.ACCOUNT_MANAGER, name="DM")
+async def test_proxy_project_manager_must_be_pm_dm_or_geo_head(client, override_auth):
+    dm_role = Role(id=uuid4(), code=RoleCode.DELIVERY_EXCELLENCE, name="DE")
     project = SimpleNamespace(id=uuid4(), project_manager_id=uuid4(), account_id=None, geo_id=None)
     not_a_pm = _proxy_user(dm_role)
     headers = override_auth(RoleCode.DELIVERY_EXCELLENCE)

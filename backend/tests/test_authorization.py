@@ -211,7 +211,7 @@ async def test_require_project_account_scope_rejects_when_project_in_other_accou
 
 # --- require_project_read_access: the project/account/geo direct-URL fix's
 # core dependency — see deps.py's docstring for why this can't just reuse
-# require_project_access verbatim (PMO/CDO bypass, existence-before-role). ---
+# require_project_access verbatim (PMO/CXO bypass, existence-before-role). ---
 
 
 async def test_require_project_read_access_404s_for_nonexistent_project_every_role():
@@ -222,7 +222,7 @@ async def test_require_project_read_access_404s_for_nonexistent_project_every_ro
         RoleCode.PROJECT_MANAGER,
         RoleCode.DELIVERY_EXCELLENCE,
         RoleCode.PMO,
-        RoleCode.CDO,
+        RoleCode.CXO,
         RoleCode.ACCOUNT_MANAGER,
         RoleCode.GEO_HEAD,
         RoleCode.TEAM_MEMBER,
@@ -243,7 +243,7 @@ async def test_require_project_read_access_bypasses_for_portfolio_roles():
         RoleCode.PROJECT_MANAGER,
         RoleCode.DELIVERY_EXCELLENCE,
         RoleCode.PMO,
-        RoleCode.CDO,
+        RoleCode.CXO,
     ):
         user = make_user()
         db = FakeDB(role, get_map={(Project, project_id): project})
@@ -350,7 +350,7 @@ async def test_require_account_geo_scope_rejects_when_account_in_other_geo():
 
 async def test_project_scope_conditions_unrestricted_for_portfolio_roles():
     user = make_user()
-    for role in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CDO):
+    for role in (RoleCode.ADMIN, RoleCode.DELIVERY_EXCELLENCE, RoleCode.PMO, RoleCode.CXO):
         conds = await project_scope_conditions(FakeDB(role), user)
         assert conds == []
 

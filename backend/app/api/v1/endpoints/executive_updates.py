@@ -18,7 +18,7 @@ from app.schemas.enums import RoleCode
 from app.services.geo_autogen import mark_geo_report_saved
 from app.schemas.executive_updates import ExecutiveUpdateCreate, ExecutiveUpdateRead, ExecutiveUpdateUpdate
 
-# Geo Head's Executive Update for CDO (see db/tables/43_executive_updates.sql)
+# Geo Head's Executive Update for CXO (see db/tables/43_executive_updates.sql)
 # — list/create/edit, same shape as regional_status.py's Geo Status Report
 # endpoints, minus review (no submit/review workflow yet — see that file's
 # module comment for what a future pass would add). Image upload for image
@@ -27,9 +27,9 @@ from app.schemas.executive_updates import ExecutiveUpdateCreate, ExecutiveUpdate
 router = APIRouter(prefix="/geos/{geo_id}/executive-updates", tags=["Executive Update"])
 
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
-# Reads: same as write plus CDO — these updates are written *for* CDO (see
-# module docstring above), so CDO needs to read them without owning the geo.
-_geo_read = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CDO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CDO)))]
+# Reads: same as write plus CXO — these updates are written *for* CXO (see
+# module docstring above), so CXO needs to read them without owning the geo.
+_geo_read = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CXO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CXO)))]
 
 _IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
 

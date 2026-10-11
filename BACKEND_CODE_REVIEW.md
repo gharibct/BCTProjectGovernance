@@ -224,7 +224,7 @@ For Project Governance, check areas such as:
 
 * project creation;
 * project reporting;
-* Account / Geo / CDO reporting;
+* Account / Geo / CXO reporting;
 * reporting periods;
 * RAIDO handling;
 * measurements;
@@ -257,7 +257,7 @@ Check:
 * project-level access;
 * account-level access;
 * geo-level access;
-* CDO access;
+* CXO access;
 * admin access;
 * authorization dependencies;
 * repeated permission logic;

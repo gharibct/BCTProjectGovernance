@@ -29,6 +29,7 @@ from app.schemas.dashboard import (
     DependencyRow,
     FindingRow,
     GeoHeadDashboardSummary,
+    HighRisksResponse,
     IssueRow,
     MetricRow,
     MyDashboardSummary,
@@ -432,7 +433,7 @@ async def _health_scope(
     """Project Health is open to every signed-in user; what they can see is
     scoped by role, as DashboardFilters kwargs (merged into the endpoint's
     filters): Geo Head -> owned geos, Delivery Manager -> owned accounts,
-    Project Manager -> own projects, Team Member -> nothing. Admin / PMO / CDO /
+    Project Manager -> own projects, Team Member -> nothing. Admin / PMO / CXO /
     Delivery Excellence are org-wide. Explicitly asking for a geo/account
     outside one's ownership is a 403. The optional Region filter applies on top
     of whichever scope results."""
@@ -486,7 +487,7 @@ async def _weekly_period_or_current(db: AsyncSession, period_id: UUID | None) ->
 
 
 # Project Health dashboard (design-reference/Project-Health.html) — a new,
-# additional org-wide portfolio page for PMO/Admin/CDO/Delivery Excellence
+# additional org-wide portfolio page for PMO/Admin/CXO/Delivery Excellence
 # (not a replacement of their existing landing summaries above), with a real
 # Geo/Account/Project Type/Period filter bar unlike pmo-summary's fully
 # unfiltered scope.
@@ -681,6 +682,36 @@ async def get_project_health_rag(
     rows = await dashboard_service.list_rag_rows(db, filters, period_id=week.id if week else None)
     page = rows[pagination.skip : pagination.skip + pagination.limit]
     return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
+
+
+# High Risks (CXO / Geo Head): accounts not Green for a Weekly period, plus the
+# ones that have not filed. A Geo Head only sees their own geos.
+@router.get(
+    "/high-risks",
+    response_model=HighRisksResponse,
+    dependencies=[Depends(require_role(RoleCode.CXO, RoleCode.GEO_HEAD, RoleCode.ADMIN))],
+)
+async def get_high_risks(
+    period_id: UUID | None = Query(default=None),
+    geo_id: UUID | None = Query(default=None),
+    region_id: UUID | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    overall: Literal["Red", "Potential Red", "Amber", "Not Submitted"] | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = DashboardFilters(geo_id=geo_id, region_id=region_id, account_id=account_id)
+    if await _role_code(db, current_user) == RoleCode.GEO_HEAD:
+        owned = list(
+            (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == current_user.id))).scalars().all()
+        )
+        if geo_id is not None and geo_id not in owned:
+            raise HTTPException(status_code=403, detail="You do not have access to this geo.")
+        filters = replace(filters, geo_ids=owned)
+    week = await _weekly_period_or_current(db, period_id)
+    if week is None:
+        raise HTTPException(status_code=404, detail="No reporting period found.")
+    return await dashboard_service.high_risk_accounts(db, filters, week.id, overall)
 
 
 @router.get("/project-health/account-rag", response_model=Page[AccountRagRow])

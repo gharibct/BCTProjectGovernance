@@ -5,8 +5,8 @@ CREATE TABLE metric_target_cloud_maintenance (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
 
-    target_service_availability_pct NUMERIC(5, 2),
-    target_application_availability_pct NUMERIC(5, 2),
+    target_service_availability_pct NUMERIC(12, 2),
+    target_application_availability_pct NUMERIC(12, 2),
 
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

@@ -20,9 +20,11 @@ import {
   useMonthlyCompletion,
   type ReportPageType,
 } from "@/lib/api/reporting-attestation";
+import { isRestrictedOn, useProjectRestrictions, type ProjectActivity } from "@/lib/api/activity-restrictions";
 import {
   activeClass,
   childClass,
+  disabledClass,
   idleClass,
   StatusIcon,
   type NavGroup,
@@ -135,6 +137,14 @@ const MONTHLY_ITEM_SECTIONS: Record<string, ReportPageType[]> = {
   ],
 };
 
+// Nav item -> the Configure Project Activities switch that governs it. RAIDO
+// has none: it is always reported.
+const ITEM_ACTIVITY: Record<string, ProjectActivity> = {
+  Measurement: "METRICS",
+  "Contractual Commitments": "COMMITMENTS",
+  "Payment Milestones": "PAYMENT_MILESTONES",
+};
+
 const RAIDO_LOGS: { key: string; label: string; section: ReportPageType }[] = [
   { key: "risk", label: "Risk", section: "RISK" },
   { key: "assumption", label: "Assumption", section: "ASSUMPTION" },
@@ -182,6 +192,15 @@ function NavLinks({
   // only applies to the reporting checklist.
   const dashboardHref = `${base}/dashboard`;
   const dashboardActive = pathname === dashboardHref;
+
+  // Restrictions apply to periods that START on/after the restriction date, so
+  // the selected period decides (today when none is picked).
+  const { data: restrictions } = useProjectRestrictions(projectId);
+  const periodStart = periods.find((p) => p.id === period)?.start_date;
+  const isDisabled = (label: string) => {
+    const activity = ITEM_ACTIVITY[label];
+    return !!activity && isRestrictedOn(restrictions, activity, periodStart);
+  };
 
   const completedSections = completion?.filter((c) => c.complete).length ?? 0;
 
@@ -242,6 +261,18 @@ function NavLinks({
                   );
                 }
                 const active = pathname === item.href;
+                if (isDisabled(item.label)) {
+                  return (
+                    <span
+                      key={item.label}
+                      aria-disabled="true"
+                      title="Not required for this project — switched off in Configure Project Activities"
+                      className={cn(childClass, disabledClass)}
+                    >
+                      {item.label}
+                    </span>
+                  );
+                }
                 return (
                   <Link
                     key={item.label}

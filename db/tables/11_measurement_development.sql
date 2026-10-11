@@ -11,8 +11,8 @@ CREATE TABLE measurement_development (
     overall_estimated_effort NUMERIC(14, 2),
     planned_effort_as_on_date NUMERIC(14, 2),
     actual_effort_as_on_date NUMERIC(14, 2),
-    planned_pct_completion NUMERIC(5, 2),
-    actual_pct_completion NUMERIC(5, 2),
+    planned_pct_completion NUMERIC(12, 2),
+    actual_pct_completion NUMERIC(12, 2),
 
     uat_defects_external INTEGER,
     production_defects_external INTEGER,
@@ -24,13 +24,13 @@ CREATE TABLE measurement_development (
 
     -- Computed, read-only in the UI.
     productivity NUMERIC(14, 4),
-    effort_variation_pct NUMERIC(6, 2),
-    schedule_performance_index NUMERIC(6, 3),
-    cost_performance_index NUMERIC(6, 3),
-    defect_leakage_pct NUMERIC(6, 2),
-    code_coverage_pct NUMERIC(5, 2),
-    test_execution_coverage_pct NUMERIC(5, 2),
-    test_pass_rate_pct NUMERIC(5, 2),
+    effort_variation_pct NUMERIC(12, 2),
+    schedule_performance_index NUMERIC(12, 3),
+    cost_performance_index NUMERIC(12, 3),
+    defect_leakage_pct NUMERIC(12, 2),
+    code_coverage_pct NUMERIC(12, 2),
+    test_execution_coverage_pct NUMERIC(12, 2),
+    test_pass_rate_pct NUMERIC(12, 2),
 
     last_updated_date DATE,
     created_at TIMESTAMPTZ NOT NULL,

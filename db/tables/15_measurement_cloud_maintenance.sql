@@ -11,8 +11,8 @@ CREATE TABLE measurement_cloud_maintenance (
     application_downtime_hours NUMERIC(10, 2),
 
     -- Computed, read-only in the UI.
-    service_availability_pct NUMERIC(5, 2),
-    application_availability_pct NUMERIC(5, 2),
+    service_availability_pct NUMERIC(12, 2),
+    application_availability_pct NUMERIC(12, 2),
 
     last_updated_date DATE,
     created_at TIMESTAMPTZ NOT NULL,

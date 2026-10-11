@@ -13,8 +13,8 @@ CREATE TABLE measurement_staffing (
     associates_joined_count INTEGER,
 
     -- Computed, read-only in the UI.
-    pct_profiles_qualifying NUMERIC(5, 2),
-    pct_candidates_joining NUMERIC(5, 2),
+    pct_profiles_qualifying NUMERIC(12, 2),
+    pct_candidates_joining NUMERIC(12, 2),
 
     last_updated_date DATE,
     created_at TIMESTAMPTZ NOT NULL,

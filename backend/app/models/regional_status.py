@@ -58,7 +58,7 @@ class GeoStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     upcoming_key_releases: Mapped[str | None]
     leadership_support_required: Mapped[str | None]
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
-    # Review/sign-off by the level above (CDO) — set once the report
+    # Review/sign-off by the level above (CXO) — set once the report
     # transitions Submitted -> Approved/Rejected.
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

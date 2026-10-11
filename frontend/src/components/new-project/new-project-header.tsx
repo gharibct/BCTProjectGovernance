@@ -1,10 +1,14 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
 import { useNewProjectId } from "@/stores/new-project-ui";
 import { useProject } from "@/lib/api/projects";
 import { StatusBadge } from "@/components/forms/status-badge";
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { PageBanner } from "@/components/shell/page-banner";
 import { QueryErrorState } from "@/components/shared/query-error-state";
+import { PROJECT_TARGETS, selectProjectHref } from "@/lib/project-context-targets";
 
 // Matches the "{CODE} - Screen Name" heading convention used elsewhere
 // (see project-reporting/reporting-hub.tsx). Every New Project screen is its
@@ -15,6 +19,7 @@ export function NewProjectHeader({
   subheading?: string;
 } = {}) {
   const projectId = useNewProjectId();
+  const pathname = usePathname();
   const projectQuery = useProject(projectId);
   const { data: project } = projectQuery;
 
@@ -27,9 +32,20 @@ export function NewProjectHeader({
   const base = project?.project_code?.trim() || "New Project";
   const heading = subheading ? `${base} - ${subheading}` : base;
 
+  // The root crumb follows the URL family (ProjectRouteGuard moves a project
+  // between them), and returns to the matching project picker.
+  const rootTarget = pathname.startsWith("/amend-project") ? "view-amend-projects" : "maintain-project";
+  const code = project?.project_code?.trim();
+  const crumbs = [
+    { label: PROJECT_TARGETS[rootTarget].label, href: selectProjectHref(rootTarget) },
+    ...(code ? [{ label: code }] : []),
+    ...(subheading ? [{ label: subheading }] : []),
+  ];
+
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <PageBreadcrumb items={crumbs} />
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-4xl font-bold tracking-tight text-slate-900">
             {heading}

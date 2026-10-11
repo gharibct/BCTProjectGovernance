@@ -7,6 +7,8 @@ import { CalendarDays } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageBanner } from "@/components/shell/page-banner";
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
+import { selectAccountHref } from "@/lib/account-context-targets";
 import { QueryErrorState } from "@/components/shared/query-error-state";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-data";
@@ -112,8 +114,15 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <div>
+        {scope === "account" ? (
+          <div className="mb-4">
+            <PageBreadcrumb
+              items={[{ label: "Report Account Status", href: selectAccountHref("account-reporting") }, { label: name }]}
+            />
+          </div>
+        ) : null}
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">{name} - Reporting Summary</h1>
         <p className="mt-2 max-w-3xl text-slate-500">{config.headerTitle}</p>
       </div>

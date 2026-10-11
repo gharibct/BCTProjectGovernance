@@ -147,9 +147,9 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
   const pendingCount = streamKpi ? Math.max(streamKpi.expected_count - streamKpi.submitted_count, 0) : null;
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <BackToProjectHealth />
+        <BackToProjectHealth current={stream ? stream.heading : "Report Submissions"} />
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">
           {stream ? stream.heading : "Report Submissions"}
         </h1>

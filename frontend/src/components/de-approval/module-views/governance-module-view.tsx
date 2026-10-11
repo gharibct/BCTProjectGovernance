@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { ApiError } from "@/lib/api/client";
 import { useDeReviewDetail } from "@/lib/api/de-approval";
 import { EmptyState } from "@/components/forms/empty-state";
@@ -27,13 +26,13 @@ export function GovernanceModuleView({
   if (!projectId) return <EmptyState>No project selected.</EmptyState>;
 
   const backLink = (
-    <Link
-      href={`/de-approval/${projectId}`}
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
-    >
-      <ArrowLeft className="size-4" />
-      Back to Governance Review
-    </Link>
+    <PageBreadcrumb
+      items={[
+        { label: "Project Details Approval", href: "/de-approval" },
+        { label: "Governance Review", href: `/de-approval/${projectId}` },
+        { label: title },
+      ]}
+    />
   );
 
   if (isError) {

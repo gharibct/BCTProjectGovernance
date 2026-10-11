@@ -156,7 +156,7 @@ function ActionsPageBody() {
 
   const { patchProjects, reportingAccounts, reportingGeos } = usePatchScope();
   // Which Levels to offer follows the effective (Work Context) role, same as
-  // menu visibility — e.g. Admin acting as CDO gets all three levels, not
+  // menu visibility — e.g. Admin acting as CXO gets all three levels, not
   // Admin's own (empty) level list. Which entities populate each Level's
   // Geo/Account/Project options still follows the real role's data patch
   // (usePatchScope), exactly like every other Work-Context-aware screen.
@@ -170,7 +170,7 @@ function ActionsPageBody() {
   // (LEVELS_BY_ROLE in action-permissions.ts), not the currently selected
   // Level — a Project Manager only ever has "PROJECT", so they get just the
   // Project combo; a Delivery Manager has "ACCOUNT"+"PROJECT", so Geo never
-  // applies to them at all; Geo Head/CDO have all three. This mirrors the
+  // applies to them at all; Geo Head/CXO have all three. This mirrors the
   // sidebar's own per-role scoping (usePatchScope), it just also decides
   // combo visibility here.
   const showGeo = levels.includes("GEO");
@@ -277,7 +277,7 @@ function ActionsPageBody() {
   };
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <div>
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">Actions</h1>
         <p className="mt-1 text-sm text-slate-500">

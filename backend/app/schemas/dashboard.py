@@ -90,7 +90,7 @@ class HighlightRow(BaseModel):
 class OpenNcRow(BaseModel):
     """One open Alert — a DE assessment finding classified 'Alert' whose
     status is still open. Row shape for the "Open Alerts" list section
-    added to the PM, Account and CDO dashboards; on the Account/CDO
+    added to the PM, Account and CXO dashboards; on the Account/CXO
     dashboards the list rolls up across every in-scope project."""
 
     finding_id: UUID
@@ -442,7 +442,7 @@ class PmoDashboardSummary(BaseModel):
 
 
 # Project Health dashboard (design-reference/Project-Health.html) — an
-# org-wide, portfolio-level bento-grid of KPI cards for PMO/Admin/CDO, one
+# org-wide, portfolio-level bento-grid of KPI cards for PMO/Admin/CXO, one
 # card per business area (Portfolio, Health, the 5 RAIDO entities, Metrics,
 # Commitments, Payment Milestones, Actions, Findings, DE Assessments, Data
 # Integrity). See services/dashboard.py's "Project Health dashboard" section
@@ -951,3 +951,28 @@ class ProjectHealthPeriod(BaseModel):
     start_date: date
     end_date: date
     is_current: bool
+
+
+# "High Risks" (CXO / Geo Head): every in-scope account whose report for the
+# chosen period is not Green, plus accounts that have not filed one. Extends
+# HealthMatrixRow so the frontend can reuse the Governance Matrix grid.
+class HighRiskAccountRow(HealthMatrixRow):
+    geo_id: UUID | None = None
+    geo_name: str | None = None
+    region_id: UUID | None = None
+    region_name: str | None = None
+    delivery_manager_name: str | None = None
+    # "Red" / "Potential Red" / "Amber" / "Not Submitted".
+    risk_status: str
+
+
+class HighRiskKpis(BaseModel):
+    red: int
+    potential_red: int
+    amber: int
+    not_submitted: int
+
+
+class HighRisksResponse(BaseModel):
+    kpis: HighRiskKpis
+    items: list[HighRiskAccountRow]

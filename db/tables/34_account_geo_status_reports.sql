@@ -11,8 +11,8 @@ CREATE TABLE account_status_reports (
     status TEXT NOT NULL DEFAULT 'Draft', -- Draft, Submitted, Approved, Rejected
     -- Key Metrics — captured once per report alongside the narrative tabs.
     revenue NUMERIC(18, 2),
-    onsite_fte NUMERIC(5, 2),
-    offshore_fte NUMERIC(5, 2),
+    onsite_fte NUMERIC(9, 2),
+    offshore_fte NUMERIC(9, 2),
     projects_count INTEGER,
     key_accomplishments TEXT,
     upcoming_key_releases TEXT,
@@ -47,14 +47,14 @@ CREATE TABLE geo_status_reports (
     status TEXT NOT NULL DEFAULT 'Draft - Saved', -- Auto Generated, Draft - Saved, Baselined
     -- Key Metrics — captured once per report alongside the narrative tabs.
     revenue NUMERIC(18, 2),
-    onsite_fte NUMERIC(5, 2),
-    offshore_fte NUMERIC(5, 2),
+    onsite_fte NUMERIC(9, 2),
+    offshore_fte NUMERIC(9, 2),
     projects_count INTEGER,
     key_accomplishments TEXT,
     upcoming_key_releases TEXT,
     leadership_support_required TEXT,
     created_by UUID REFERENCES users(id),
-    -- Review/sign-off by the level above (CDO) — set once the report
+    -- Review/sign-off by the level above (CXO) — set once the report
     -- transitions Submitted -> Approved/Rejected.
     reviewed_by UUID REFERENCES users(id),
     reviewed_at TIMESTAMPTZ,

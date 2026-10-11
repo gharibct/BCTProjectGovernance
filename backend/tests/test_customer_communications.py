@@ -21,7 +21,7 @@ async def test_list_rejects_unrelated_role(client, override_auth):
     assert (await client.get(_URL, headers=headers)).status_code == 403
 
 
-@pytest.mark.parametrize("role", [RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE])
+@pytest.mark.parametrize("role", [RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE])
 async def test_list_returns_empty_for_cross_portfolio_roles(client, override_auth, role):
     headers = override_auth(role)
     response = await client.get(_URL, headers=headers)
@@ -29,8 +29,8 @@ async def test_list_returns_empty_for_cross_portfolio_roles(client, override_aut
     assert response.json() == []
 
 
-async def test_create_rejects_cdo(client, override_auth):
-    headers = override_auth(RoleCode.CDO)
+async def test_create_rejects_cxo(client, override_auth):
+    headers = override_auth(RoleCode.CXO)
     response = await client.post(
         _URL,
         data={"reporting_date": "2026-09-15", "title": "Q3 Account Review"},

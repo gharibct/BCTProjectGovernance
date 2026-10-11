@@ -5,9 +5,9 @@ CREATE TABLE metric_target_testing (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
 
-    target_test_execution_coverage_pct NUMERIC(5, 2),
-    target_test_pass_rate_pct NUMERIC(5, 2),
-    target_automation_coverage_pct NUMERIC(5, 2),
+    target_test_execution_coverage_pct NUMERIC(12, 2),
+    target_test_pass_rate_pct NUMERIC(12, 2),
+    target_automation_coverage_pct NUMERIC(12, 2),
     target_test_design_productivity NUMERIC(10, 4),
     target_test_execution_productivity NUMERIC(10, 4),
 

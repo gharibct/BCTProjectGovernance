@@ -58,9 +58,9 @@ export function ProjectHealthCommitments() {
   const rows: Row[] = (data?.items ?? []).map((row) => ({ ...row, id: row.commitment_id }));
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <BackToProjectHealth />
+        <BackToProjectHealth current="Commitments" />
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Commitments</h1>
         <p className="text-slate-500">Contractual commitments and compliance status.</p>
       </header>

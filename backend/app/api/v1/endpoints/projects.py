@@ -94,7 +94,7 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
 ):
     # Scope the list to what the caller may see (PM -> own projects, Account/Geo
-    # Head -> their patch, DE/Admin/PMO/CDO -> everything).
+    # Head -> their patch, DE/Admin/PMO/CXO -> everything).
     conditions = list(await project_scope_conditions(db, current_user))
     if exclude_status:
         # e.g. ?exclude_status=Draft — the DE "Projects" browser hides Draft projects.

@@ -6,8 +6,8 @@ CREATE TABLE metric_target_cloud_migration (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE,
 
-    target_applications_migrated_pct NUMERIC(5, 2),
-    target_migration_success_rate_pct NUMERIC(5, 2),
+    target_applications_migrated_pct NUMERIC(12, 2),
+    target_migration_success_rate_pct NUMERIC(12, 2),
     target_migration_downtime_hours NUMERIC(10, 2),
 
     created_at TIMESTAMPTZ NOT NULL,

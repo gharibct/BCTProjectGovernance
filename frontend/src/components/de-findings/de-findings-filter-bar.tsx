@@ -26,7 +26,7 @@ export function DeFindingsFilterBar({
   // Restricts the Geo/Account pickers to a Geo Head's/Delivery Manager's own
   // patch (see DeFindingsView) — the backend enforces this scope regardless,
   // but without this a Geo Head/Delivery Manager could pick an out-of-patch
-  // id and just get a 403 instead of a filtered list. DE/ADMIN/CDO get the
+  // id and just get a 403 instead of a filtered list. DE/ADMIN/CXO get the
   // full portfolio list (no override passed).
   geos?: Geo[];
   accounts?: Account[];

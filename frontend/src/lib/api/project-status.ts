@@ -352,16 +352,44 @@ export function useDeleteStatusItem(projectId: string | null, periodId: string |
 // "Copy from latest report": prefills this period's status + RAG registers from
 // the project's most recent earlier report. Sections that already have content
 // are left alone, so `copied` is 0 when there was nothing to bring over.
-export type CopyFromLatestResult = { copied: number; source_period_id: string | null };
+// `skipped`: source rows left out because that section already had content here.
+export type CopyFromLatestResult = { copied: number; source_period_id: string | null; skipped?: number };
+
+// `replace: true` wipes this period's Status + RAG items first and copies everything.
+export type CopyFromLatestArgs = { periodId: string; replace?: boolean };
 
 export function useCopyStatusItemsFromLatest(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (periodId: string) =>
-      api.post<CopyFromLatestResult>(`/projects/${projectId}/status-items/copy-from-latest?period_id=${periodId}`),
+    mutationFn: ({ periodId, replace = false }: CopyFromLatestArgs) =>
+      api.post<CopyFromLatestResult>(
+        `/projects/${projectId}/status-items/copy-from-latest?period_id=${periodId}&replace=${replace}`
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["status-items", projectId] });
       queryClient.invalidateQueries({ queryKey: ["health-items", projectId] });
     },
+  });
+}
+
+// Select-Project grid, Report Project Performance: Completed / In Progress / Not Started
+// per project for one Monthly period (GET /project-performance/status-by-period).
+export function useProjectPerformanceStatusByPeriod(periodId: string | null) {
+  return useQuery({
+    queryKey: ["performance-status-by-period", periodId],
+    queryFn: () => api.get<{ project_id: string; status: string }[]>(`/project-performance/status-by-period?period_id=${periodId}`),
+    enabled: !!periodId,
+    select: (rows) => new Map(rows.map((r) => [r.project_id, r.status])),
+  });
+}
+
+// Select-Project grid: the report state of every project in the caller's scope for
+// one period (GET /status-reports/by-period). Projects with no row have no report yet.
+export function useProjectReportStatusByPeriod(periodId: string | null) {
+  return useQuery({
+    queryKey: ["status-reports-by-period", periodId],
+    queryFn: () => api.get<{ project_id: string; status: ReportStatus }[]>(`/status-reports/by-period?period_id=${periodId}`),
+    enabled: !!periodId,
+    select: (rows) => new Map(rows.map((r) => [r.project_id, r.status])),
   });
 }

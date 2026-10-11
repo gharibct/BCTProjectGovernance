@@ -110,7 +110,7 @@ CREATE TABLE project_resources (
     resource_name TEXT NOT NULL,
     oracle_resource_id TEXT,
     role TEXT,
-    fte_allocation NUMERIC(5, 2) NOT NULL,
+    fte_allocation NUMERIC(9, 2) NOT NULL,
     synced_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

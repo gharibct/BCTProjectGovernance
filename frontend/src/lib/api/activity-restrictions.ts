@@ -18,7 +18,7 @@ export type ProjectActivity =
 
 export const PROJECT_ACTIVITIES: { key: ProjectActivity; label: string; hint: string }[] = [
   { key: "DELIVERY_STATUS", label: "Delivery Status Reporting", hint: "Weekly Delivery Status report and RAG" },
-  { key: "METRICS", label: "Project Performance - Metrics", hint: "Monthly measurement" },
+  { key: "METRICS", label: "Project Performance - Measurement", hint: "Monthly measurement" },
   { key: "COMMITMENTS", label: "Project Performance - Contractual Commitments", hint: "Monthly commitment actuals" },
   { key: "PAYMENT_MILESTONES", label: "Project Performance - Payment Milestones", hint: "Milestone payment actuals" },
   { key: "DE_ASSESSMENT", label: "DE Assessment", hint: "Assessments and DE findings" },

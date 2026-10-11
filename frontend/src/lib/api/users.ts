@@ -82,6 +82,24 @@ export function useAccountHead(accountId: string | null) {
   });
 }
 
+// Secondary (proxy) Delivery Managers of an account, for the Delivery Team section.
+export function useAccountProxyDeliveryManagers(accountId: string | null) {
+  return useQuery({
+    queryKey: ["account-proxy-dms", accountId],
+    queryFn: () => api.get<User[]>(`/accounts/${accountId}/proxy-delivery-managers`),
+    enabled: !!accountId,
+  });
+}
+
+// Secondary (proxy) Project Managers of a project, for the Delivery Team section.
+export function useProjectProxyManagers(projectId: string | null) {
+  return useQuery({
+    queryKey: ["project-proxy-pms", projectId],
+    queryFn: () => api.get<User[]>(`/projects/${projectId}/proxy-project-managers`),
+    enabled: !!projectId,
+  });
+}
+
 // Single-owner Account Head / Geo Head assignment from the Admin creation
 // screens. `userId = null` clears the head. Replaces any existing head link
 // (see backend PUT /accounts/{id}/account-head).

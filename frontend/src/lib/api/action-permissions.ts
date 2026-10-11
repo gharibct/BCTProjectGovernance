@@ -6,7 +6,7 @@ import type { Action, ActionLevel } from "@/lib/api/actions";
 // real. Kept here (not duplicated per component) since v1 had this literal
 // array copy-pasted across list/create/detail views.
 const WRITE_ROLES: Record<ActionLevel, readonly RoleCode[]> = {
-  GEO: ["GEO_HEAD", "CDO", "ADMIN"],
+  GEO: ["GEO_HEAD", "CXO", "ADMIN"],
   ACCOUNT: ["ACCOUNT_MANAGER", "GEO_HEAD", "ADMIN"],
   PROJECT: ["PROJECT_MANAGER", "ACCOUNT_MANAGER", "ADMIN"],
 };
@@ -19,7 +19,7 @@ export function canCreateAction(level: ActionLevel, roleCode: RoleCode | undefin
 // actions-view.tsx) offers per role — separate from WRITE_ROLES above (that
 // gates creating/editing at a level; this gates which levels are even
 // browsable). PM only ever deals with their own Projects; Delivery Manager
-// adds Account; Geo Head and CDO get all three. Delivery Excellence also
+// adds Account; Geo Head and CXO get all three. Delivery Excellence also
 // gets all three, but browse-only — DE is deliberately absent from
 // WRITE_ROLES above (its "Actions" entry sits under "My Reports", not "My
 // Work List"), so canCreateAction/canEdit stay false for DE; this only makes
@@ -30,7 +30,7 @@ const LEVELS_BY_ROLE: Partial<Record<RoleCode, readonly ActionLevel[]>> = {
   PROJECT_MANAGER: ["PROJECT"],
   ACCOUNT_MANAGER: ["ACCOUNT", "PROJECT"],
   GEO_HEAD: ["GEO", "ACCOUNT", "PROJECT"],
-  CDO: ["GEO", "ACCOUNT", "PROJECT"],
+  CXO: ["GEO", "ACCOUNT", "PROJECT"],
   DELIVERY_EXCELLENCE: ["GEO", "ACCOUNT", "PROJECT"],
 };
 

@@ -23,11 +23,34 @@ import {
 // pipeline feeding this screen yet), and no fabricated per-quadrant severity
 // color — every card uses the same neutral accent.
 
+// Long values (e.g. a big TCV revenue) step the font size down so they stay
+// inside the tile; anything still too long wraps rather than spilling out.
+function statValueSize(value: ReactNode): string {
+  if (typeof value !== "string" && typeof value !== "number") return "text-2xl";
+  const len = String(value).length;
+  if (len <= 9) return "text-2xl";
+  if (len <= 12) return "text-xl";
+  if (len <= 15) return "text-lg";
+  return "text-base";
+}
+
+// Revenue is shown as a whole number (no decimals), with thousands separators.
+function formatWholeNumber(raw: string | number | null | undefined): string {
+  if (raw === null || raw === undefined || raw === "") return "—";
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return String(raw);
+  return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
+
 function SnapshotStat({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
       <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">{label}</p>
-      <div className="mt-2 text-2xl font-bold text-slate-900">{value}</div>
+      <div
+        className={`mt-2 max-w-full leading-tight font-bold tracking-tight break-all text-slate-900 tabular-nums ${statValueSize(value)}`}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -121,7 +144,7 @@ export function OverviewSection({
       ) : null}
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
-        <SnapshotStat label="Revenue (USD)" value={report?.revenue ?? "—"} />
+        <SnapshotStat label="TCV Revenue (USD)" value={formatWholeNumber(report?.revenue)} />
         <SnapshotStat label="Projects" value={report?.projects_count ?? "—"} />
         <SnapshotStat label="ON:OFF FTE" value={fteRatio} />
         <SnapshotStat

@@ -39,7 +39,7 @@ from app.models.projects import Project
 from app.models.reference_data import Account, Geo, ReportingPeriod
 from app.models.regional_status import AccountStatusReport, GeoStatusReport
 from app.schemas.enums import ProjectActivity, ReportStatus
-from app.services.activity_restriction import MONTHLY_ACTIVITIES, restrictions_for_project
+from app.services.activity_restriction import restrictions_for_project
 from app.schemas.reporting_activity import (
     ActivityCounts,
     PeriodActivityItem,
@@ -191,11 +191,10 @@ async def build_reporting_activity(
     by_period = {r.period_id: r for r in reports}
 
     # Weekly Delivery Status switched off from a date; the monthly Project
-    # Performance report only once all three of its sections are.
+    # Performance report is always owed (RAIDO), whatever its sections.
     restrictions = await restrictions_for_project(db, project_id)
     weekly_from = restrictions.get(ProjectActivity.DELIVERY_STATUS.value)
-    monthly_dates = [restrictions.get(a.value) for a in MONTHLY_ACTIVITIES]
-    monthly_from = max(monthly_dates) if all(d is not None for d in monthly_dates) else None
+    monthly_from = None
 
     return ReportingActivityResponse(
         year=year,

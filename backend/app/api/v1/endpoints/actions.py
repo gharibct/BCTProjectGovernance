@@ -66,7 +66,7 @@ _TRANSITION_DENIED = "Only the action's owner or an authorized manager can do th
 #     the action — inherently can't happen purely via Depends(). ---
 
 _account_or_geo_scope = require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN)
-_geo_scope = require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CDO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CDO))
+_geo_scope = require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CXO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CXO))
 # Per-record project ownership (PM/AM own the project, or ADMIN) — unlike the
 # geo/account scopes above, this used to be require_role only (no ownership
 # check at all: any PM/AM could edit any project's actions). require_project_access
@@ -77,23 +77,23 @@ _project_read = require_project_read_access()
 # Excellence (whose "My Reports" Actions entry is read+create only — see
 # menu-config.ts; DE is deliberately not in write_dependency/transition_check
 # above, relying on the owner-bypass in _owner_or for actions DE created
-# itself). Both bypass ownership scoping entirely for DE (and CDO, already
+# itself). Both bypass ownership scoping entirely for DE (and CXO, already
 # unrestricted at GEO level via _geo_scope, extended to ACCOUNT level here
 # too for consistency).
 _geo_read = require_geo_scope(
     RoleCode.GEO_HEAD,
-    RoleCode.CDO,
+    RoleCode.CXO,
     RoleCode.DELIVERY_EXCELLENCE,
     RoleCode.ADMIN,
-    bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+    bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE),
 )
 _account_read = require_account_or_geo_scope(
     RoleCode.ACCOUNT_MANAGER,
     RoleCode.GEO_HEAD,
-    RoleCode.CDO,
+    RoleCode.CXO,
     RoleCode.DELIVERY_EXCELLENCE,
     RoleCode.ADMIN,
-    bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+    bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE),
 )
 
 

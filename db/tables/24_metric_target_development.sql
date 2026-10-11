@@ -15,13 +15,13 @@ CREATE TABLE metric_target_development (
     target_overall_estimated_effort NUMERIC(14, 2),
 
     target_productivity NUMERIC(14, 4),
-    target_effort_variation_pct NUMERIC(6, 2),
-    target_schedule_performance_index NUMERIC(6, 3),
-    target_cost_performance_index NUMERIC(6, 3),
-    target_defect_leakage_pct NUMERIC(6, 2),
-    target_code_coverage_pct NUMERIC(5, 2),
-    target_test_execution_coverage_pct NUMERIC(5, 2),
-    target_test_pass_rate_pct NUMERIC(5, 2),
+    target_effort_variation_pct NUMERIC(12, 2),
+    target_schedule_performance_index NUMERIC(12, 3),
+    target_cost_performance_index NUMERIC(12, 3),
+    target_defect_leakage_pct NUMERIC(12, 2),
+    target_code_coverage_pct NUMERIC(12, 2),
+    target_test_execution_coverage_pct NUMERIC(12, 2),
+    target_test_pass_rate_pct NUMERIC(12, 2),
 
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

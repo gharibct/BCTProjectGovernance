@@ -55,7 +55,7 @@ import {
   type ProjectResource,
   type ProjectResourcePayload,
 } from "@/lib/api/projects";
-import { useGeoHead } from "@/lib/api/users";
+import { useAccountProxyDeliveryManagers, useGeoHead, useProjectProxyManagers } from "@/lib/api/users";
 import { HealthDeclaration, useHealthDeclarationForm } from "./health-declaration";
 import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
@@ -76,6 +76,10 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
   const { data: accounts } = useAccounts();
   const { data: users } = useUsers();
   const { data: geoHead } = useGeoHead(project?.geo_id ?? null);
+  const { data: secondaryPms } = useProjectProxyManagers(project?.id ?? null);
+  const { data: secondaryDms } = useAccountProxyDeliveryManagers(project?.account_id ?? null);
+  const names = (list: { full_name: string }[] | undefined) =>
+    list && list.length > 0 ? list.map((u) => u.full_name).join(", ") : "None";
   const { data: projectOwnedReference } = useProjectOwnedReference();
   const projectOwnedInfoEntries = React.useMemo(
     () =>
@@ -228,6 +232,11 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
+          <Field label="Secondary Project Manager" badge={<AutoBadge />}>
+            <div className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+              {names(secondaryPms)}
+            </div>
+          </Field>
           <Field label={ACCOUNT_MANAGER_LABEL} htmlFor="delivery-manager">
             <NativeSelect id="delivery-manager" value={project?.delivery_manager_id ?? ""} disabled>
               <option value="" disabled>
@@ -240,6 +249,16 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
+          <Field label={`Secondary ${ACCOUNT_MANAGER_LABEL}`} badge={<AutoBadge />}>
+            <div className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600">
+              {names(secondaryDms)}
+            </div>
+          </Field>
+          <Field label="Geo Head" badge={<AutoBadge />}>
+            <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+              {geoHead?.full_name ?? "Not Assigned"}
+            </div>
+          </Field>
           <Field label="Delivery Excellence" htmlFor="delivery-excellence">
             <NativeSelect id="delivery-excellence" value={project?.delivery_excellence_id ?? ""} disabled>
               <option value="" disabled>
@@ -251,11 +270,6 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
                 </option>
               ))}
             </NativeSelect>
-          </Field>
-          <Field label="Geo Head" badge={<AutoBadge />}>
-            <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
-              {geoHead?.full_name ?? "Not Assigned"}
-            </div>
           </Field>
         </div>
       </SectionCard>
@@ -283,7 +297,7 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Revenue in USD" htmlFor="project-revenue-usd">
+          <Field label="TCV Revenue (USD)" htmlFor="project-revenue-usd">
             <Input
               id="project-revenue-usd"
               value={project?.project_revenue_usd ?? ""}

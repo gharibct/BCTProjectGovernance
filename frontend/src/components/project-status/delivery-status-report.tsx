@@ -9,7 +9,7 @@ import { LOCK_BAR_CLASS } from "@/components/new-project/baseline-lock";
 import { cn } from "@/lib/utils";
 
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
-import { CopyFromLatestButton } from "@/components/forms/copy-from-latest-button";
+import { CopyFromLatestButton, ReplaceFromLatestDialog } from "@/components/forms/copy-from-latest-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageBanner } from "@/stores/page-banner";
@@ -68,7 +68,8 @@ export function DeliveryStatusReport() {
 
   // No report yet for this period → carry Key Metrics forward from the last
   // period's report so unchanged figures don't have to be re-keyed.
-  const carriedFrom = existing ? undefined : previousPeriodReport(reports, periods, periodId);
+  const previousReport = previousPeriodReport(reports, periods, periodId);
+  const carriedFrom = existing ? undefined : previousReport;
   const carriedFromLabel = carriedFrom
     ? periods.find((p) => p.id === carriedFrom.period_id)?.label
     : null;
@@ -168,24 +169,42 @@ export function DeliveryStatusReport() {
   // "Copy from latest report": status + RAG registers are copied on the server
   // (and saved straight away); the six ratings are only pre-filled here, like
   // Key Metrics, and persist with Save Report.
+  //
+  // If the report already has saved content, the user is asked first; confirming
+  // replaces everything (Key Metrics, both registers, the six ratings).
   const copyItems = useCopyStatusItemsFromLatest(projectId ?? null);
-  const copyFromLatest = async () => {
+  const [confirmReplace, setConfirmReplace] = React.useState(false);
+  const runCopy = async (replace: boolean) => {
     if (!periodId) return;
     try {
-      const result = await copyItems.mutateAsync(periodId);
-      const ratingsCopied = health.copyRatingsFromLatest();
-      if (result.copied === 0 && !ratingsCopied) {
+      const result = await copyItems.mutateAsync({ periodId, replace });
+      // Some register sections already have content → ask before overwriting them.
+      if (!replace && (result.skipped ?? 0) > 0) {
+        setConfirmReplace(true);
+        return;
+      }
+      const ratingsCopied = health.copyRatingsFromLatest(replace);
+      let metricsCopied = false;
+      if (previousReport) {
+        setMetrics(statusMetricsFromReport(previousReport));
+        metricsCopied = true;
+      }
+      if (result.copied === 0 && !ratingsCopied && !metricsCopied) {
         showError("Nothing to copy — there is no earlier report, or these sections already have content.");
         return;
       }
       showSuccess(
-        ratingsCopied
-          ? "Copied from the latest report. RAG ratings are pre-filled — review them and Save Report."
+        ratingsCopied || metricsCopied
+          ? "Copied from the latest report. Key metrics and RAG ratings are pre-filled — review them and Save Report."
           : "Copied from the latest report."
       );
     } catch (err) {
       showError(err instanceof Error ? err.message : "Failed to copy from the latest report.");
     }
+  };
+  const copyFromLatest = () => {
+    if (existing || health.hasSavedRatings) setConfirmReplace(true);
+    else void runCopy(false);
   };
 
   // One Save Report for the whole page: report fields first (Key Metrics +
@@ -209,6 +228,14 @@ export function DeliveryStatusReport() {
           <CopyFromLatestButton onClick={copyFromLatest} busy={copyItems.isPending} />
         </div>
       ) : null}
+      <ReplaceFromLatestDialog
+        open={confirmReplace}
+        onOpenChange={setConfirmReplace}
+        onConfirm={() => {
+          setConfirmReplace(false);
+          void runCopy(true);
+        }}
+      />
       {periodId ? (
         <>
           <section id={SECTION_IDS.metrics} className="scroll-mt-6">
@@ -224,7 +251,7 @@ export function DeliveryStatusReport() {
                 </p>
               </Field>
               <div className="grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-4">
-                <Field label="Revenue (USD)" htmlFor="revenue">
+                <Field label="TCV Revenue (USD)" htmlFor="revenue">
                   <Input
                     id="revenue"
                     type="number"

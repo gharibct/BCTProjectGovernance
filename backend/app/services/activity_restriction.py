@@ -11,8 +11,8 @@ own date, or today when it has none.
 
 Weekly reporting periods map to DELIVERY_STATUS; the monthly Project
 Performance report is made of three sections — METRICS, COMMITMENTS and
-PAYMENT_MILESTONES — and the report as a whole is only "not required" once all
-three are restricted.
+PAYMENT_MILESTONES — each switched off on its own; the report as a whole (it also
+carries RAIDO) is always required.
 """
 
 from datetime import date
@@ -108,7 +108,7 @@ async def assert_period_open(
 
     Weekly period -> DELIVERY_STATUS. Monthly period -> `activity` when given
     (a Performance section), otherwise the monthly report as a whole, which is
-    only blocked once all three sections are restricted."""
+    never blocked as a whole (RAIDO is always reported)."""
     if period_id is None:
         return
     period = await db.get(ReportingPeriod, period_id)
@@ -126,9 +126,5 @@ async def assert_period_open(
         if is_restricted(restrictions, activity, period.start_date):
             raise _blocked(activity, restrictions[activity.value])
         return
-    if all(is_restricted(restrictions, a, period.start_date) for a in MONTHLY_ACTIVITIES):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "The monthly Project Performance report is not required for this project from "
-            f"{max(restrictions[a.value] for a in MONTHLY_ACTIVITIES).isoformat()}.",
-        )
+    # The monthly report as a whole is never "not required": RAIDO is always
+    # reported, even when all three sections above are switched off.

@@ -77,6 +77,8 @@ async def compute_geo_rollup(db: AsyncSession, geo_id: UUID, period_id: UUID) ->
             .scalars()
             .all()
         )
+        # Alphabetical by account name (entry order within an account).
+        status_items = sorted(status_items, key=lambda i: (account_by_id[i.account_id].name.lower(), i.created_at))
 
     items = [
         GeoRollupItem(

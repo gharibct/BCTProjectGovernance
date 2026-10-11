@@ -2,10 +2,9 @@
 
 import * as React from "react";
 import { Suspense } from "react";
-import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { effectiveProjectStatus, useProject } from "@/lib/api/projects";
 import { useAccounts, useGeos, useRegions, useUsers } from "@/lib/api/reference-data";
 import { formatGeoRegion } from "@/lib/api/project-health-lists";
@@ -62,13 +61,9 @@ function DetailInner() {
   const { data: users = [] } = useUsers();
 
   const backLink = (
-    <Link
-      href="/de-projects"
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
-    >
-      <ArrowLeft className="size-4" />
-      Back to Projects
-    </Link>
+    <PageBreadcrumb
+      items={[{ label: "Projects", href: "/de-projects" }, { label: project?.project_code ?? "Project" }]}
+    />
   );
 
   if (project?.project_status === "Draft") {

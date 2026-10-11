@@ -40,7 +40,7 @@ from app.models.measurement import (
 )
 from app.models.reference_data import ReportingPeriod
 from app.schemas.common import Page
-from app.schemas.enums import RoleCode, SdlcStage, StaffingPriority
+from app.schemas.enums import ProjectActivity, RoleCode, SdlcStage, StaffingPriority
 from app.schemas.measurement import (
     MeasurementCloudMaintenanceCreate,
     MeasurementCloudMaintenanceRead,

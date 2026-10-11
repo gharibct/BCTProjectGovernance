@@ -1,9 +1,11 @@
 "use client";
 
 import { Suspense, useMemo, type ChangeEvent } from "react";
-import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
+import { selectProjectHref } from "@/lib/project-context-targets";
+import { selectAccountHref } from "@/lib/account-context-targets";
 
 import { NativeSelect } from "@/components/ui/native-select";
 import { ActionTrackerTrigger } from "@/components/action-tracker/action-tracker-trigger";
@@ -29,8 +31,8 @@ import { ExecutiveUpdateSection } from "@/components/regional-reporting/executiv
 
 const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
   project: "Project Delivery Status",
-  account: "Delivery Status Report - Account",
-  geo: "Delivery Status Report - Geo",
+  account: "Account Delivery Status",
+  geo: "Geo Delivery Status",
 };
 
 // "approve" is a reviewer's worklist copy of the report (with the Approve / Reject
@@ -47,10 +49,13 @@ const APPROVE_NAV_HREF: Partial<Record<ReviewScope, string>> = {
   account: "/account-approval",
 };
 
-const SCOPE_NAV_HREF: Record<ReviewScope, string> = {
-  project: "/project-review",
-  account: "/account-review",
-  geo: "/geo-review",
+// The bare /project-review, /account-review and /geo-review routes do not exist
+// (only the /[id] children), so link to the project / account picker pages. The
+// geo report has no landing page (geos are picked from the menu), so its first crumb is plain text.
+const SCOPE_NAV_HREF: Record<ReviewScope, string | undefined> = {
+  project: selectProjectHref("project-review"),
+  account: selectAccountHref("account-review"),
+  geo: undefined,
 };
 
 function useEntityName(scope: ReviewScope, scopeId: string): string {
@@ -72,7 +77,7 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
   const { data: allReports = [] } = useReviewStatusReports(scope, scopeId);
   // My Reports (view) only shows filed reports for projects / accounts — Draft
   // / Rejected ones are still being worked on by the reporter. Geo reports
-  // (Geo Head and CDO) show in every status, incl. Auto Generated. The approve
+  // (Geo Head and CXO) show in every status, incl. Auto Generated. The approve
   // worklist (project / account) lists only Submitted reports — the ones
   // actually awaiting a decision.
   const reports = useMemo(() => {
@@ -87,10 +92,14 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
   // A ?period= that is no longer listed (e.g. just approved, so it left the
   // approve worklist) falls back to the first remaining report, so the
   // Approve / Reject bar is available by default.
+  //
+  // Exception: when opened from a drill-down grid (`?back=`, e.g. High Risks),
+  // the period is the one the row was about — if no report is filed for it, show
+  // that rather than silently showing a different week's report.
+  const cameFromGrid = !!searchParams.get("back");
   const periodId =
     (urlPeriodId && reports.some((r) => r.period_id === urlPeriodId) ? urlPeriodId : null) ??
-    reports[0]?.period_id ??
-    null;
+    (cameFromGrid && urlPeriodId ? null : (reports[0]?.period_id ?? null));
   const period = periods.find((p) => p.id === periodId);
   const report = reports.find((r) => r.period_id === periodId);
 
@@ -109,22 +118,23 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
   const viewOnly = scope !== "geo" && mode === "view";
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <div>
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
-          <Link
-            href={back || (approving ? APPROVE_NAV_HREF[scope] : undefined) || SCOPE_NAV_HREF[scope]}
-            className="font-semibold text-[#1a6fc4] hover:underline"
-          >
-            {back ? "Report Submissions" : approving ? APPROVE_NAV_LABEL[scope] : SCOPE_NAV_LABEL[scope]}
-          </Link>
-          {period ? (
-            <>
-              <ChevronRight className="size-4 text-slate-400" />
-              <span className="font-semibold text-slate-600">{period.label}</span>
-            </>
-          ) : null}
-        </nav>
+        <PageBreadcrumb
+          items={[
+            {
+              label: back
+                ? back.startsWith("/high-risks")
+                  ? "High Risks"
+                  : "Report Submissions"
+                : approving
+                  ? APPROVE_NAV_LABEL[scope]!
+                  : SCOPE_NAV_LABEL[scope],
+              href: back || (approving ? APPROVE_NAV_HREF[scope] : undefined) || SCOPE_NAV_HREF[scope],
+            },
+            ...(period ? [{ label: period.label }] : [{ label: name }]),
+          ]}
+        />
         <div className="mt-4 flex items-center gap-4">
           <h1 className="min-w-0 flex-1 truncate text-4xl font-bold tracking-tight text-slate-900">
             {period ? `${name} - ${period.period_type} Report` : name}
@@ -154,7 +164,11 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
 
       {!periodId ? (
         <p className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center text-slate-400">
-          {approving ? "No reports awaiting approval." : "No reports submitted yet."}
+          {approving
+            ? "No reports awaiting approval."
+            : cameFromGrid && urlPeriodId
+              ? "No report has been submitted for this period."
+              : "No reports submitted yet."}
         </p>
       ) : (
         <>

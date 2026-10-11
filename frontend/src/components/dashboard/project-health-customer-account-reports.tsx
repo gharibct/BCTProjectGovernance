@@ -111,9 +111,9 @@ export function ProjectHealthCustomerAccountReports() {
   const rows: Row[] = (data?.items ?? []).map((row) => ({ ...row, id: row.account_id }));
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <BackToProjectHealth />
+        <BackToProjectHealth current="Customer Account Reporting" />
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Customer Account Reporting</h1>
         <p className="text-slate-500">
           Active accounts and whether they shared a presentation with the customer in the previous or the current calendar

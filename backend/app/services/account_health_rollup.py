@@ -87,7 +87,7 @@ async def pull_health_rollup_item(db: AsyncSession, account_id: UUID, project_it
         AccountHealthItemCreate(
             period_id=item.period_id,
             category=item.category,
-            description=f"{project.project_code} — {item.description}",
+            description=f"{project.project_name} — {item.description}",
         ),
         account_id=account_id,
     )

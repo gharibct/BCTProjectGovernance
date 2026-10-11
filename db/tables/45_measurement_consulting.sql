@@ -8,15 +8,15 @@ CREATE TABLE measurement_consulting (
 
     planned_effort_as_on_date NUMERIC(14, 2),
     actual_effort_as_on_date NUMERIC(14, 2),
-    planned_pct_completion NUMERIC(5, 2),
-    actual_pct_completion NUMERIC(5, 2),
+    planned_pct_completion NUMERIC(12, 2),
+    actual_pct_completion NUMERIC(12, 2),
     planned_cost NUMERIC(18, 2),
     actual_cost NUMERIC(18, 2),
 
     -- Computed, read-only in the UI.
-    effort_variation_pct NUMERIC(6, 2),
-    schedule_performance_index NUMERIC(6, 3),
-    cost_performance_index NUMERIC(6, 3),
+    effort_variation_pct NUMERIC(12, 2),
+    schedule_performance_index NUMERIC(12, 3),
+    cost_performance_index NUMERIC(12, 3),
 
     last_updated_date DATE,
     created_at TIMESTAMPTZ NOT NULL,

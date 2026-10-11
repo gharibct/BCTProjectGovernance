@@ -15,7 +15,7 @@ export function ProjectHealthComingSoon({
   columns: string[];
 }) {
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
         <p className="mt-1.5 text-slate-500">Portfolio-wide {title.toLowerCase()} report</p>

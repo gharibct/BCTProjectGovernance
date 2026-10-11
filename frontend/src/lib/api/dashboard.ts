@@ -64,7 +64,7 @@ export type HighlightRow = {
 };
 
 // One open Alert (DE assessment finding classified "Alert", still open) — the
-// row shape for the "Open Alerts" list section on the PM, Account and CDO
+// row shape for the "Open Alerts" list section on the PM, Account and CXO
 // dashboards.
 export type OpenNcRow = {
   finding_id: string;
@@ -102,7 +102,7 @@ export type DashboardSummary = {
 
 // Role-scoping for the Geo Head / Delivery Manager dashboards (see
 // backend/app/services/dashboard.py's DashboardFilters.geo_ids/account_ids)
-// — undefined/empty means unfiltered (CDO/Admin dashboards).
+// — undefined/empty means unfiltered (CXO/Admin dashboards).
 export type DashboardScope = {
   geo_ids?: string[];
   account_ids?: string[];

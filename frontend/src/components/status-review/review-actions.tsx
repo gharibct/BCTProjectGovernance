@@ -27,7 +27,7 @@ function formatDateTime(value: string): string {
 }
 
 // Approve/Reject action bar for a Status Review page — visible only to the
-// reviewer role for this scope (Account Head/Geo Head/CDO, or Admin) once
+// reviewer role for this scope (Account Head/Geo Head/CXO, or Admin) once
 // the report is Submitted. Once reviewed, shows a read-only line instead. With
 // `readOnly` (the view-only Project Delivery Status page) the Approve/Reject bar
 // is never shown — only the "Reviewed on …" line of an already-decided report.

@@ -4,7 +4,8 @@ import * as React from "react";
 import { Suspense } from "react";
 import { usePathname, useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, ClipboardCheck, HeartPulse, History } from "lucide-react";
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
+import { CalendarDays, ClipboardCheck, HeartPulse, History } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ const READ_ONLY_BACK_SEGMENT: Partial<Record<string, string>> = {
   PROJECT_MANAGER: "project-reporting",
   ACCOUNT_MANAGER: "project-review",
   GEO_HEAD: "project-review",
-  CDO: "project-review",
+  CXO: "project-review",
 };
 
 function today(): string {
@@ -262,12 +263,12 @@ function WorkspaceInner() {
   // /de-assessment queue 403s for them (require_role DELIVERY_EXCELLENCE
   // /ADMIN on /dashboard/de-summary) — so they go back to their own project
   // report screen instead. PM lands on /project-reporting; Account
-  // Manager/Geo Head/CDO land on /project-review, which is what their menu
+  // Manager/Geo Head/CXO land on /project-review, which is what their menu
   // actually gives them (see menu-config.ts).
   const backHref = roleCanWrite
     ? "/de-assessment"
     : `/${READ_ONLY_BACK_SEGMENT[role ?? ""] ?? "project-reporting"}/${projectId}`;
-  const backLabel = roleCanWrite ? "Back to Queue" : "Back to Project";
+  const backLabel = roleCanWrite ? "Project Assessments" : "Project";
 
   const subtitle = roleCanWrite
     ? working
@@ -285,13 +286,7 @@ function WorkspaceInner() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
-          >
-            <ArrowLeft className="size-4" />
-            {backLabel}
-          </Link>
+          <PageBreadcrumb items={[{ label: backLabel, href: backHref }, { label: "Project Assessment" }]} />
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             Project Assessment — {project?.project_name ?? "…"}
           </h1>

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
 import type { OpenNcRow } from "./dashboard";
-import type { CopyFromLatestResult, ProjectStatusCategory, ReportStatus } from "./project-status";
+import type { CopyFromLatestArgs, CopyFromLatestResult, ProjectStatusCategory, ReportStatus } from "./project-status";
 import type { ReportingActivitySeries } from "@/lib/reporting-activity";
 
 // Account Reporting / Geo Reporting — manually authored, period-scoped
@@ -90,6 +90,21 @@ export function useRegionalStatusReports(scope: RegionalScope, scopeId: string |
   });
 }
 
+// True when the account's geo report is Baselined for the period — the account
+// report can't be submitted then.
+export function useGeoBaselinedForAccount(accountId: string | null, periodId: string | null) {
+  return useQuery({
+    queryKey: ["account-geo-baselined", accountId, periodId],
+    queryFn: async () =>
+      (
+        await api.get<{ baselined: boolean }>(
+          `/accounts/${accountId}/status-reports/geo-baselined?period_id=${periodId}`
+        )
+      ).baselined,
+    enabled: !!accountId && !!periodId,
+  });
+}
+
 // Reporting Hub activity — server-computed Weekly submission timeline for the
 // progress ring + activity heatmap. Weekly-only (Account/Geo Status Reporting
 // has a single cadence); the per-period shapes are shared with Project
@@ -162,7 +177,7 @@ export function useRecallAccountStatusReport(accountId: string | null) {
   });
 }
 
-// Account Review / Geo Review (for Geo Heads / CDO): approve/reject a
+// Account Review / Geo Review (for Geo Heads / CXO): approve/reject a
 // Submitted report.
 export type StatusReportReviewPayload = {
   decision: "Approved" | "Rejected";
@@ -279,11 +294,25 @@ export function useDeleteRegionalStatusItem(
 export function useCopyAccountItemsFromLatest(accountId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (periodId: string) =>
-      api.post<CopyFromLatestResult>(`/accounts/${accountId}/status-items/copy-from-latest?period_id=${periodId}`),
+    mutationFn: ({ periodId, replace = false }: CopyFromLatestArgs) =>
+      api.post<CopyFromLatestResult>(
+        `/accounts/${accountId}/status-items/copy-from-latest?period_id=${periodId}&replace=${replace}`
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["regional-status-items", "account", accountId] });
       queryClient.invalidateQueries({ queryKey: ["account-health-items", accountId] });
     },
+  });
+}
+
+// Select-Account grid: the report state of every account for one period
+// (GET /account-status-reports/by-period). Accounts with no row have no report yet.
+export function useAccountReportStatusByPeriod(periodId: string | null) {
+  return useQuery({
+    queryKey: ["account-status-reports-by-period", periodId],
+    queryFn: () =>
+      api.get<{ account_id: string; status: ReportStatus }[]>(`/account-status-reports/by-period?period_id=${periodId}`),
+    enabled: !!periodId,
+    select: (rows) => new Map(rows.map((r) => [r.account_id, r.status])),
   });
 }

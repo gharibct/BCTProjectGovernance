@@ -1,7 +1,7 @@
 """Portfolio-wide DE Findings API — a cross-project list + KPI read and a
 body-carries-project create/update over the project-level
 `de_assessment_findings` register. Reads are open to DELIVERY_EXCELLENCE /
-ADMIN / CDO (unrestricted, portfolio-wide) and to GEO_HEAD / ACCOUNT_MANAGER
+ADMIN / CXO (unrestricted, portfolio-wide) and to GEO_HEAD / ACCOUNT_MANAGER
 (patch-scoped to their own geos/accounts — see
 require_de_findings_read_scope). Writes stay DELIVERY_EXCELLENCE / ADMIN only.
 The project-scoped register lives at /projects/{id}/de-assessment-findings

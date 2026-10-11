@@ -9,14 +9,16 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_project_access, require_project_read_access
+from app.api.deps import get_current_user, project_scope_conditions, require_project_access, require_project_read_access
 from app.core.config import settings
 from app.core.db import get_db
 from app.crud.project_status import project_status_item_crud, project_status_report_crud
 from app.crud.projects import project_crud
 from app.models.health_declarations import ProjectHealthItem
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
+from app.models.projects import Project
 from app.models.reference_data import ReportingPeriod
+from app.models.users import User
 from app.schemas.enums import ProjectStatusCategory, ReportStatus, RoleCode
 from app.schemas.project_status import (
     ProjectStatusItemCreate,
@@ -470,15 +472,33 @@ async def _assert_period_editable(db: AsyncSession, project_id: UUID, period_id:
 # registers from the project's most recent earlier report of the same period
 # type. Only sections that are still empty are filled.
 @items_router.post("/copy-from-latest", response_model=CopyFromLatestResult, dependencies=_pm_write)
-async def copy_items_from_latest_report(project_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
+async def copy_items_from_latest_report(
+    project_id: UUID, period_id: UUID, replace: bool = False, db: AsyncSession = Depends(get_db)
+):
+    """`replace=true` wipes this period's Status and RAG items first and copies
+    everything; the default only fills sections that are still empty."""
     await _assert_period_editable(db, project_id, period_id)
-    status_copied, status_source = await copy_category_items(
-        db, model=ProjectStatusItem, owner_column=ProjectStatusItem.project_id, owner_id=project_id, period_id=period_id
+    status_copied, status_source, status_skipped = await copy_category_items(
+        db,
+        model=ProjectStatusItem,
+        owner_column=ProjectStatusItem.project_id,
+        owner_id=project_id,
+        period_id=period_id,
+        replace=replace,
     )
-    health_copied, health_source = await copy_category_items(
-        db, model=ProjectHealthItem, owner_column=ProjectHealthItem.project_id, owner_id=project_id, period_id=period_id
+    health_copied, health_source, health_skipped = await copy_category_items(
+        db,
+        model=ProjectHealthItem,
+        owner_column=ProjectHealthItem.project_id,
+        owner_id=project_id,
+        period_id=period_id,
+        replace=replace,
     )
-    return CopyFromLatestResult(copied=status_copied + health_copied, source_period_id=status_source or health_source)
+    return CopyFromLatestResult(
+        copied=status_copied + health_copied,
+        source_period_id=status_source or health_source,
+        skipped=status_skipped + health_skipped,
+    )
 
 
 @items_router.get("", response_model=list[ProjectStatusItemRead], dependencies=_pm_read)
@@ -559,3 +579,22 @@ async def get_reporting_activity(
     db: AsyncSession = Depends(get_db),
 ):
     return await build_reporting_activity(db, project_id, year or date.today().year)
+
+
+# Select-Project grid (Report Project Status): which projects already have a
+# report for a chosen period, and in what state. Scoped like GET /projects.
+period_router = APIRouter(prefix="/status-reports", tags=["Project Status"])
+
+
+@period_router.get("/by-period")
+async def status_by_period(
+    period_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    stmt = (
+        select(ProjectStatusReport.project_id, ProjectStatusReport.status)
+        .join(Project, Project.id == ProjectStatusReport.project_id)
+        .where(ProjectStatusReport.period_id == period_id, *await project_scope_conditions(db, current_user))
+    )
+    return [{"project_id": pid, "status": st} for pid, st in (await db.execute(stmt)).all()]

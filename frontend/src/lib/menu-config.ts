@@ -4,7 +4,7 @@ import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 // Which sidebar entries each role sees, and where their login lands them.
 // Admin keeps only the admin-specific screens (plus PMO, which has no
 // Work-as option). Everything owned by PM / Account Head / Geo Head / DE /
-// CDO is reached by switching the top-bar "Work as" combo to that role —
+// CXO is reached by switching the top-bar "Work as" combo to that role —
 // see WORK_CONTEXTS below (and docs/ux-requirements.md §5).
 export type MenuEntryId =
   | "dashboard"
@@ -17,7 +17,7 @@ export type MenuEntryId =
   | "de-assessment-report"
   | "project-activity-restriction"
   | "admin-dashboard"
-  | "cdo-dashboard"
+  | "cxo-dashboard"
   | "project-health"
   | "account-manager-dashboard"
   | "geo-head-dashboard"
@@ -41,6 +41,7 @@ export type MenuEntryId =
   | "account-review"
   | "account-approval"
   | "geo-review"
+  | "high-risks"
   | "admin-users-roles"
   | "admin-integrations"
   | "admin-regions"
@@ -73,7 +74,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     },
     {
       heading: "My Reports",
-      items: ["project-review", "project-performance", "de-assessment-report", "pm-findings", "actions"],
+      items: ["de-assessment-report", "pm-findings", "actions"],
     },
   ],
   TEAM_MEMBER: [{ items: DASHBOARD_ONLY_MENU }],
@@ -83,18 +84,18 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
       heading: "My Worklist",
       items: [
         "de-project-requests",
+        "project-activity-restriction",
         "de-allocation",
         "de-approval",
         "de-assessment",
         "de-findings",
         "de-projects",
-        "project-activity-restriction",
         "reassignment",
       ],
     },
     {
       heading: "My Reports",
-      items: ["geo-review", "account-review", "project-review", "project-performance", "actions"],
+      items: ["actions"],
     },
   ],
   // No PMO login exists yet — this is wired the same way as every other
@@ -110,9 +111,6 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     {
       heading: "My Reports",
       items: [
-        "account-review",
-        "project-review",
-        "project-performance",
         "de-assessment-report",
         "de-findings",
         "actions",
@@ -132,10 +130,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     {
       heading: "My Reports",
       items: [
-        "geo-review",
-        "account-review",
-        "project-review",
-        "project-performance",
+        "high-risks",
         "de-assessment-report",
         "de-findings",
         "actions",
@@ -154,11 +149,12 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
       ],
     },
   ],
-  CDO: [
-    { items: ["cdo-dashboard"] },
+  CXO: [
+    { items: ["cxo-dashboard"] },
     {
       heading: "My Reports",
       items: [
+        "high-risks",
         "geo-review",
         "account-review",
         "project-review",
@@ -170,7 +166,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     },
   ],
   // Admin-only screens. Everything else (PM / Account Head / Geo Head / DE /
-  // CDO work) is reached via the top-bar "Work as" combo — see WORK_CONTEXTS.
+  // CXO work) is reached via the top-bar "Work as" combo — see WORK_CONTEXTS.
   // Out of scope for grouping.
   ADMIN: [
     {
@@ -221,7 +217,7 @@ export const ROLE_LANDING_ROUTE: Record<RoleCode, string> = {
   PMO: "/project-health",
   ACCOUNT_MANAGER: "/project-health",
   GEO_HEAD: "/project-health",
-  CDO: "/project-health",
+  CXO: "/project-health",
   ADMIN: "/dashboard/admin",
 };
 
@@ -240,7 +236,7 @@ export const WORK_CONTEXTS: Partial<Record<RoleCode, RoleCode[]>> = {
     "ACCOUNT_MANAGER",
     "GEO_HEAD",
     "DELIVERY_EXCELLENCE",
-    "CDO",
+    "CXO",
   ],
 };
 
@@ -248,7 +244,7 @@ export const WORK_CONTEXT_LABEL: Record<RoleCode, string> = {
   PROJECT_MANAGER: "PM",
   ACCOUNT_MANAGER: ACCOUNT_MANAGER_LABEL,
   GEO_HEAD: "Geo Head",
-  CDO: "CDO",
+  CXO: "CXO",
   TEAM_MEMBER: "Team Member",
   DELIVERY_EXCELLENCE: "DE",
   PMO: "PMO",

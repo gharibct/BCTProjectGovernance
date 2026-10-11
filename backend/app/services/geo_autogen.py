@@ -86,6 +86,9 @@ async def sync_geo_report_from_accounts(db: AsyncSession, geo_id: UUID, period_i
             )
         )
     ).scalars().all()
+    # Alphabetical by account name (entry order within an account): the geo rows
+    # are created, and so listed, in this order.
+    account_items = sorted(account_items, key=lambda i: (account_by_id[i.account_id].name.lower(), i.created_at))
     for item in account_items:
         if item.account_rollup_status == RollupStatus.PULLED:
             item.account_rollup_status = RollupStatus.PENDING

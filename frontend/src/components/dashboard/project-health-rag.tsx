@@ -57,9 +57,9 @@ export function ProjectHealthRag() {
   const rows: Row[] = (data?.items ?? []).map((row) => ({ ...row, id: row.project_id }));
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <BackToProjectHealth />
+        <BackToProjectHealth current="RAG Report" />
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">RAG Report</h1>
         <p className="text-slate-500">Detailed health status and reporting compliance.</p>
       </header>

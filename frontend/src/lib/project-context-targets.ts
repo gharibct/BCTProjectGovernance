@@ -26,7 +26,7 @@ export function isApproved(status: Project["project_status"]): boolean {
   return status !== "Draft" && status !== "Pending Approval";
 }
 
-// Report Delivery Status / Report Project Performance are narrower than isApproved: a project mid-revision
+// Report Project Status / Report Project Performance are narrower than isApproved: a project mid-revision
 // (Under Amendment) is back in the charter-editing flow, not a live project to
 // report on, so it's excluded there (it still shows under Amend Project).
 export function canReport(status: Project["project_status"]): boolean {
@@ -46,7 +46,7 @@ type ProjectTarget = {
    *  instead of the signed-in user's patch (a DE's patch is only its allocated projects). */
   scope?: "all";
   /** The project is left out once EVERY one of these activities is restricted for it
-   *  (Project Activity Restriction) — a screen that records nothing any more. */
+   *  (Configure Project Activities) — a screen that records nothing any more. */
   hiddenWhenRestricted?: ProjectActivity[];
 };
 
@@ -67,7 +67,7 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     emptyLabel: "No approved projects yet.",
   },
   "delivery-reporting": {
-    label: "Report Delivery Status",
+    label: "Report Project Status",
     hrefFor: (id) => `/project-reporting/${id}/delivery-calendar`,
     eligible: (p) => canReport(p.project_status),
     hiddenWhenRestricted: ["DELIVERY_STATUS"],
@@ -77,8 +77,8 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     label: "Report Project Performance",
     hrefFor: (id) => `/project-reporting/${id}/performance`,
     eligible: (p) => canReport(p.project_status),
-    // The monthly report is only gone once all three of its sections are switched off.
-    hiddenWhenRestricted: ["METRICS", "COMMITMENTS", "PAYMENT_MILESTONES"],
+    // Always launchable — RAIDO is reported here even when the other three
+    // sections are switched off in Configure Project Activities.
     emptyLabel: "No approved projects yet.",
   },
   "project-review": {
@@ -104,7 +104,7 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
   },
   // Delivery Excellence only (menu-config.ts): switch activities off for a live project.
   "project-activity-restriction": {
-    label: "Project Activity Restriction",
+    label: "Configure Project Activities",
     hrefFor: (id) => `/project-activity-restriction/${id}`,
     // Draft and Pending Approval projects too: a restriction set during setup also decides
     // whether Commitments / Milestones are mandatory for approval.

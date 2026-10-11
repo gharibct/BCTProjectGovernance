@@ -69,7 +69,7 @@ async def pending_account_approvals(
     elif role_code == RoleCode.ACCOUNT_MANAGER:
         account_ids = await _owned_account_ids(db, current_user)
         conditions.append(Account.id.in_(account_ids) if account_ids else false())
-    elif role_code not in (RoleCode.ADMIN, RoleCode.CDO):
+    elif role_code not in (RoleCode.ADMIN, RoleCode.CXO):
         conditions.append(false())
 
     stmt = (

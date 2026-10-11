@@ -50,17 +50,20 @@ from app.services.reporting_activity import build_weekly_reporting_activity
 # reports are a retained audit trail.
 account_status_router = APIRouter(prefix="/accounts/{account_id}/status-reports", tags=["Account Reporting"])
 geo_status_router = APIRouter(prefix="/geos/{geo_id}/status-reports", tags=["Geo Reporting"])
+# Select-Account grid (Report Account Status): the report state of every account for
+# one period. Statuses only; the page lists just the accounts in the caller's scope.
+account_period_router = APIRouter(prefix="/account-status-reports", tags=["Account Reporting"])
 
 # Account-Head work — also reachable by a Geo Head via the top-bar Work Context,
 # for accounts in their own geo (require_account_or_geo_scope).
 _account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _geo_head_review = [Depends(require_account_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
-_cdo_review = [Depends(require_role(RoleCode.CDO, RoleCode.ADMIN))]
+_cxo_review = [Depends(require_role(RoleCode.CXO, RoleCode.ADMIN))]
 # Reads: an owning Delivery Manager or reviewing Geo Head is ownership-scoped
-# same as the write gate, but CDO and Delivery Excellence also get read
-# access here (both view across every geo/account by design — CDO already
-# reviews geo-level reports unconditionally via _cdo_review, and DE's "My
+# same as the write gate, but CXO and Delivery Excellence also get read
+# access here (both view across every geo/account by design — CXO already
+# reviews geo-level reports unconditionally via _cxo_review, and DE's "My
 # Reports" menu section needs the same cross-portfolio visibility — see
 # menu-config.ts), so they bypass the ownership check entirely.
 _account_read = [
@@ -68,10 +71,10 @@ _account_read = [
         require_account_or_geo_scope(
             RoleCode.ACCOUNT_MANAGER,
             RoleCode.GEO_HEAD,
-            RoleCode.CDO,
+            RoleCode.CXO,
             RoleCode.DELIVERY_EXCELLENCE,
             RoleCode.ADMIN,
-            bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE),
         )
     )
 ]
@@ -79,10 +82,10 @@ _geo_read = [
     Depends(
         require_geo_scope(
             RoleCode.GEO_HEAD,
-            RoleCode.CDO,
+            RoleCode.CXO,
             RoleCode.DELIVERY_EXCELLENCE,
             RoleCode.ADMIN,
-            bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE),
         )
     )
 ]
@@ -208,6 +211,24 @@ async def get_latest_account_status_report(account_id: UUID, db: AsyncSession = 
     if not items:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No status reports recorded for this account")
     return items[0]
+
+
+@account_status_router.get("/geo-baselined", dependencies=_account_read)
+async def get_account_geo_baselined(account_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
+    """Whether the account's geo report is Baselined for the period — the
+    account report can no longer be submitted then (see
+    _assert_geo_not_baselined_for_account)."""
+    account = await db.get(Account, account_id)
+    if account is None or account.geo_id is None:
+        return {"baselined": False}
+    geo_status = (
+        await db.execute(
+            select(GeoStatusReport.status).where(
+                GeoStatusReport.geo_id == account.geo_id, GeoStatusReport.period_id == period_id
+            )
+        )
+    ).scalars().first()
+    return {"baselined": geo_status == ReportStatus.BASELINED}
 
 
 @account_status_router.post(
@@ -403,7 +424,7 @@ async def update_geo_status_report(
 
 # Recall: a Baselined geo report goes back to Draft - Saved so the Geo Head can
 # edit it again. (Geo reports are baselined, not submitted for review, so
-# there is no CDO approve/reject step.)
+# there is no CXO approve/reject step.)
 @geo_status_router.patch("/{report_id}/recall", response_model=GeoStatusReportRead, dependencies=_geo_head_write)
 async def recall_geo_status_report(
     geo_id: UUID, report_id: UUID, payload: StatusReportRecallRequest, db: AsyncSession = Depends(get_db)
@@ -471,15 +492,31 @@ async def _assert_geo_period_editable(db: AsyncSession, geo_id: UUID, period_id:
 @account_status_items_router.post(
     "/copy-from-latest", response_model=CopyFromLatestResult, dependencies=_account_manager_write
 )
-async def copy_account_items_from_latest_report(account_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
+async def copy_account_items_from_latest_report(
+    account_id: UUID, period_id: UUID, replace: bool = False, db: AsyncSession = Depends(get_db)
+):
     await _assert_account_period_editable(db, account_id, period_id)
-    status_copied, status_source = await copy_category_items(
-        db, model=AccountStatusItem, owner_column=AccountStatusItem.account_id, owner_id=account_id, period_id=period_id
+    status_copied, status_source, status_skipped = await copy_category_items(
+        db,
+        model=AccountStatusItem,
+        owner_column=AccountStatusItem.account_id,
+        owner_id=account_id,
+        period_id=period_id,
+        replace=replace,
     )
-    health_copied, health_source = await copy_category_items(
-        db, model=AccountHealthItem, owner_column=AccountHealthItem.account_id, owner_id=account_id, period_id=period_id
+    health_copied, health_source, health_skipped = await copy_category_items(
+        db,
+        model=AccountHealthItem,
+        owner_column=AccountHealthItem.account_id,
+        owner_id=account_id,
+        period_id=period_id,
+        replace=replace,
     )
-    return CopyFromLatestResult(copied=status_copied + health_copied, source_period_id=status_source or health_source)
+    return CopyFromLatestResult(
+        copied=status_copied + health_copied,
+        source_period_id=status_source or health_source,
+        skipped=status_skipped + health_skipped,
+    )
 
 
 @account_status_items_router.get("", response_model=list[AccountStatusItemRead], dependencies=_account_read)
@@ -570,7 +607,9 @@ async def list_geo_status_items(
         },
         limit=500,
     )
-    return items
+    # Pulled/auto-generated rows read "<account name> — <text>": list them
+    # alphabetically by account name, keeping entry order within an account.
+    return sorted(items, key=lambda i: (i.description.split(" — ", 1)[0].lower(), i.created_at))
 
 
 @geo_status_items_router.post(
@@ -602,3 +641,19 @@ async def delete_geo_status_item(geo_id: UUID, item_id: UUID, db: AsyncSession =
     await _assert_geo_period_editable(db, geo_id, obj.period_id)
     await mark_geo_report_saved(db, geo_id, obj.period_id)
     await geo_status_item_crud.delete(db, obj)
+
+@account_period_router.get(
+    "/by-period",
+    dependencies=[
+        Depends(
+            require_role(
+                RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN
+            )
+        )
+    ],
+)
+async def account_status_by_period(period_id: UUID, db: AsyncSession = Depends(get_db)) -> list[dict[str, Any]]:
+    stmt = select(AccountStatusReport.account_id, AccountStatusReport.status).where(
+        AccountStatusReport.period_id == period_id
+    )
+    return [{"account_id": aid, "status": st} for aid, st in (await db.execute(stmt)).all()]

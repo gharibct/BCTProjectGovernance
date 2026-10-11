@@ -1,7 +1,7 @@
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { ApiError } from "@/lib/api/client";
 import { HEALTH_RATING_COLORS } from "@/lib/health-rating-colors";
 import { cn } from "@/lib/utils";
@@ -9,16 +9,8 @@ import { cn } from "@/lib/utils";
 // Back-to-overview link for every drill-down list screen's header — the main
 // /project-health dashboard links out to these screens via each Card's
 // footer, but had no way back short of the browser's own back button.
-export function BackToProjectHealth() {
-  return (
-    <Link
-      href="/project-health"
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4] hover:underline"
-    >
-      <ArrowLeft className="size-4" />
-      Back to Project Health
-    </Link>
-  );
+export function BackToProjectHealth({ current }: { current: string }) {
+  return <PageBreadcrumb items={[{ label: "Project Health", href: "/project-health" }, { label: current }]} />;
 }
 
 // Shared error panel for the drill-down list screens' fetch failures — same
@@ -120,6 +112,28 @@ export function SubStat({ label, value, valueClass }: { label: string; value: Re
   );
 }
 
+// One tinted RAG count cell (label + number) — the compact KPI used on the
+// Project Health cards and the High Risks summary. Pass the tone via
+// className (bg/border/label color) and valueClassName (number color).
+export function RagCountCell({
+  label,
+  value,
+  className,
+  valueClassName,
+}: {
+  label: string;
+  value: React.ReactNode;
+  className: string;
+  valueClassName: string;
+}) {
+  return (
+    <div className={cn("rounded-md border p-1 text-center", className)}>
+      <p className="text-[9px] font-semibold tracking-wide uppercase">{label}</p>
+      <p className={cn("text-sm font-bold", valueClassName)}>{value}</p>
+    </div>
+  );
+}
+
 export function formatNumber(value: string | null | undefined): string {
   if (!value) return "—";
   const n = Number(value);
@@ -166,13 +180,19 @@ export function StatTile({
   value,
   label,
   accentClassName,
+  accentColor,
 }: {
   value: React.ReactNode;
   label: string;
   accentClassName?: string;
+  // Exact top-border color (e.g. a RAG hex) when a Tailwind class won't do.
+  accentColor?: string;
 }) {
   return (
-    <div className={cn("rounded-xl border-t-4 border border-slate-200 bg-white p-4 shadow-sm", accentClassName ?? "border-t-[#1a6fc4]")}>
+    <div
+      className={cn("rounded-xl border-t-4 border border-slate-200 bg-white p-4 shadow-sm", !accentColor && (accentClassName ?? "border-t-[#1a6fc4]"))}
+      style={accentColor ? { borderTopColor: accentColor } : undefined}
+    >
       <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">{label}</p>
       <p className="mt-1 text-3xl font-bold text-slate-900">{value}</p>
     </div>

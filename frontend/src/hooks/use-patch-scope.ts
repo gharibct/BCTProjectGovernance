@@ -11,16 +11,16 @@ import { useSession } from "@/stores/session";
 // data scope). Shared by AppSidebar's nav lists and the standalone Actions
 // page (see actions-view.tsx) so the two don't drift.
 //
-// Admin sees everything. CDO sees every Geo already (there's no per-CDO geo
-// allocation); Account/Project have no CDO-specific allocation either, so
-// CDO is widened to see every Account/Project too, the same way Admin is.
+// Admin sees everything. CXO sees every Geo already (there's no per-CXO geo
+// allocation); Account/Project have no CXO-specific allocation either, so
+// CXO is widened to see every Account/Project too, the same way Admin is.
 export function usePatchScope() {
   const user = useSession((s) => s.user);
   const realRole = user?.role.code;
   const isAdmin = realRole === "ADMIN";
-  const isCdo = realRole === "CDO";
+  const isCxo = realRole === "CXO";
   const isDe = realRole === "DELIVERY_EXCELLENCE";
-  const seesAllAccountsAndProjects = isAdmin || isCdo;
+  const seesAllAccountsAndProjects = isAdmin || isCxo;
 
   const { data: projects = [] } = useProjects();
   const { data: accounts = [] } = useAccounts();
@@ -45,7 +45,7 @@ export function usePatchScope() {
     if (realRole === "PROJECT_MANAGER") return projects; // GET /projects already returns Primary + proxy PM projects
     // DE's allocation is per-project (delivery_excellence_id), not
     // account/geo membership — DE has no user_accounts/user_geos rows to
-    // fall back on, unlike every other non-Admin/CDO role below.
+    // fall back on, unlike every other non-Admin/CXO role below.
     if (isDe) return projects.filter((p) => p.delivery_excellence_id === user?.id);
     return projects.filter(
       (p) =>
@@ -75,7 +75,7 @@ export function usePatchScope() {
     : isDe
       ? accounts.filter((a) => deAccountIds.has(a.id))
       : accounts.filter((a) => inPatchAccounts(a.id));
-  const reportingGeos: Geo[] = isAdmin || isCdo
+  const reportingGeos: Geo[] = isAdmin || isCxo
     ? geos
     : isDe
       ? geos.filter((g) => deGeoIds.has(g.id))

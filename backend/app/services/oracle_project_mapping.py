@@ -8,7 +8,7 @@ what Geo Heads / Delivery Managers need to chase.
 Role scoping (see OracleProjectScope):
 * Geo Head - Oracle projects in a geo they own, plus those with no GEO resolved;
 * Delivery Manager (Account Head) - Oracle projects whose Oracle account is one of theirs;
-* Admin / PMO / CDO / Delivery Excellence - everything.
+* Admin / PMO / CXO / Delivery Excellence - everything.
 """
 
 from dataclasses import dataclass

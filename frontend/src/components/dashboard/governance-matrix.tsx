@@ -25,7 +25,7 @@ export function RagCell({ rating }: { rating: HealthRating | null }) {
   return <div className={cn("h-8 w-full rounded-md", level.dotClass)} title={level.label} />;
 }
 
-export function GovernanceMatrix({
+export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
   heading,
   icon: Icon,
   accentColor,
@@ -33,11 +33,15 @@ export function GovernanceMatrix({
   showAccountColumn = false,
   rows = [],
   entityHref,
+  renderEntity,
+  onEntityClick,
+  entityClickable,
+  actionColumn,
   emptyLabel,
 }: {
   heading: string;
   // Optional colored PPT-divider-style header (see lib/section-accent-colors.ts)
-  // — omit both for the plain header every other caller (CDO/Account/Geo Head
+  // — omit both for the plain header every other caller (CXO/Account/Geo Head
   // Dashboard) already uses.
   icon?: LucideIcon;
   accentColor?: SectionAccentColor;
@@ -46,8 +50,18 @@ export function GovernanceMatrix({
   // the Project Governance Matrix, where each row's own entity is a project
   // and row.account_name says which account it belongs to.
   showAccountColumn?: boolean;
-  rows: HealthMatrixRow[] | undefined;
+  rows: T[] | undefined;
   entityHref: (id: string) => string;
+  // Replaces the default name link in the entity column (e.g. High Risks adds
+  // Geo / Region / Delivery Manager under the account name).
+  renderEntity?: (row: T) => React.ReactNode;
+  // Makes the whole entity (first) cell clickable. Controls inside it that do
+  // their own thing (filter bubbles) should stop propagation.
+  onEntityClick?: (row: T) => void;
+  // Rows for which the entity cell is not clickable (default: all are).
+  entityClickable?: (row: T) => boolean;
+  // Optional extra column right after the entity column (e.g. a "View Report" button).
+  actionColumn?: { label: string; render: (row: T) => React.ReactNode };
   emptyLabel: string;
 }) {
   return (
@@ -72,6 +86,7 @@ export function GovernanceMatrix({
               <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                 {showAccountColumn ? <th className="min-w-[140px] px-4 py-3">Account</th> : null}
                 <th className="min-w-[170px] px-4 py-3">{entityColumnLabel}</th>
+                {actionColumn ? <th className="px-3 py-3">{actionColumn.label}</th> : null}
                 <th className="min-w-[72px] px-2 py-3 text-center">Overall</th>
                 {CATEGORIES.map((category) => (
                   <th key={category.key} className="min-w-[72px] px-2 py-3 text-center">
@@ -86,11 +101,22 @@ export function GovernanceMatrix({
                   {showAccountColumn ? (
                     <td className="px-4 py-2.5 text-slate-700">{row.account_name ?? "—"}</td>
                   ) : null}
-                  <td className="px-4 py-2.5 font-semibold text-slate-900">
-                    <Link href={entityHref(row.entity_id)} className="hover:underline">
-                      {row.entity_label}
-                    </Link>
+                  <td
+                    className={cn(
+                      "px-4 py-2.5 font-semibold text-slate-900",
+                      onEntityClick && (entityClickable?.(row) ?? true) && "cursor-pointer"
+                    )}
+                    onClick={onEntityClick && (entityClickable?.(row) ?? true) ? () => onEntityClick(row) : undefined}
+                  >
+                    {renderEntity ? (
+                      renderEntity(row)
+                    ) : (
+                      <Link href={entityHref(row.entity_id)} className="hover:underline">
+                        {row.entity_label}
+                      </Link>
+                    )}
                   </td>
+                  {actionColumn ? <td className="px-3 py-2.5">{actionColumn.render(row)}</td> : null}
                   <td className="px-2 py-2.5">
                     <RagCell rating={row.overall_rating} />
                   </td>

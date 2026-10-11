@@ -164,7 +164,7 @@ async def test_project_health_summary_is_open_to_every_role(client, override_aut
 
 
 @pytest.mark.parametrize(
-    "role", [RoleCode.PMO, RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE]
+    "role", [RoleCode.PMO, RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE]
 )
 async def test_project_health_summary_returns_zeroed_shape_for_privileged_role(
     client, override_auth, role

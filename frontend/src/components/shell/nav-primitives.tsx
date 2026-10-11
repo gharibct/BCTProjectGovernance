@@ -24,6 +24,9 @@ export const childClass =
 export const activeClass = "bg-[#d9eafc] font-bold text-[#15406b]";
 export const idleClass = "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900";
 
+// A nav entry switched off in Configure Project Activities: not a link, greyed.
+export const disabledClass = "cursor-not-allowed text-slate-300";
+
 export function StatusIcon({ done }: { done: boolean }) {
   const title = done ? `Completed for ${CURRENT_PERIOD}` : `Pending for ${CURRENT_PERIOD}`;
   return done ? (

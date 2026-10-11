@@ -216,12 +216,14 @@ In the backend .env, set AUTH_TYPE=onelogin, ONELOGIN_CLIENT_ID, ONELOGIN_CLIENT
 13. Updating later
 
 sudo -iu pgov
-cd /opt/pgov/app && git pull
+cd /opt/pgov/app
+git pull
 cd backend && .venv/bin/pip install -r requirements.txt
 cd ../frontend && npm ci && npm run build
 exit
 sudo systemctl restart pgov-backend pgov-frontend
 If a release includes new db/add_*.sql patches, run those with psql before restarting.
+One-off data patch for this release: psql -h localhost -U postgres -d project_governance -v ON_ERROR_STOP=1 -f db/fix_pulled_items_project_name.sql (run once after deploy; rewrites project codes to project names in items already pulled into Account and Geo reports; safe to re-run).
 
 Checks after deploy
 
@@ -231,9 +233,10 @@ Checks after deploy
 
 I can also write these as a single provisioning script, or add the CloudWatch agent config for memory and disk alarms.
 
-ps aux | grep -E "npm|uvicorn"
+ps aux | grep -E "next|uvicorn"
 
 sudo pkill -f "npm"
+sudo pkill -f "next"
 sudo pkill -f "uvicorn"
 
 cd /opt/pgov/app/frontend
@@ -246,6 +249,8 @@ disown
 
 
  psql -h localhost -U postgres -d project_governance
+
+ssh -L 0.0.0.0:5432:10.0.1.237:5432 localhost
 
 River47Cloud
 Stone82Moon
@@ -263,5 +268,21 @@ curl -i -X OPTIONS http://localhost:8000/api/v1/auth/config \
   -H "Access-Control-Request-Method: GET"
 
 
-  venv/bin/python -m scripts.import_man_month --month=MAY "./integration/BCT Ma
-n Month Report.xlsx" --apply
+  .venv/bin/python -m scripts.import_man_month --month=MAY "./integration/BCT Man Month Report.xlsx" --apply
+
+To take backup:
+ pg_dump -h 127.0.0.1 -U postgres -d project_governance -Fc -f backup_$(date +%F).du
+mp
+
+postgres
+
+psql -h 127.0.0.1 -U <user> -d <db> -v ON_ERROR_STOP=1 -f backend/scripts/migrate_2026_09_weekly_mon_fri.sql
+psql -h 127.0.0.1 -U <user> -d <db> -v ON_ERROR_STOP=1 -f db/add_reporting_period_due_date.sql
+
+export PGHOST=127.0.0.1 PGUSER=postgres PGDATABASE=project_governance PGPASSWORD='postgres'
+
+run this to create ssh tunnel between bastion and ec2:
+socat TCP-LISTEN:5432,reuseaddr,fork TCP:10.0.1.237:5432
+
+python -m scripts.delete_project PRJ-2026-0031 --dry-run 
+python -m scripts.delete_project PRJ-2026-0031 

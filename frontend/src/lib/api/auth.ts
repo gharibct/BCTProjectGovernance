@@ -6,7 +6,7 @@ import type { SessionUser } from "@/stores/session";
 // Matches backend/app/schemas/enums.py's RoleCode.
 export type RoleCode =
   | "ADMIN"
-  | "CDO"
+  | "CXO"
   | "ACCOUNT_MANAGER"
   | "GEO_HEAD"
   | "PROJECT_MANAGER"

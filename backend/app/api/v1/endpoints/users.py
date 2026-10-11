@@ -245,6 +245,31 @@ async def get_account_head(account_id: UUID, db: AsyncSession = Depends(get_db))
     return await _resolve_account_head(db, account_id)
 
 
+# Secondary (proxy) Delivery Managers of an account — the Delivery Team section
+# lists them under the primary Delivery Manager. Open read, like the heads above.
+@router.get("/accounts/{account_id}/proxy-delivery-managers", response_model=list[UserRead], tags=["Users"])
+async def get_account_proxy_delivery_managers(account_id: UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(User)
+        .join(UserAccount, UserAccount.user_id == User.id)
+        .where(UserAccount.account_id == account_id, UserAccount.is_proxy.is_(True))
+        .order_by(UserAccount.created_at)
+    )
+    return list(result.scalars().all())
+
+
+# Secondary (proxy) Project Managers of a project, oldest first.
+@router.get("/projects/{project_id}/proxy-project-managers", response_model=list[UserRead], tags=["Users"])
+async def get_project_proxy_managers(project_id: UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(User)
+        .join(ProjectProxyManager, ProjectProxyManager.user_id == User.id)
+        .where(ProjectProxyManager.project_id == project_id)
+        .order_by(ProjectProxyManager.created_at)
+    )
+    return list(result.scalars().all())
+
+
 # Who may be picked in a RAIDO register's person fields (Owner, Raised By, ...):
 # only the people accountable for the project — its Project Manager, the
 # Delivery Manager / Account Head of its account, and the Geo Head of its geo —

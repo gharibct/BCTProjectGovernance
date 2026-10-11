@@ -23,7 +23,7 @@ import {
 
 const REVIEWER_LABEL: Record<RegionalScope, string> = {
   account: "Geo Head",
-  geo: "CDO",
+  geo: "CXO",
 };
 
 // Account has a RAG Status screen alongside its status report; Geo doesn't
@@ -55,6 +55,7 @@ export function SubmitReportAction({
   report,
   disabled,
   disabledReason,
+  geoBaselined,
 }: {
   scope: RegionalScope;
   scopeId: string;
@@ -63,6 +64,9 @@ export function SubmitReportAction({
   // Account only — blocks submission until every section is filled.
   disabled?: boolean;
   disabledReason?: string;
+  // Account only — the geo report is Baselined for this period, so the account
+  // report can no longer be submitted (the server rejects it with a 409).
+  geoBaselined?: boolean;
 }) {
   const createReport = useCreateRegionalStatusReport(scope, scopeId);
   const updateReport = useUpdateRegionalStatusReport(scope, scopeId);
@@ -166,7 +170,10 @@ export function SubmitReportAction({
   const locked = isSubmitted || isApproved;
   const wasRejected = report?.status === "Rejected";
   const isSaving = createReport.isPending || updateReport.isPending;
-  const barMessage = isApproved
+  const blockedByGeo = !!geoBaselined && !locked;
+  const barMessage = blockedByGeo
+    ? "The geo report for this period is baselined, so this report can no longer be submitted."
+    : isApproved
     ? "This report has been approved and is now read-only."
     : isSubmitted
       ? `This report has been submitted and is now read-only. Recall it to make changes while it awaits ${REVIEWER_LABEL[scope]} review.`
@@ -223,9 +230,12 @@ export function SubmitReportAction({
         secondary={
           <p
             role="status"
-            className={cn("flex items-center gap-2 text-sm", locked ? "text-amber-800" : "text-slate-600")}
+            className={cn(
+              "flex items-center gap-2 text-sm",
+              locked || blockedByGeo ? "text-amber-800" : "text-slate-600"
+            )}
           >
-            {locked ? <Lock className="size-4 shrink-0" /> : null}
+            {locked || blockedByGeo ? <Lock className="size-4 shrink-0" /> : null}
             {barMessage}
           </p>
         }
@@ -240,6 +250,12 @@ export function SubmitReportAction({
             {recallAccountReport.isPending ? <ButtonSpinner /> : <Undo2 className="size-4" />}
             Recall Report
           </Button>
+        ) : null}
+        {blockedByGeo ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
+            <Lock className="size-3.5" />
+            Period baselined
+          </span>
         ) : null}
         <Button
           className="h-10 shrink-0 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"

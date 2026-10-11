@@ -9,7 +9,7 @@ import { ReportAttachmentsView } from "@/components/reporting/report-attachments
 import { SubmitReportAction } from "./submit-report-action";
 import { useAccountReportProgress } from "@/components/account-reporting/account-report-progress";
 import { incompleteReportReason } from "@/components/reporting/report-progress";
-import type { RegionalStatusReport } from "@/lib/api/regional-status";
+import { useGeoBaselinedForAccount, type RegionalStatusReport } from "@/lib/api/regional-status";
 import { GeoAccountMatrixSection } from "@/components/status-review/geo-account-matrix-section";
 import { OverviewSection } from "@/components/status-review/overview-section";
 import { RagStatusSection } from "@/components/status-review/rag-status-section";
@@ -36,14 +36,16 @@ function AccountSubmitAction({
   report: RegionalStatusReport | undefined;
 }) {
   const reason = incompleteReportReason(useAccountReportProgress(scopeId, periodId));
+  const { data: geoBaselined } = useGeoBaselinedForAccount(scopeId, periodId);
   return (
     <SubmitReportAction
       scope="account"
       scopeId={scopeId}
       periodId={periodId}
       report={report}
-      disabled={!!reason}
+      disabled={!!reason || !!geoBaselined}
       disabledReason={reason}
+      geoBaselined={!!geoBaselined}
     />
   );
 }

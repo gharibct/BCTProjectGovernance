@@ -21,7 +21,7 @@ HEALTH_RATING_SEVERITY = [HealthRating.RED, HealthRating.POTENTIAL_RED, HealthRa
 
 class RoleCode(StrEnum):
     ADMIN = "ADMIN"
-    CDO = "CDO"
+    CXO = "CXO"
     ACCOUNT_MANAGER = "ACCOUNT_MANAGER"
     GEO_HEAD = "GEO_HEAD"
     PROJECT_MANAGER = "PROJECT_MANAGER"

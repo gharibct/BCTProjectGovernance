@@ -54,7 +54,7 @@ export function ActionListView({
   onSelect: (actionId: string) => void;
   onCreate: () => void;
   // Hides "New Action" for a role/level combo that can't write here (e.g.
-  // CDO at Account/Project on the standalone Actions page — see
+  // CXO at Account/Project on the standalone Actions page — see
   // action-permissions.ts). Defaults true: the per-entity header trigger
   // (ActionTrackerDrawer) never gated this client-side, relying on the
   // server to reject the POST, so existing usages are unaffected.

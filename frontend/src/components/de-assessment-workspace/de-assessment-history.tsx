@@ -3,8 +3,7 @@
 import * as React from "react";
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, History } from "lucide-react";
+import { History } from "lucide-react";
 
 import { SectionCard } from "@/components/forms/form-primitives";
 import { EmptyState } from "@/components/forms/empty-state";
@@ -12,6 +11,7 @@ import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods, useUsers } from "@/lib/api/reference-data";
 import { useHealthDeclarations } from "@/lib/api/health-declarations";
 import { useDEAssessments } from "@/lib/api/de-assessment";
+import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { HealthDot } from "./shared";
 
 function HistoryInner() {
@@ -20,7 +20,6 @@ function HistoryInner() {
 
   // History hangs off the assessment screen, so Back returns to it for every role.
   const backHref = `/de-assessment/${projectId}`;
-  const backLabel = "Back to Assessment";
 
   const { data: project } = useProject(projectId);
   const { data: users = [] } = useUsers();
@@ -57,13 +56,12 @@ function HistoryInner() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a6fc4]"
-          >
-            <ArrowLeft className="size-4" />
-            {backLabel}
-          </Link>
+          <PageBreadcrumb
+            items={[
+              { label: "Project Assessment", href: backHref },
+              { label: "History" },
+            ]}
+          />
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
             Assessment History — {project?.project_name ?? "…"}
           </h1>

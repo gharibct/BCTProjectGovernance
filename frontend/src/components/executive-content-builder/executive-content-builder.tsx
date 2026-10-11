@@ -9,7 +9,7 @@ import { createSection, resequence, type ExecutiveUpdate } from "./types";
 // Pure controlled component over the ExecutiveUpdate JSON shape — no
 // internal data state, every mutation flows out through `onChange`. Reusable
 // anywhere a caller wants "business sections of Rich Text / Image / Table
-// content blocks" (currently: the Geo Head's Executive Update for CDO).
+// content blocks" (currently: the Geo Head's Executive Update for CXO).
 export function ExecutiveContentBuilder({
   value,
   onChange,

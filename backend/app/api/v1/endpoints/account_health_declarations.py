@@ -31,7 +31,7 @@ router = APIRouter(prefix="/accounts/{account_id}/health-declarations", tags=["A
 # Account-Head work — also reachable by a Geo Head via the top-bar Work Context,
 # for accounts in their own geo (require_account_or_geo_scope).
 _account_manager_write = [Depends(require_account_or_geo_scope(RoleCode.ACCOUNT_MANAGER, RoleCode.GEO_HEAD, RoleCode.ADMIN))]
-# Reads: same ownership scoping, plus CDO/Delivery Excellence viewing across
+# Reads: same ownership scoping, plus CXO/Delivery Excellence viewing across
 # every account by design (see regional_status.py's _account_read, which this
 # mirrors — RAG Status is part of the same Account Delivery Status report).
 _account_read = [
@@ -39,10 +39,10 @@ _account_read = [
         require_account_or_geo_scope(
             RoleCode.ACCOUNT_MANAGER,
             RoleCode.GEO_HEAD,
-            RoleCode.CDO,
+            RoleCode.CXO,
             RoleCode.DELIVERY_EXCELLENCE,
             RoleCode.ADMIN,
-            bypass_roles=(RoleCode.ADMIN, RoleCode.CDO, RoleCode.DELIVERY_EXCELLENCE),
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE),
         )
     )
 ]

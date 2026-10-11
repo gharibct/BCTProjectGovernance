@@ -24,9 +24,9 @@ CREATE TABLE measurement_support (
     first_time_resolutions_count INTEGER,
 
     -- Computed, read-only in the UI.
-    incident_sla_compliance_p1_pct NUMERIC(5, 2),
-    incident_sla_compliance_p2_pct NUMERIC(5, 2),
-    incident_sla_compliance_p3_pct NUMERIC(5, 2),
+    incident_sla_compliance_p1_pct NUMERIC(12, 2),
+    incident_sla_compliance_p2_pct NUMERIC(12, 2),
+    incident_sla_compliance_p3_pct NUMERIC(12, 2),
     incident_mttr_p1_hours NUMERIC(10, 2),
     incident_mttr_p2_hours NUMERIC(10, 2),
     incident_mttr_p3_hours NUMERIC(10, 2),

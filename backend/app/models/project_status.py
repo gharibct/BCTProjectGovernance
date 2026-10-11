@@ -28,7 +28,7 @@ class ProjectStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     upcoming_key_releases: Mapped[str | None]
     leadership_support_required: Mapped[str | None]
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
-    # Review/sign-off by the level above (Account Head/Geo Head/CDO) — set
+    # Review/sign-off by the level above (Account Head/Geo Head/CXO) — set
     # once the report transitions Submitted -> Approved/Rejected.
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -13,7 +13,7 @@ from app.services import geo_rollup as geo_rollup_service
 router = APIRouter(prefix="/geos/{geo_id}/rollup", tags=["Geo Reporting"])
 
 _geo_head_write = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.ADMIN))]
-_geo_read = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CDO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CDO)))]
+_geo_read = [Depends(require_geo_scope(RoleCode.GEO_HEAD, RoleCode.CXO, RoleCode.ADMIN, bypass_roles=(RoleCode.ADMIN, RoleCode.CXO)))]
 
 
 @router.get("", response_model=GeoRollupResponse, dependencies=_geo_read)

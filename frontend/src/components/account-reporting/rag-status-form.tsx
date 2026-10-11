@@ -110,10 +110,11 @@ export function useAccountHealthDeclarationForm() {
     setRatings((prev) => ({ ...prev, [categoryKey]: value }));
 
   // "Copy from latest report" — seeds the six ratings from the most recent
-  // earlier declaration of the same period type. Only when this period has no
-  // saved declaration yet; the user still reviews and presses Save Report.
-  const copyRatingsFromLatest = (): boolean => {
-    if (existing) return false;
+  // earlier declaration of the same period type. A period that already has saved
+  // ratings is only overwritten with `replace` (the caller has confirmed with the
+  // user). The user still reviews and presses Save Report.
+  const copyRatingsFromLatest = (replace = false): boolean => {
+    if (existing && !replace) return false;
     const current = periods.find((p) => p.id === periodId);
     if (!current) return false;
     const source = (declarations ?? [])
@@ -177,6 +178,7 @@ export function useAccountHealthDeclarationForm() {
     submit,
     saveRatings,
     copyRatingsFromLatest,
+    hasSavedRatings: !!existing,
     frozen,
     isSubmitting: isSubmitting || createDeclaration.isPending || updateDeclaration.isPending,
   };
