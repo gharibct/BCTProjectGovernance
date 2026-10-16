@@ -1,5 +1,7 @@
 "use client";
 
+import { useProjectHealthFilters } from "@/stores/project-health-filters";
+import { useReturnToRow } from "@/lib/return-to-row";
 import * as React from "react";
 import {
   AlertTriangle,
@@ -23,13 +25,12 @@ import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import {
   useProjectHealthDashboardSummary,
-  type ProjectHealthDashboardFilters,
   type ReportSubmissionKpi,
 } from "@/lib/api/project-health-dashboard";
 import { REPORT_SUBMISSION_STREAMS } from "@/lib/api/project-health-lists";
 import { useEffectiveRole } from "@/stores/session";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
-import { BigStat, Card, RagCountCell, SubStat } from "./project-health-kpi";
+import { BigStat, Card, RAG_BUCKET_STYLES, RagCountCell, SubStat, type RagBucket } from "./project-health-kpi";
 import { useCanSeeOracleProjects } from "./project-health-oracle-projects";
 import { ProjectHealthOracleProjectsSection } from "./project-health-oracle-projects-section";
 
@@ -68,6 +69,17 @@ function SectionHeader({
   );
 }
 
+// Full-width divider heading that starts a new group of sections, so the
+// sections above and below it read as separate parts of the dashboard.
+function GroupHeading({ title }: { title: string }) {
+  return (
+    <div className="mt-4 flex items-center gap-4">
+      <h2 className="text-xl font-bold tracking-tight text-slate-900">{title}</h2>
+      <div className="h-px flex-1 bg-slate-300" />
+    </div>
+  );
+}
+
 // Compact Green/Amber/Pot. Red/Red/Not Submitted count strip shared by the Project
 // Health, Account Health and DE-assessed health cards — kept small so all three
 // cards sit in one row. `notLabel` renames the last cell (e.g. "Not Assessed").
@@ -77,7 +89,8 @@ function RagCounts({
   potentialRed,
   red,
   notSubmitted,
-  notLabel = "Not Sub.",
+  notLabel,
+  notSubmittedBucket = "Not Submitted",
 }: {
   green: React.ReactNode;
   amber: React.ReactNode;
@@ -85,14 +98,27 @@ function RagCounts({
   red: React.ReactNode;
   notSubmitted: React.ReactNode;
   notLabel?: string;
+  notSubmittedBucket?: RagBucket;
 }) {
   return (
     <div className="grid grid-cols-5 gap-1">
-      <RagCountCell label="Green" value={green} className="border-emerald-100 bg-emerald-50 text-emerald-700" valueClassName="text-emerald-600" />
-      <RagCountCell label="Amber" value={amber} className="border-amber-100 bg-amber-50 text-amber-700" valueClassName="text-amber-500" />
-      <RagCountCell label="Pot. Red" value={potentialRed} className="border-orange-100 bg-orange-50 text-orange-700" valueClassName="text-orange-600" />
-      <RagCountCell label="Red" value={red} className="border-red-100 bg-red-50 text-red-700" valueClassName="text-red-600" />
-      <RagCountCell label={notLabel} value={notSubmitted} className="border-slate-200 bg-slate-50 text-slate-500" valueClassName="text-slate-900" />
+      {(
+        [
+          ["Green", green, RAG_BUCKET_STYLES.Green.shortLabel],
+          ["Amber", amber, RAG_BUCKET_STYLES.Amber.shortLabel],
+          ["Potential Red", potentialRed, RAG_BUCKET_STYLES["Potential Red"].shortLabel],
+          ["Red", red, RAG_BUCKET_STYLES.Red.shortLabel],
+          [notSubmittedBucket, notSubmitted, notLabel ?? RAG_BUCKET_STYLES[notSubmittedBucket].shortLabel],
+        ] as [RagBucket, React.ReactNode, string][]
+      ).map(([bucket, value, label]) => (
+        <RagCountCell
+          key={bucket}
+          label={label}
+          value={value}
+          className={RAG_BUCKET_STYLES[bucket].className}
+          valueClassName={RAG_BUCKET_STYLES[bucket].valueClassName}
+        />
+      ))}
     </div>
   );
 }
@@ -203,7 +229,7 @@ function CustomerReportCard({
 }
 
 export function ProjectHealthDashboard() {
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
+  const [filters, setFilters] = useProjectHealthFilters();
   const { data, isLoading, isError, error, refetch } = useProjectHealthDashboardSummary(filters);
   const isFiltered = Boolean(filters.geoId || filters.regionId || filters.accountId || filters.projectTypeId);
   // A PM only owns projects — hide every Account- and Geo-level card/filter.
@@ -215,12 +241,14 @@ export function ProjectHealthDashboard() {
   const asOfToday = "As of today";
   // Oracle projects with no governance project yet — not for PMs / Team Members.
   const showOracleProjects = useCanSeeOracleProjects();
+  // Back from a card's "View ..." page: scroll to and highlight that card.
+  const { onClickCapture } = useReturnToRow("project-health-dashboard", !isLoading && !!data);
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
+    <div onClickCapture={onClickCapture} className="mx-auto flex max-w-[1400px] flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Project Health</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">GovOne Dashboard</h1>
           <p className="mt-1.5 text-slate-500">
             {isPm ? "Delivery health across your projects" : "Portfolio-wide delivery health across every account and geo"}
           </p>
@@ -305,7 +333,7 @@ export function ProjectHealthDashboard() {
                 potentialRed={data.de_assessments.potential_red_count}
                 red={data.de_assessments.red_count}
                 notSubmitted={data.de_assessments.not_assessed_count}
-                notLabel="Not Assessed"
+                notSubmittedBucket="Not Assessed"
               />
             </Card>
           </div>
@@ -382,6 +410,8 @@ export function ProjectHealthDashboard() {
             </Card>
           </div>
           </section>
+
+          <GroupHeading title="Project Compliance" />
 
           <section className="flex flex-col gap-3">
             <SectionHeader

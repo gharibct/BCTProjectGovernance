@@ -14,7 +14,8 @@ import { isReportFrozen } from "@/lib/api/project-status";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useAccountRollup, usePullRollupItem, useSetItemRollupStatus } from "@/lib/api/account-rollup";
 import { useGeoRollup, usePullGeoRollupItem, useSetAccountItemRollupStatus } from "@/lib/api/geo-rollup";
-import type { RollupSourceItem } from "./rollup-source-panel";
+import type { PullAllResult, RollupSourceItem } from "./rollup-source-panel";
+import { isWholeNumber, PROJECTS_COUNT_ERROR } from "@/lib/whole-number";
 
 // State + save + rollup logic behind the Account/Geo status report, shared by
 // the tabbed Geo page (status-tabs.tsx) and the long Account page
@@ -141,6 +142,22 @@ export function useRegionalStatusForm(scope: RegionalScope, scopeId: string) {
     else if (scope === "geo") pullGeoItem.mutate(item.id, { onSuccess, onError });
   };
 
+  // Pull every given point one after another (account scope only); the caller
+  // reports the combined outcome.
+  const handlePullAll = async (items: RollupSourceItem[]): Promise<PullAllResult> => {
+    const result: PullAllResult = { pulled: 0, failed: 0 };
+    for (const item of items) {
+      try {
+        await pullAccountItem.mutateAsync(item.id);
+        result.pulled += 1;
+      } catch (err) {
+        result.failed += 1;
+        result.firstError ??= err instanceof Error ? err.message : "Failed to pull item.";
+      }
+    }
+    return result;
+  };
+
   const handleIgnore = (item: RollupSourceItem) => {
     const onError = (err: unknown) => showError(err instanceof Error ? err.message : "Failed to ignore item.");
     if (scope === "account") {
@@ -174,6 +191,10 @@ export function useRegionalStatusForm(scope: RegionalScope, scopeId: string) {
   // after this the whole page is saved.
   const saveDetails = async (opts?: { silent?: boolean }): Promise<string | false> => {
     if (!periodId) return false;
+    if (!isWholeNumber(metrics.projects_count)) {
+      showError(PROJECTS_COUNT_ERROR);
+      return false;
+    }
     const fields = {
       revenue: metrics.revenue || undefined,
       onsite_fte: metrics.onsite_fte || undefined,
@@ -203,6 +224,7 @@ export function useRegionalStatusForm(scope: RegionalScope, scopeId: string) {
     copyMetricsFromLatest,
     rollupItems,
     handlePull,
+    handlePullAll,
     handleIgnore,
     handleUndo,
     rollupBusy,

@@ -11,8 +11,15 @@ import {
 } from "@/lib/api/regional-status";
 
 // Landing page for Report Geo Status (weekly) — same calendar-style layout as
-// Report Account Status, minus the Customer Communications section.
-export function GeoDeliveryCalendarHub() {
+// Update Account Status Report, minus the Customer Communications section. Report
+// Leadership Status reuses it, pointed at the Executive Update screen.
+export function GeoDeliveryCalendarHub({
+  title = "Report Geo Status",
+  hrefFor = (geoId, periodId) => `/geo-reporting/${geoId}/status?period=${periodId}`,
+}: {
+  title?: string;
+  hrefFor?: (geoId: string, periodId: string) => string;
+} = {}) {
   const { geoId } = useParams<{ geoId: string }>();
   const { data: geos = [] } = useGeos();
   const reportsQuery = useRegionalStatusReports("geo", geoId ?? null);
@@ -29,12 +36,12 @@ export function GeoDeliveryCalendarHub() {
 
   return (
     <DeliveryCalendarView
-      title="Report Geo Status"
+      title={title}
       subtitle={geos.find((g) => g.id === geoId)?.name}
       weeklyItems={weeklyItems}
       reports={reports}
       baselineMode
-      hrefForPeriod={(periodId) => `/geo-reporting/${geoId}/status?period=${periodId}`}
+      hrefForPeriod={(periodId) => hrefFor(geoId, periodId)}
     />
   );
 }

@@ -4,6 +4,7 @@ import * as React from "react";
 import { Pencil, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { PaginationBar } from "./pagination-bar";
 import { ConfirmationDialog } from "./confirmation-dialog";
 import { StatusBadge } from "./status-badge";
 
@@ -34,6 +35,7 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   onDelete,
   onRowClick,
   headerClassName,
+  pageSize,
 }: {
   items: T[];
   columns: RegisterColumn<T>[];
@@ -44,9 +46,15 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   // Override the default slate header tint so a view with several stacked
   // grey controls (tabs, filters) can give the grid header its own colour.
   headerClassName?: string;
+  // When set, rows are paginated client-side with a PaginationBar below the grid.
+  pageSize?: number;
 }) {
   const showActions = !!(onEdit || onDelete);
   const [pendingDelete, setPendingDelete] = React.useState<T | null>(null);
+  const [skip, setSkip] = React.useState(0);
+  // Deleting rows (or a shrinking list) can leave skip past the end — clamp to the last page.
+  const effectiveSkip = pageSize && skip >= items.length ? Math.max(0, Math.floor((items.length - 1) / pageSize) * pageSize) : skip;
+  const visibleItems = pageSize ? items.slice(effectiveSkip, effectiveSkip + pageSize) : items;
 
   return (
     <div className="overflow-x-auto rounded-lg border border-[#D0D9E2]">
@@ -80,9 +88,10 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
               </td>
             </tr>
           ) : (
-            items.map((item) => (
+            visibleItems.map((item) => (
               <tr
                 key={item.id}
+                data-row-key={item.id}
                 onClick={onRowClick ? () => onRowClick(item) : undefined}
                 className={cn(
                   "bg-white even:bg-[#F8FAFB] hover:bg-[#EDF3F7]",
@@ -137,6 +146,9 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
           )}
         </tbody>
       </table>
+      {pageSize && items.length > pageSize ? (
+        <PaginationBar skip={effectiveSkip} limit={pageSize} total={items.length} onPageChange={setSkip} />
+      ) : null}
       <ConfirmationDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {

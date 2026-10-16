@@ -11,7 +11,7 @@ import {
   useRegionalStatusReports,
 } from "@/lib/api/regional-status";
 
-// Alternative landing page for Report Account Status (weekly) — the original
+// Alternative landing page for Update Account Status Report (weekly) — the original
 // hub is components/reporting/regional-reporting-hub.tsx. Customer
 // Communications (Account) is its own left-menu entry, not part of this page.
 export function AccountDeliveryCalendarHub() {
@@ -35,10 +35,10 @@ export function AccountDeliveryCalendarHub() {
 
   return (
     <DeliveryCalendarView
-      title="Report Account Status"
+      title="Update Account Status Report"
       subtitle={account?.name}
       breadcrumb={[
-        { label: "Report Account Status", href: selectAccountHref("account-reporting") },
+        { label: "Update Account Status Report", href: selectAccountHref("account-reporting") },
         ...(account?.name ? [{ label: account.name }] : []),
       ]}
       weeklyItems={weeklyItems}

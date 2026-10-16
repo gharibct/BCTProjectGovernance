@@ -99,7 +99,7 @@ function ContextBody({
   const [reportStatus, setReportStatus] = React.useState(ALL);
   const [skip, setSkip] = React.useState(0);
 
-  // Report Account Status / Account Delivery Status (weekly): pick one of the last 12
+  // Update Account Status Report / Account Delivery Status (weekly): pick one of the last 12
   // completed periods and show each account's report state for it.
   const showPeriod = targetId === "account-reporting" || targetId === "account-review";
   const { data: allPeriods = [] } = useReportingPeriods();
@@ -135,13 +135,8 @@ function ContextBody({
           return false;
         return true;
       })
-      .sort((a, b) => {
-        const la = lastAccessed[a.id] ?? "";
-        const lb = lastAccessed[b.id] ?? "";
-        if (la !== lb) return lb.localeCompare(la);
-        return a.name.localeCompare(b.name);
-      });
-  }, [reportingAccounts, search, geoId, regionId, lastAccessed, showPeriod, reportStatus, statusByAccount]);
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [reportingAccounts, search, geoId, regionId, showPeriod, reportStatus, statusByAccount]);
 
   const page = filtered.slice(skip, skip + PAGE_SIZE);
   const filtersActive = !!(search || geoId || regionId || reportStatus);

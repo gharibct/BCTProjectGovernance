@@ -109,6 +109,7 @@ export function StatusItemsTab({
           items={items.map((item) => ({ id: item.id, text: item.description }))}
           disabled={frozen}
           addLabel={`Add ${title} Item`}
+          draftLabel={title}
           emptyLabel="Nothing logged yet."
           onAdd={(text) =>
             createItem.mutate(

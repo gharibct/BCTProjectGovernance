@@ -11,7 +11,7 @@ test.describe("Project Health", () => {
   test.use({ storageState: "e2e/.auth/admin.json" });
 
   const SCREENS: Array<{ path: string; heading: string }> = [
-    { path: "/project-health", heading: "Project Health" },
+    { path: "/project-health", heading: "GovOne Dashboard" },
     { path: "/project-health/project-list", heading: "Project List" },
     { path: "/project-health/rag", heading: "RAG Report" },
     { path: "/project-health/account-rag", heading: "Account RAG" },

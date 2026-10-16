@@ -45,6 +45,67 @@ function formatDateTime(value: string): string {
   });
 }
 
+// Locked-report message + Recall button/dialog, shared by the Submit bar below
+// and the Save Report bar on the Delivery Status Report so both show the same
+// text and the same Recall control once a report is Submitted / Approved.
+export function useProjectReportRecall(
+  projectId: string,
+  periodId: string,
+  report: ProjectStatusReport | undefined
+) {
+  const recallReport = useRecallStatusReport(projectId);
+  const showSuccess = usePageBanner((s) => s.showSuccess);
+  const [recallOpen, setRecallOpen] = React.useState(false);
+
+  const isSubmitted = report?.status === "Submitted";
+  const isApproved = report?.status === "Approved";
+  // Monthly (Project Performance) reports have no approval step: they can be
+  // recalled until the period's due date.
+  const { data: periods = [] } = useReportingPeriods();
+  const period = periods.find((p) => p.id === periodId);
+  const monthlyDueDate =
+    period?.period_type === "Monthly" && period.due_date ? formatDate(period.due_date) : null;
+  // Past the due date the monthly report is final — it can no longer be recalled.
+  const recallClosed =
+    period?.period_type === "Monthly" && !!period.due_date && period.due_date < todayISO();
+  const lockedMessage = isApproved
+    ? "This report has been approved and is now read-only."
+    : isSubmitted
+      ? monthlyDueDate
+        ? recallClosed
+          ? `This report has been submitted and is now read-only. The due date (${monthlyDueDate}) has passed, so it can no longer be recalled.`
+          : `This report has been submitted and is now read-only. Recall it to make changes till ${monthlyDueDate}`
+        : `This report has been submitted and is now read-only. Recall it to make changes while it awaits ${ACCOUNT_MANAGER_LABEL} review.`
+      : null;
+
+  const recallControls =
+    isSubmitted || isApproved ? (
+      <>
+        <Button
+          variant="outline"
+          className="h-10 gap-2 border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
+          disabled={!isSubmitted || recallClosed}
+          onClick={() => setRecallOpen(true)}
+        >
+          <Undo2 className="size-4" />
+          Recall Report
+        </Button>
+        <RecallReportDialog
+          open={recallOpen}
+          onOpenChange={setRecallOpen}
+          description={`The report will go back to Draft so you can edit and resubmit it. This is only possible until the ${ACCOUNT_MANAGER_LABEL} approves it. Do you want to proceed?`}
+          onRecall={async (remarks) => {
+            if (!report) return;
+            await recallReport.mutateAsync({ id: report.id, remarks });
+            showSuccess("Status Report Recalled — it is back to Draft");
+          }}
+        />
+      </>
+    ) : null;
+
+  return { lockedMessage, recallControls };
+}
+
 // Project Manager's counterpart to status-review/review-actions.tsx's
 // ReviewActions (the Delivery Manager's Approve/Reject bar) — submits a report
 // for review instead of deciding one. Key Metrics stay editable only on
@@ -69,33 +130,15 @@ export function SubmitReportAction({
 }) {
   const createReport = useCreateStatusReport(projectId);
   const updateReport = useUpdateStatusReport(projectId);
-  const recallReport = useRecallStatusReport(projectId);
   const showSuccess = usePageBanner((s) => s.showSuccess);
   const showError = usePageBanner((s) => s.showError);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [recallOpen, setRecallOpen] = React.useState(false);
+  const { lockedMessage, recallControls } = useProjectReportRecall(projectId, periodId, report);
 
-  const isSubmitted = report?.status === "Submitted";
-  const isApproved = report?.status === "Approved";
-  const locked = isSubmitted || isApproved;
-  // Monthly (Project Performance) reports have no approval step: they can be
-  // recalled until the period's due date.
-  const { data: periods = [] } = useReportingPeriods();
-  const period = periods.find((p) => p.id === periodId);
-  const monthlyDueDate =
-    period?.period_type === "Monthly" && period.due_date ? formatDate(period.due_date) : null;
-  // Past the due date the monthly report is final — it can no longer be recalled.
-  const recallClosed =
-    period?.period_type === "Monthly" && !!period.due_date && period.due_date < todayISO();
-  const barMessage = isApproved
-    ? "This report has been approved and is now read-only."
-    : isSubmitted
-      ? monthlyDueDate
-        ? recallClosed
-          ? `This report has been submitted and is now read-only. The due date (${monthlyDueDate}) has passed, so it can no longer be recalled.`
-          : `This report has been submitted and is now read-only. Recall it to make changes till ${monthlyDueDate}`
-        : `This report has been submitted and is now read-only. Recall it to make changes while it awaits ${ACCOUNT_MANAGER_LABEL} review.`
-      : "Review the report above. If anything is missing, add or update it on the Delivery Status Report, then submit here.";
+  const locked = report?.status === "Submitted" || report?.status === "Approved";
+  const barMessage =
+    lockedMessage ??
+    "Review the report above. If anything is missing, add or update it on the Delivery Status Report, then submit here.";
 
   const wasRejected = report?.status === "Rejected";
   const isSaving = createReport.isPending || updateReport.isPending;
@@ -153,17 +196,7 @@ export function SubmitReportAction({
           </p>
         }
       >
-        {locked ? (
-          <Button
-            variant="outline"
-            className="h-10 gap-2 border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
-            disabled={!isSubmitted || recallClosed}
-            onClick={() => setRecallOpen(true)}
-          >
-            <Undo2 className="size-4" />
-            Recall Report
-          </Button>
-        ) : null}
+        {recallControls}
         <Button
           className="h-10 shrink-0 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
           disabled={isSaving || disabled || locked}
@@ -173,16 +206,6 @@ export function SubmitReportAction({
           {wasRejected ? "Resubmit Report" : "Submit Report"}
         </Button>
       </StickyActionBar>
-      <RecallReportDialog
-        open={recallOpen}
-        onOpenChange={setRecallOpen}
-        description={`The report will go back to Draft so you can edit and resubmit it. This is only possible until the ${ACCOUNT_MANAGER_LABEL} approves it. Do you want to proceed?`}
-        onRecall={async (remarks) => {
-          if (!report) return;
-          await recallReport.mutateAsync({ id: report.id, remarks });
-          showSuccess("Status Report Recalled — it is back to Draft");
-        }}
-      />
       <ConfirmationDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}

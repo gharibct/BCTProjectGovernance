@@ -21,6 +21,7 @@ from app.schemas.health_declarations import (
     ProjectHealthItemRollupStatusUpdate,
     ProjectHealthItemUpdate,
 )
+from app.services.account_rag_validation import RAG_PARAMETERS, assert_project_rag_within_submitted_account
 from app.services.activity_restriction import assert_period_open
 from app.services.health_rollup import compute_overall_project_health, compute_overall_rating
 
@@ -42,6 +43,20 @@ _pm_read = [Depends(require_project_read_access())]
 def _by_period_start(model: type) -> Any:
     return (
         select(ReportingPeriod.start_date).where(ReportingPeriod.id == model.period_id).scalar_subquery().desc()
+    )
+
+
+async def _assert_rag_within_account(
+    db: AsyncSession, project_id: UUID, period_id: UUID, payload: HealthDeclarationCreate | HealthDeclarationUpdate
+) -> None:
+    """Same rule as report submit (project RAG not worse than an already
+    submitted account RAG), applied to the ratings being saved. Monthly
+    (Project Performance) reports skip it, as they do on submit."""
+    period = await db.get(ReportingPeriod, period_id)
+    if period and period.period_type == "Monthly":
+        return
+    await assert_project_rag_within_submitted_account(
+        db, project_id, period_id, {column: getattr(payload, column).value for _, column in RAG_PARAMETERS}
     )
 
 
@@ -79,6 +94,7 @@ async def create_health_declaration(
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     await assert_period_open(db, project_id, payload.period_id)
+    await _assert_rag_within_account(db, project_id, payload.period_id, payload)
 
     overall = compute_overall_rating(
         [
@@ -111,6 +127,7 @@ async def update_health_declaration(
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health declaration not found")
     await assert_period_open(db, project_id, obj.period_id)
+    await _assert_rag_within_account(db, project_id, obj.period_id, payload)
     project = await project_crud.get(db, project_id)
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")

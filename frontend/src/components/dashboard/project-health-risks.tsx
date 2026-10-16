@@ -1,10 +1,11 @@
 "use client";
 
+import { useProjectHealthFilters } from "@/stores/project-health-filters";
 import * as React from "react";
 
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
-import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { useProjectHealthDashboardSummary } from "@/lib/api/project-health-dashboard";
 import {
   fetchAllProjectHealthRows,
   formatGeoRegion,
@@ -21,7 +22,7 @@ const PAGE_SIZE = 10;
 type Row = RiskRow & { id: string };
 
 export function ProjectHealthRisks() {
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
+  const [filters, setFilters] = useProjectHealthFilters();
   const [search, setSearch] = React.useState("");
   const [skip, setSkip] = React.useState(0);
 

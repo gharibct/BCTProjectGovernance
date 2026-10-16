@@ -188,8 +188,8 @@ Edit Project (revert to `Draft`).
 | Revenue | number | Yes | user | status:Draft | — | ≥ 0 | BR-PROJ-050 |
 | Currency | select | Yes | ref | status:Draft | — | ISO currency | BR-PROJ-050 |
 | Critical Flag | radio (Yes/No) | Yes | `YesNo` | status:Draft | No | — | `PendingPoints` #7 |
-| Product Flag | radio (Yes/No) | Yes | `YesNo` | status:Draft | No | if Yes → Product required | `PendingPoints` #7 |
-| Product | lookup | if Product Flag = Yes | `ref:products` | status:Draft | — | active product | `PendingPoints` #7 |
+| BCT Product Implemented | radio (Yes/No) | Yes | `YesNo` | status:Draft | No | if Yes → Product required | `PendingPoints` #7 |
+| Product | lookup | if BCT Product Implemented = Yes | `ref:products` | status:Draft | — | active product | `PendingPoints` #7 |
 | Oracle Project ID(s) | grid | Yes (≥ 1) | user / `integration:oracle` | Yes (own sub-form) | — | non-empty | BR-PROJ-090 |
 | Applicable Phase | multi-select | No | `ApplicablePhase` | status:Draft | — | subset of the 8 phases | `PendingPoints` #30 |
 | Planned/Actual Start & End Date | date | Planned: Yes | user | status:Draft (Actuals editable later) | — | start ≤ end | BR-PROJ (schedule) |

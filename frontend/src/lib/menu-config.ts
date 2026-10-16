@@ -34,6 +34,7 @@ export type MenuEntryId =
   | "account-reporting"
   | "account-communications"
   | "geo-reporting"
+  | "leadership-reporting"
   | "project-review"
   | "project-approval"
   | "project-performance"
@@ -41,7 +42,10 @@ export type MenuEntryId =
   | "account-review"
   | "account-approval"
   | "geo-review"
+  | "executive-risk"
   | "high-risks"
+  | "delivery-health"
+  | "projects-health"
   | "admin-users-roles"
   | "admin-integrations"
   | "admin-regions"
@@ -69,12 +73,20 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
   PROJECT_MANAGER: [
     { items: ["project-manager-dashboard"] },
     {
-      heading: "My Worklist",
-      items: ["maintain-project", "view-amend-projects", "delivery-reporting", "performance-reporting"],
+      heading: "Status & Performance Dashboards",
+      items: ["projects-health", "project-performance"],
     },
     {
-      heading: "My Reports",
+      heading: "Report Status & Performance",
+      items: ["delivery-reporting", "performance-reporting"],
+    },
+    {
+      heading: "DE & Actions",
       items: ["de-assessment-report", "pm-findings", "actions"],
+    },
+    {
+      heading: "Project Configuration",
+      items: ["new-project", "maintain-project", "view-amend-projects"],
     },
   ],
   TEAM_MEMBER: [{ items: DASHBOARD_ONLY_MENU }],
@@ -105,64 +117,54 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
   ACCOUNT_MANAGER: [
     { items: ["account-manager-dashboard"] },
     {
-      heading: "My Worklist",
-      items: ["new-project", "account-reporting", "project-approval", "account-communications", "reassignment"],
+      heading: "Status & Performance Dashboards",
+      items: ["delivery-health", "projects-health", "project-performance"],
     },
     {
-      heading: "My Reports",
-      items: [
-        "de-assessment-report",
-        "de-findings",
-        "actions",
-      ],
+      heading: "Report Status & Performance",
+      items: ["account-reporting", "delivery-reporting", "performance-reporting"],
     },
     {
-      heading: "Team Worklist",
-      items: ["maintain-project", "view-amend-projects", "delivery-reporting", "performance-reporting"],
+      heading: "Approvals & Assignments",
+      items: ["project-approval", "reassignment"],
+    },
+    {
+      heading: "DE & Actions",
+      items: ["de-assessment-report", "de-findings", "actions"],
+    },
+    {
+      heading: "Project Configuration",
+      items: ["new-project", "maintain-project", "view-amend-projects"],
     },
   ],
   GEO_HEAD: [
     { items: ["geo-head-dashboard"] },
     {
-      heading: "My Worklist",
-      items: ["geo-reporting", "account-approval", "reassignment"],
+      heading: "Status & Performance Dashboards",
+      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance"],
     },
     {
-      heading: "My Reports",
-      items: [
-        "high-risks",
-        "de-assessment-report",
-        "de-findings",
-        "actions",
-      ],
+      heading: "Report Status & Performance",
+      items: ["leadership-reporting", "account-reporting", "delivery-reporting", "performance-reporting"],
     },
     {
-      heading: "Team Worklist",
-      items: [
-        "new-project",
-        "maintain-project",
-        "view-amend-projects",
-        "delivery-reporting",
-        "performance-reporting",
-        "account-reporting",
-        "account-communications",
-      ],
+      heading: "Approvals & Assignments",
+      items: ["account-approval", "project-approval", "reassignment"],
+    },
+    {
+      heading: "DE & Actions",
+      items: ["de-assessment-report", "de-findings", "actions"],
+    },
+    {
+      heading: "Project Configuration",
+      items: ["new-project", "maintain-project", "view-amend-projects"],
     },
   ],
   CXO: [
     { items: ["cxo-dashboard"] },
     {
-      heading: "My Reports",
-      items: [
-        "high-risks",
-        "geo-review",
-        "account-review",
-        "project-review",
-        "project-performance",
-        "de-assessment-report",
-        "de-findings",
-        "actions",
-      ],
+      heading: "Status & Performance Dashboards",
+      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance"],
     },
   ],
   // Admin-only screens. Everything else (PM / Account Head / Geo Head / DE /

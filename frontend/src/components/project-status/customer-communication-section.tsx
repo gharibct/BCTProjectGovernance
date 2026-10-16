@@ -15,7 +15,7 @@ import type { ProjectStatusReport } from "@/lib/api/project-status";
 // owned by DeliveryStatusReport and persisted by its "Save Report". Remarks is
 // optional and applies whichever way the question is answered.
 
-export const CUSTOMER_REPORT_ACCEPT = ".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx";
+export const CUSTOMER_REPORT_ACCEPT = ".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.zip";
 
 export type CustomerCommunicationState = {
   shared: "" | "Sent" | "Not Sent" | "Sent - Cannot be Disclosed";

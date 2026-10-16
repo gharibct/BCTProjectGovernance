@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PendingApprovalsPage } from "@/components/status-review/pending-approvals-page";
 
 export const metadata: Metadata = {
-  title: "Approve Project Delivery Status | Governance One",
+  title: "Approve Project Status Report | Governance One",
 };
 
 export default function ProjectApprovalListPage() {

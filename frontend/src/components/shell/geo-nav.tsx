@@ -27,11 +27,6 @@ function buildGroups(base: string): NavGroup[] {
       icon: ClipboardList,
       items: [
         { label: "Status Reporting", href: `${base}/status`, done: true },
-        {
-          label: "Executive Update",
-          href: `${base}/executive-update`,
-          done: false,
-        },
       ],
     },
   ];

@@ -31,7 +31,7 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
 }
 
-// One hub per report type: Report Project Status (Weekly) and Report Project
+// One hub per report type: Update Project Status Report (Weekly) and Report Project
 // Performance (Monthly) each get their own landing page.
 export function ReportingHub({ kind }: { kind: "delivery" | "performance" }) {
   const isDelivery = kind === "delivery";
@@ -42,7 +42,7 @@ export function ReportingHub({ kind }: { kind: "delivery" | "performance" }) {
   const { data: reports = [] } = useStatusReports(projectId ?? null);
   const { data: activity } = useReportingActivity(projectId ?? null);
 
-  // Report Project Status opens the merged Delivery Status Report (Project
+  // Update Project Status Report opens the merged Delivery Status Report (Project
   // Status + RAG Status, submitted from Project Delivery Status); Report
   // Project Performance lands on the monthly Project Performance dashboard.
   const dashboardHref = isDelivery
@@ -82,7 +82,7 @@ export function ReportingHub({ kind }: { kind: "delivery" | "performance" }) {
           <PageBreadcrumb
             items={[
               {
-                label: isDelivery ? "Report Project Status" : "Report Project Performance",
+                label: isDelivery ? "Update Project Status Report" : "Update Project Performance Report",
                 href: selectProjectHref(isDelivery ? "delivery-reporting" : "performance-reporting"),
               },
               ...(project?.project_code ? [{ label: project.project_code }] : []),
@@ -91,10 +91,10 @@ export function ReportingHub({ kind }: { kind: "delivery" | "performance" }) {
         </div>
         <h1 className="text-4xl font-bold tracking-tight text-slate-900">
           {project?.project_code
-            ? `${project.project_code} - ${isDelivery ? "Report Project Status" : "Report Project Performance"}`
+            ? `${project.project_code} - ${isDelivery ? "Update Project Status Report" : "Update Project Performance Report"}`
             : isDelivery
-              ? "Report Project Status"
-              : "Report Project Performance"}
+              ? "Update Project Status Report"
+              : "Update Project Performance Report"}
         </h1>
         <p className="mt-2 max-w-3xl text-slate-500">
           {project?.project_scope_description || project?.customer_overview || project?.project_name}

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-// The combined reporting hub is split into Report Project Status (weekly) and
-// Report Project Performance (monthly). Old links and notifications that point
+// The combined reporting hub is split into Update Project Status Report (weekly) and
+// Update Project Performance Report (monthly). Old links and notifications that point
 // at the bare project route land on the Delivery Status hub.
 export default async function ProjectReportingPage({
   params,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useReturnToRow } from "@/lib/return-to-row";
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -96,6 +97,8 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
   // readiness — show that immediately, then let the invalidated query converge.
   const [serverReadiness, setServerReadiness] = React.useState<ApprovalReadiness | null>(null);
   const view = serverReadiness ?? data;
+  // Back from a module's View page: scroll to and highlight that module.
+  const { onClickCapture } = useReturnToRow("send-to-approval", !!view);
   // Send To Approve / Recall both change the project's workflow state, so each asks first.
   const [confirm, setConfirm] = React.useState<"send" | "recall" | null>(null);
 
@@ -341,7 +344,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
       ) : null}
 
       <SectionCard icon={ClipboardCheck} title="Approval Readiness Checklist">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" onClickCapture={onClickCapture}>
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
@@ -354,7 +357,7 @@ export function SendToApprovalView({ mode = "maintain" }: { mode?: SendToApprova
             </thead>
             <tbody>
               {view.modules.map((m) => (
-                <tr key={m.key} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
+                <tr key={m.key} data-row-key={m.key} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
                   <td className="px-3 py-2.5 font-medium text-slate-900">
                     {m.label}
                     {!m.mandatory ? (

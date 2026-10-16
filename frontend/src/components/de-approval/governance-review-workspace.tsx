@@ -1,5 +1,6 @@
 "use client";
 
+import { useReturnToRow } from "@/lib/return-to-row";
 import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -57,6 +58,8 @@ export function GovernanceReviewWorkspace() {
 
   const { data: detail, isLoading, isError, error } = useDeReviewDetail(projectId);
   const updateModule = useUpdateModuleReview(projectId);
+  // Back from a module's View page: scroll to and highlight that module.
+  const { onClickCapture } = useReturnToRow("de-governance-review", !!detail);
   const decision = useDeReviewDecision(projectId);
 
   const [syncedId, setSyncedId] = React.useState<string | null>("__init__");
@@ -157,7 +160,7 @@ export function GovernanceReviewWorkspace() {
       </div>
 
       <SectionCard icon={ClipboardCheck} title="Completeness Checklist">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" onClickCapture={onClickCapture}>
           <table className="w-full min-w-[880px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
@@ -172,7 +175,7 @@ export function GovernanceReviewWorkspace() {
             </thead>
             <tbody>
               {completeness.modules.map((m) => (
-                <tr key={m.key} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
+                <tr key={m.key} data-row-key={m.key} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
                   <td className="px-3 py-2.5 font-medium text-slate-900">
                     {m.label}
                     {!m.mandatory ? (

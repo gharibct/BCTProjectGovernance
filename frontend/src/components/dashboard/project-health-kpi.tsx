@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 // /project-health dashboard links out to these screens via each Card's
 // footer, but had no way back short of the browser's own back button.
 export function BackToProjectHealth({ current }: { current: string }) {
-  return <PageBreadcrumb items={[{ label: "Project Health", href: "/project-health" }, { label: current }]} />;
+  return <PageBreadcrumb items={[{ label: "GovOne Dashboard", href: "/project-health" }, { label: current }]} />;
 }
 
 // Shared error panel for the drill-down list screens' fetch failures — same
@@ -47,6 +47,7 @@ export function Card({
   footerLabel,
   className,
   period,
+  linkDisabledReason,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -54,13 +55,21 @@ export function Card({
   children: React.ReactNode;
   href?: string;
   footerLabel?: string;
+  // When set, the footer link is shown disabled (greyed, not clickable) with this
+  // text as its tooltip — e.g. the activity is switched off for the project.
+  linkDisabledReason?: string;
   className?: string;
   // The period the KPI covers ("Selected Period: Week 12", "As of today", …),
   // shown as a caption at the bottom of the card.
   period?: string;
 }) {
   return (
-    <div className={cn("flex flex-col justify-between rounded-xl border border-slate-200 bg-white shadow-sm", className)}>
+    // data-row-key: lets the GovOne Dashboard scroll back to the card whose
+    // footer link was opened (see lib/return-to-row.ts).
+    <div
+      data-row-key={href}
+      className={cn("flex flex-col justify-between rounded-xl border border-slate-200 bg-white shadow-sm", className)}
+    >
       <div className="flex flex-1 flex-col p-5">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-900">
           <Icon className={cn("size-4", iconClassName ?? "text-slate-400")} />
@@ -74,7 +83,15 @@ export function Card({
           </div>
         ) : null}
       </div>
-      {href ? (
+      {href && linkDisabledReason ? (
+        <span
+          aria-disabled="true"
+          title={linkDisabledReason}
+          className="cursor-not-allowed rounded-b-xl border-t border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-400"
+        >
+          {footerLabel ?? `View ${title}`} →
+        </span>
+      ) : href ? (
         <Link
           href={href}
           className="rounded-b-xl border-t border-slate-300 bg-slate-100 px-5 py-3 text-sm font-semibold text-[#1a6fc4] hover:bg-slate-200 hover:underline"
@@ -130,6 +147,102 @@ export function RagCountCell({
     <div className={cn("rounded-md border p-1 text-center", className)}>
       <p className="text-[9px] font-semibold tracking-wide uppercase">{label}</p>
       <p className={cn("text-sm font-bold", valueClassName)}>{value}</p>
+    </div>
+  );
+}
+
+// The five RAG buckets every health KPI uses (Project / Account Health, DE
+// Assessment, High Risk). One source for the colours, so a KPI looks the same on
+// the GovOne Dashboard card and on its detail page.
+export type RagBucket =
+  | "Green"
+  | "Amber"
+  | "Potential Red"
+  | "Red"
+  | "Not Submitted"
+  | "Not Assessed"
+  // Report-submission buckets (Delivery Status / Project Performance cards)
+  | "Submitted"
+  | "Approved"
+  | "Baselined"
+  | "Not Baselined"
+  | "Auto Generated";
+
+export const RAG_BUCKET_STYLES: Record<
+  RagBucket,
+  { label: string; shortLabel: string; className: string; valueClassName: string }
+> = {
+  Green: { label: "Green", shortLabel: "Green", className: "border-emerald-100 bg-emerald-50 text-emerald-700", valueClassName: "text-emerald-600" },
+  Amber: { label: "Amber", shortLabel: "Amber", className: "border-amber-100 bg-amber-50 text-amber-700", valueClassName: "text-amber-500" },
+  "Potential Red": { label: "Pot. Red", shortLabel: "Pot. Red", className: "border-orange-100 bg-orange-50 text-orange-700", valueClassName: "text-orange-600" },
+  Red: { label: "Red", shortLabel: "Red", className: "border-red-100 bg-red-50 text-red-700", valueClassName: "text-red-600" },
+  "Not Submitted": { label: "Not Submitted", shortLabel: "Not Sub.", className: "border-slate-200 bg-slate-50 text-slate-500", valueClassName: "text-slate-900" },
+  "Not Assessed": { label: "Not Assessed", shortLabel: "Not Assessed", className: "border-slate-200 bg-slate-50 text-slate-500", valueClassName: "text-slate-900" },
+  Submitted: { label: "Submitted", shortLabel: "Submitted", className: "border-blue-100 bg-blue-50 text-blue-700", valueClassName: "text-blue-600" },
+  Approved: { label: "Approved", shortLabel: "Approved", className: "border-emerald-100 bg-emerald-50 text-emerald-700", valueClassName: "text-emerald-600" },
+  Baselined: { label: "Baselined", shortLabel: "Baselined", className: "border-emerald-100 bg-emerald-50 text-emerald-700", valueClassName: "text-emerald-600" },
+  "Not Baselined": { label: "Not Baselined", shortLabel: "Not Baselined", className: "border-red-100 bg-red-50 text-red-700", valueClassName: "text-red-600" },
+  "Auto Generated": { label: "Auto Generated", shortLabel: "Auto Gen.", className: "border-slate-200 bg-slate-50 text-slate-500", valueClassName: "text-slate-900" },
+};
+
+// "Not Submitted" is red on the report-submission cards (a missed report), grey on
+// the RAG cards (no rating yet).
+export const SUBMISSION_NOT_SUBMITTED_STYLE = {
+  className: "border-red-100 bg-red-50 text-red-700",
+  valueClassName: "text-red-600",
+};
+
+// Clickable KPI tiles for a detail page: each tile shows the same count as the
+// GovOne Dashboard card and, when clicked, narrows the list below to that bucket
+// (click again to show all) — same behaviour as the High Risk dashboard.
+export function RagFilterTiles({
+  buckets,
+  counts,
+  selected,
+  onSelect,
+  leading,
+  redNotSubmitted = false,
+}: {
+  buckets: RagBucket[];
+  counts: Partial<Record<RagBucket, React.ReactNode>>;
+  selected: string;
+  onSelect: (bucket: RagBucket | "") => void;
+  // A non-clickable first cell (e.g. Adherence %).
+  leading?: React.ReactNode;
+  // Report-submission cards show "Not Submitted" in red.
+  redNotSubmitted?: boolean;
+}) {
+  const cells = buckets.length + (leading ? 1 : 0);
+  return (
+    <div className={cn("grid grid-cols-2 gap-2", cells >= 5 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
+      {leading}
+      {buckets.map((bucket) => {
+        const style =
+          redNotSubmitted && bucket === "Not Submitted"
+            ? { ...RAG_BUCKET_STYLES[bucket], ...SUBMISSION_NOT_SUBMITTED_STYLE }
+            : RAG_BUCKET_STYLES[bucket];
+        const isSelected = selected === bucket;
+        return (
+          <button
+            key={bucket}
+            type="button"
+            aria-pressed={isSelected}
+            title={isSelected ? "Show all" : `Show only ${style.label}`}
+            onClick={() => onSelect(isSelected ? "" : bucket)}
+            className={cn(
+              "cursor-pointer rounded-md text-left no-underline transition-shadow hover:shadow-md",
+              isSelected && "ring-2 ring-[#1a6fc4]"
+            )}
+          >
+            <RagCountCell
+              label={style.label}
+              value={counts[bucket] ?? "—"}
+              className={cn("py-2", style.className)}
+              valueClassName={cn("text-2xl underline underline-offset-4", style.valueClassName)}
+            />
+          </button>
+        );
+      })}
     </div>
   );
 }

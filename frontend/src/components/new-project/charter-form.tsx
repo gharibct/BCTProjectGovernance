@@ -33,6 +33,7 @@ import {
   useProjectTypes,
   useRegions,
   useUsers,
+  useUsersByIds,
 } from "@/lib/api/reference-data";
 import {
   useCreateProject,
@@ -225,6 +226,8 @@ function ProjectDescriptionTab({
     [projectOwnedReference]
   );
   const { data: geoHead } = useGeoHead(values.geo_id ?? null);
+  const deIds = React.useMemo(() => [project?.delivery_excellence_id], [project?.delivery_excellence_id]);
+  const { data: deUsers } = useUsersByIds(deIds);
   const { data: accountHead, isLoading: accountHeadLoading } = useAccountHead(values.account_id ?? null);
   const { data: secondaryPms } = useProjectProxyManagers(projectId ?? null);
   const { data: secondaryDms } = useAccountProxyDeliveryManagers(values.account_id ?? null);
@@ -463,7 +466,7 @@ function ProjectDescriptionTab({
                 disabled={locked}
               />
             </Field>
-            <Field label="Product Flag" required ai={fieldAi("product_flag")}>
+            <Field label="BCT Product Implemented" required ai={fieldAi("product_flag")}>
               <Segmented
                 options={YES_NO_OPTIONS}
                 value={values.product_flag ?? ""}
@@ -541,6 +544,13 @@ function ProjectDescriptionTab({
             <Field label="Geo Head" badge={<AutoBadge />}>
               <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
                 {geoHead?.full_name ?? "Not Assigned"}
+              </div>
+            </Field>
+            {/* Read-only: a DE (or Admin) assigns it on the DE Project Allocation
+                screen after the PM sends the project for approval. */}
+            <Field label="Delivery Excellence" badge={<AutoBadge />}>
+              <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+                {deUsers?.[0]?.full_name ?? "Not Assigned"}
               </div>
             </Field>
           </div>

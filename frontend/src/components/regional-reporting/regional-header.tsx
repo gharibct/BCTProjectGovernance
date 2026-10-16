@@ -14,7 +14,7 @@ import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-d
 import { useRegionalStatusReports, type RegionalScope } from "@/lib/api/regional-status";
 
 const SCOPE_LABEL: Record<RegionalScope, string> = {
-  account: "Report Account Status",
+  account: "Update Account Status Report",
   geo: "Geo Reporting",
 };
 
@@ -41,6 +41,11 @@ type RegionalHeaderProps = {
   // lives on Delivery Status Report - Account/Geo and Account/Geo Review,
   // not every other Account/Geo Reporting sub-page.
   showActionTracker?: boolean;
+  // Overrides the breadcrumb root (label + link) — Update Leadership Status Report
+  // reuses this header with its own landing page.
+  crumb?: { label: string; href: string };
+  // Leadership Status has no report status of its own — hide the badge.
+  hideReportStatus?: boolean;
 };
 
 // Reads the ?period= reporting_periods.id that status-form.tsx also reads —
@@ -52,6 +57,8 @@ function PeriodAwareHeading({
   dynamicSubheading,
   periodId: periodIdProp,
   showActionTracker,
+  crumb,
+  hideReportStatus,
 }: {
   scope: RegionalScope;
   scopeId: string;
@@ -59,6 +66,8 @@ function PeriodAwareHeading({
   dynamicSubheading?: boolean;
   periodId?: string | null;
   showActionTracker?: boolean;
+  crumb?: { label: string; href: string };
+  hideReportStatus?: boolean;
 }) {
   const searchParams = useSearchParams();
   const periodId = periodIdProp !== undefined ? periodIdProp : searchParams.get("period");
@@ -91,7 +100,7 @@ function PeriodAwareHeading({
     <>
       <PageBreadcrumb
         items={[
-          {
+          crumb ?? {
             label: SCOPE_LABEL[scope],
             href: scope === "account" ? `/account-reporting/${scopeId}/summary` : `/geo-reporting/${scopeId}`,
           },
@@ -106,10 +115,12 @@ function PeriodAwareHeading({
               <span className="text-sm font-semibold text-slate-500">Period:</span>
               {period ? <ReportingPeriodPill label={period.label} /> : <span className="text-slate-300">—</span>}
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold text-slate-500">Report Status:</span>
-              <StatusBadge value={report?.status ?? ""} size="lg" />
-            </span>
+            {hideReportStatus ? null : (
+              <span className="flex items-center gap-1.5">
+                <span className="text-sm font-semibold text-slate-500">Report Status:</span>
+                <StatusBadge value={report?.status ?? ""} size="lg" />
+              </span>
+            )}
           </div>
           {showActionTracker ? <ActionTrackerTrigger level={SCOPE_ACTION_LEVEL[scope]} id={scopeId} name={name} /> : null}
         </div>
@@ -130,6 +141,8 @@ export function RegionalHeader({
   dynamicSubheading,
   periodId,
   showActionTracker,
+  crumb,
+  hideReportStatus,
 }: RegionalHeaderProps) {
   const params = useParams<Record<string, string>>();
   const scopeId = params[paramName] ?? "";
@@ -150,6 +163,8 @@ export function RegionalHeader({
           dynamicSubheading={dynamicSubheading}
           periodId={periodId}
           showActionTracker={showActionTracker}
+          crumb={crumb}
+          hideReportStatus={hideReportStatus}
         />
       </Suspense>
       {description?.trim() ? (

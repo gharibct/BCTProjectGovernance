@@ -169,7 +169,7 @@ async def bulk_create_project(
                 status.HTTP_422_UNPROCESSABLE_ENTITY, "Account does not belong to the selected Geo and Region."
             )
     if payload.product_flag == YesNo.YES and payload.product_id is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Product is required when Product Flag is Yes.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Product is required when BCT Product Implemented is Yes.")
 
     data = payload.model_dump(exclude={"project_manager_email", "oracle_project_id"})
     data["project_manager_id"] = manager.id

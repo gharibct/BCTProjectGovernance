@@ -1,12 +1,12 @@
 "use client";
 
+import { useProjectHealthFilters } from "@/stores/project-health-filters";
 import * as React from "react";
 
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
-import type { ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
 import {
   fetchAllProjectHealthRows,
   formatGeoRegion,
@@ -107,7 +107,7 @@ const STATUS_OPTIONS: { value: OracleProjectMappingStatus; label: string }[] = [
 // Managers get their accounts'; Project Managers don't get this page.
 export function ProjectHealthOracleProjects() {
   const canSee = useCanSeeOracleProjects();
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
+  const [filters, setFilters] = useProjectHealthFilters();
   const [status, setStatus] = React.useState<OracleProjectMappingStatus>("unmapped");
   const [search, setSearch] = React.useState("");
   const [skip, setSkip] = React.useState(0);

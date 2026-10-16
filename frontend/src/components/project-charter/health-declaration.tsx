@@ -371,15 +371,17 @@ export function HealthDeclaration({
           ))}
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0">
+        <div className="mt-6 flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-slate-800">{activeCategory.name}</p>
             <p className="mt-0.5 text-xs text-slate-400">{activeCategory.covers}</p>
           </div>
-          <HealthPicker
-            value={ratings[activeCategory.key]}
-            onChange={(value) => setRating(activeCategory.key, value)}
-          />
+          <div className="shrink-0">
+            <HealthPicker
+              value={ratings[activeCategory.key]}
+              onChange={(value) => setRating(activeCategory.key, value)}
+            />
+          </div>
         </div>
 
         <div className="mt-6">
@@ -417,16 +419,18 @@ export function HealthSections({
           const category = CATEGORIES.find((c) => c.name === tab.category)!;
           return (
             <div key={category.key} id={`rag-${category.key}`} className="scroll-mt-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="min-w-0">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-slate-800">{category.name}</p>
                   <p className="mt-0.5 text-xs text-slate-400">{category.covers}</p>
                 </div>
-                <HealthPicker
-                  value={ratings[category.key]}
-                  onChange={(value) => setRating(category.key, value)}
-                  disabled={disabled}
-                />
+                <div className="shrink-0">
+                  <HealthPicker
+                    value={ratings[category.key]}
+                    onChange={(value) => setRating(category.key, value)}
+                    disabled={disabled}
+                  />
+                </div>
               </div>
               <div className="mt-4">
                 <HealthItemsTab category={tab.category} title={tab.label} icon={tab.icon} />

@@ -100,7 +100,14 @@ export function ExecutiveUpdateView() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <RegionalHeader scope="geo" paramName="geoId" subheading="Executive Update" periodId={periodId} />
+      <RegionalHeader
+        scope="geo"
+        paramName="geoId"
+        subheading="Leadership Status"
+        periodId={periodId}
+        hideReportStatus
+        crumb={{ label: "Update Leadership Status Report", href: `/leadership-reporting/${geoId}` }}
+      />
 
       <ExecutiveContentBuilder
         value={update}

@@ -26,7 +26,7 @@ export function isApproved(status: Project["project_status"]): boolean {
   return status !== "Draft" && status !== "Pending Approval";
 }
 
-// Report Project Status / Report Project Performance are narrower than isApproved: a project mid-revision
+// Update Project Status Report / Update Project Performance Report are narrower than isApproved: a project mid-revision
 // (Under Amendment) is back in the charter-editing flow, not a live project to
 // report on, so it's excluded there (it still shows under Amend Project).
 export function canReport(status: Project["project_status"]): boolean {
@@ -67,14 +67,14 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     emptyLabel: "No approved projects yet.",
   },
   "delivery-reporting": {
-    label: "Report Project Status",
+    label: "Update Project Status Report",
     hrefFor: (id) => `/project-reporting/${id}/delivery-calendar`,
     eligible: (p) => canReport(p.project_status),
     hiddenWhenRestricted: ["DELIVERY_STATUS"],
     emptyLabel: "No approved projects yet.",
   },
   "performance-reporting": {
-    label: "Report Project Performance",
+    label: "Update Project Performance Report",
     hrefFor: (id) => `/project-reporting/${id}/performance`,
     eligible: (p) => canReport(p.project_status),
     // Always launchable — RAIDO is reported here even when the other three
@@ -91,7 +91,7 @@ export const PROJECT_TARGETS: Record<ProjectTargetId, ProjectTarget> = {
     label: "Project Performance",
     hrefFor: (id) => `/project-performance/${id}`,
     eligible: (p) => isApproved(p.project_status),
-    // Same rule as Report Project Performance: gone once all three sections are switched off.
+    // Same rule as Update Project Performance Report: gone once all three sections are switched off.
     hiddenWhenRestricted: ["METRICS", "COMMITMENTS", "PAYMENT_MILESTONES"],
     emptyLabel: "No projects yet.",
   },

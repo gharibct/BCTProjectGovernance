@@ -40,7 +40,7 @@ for (const sub of READ_ONLY_SUB_ROUTES) {
 // the report content model is still evolving.
 test("executive update: add content and save (smoke)", async ({ page }) => {
   const errors = trackConsoleErrors(page);
-  await page.goto(`/geo-reporting/${geoId}/executive-update`);
+  await page.goto(`/leadership-reporting/${geoId}/executive-update`);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
   // Default sections (Delivery/People/Financials/Operations — see
@@ -57,7 +57,7 @@ test("executive update: add content and save (smoke)", async ({ page }) => {
   await editor.click();
   await editor.pressSequentially("E2E smoke test update content.");
 
-  await page.getByRole("button", { name: "Save Draft" }).click();
+  await page.getByRole("button", { name: "Save Details" }).click();
   await expect(page.getByRole("alert")).toBeVisible();
 
   expect(errors).toEqual([]);

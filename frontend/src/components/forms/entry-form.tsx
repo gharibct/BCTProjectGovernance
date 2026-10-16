@@ -12,6 +12,9 @@ export type FieldKind = "text" | "number" | "date" | "select" | "textarea";
 export type FieldDef = {
   key: string;
   label: string;
+  // Former column headers still accepted when importing (a renamed field keeps
+  // working with files made before the rename).
+  aliases?: readonly string[];
   kind: FieldKind;
   // Enum-style select: option value === option label.
   options?: readonly string[];

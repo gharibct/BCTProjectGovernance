@@ -22,11 +22,11 @@ _PROJECT_GET_MAP = {(Project, _PROJECT_ID): SimpleNamespace(account_id=None, geo
 
 
 def _period(pid, start, end):
-    return SimpleNamespace(id=pid, label=f"W {start}", start_date=start, end_date=end, period_type="Weekly")
+    return SimpleNamespace(id=pid, label=f"W {start}", start_date=start, end_date=end, period_type="Weekly", due_date=None)
 
 
 def _report(pid, status, updated):
-    return SimpleNamespace(period_id=pid, status=status, updated_at=updated)
+    return SimpleNamespace(period_id=pid, status=status, updated_at=updated, submitted_at=None)
 
 
 # --- endpoint ---------------------------------------------------------------

@@ -8,3 +8,4 @@ storage/
 *.xlsx
 integration/*.xlsx
 master_data_nullable_proposal_*.md
+backend/users.csv

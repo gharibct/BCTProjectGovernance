@@ -58,6 +58,7 @@ export function MilestonesTab() {
         aside={<AutoBadge label={`${items.length} logged`} />}
       >
         <RegisterTable
+          pageSize={10}
           items={items}
           emptyLabel="No payment milestones defined yet."
           onRowClick={(item) => setSelectedId(item.id)}

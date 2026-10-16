@@ -1,4 +1,4 @@
-# Project Health Dashboard — KPI Logic (as-built reference)
+# GovOne Dashboard — KPI Logic (as-built reference)
 
 Page: `/project-health` (`frontend/src/components/dashboard/project-health-dashboard.tsx`)
 API: `GET /dashboard/project-health` (`backend/app/api/v1/endpoints/dashboard.py::get_project_health_dashboard`, line ~490)

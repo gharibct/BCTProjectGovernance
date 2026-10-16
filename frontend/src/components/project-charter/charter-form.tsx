@@ -42,6 +42,7 @@ import {
   useProjectTypes,
   useRegions,
   useUsers,
+  useUsersByIds,
 } from "@/lib/api/reference-data";
 import {
   useCreateProjectResource,
@@ -76,6 +77,8 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
   const { data: accounts } = useAccounts();
   const { data: users } = useUsers();
   const { data: geoHead } = useGeoHead(project?.geo_id ?? null);
+  const deIds = React.useMemo(() => [project?.delivery_excellence_id], [project?.delivery_excellence_id]);
+  const { data: deUsers } = useUsersByIds(deIds);
   const { data: secondaryPms } = useProjectProxyManagers(project?.id ?? null);
   const { data: secondaryDms } = useAccountProxyDeliveryManagers(project?.account_id ?? null);
   const names = (list: { full_name: string }[] | undefined) =>
@@ -196,7 +199,7 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               disabled
             />
           </Field>
-          <Field label="Product Flag">
+          <Field label="BCT Product Implemented">
             <Segmented
               options={YES_NO_OPTIONS}
               value={project?.product_flag ?? ""}
@@ -259,17 +262,10 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               {geoHead?.full_name ?? "Not Assigned"}
             </div>
           </Field>
-          <Field label="Delivery Excellence" htmlFor="delivery-excellence">
-            <NativeSelect id="delivery-excellence" value={project?.delivery_excellence_id ?? ""} disabled>
-              <option value="" disabled>
-                Select…
-              </option>
-              {(users ?? []).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name}
-                </option>
-              ))}
-            </NativeSelect>
+          <Field label="Delivery Excellence" badge={<AutoBadge />}>
+            <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
+              {deUsers?.[0]?.full_name ?? "Not Assigned"}
+            </div>
           </Field>
         </div>
       </SectionCard>

@@ -20,6 +20,7 @@ from app.schemas.account_health_declarations import (
     AccountHealthItemUpdate,
 )
 from app.schemas.enums import Category, RoleCode
+from app.services.account_rag_validation import RAG_PARAMETERS, assert_account_rag_not_better_than_projects
 from app.services.health_rollup import compute_overall_rating
 from app.services.report_lock import assert_report_editable
 
@@ -63,6 +64,10 @@ async def _assert_period_editable(db: AsyncSession, account_id: UUID, period_id:
     assert_report_editable((await db.execute(stmt)).scalars().first())
 
 
+def _rating_columns(payload: AccountHealthDeclarationCreate | AccountHealthDeclarationUpdate) -> dict[str, str]:
+    return {column: getattr(payload, column).value for _, column in RAG_PARAMETERS}
+
+
 @router.get("", response_model=list[AccountHealthDeclarationRead], dependencies=_account_read)
 async def list_account_health_declarations(account_id: UUID, db: AsyncSession = Depends(get_db)):
     items, _ = await account_health_declaration_crud.list(
@@ -99,6 +104,9 @@ async def create_account_health_declaration(
     db: AsyncSession = Depends(get_db),
 ):
     await _assert_period_editable(db, account_id, payload.period_id)
+    await assert_account_rag_not_better_than_projects(
+        db, account_id, payload.period_id, _rating_columns(payload)
+    )
     overall = compute_overall_rating(
         [
             payload.core_delivery_rating,
@@ -123,6 +131,7 @@ async def update_account_health_declaration(
     if obj is None or obj.account_id != account_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Health declaration not found")
     await _assert_period_editable(db, account_id, obj.period_id)
+    await assert_account_rag_not_better_than_projects(db, account_id, obj.period_id, _rating_columns(payload))
 
     overall = compute_overall_rating(
         [

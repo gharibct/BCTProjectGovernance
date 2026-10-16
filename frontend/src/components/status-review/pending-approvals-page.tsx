@@ -7,7 +7,7 @@ import { usePendingApprovals, type PendingApprovalScope } from "@/lib/api/pendin
 
 const COPY: Record<PendingApprovalScope, { title: string; entity: string; href: string; showCode: boolean }> = {
   projects: {
-    title: "Approve Project Delivery Status",
+    title: "Approve Project Status Report",
     entity: "Project",
     href: "/project-approval",
     showCode: true,

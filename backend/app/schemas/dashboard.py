@@ -838,7 +838,7 @@ class AssessmentRow(BaseModel):
     geo_name: str | None = None
     region_name: str | None = None
     account_name: str | None = None
-    assessment_id: UUID
+    assessment_id: UUID | None = None
     pm_health: HealthRating | None = None
     de_health: HealthRating | None = None
     pci_score: Decimal | None = None
@@ -961,8 +961,10 @@ class HighRiskAccountRow(HealthMatrixRow):
     geo_name: str | None = None
     region_id: UUID | None = None
     region_name: str | None = None
+    delivery_manager_id: UUID | None = None
     delivery_manager_name: str | None = None
-    # "Red" / "Potential Red" / "Amber" / "Not Submitted".
+    # "Red" / "Potential Red" / "Amber" / "Green" / "Not Submitted" (Green only
+    # on the Delivery Health Dashboard).
     risk_status: str
 
 
@@ -971,8 +973,35 @@ class HighRiskKpis(BaseModel):
     potential_red: int
     amber: int
     not_submitted: int
+    # Only counted for the Delivery Health Dashboard (include_green).
+    green: int = 0
+
+
+class DeliveryManagerOption(BaseModel):
+    id: UUID
+    name: str
+
+
+# Project Health Dashboard: the Delivery Health grid at project level — one row
+# per project (entity_* = the project; account_* = its account).
+class ProjectHealthDashboardRow(HighRiskAccountRow):
+    project_code: str | None = None
+    project_name: str
+    project_manager_id: UUID | None = None
+    project_manager_name: str | None = None
+
+
+class ProjectHealthDashboardResponse(BaseModel):
+    kpis: HighRiskKpis
+    items: list[ProjectHealthDashboardRow]
+    # Project Manager filter options — PMs of the in-scope projects, before the
+    # PM filter itself is applied.
+    project_managers: list[DeliveryManagerOption] = []
 
 
 class HighRisksResponse(BaseModel):
     kpis: HighRiskKpis
     items: list[HighRiskAccountRow]
+    # Delivery Health Dashboard's Delivery Manager filter — managers of the
+    # in-scope accounts, before the manager filter itself is applied.
+    delivery_managers: list[DeliveryManagerOption] = []

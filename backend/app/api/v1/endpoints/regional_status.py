@@ -19,6 +19,7 @@ from app.models.projects import Project
 from app.models.project_status import ProjectStatusReport
 from app.models.reference_data import Account, ReportingPeriod
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusItem, GeoStatusReport
+from app.services.account_rag_validation import assert_account_rag_not_better_than_projects
 from app.schemas.copy_from_latest import CopyFromLatestResult
 from app.schemas.enums import ProjectStatusCategory, ReportStatus, RoleCode
 from app.schemas.regional_status import (
@@ -244,6 +245,7 @@ async def create_account_status_report(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Reporting period not found")
     if payload.status == ReportStatus.SUBMITTED:
         await _assert_geo_not_baselined_for_account(db, account_id, payload.period_id)
+        await assert_account_rag_not_better_than_projects(db, account_id, payload.period_id)
     alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
         db, scope="account", scope_id=account_id
     )
@@ -274,6 +276,7 @@ async def update_account_status_report(
     assert_report_editable(obj.status)
     if payload.status == ReportStatus.SUBMITTED:
         await _assert_geo_not_baselined_for_account(db, account_id, obj.period_id)
+        await assert_account_rag_not_better_than_projects(db, account_id, obj.period_id)
     prior_status = obj.status
     updated = await account_status_report_crud.update(db, obj, payload)
 

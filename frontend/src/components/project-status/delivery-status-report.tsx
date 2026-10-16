@@ -13,6 +13,8 @@ import { CopyFromLatestButton, ReplaceFromLatestDialog } from "@/components/form
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageBanner } from "@/stores/page-banner";
+import { unsavedItemsMessage } from "@/lib/unsaved-items";
+import { isWholeNumber, PROJECTS_COUNT_ERROR } from "@/lib/whole-number";
 import { useProject } from "@/lib/api/projects";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import {
@@ -38,6 +40,7 @@ import {
 } from "./customer-communication-section";
 import { SECTION_IDS, statusSectionId } from "@/components/reporting/report-progress";
 import { StatusItemsTab } from "./status-items-tab";
+import { useProjectReportRecall } from "@/components/project-dashboard/submit-report-action";
 
 // The weekly Delivery Status Report as one long page: Key Metrics, Customer
 // Communication, the four status registers and the six RAG categories stacked
@@ -65,6 +68,7 @@ export function DeliveryStatusReport() {
   // Submitted/Approved — the report is frozen (see submit-report-action.tsx);
   // Key Metrics and the status-item registers all stop accepting edits.
   const frozen = existing ? isReportFrozen(existing.status) : false;
+  const { lockedMessage, recallControls } = useProjectReportRecall(projectId ?? "", periodId ?? "", existing);
 
   // No report yet for this period → carry Key Metrics forward from the last
   // period's report so unchanged figures don't have to be re-keyed.
@@ -111,6 +115,10 @@ export function DeliveryStatusReport() {
   // (status-items-tab.tsx), so after this the whole page is saved.
   const saveDetails = async (): Promise<boolean> => {
     if (!periodId) return false;
+    if (!isWholeNumber(metrics.projects_count)) {
+      showError(PROJECTS_COUNT_ERROR);
+      return false;
+    }
     // Customer Communication is optional on save (a half-filled section is kept
     // as typed); it is only mandatory when the report is submitted, which the
     // Submit action and the server both enforce.
@@ -211,6 +219,11 @@ export function DeliveryStatusReport() {
   // Customer Communication), then the six RAG ratings. Line items in the
   // registers already saved per row as they were edited.
   const saveReport = async () => {
+    const unsaved = unsavedItemsMessage();
+    if (unsaved) {
+      showError(unsaved);
+      return;
+    }
     if (!(await saveDetails())) return;
     try {
       await health.saveRatings();
@@ -285,6 +298,8 @@ export function DeliveryStatusReport() {
                   <Input
                     id="projects_count"
                     type="number"
+                  step="1"
+                  min="0"
                     className="h-11"
                     value={metrics.projects_count}
                     onChange={setMetric("projects_count")}
@@ -349,11 +364,12 @@ export function DeliveryStatusReport() {
             frozen ? (
               <p role="status" className="flex items-center gap-2 text-sm text-amber-800">
                 <Lock className="size-4 shrink-0" />
-                This report has been submitted and is now read-only.
+                {lockedMessage ?? "This report has been submitted and is now read-only."}
               </p>
             ) : undefined
           }
         >
+          {recallControls}
           <Button
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
             disabled={isBusy || frozen}

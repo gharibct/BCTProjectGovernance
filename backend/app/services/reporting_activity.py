@@ -14,11 +14,11 @@ against that scope's status reports, plus the rolled-up counts.
                end date), or hasn't ended yet (still running — reporting happens
                ON the period's end date, so a period ending today is complete). Shown
                as a plain box, excluded from the ring totals / percentage.
-- "on-time"  — a Submitted/Approved report whose updated_at date is on or
-               before the period end (updated_at stands in for submit time;
-               deadline = period end, no grace — same rule as
-               services/dashboard.py's _project_reporting_bucket).
-- "late"     — a Submitted/Approved report updated after the period end.
+- "on-time"  — a Submitted/Approved report filed (submitted_at) on or before the
+               period's due date (falls back to the period end when no due date
+               is set) — services/report_timeliness.py, the same rule as
+               services/dashboard.py's _project_reporting_bucket.
+- "late"     — a Submitted/Approved report filed after the due date.
 - "pending"  — in the reporting window, fully ended, no submitted report yet.
 
 A project can switch a report off from a date (project_activity_restrictions):
@@ -40,6 +40,7 @@ from app.models.reference_data import Account, Geo, ReportingPeriod
 from app.models.regional_status import AccountStatusReport, GeoStatusReport
 from app.schemas.enums import ProjectActivity, ReportStatus
 from app.services.activity_restriction import restrictions_for_project
+from app.services.report_timeliness import is_late
 from app.schemas.reporting_activity import (
     ActivityCounts,
     PeriodActivityItem,
@@ -59,6 +60,7 @@ class _StatusReportLike(Protocol):
     period_id: UUID
     status: str
     updated_at: datetime
+    submitted_at: datetime | None
 
 
 def _classify(
@@ -74,7 +76,7 @@ def _classify(
     if period.start_date > window_end:
         return "n/a"  # future, or past the scope's end date — not owed
     if report is not None and report.status in _SUBMITTED:
-        return "on-time" if report.updated_at.date() <= period.end_date else "late"
+        return "late" if is_late(report, period) else "on-time"
     if restricted_from is not None and period.start_date >= restricted_from:
         return "n/a"  # switched off for the project from this period on
     if period.end_date > today:

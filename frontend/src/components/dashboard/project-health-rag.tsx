@@ -1,10 +1,11 @@
 "use client";
 
+import { useProjectHealthFilters, useScreenFilters } from "@/stores/project-health-filters";
 import * as React from "react";
 
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
-import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { useProjectHealthDashboardSummary } from "@/lib/api/project-health-dashboard";
 import {
   fetchAllProjectHealthRows,
   formatGeoRegion,
@@ -14,18 +15,22 @@ import {
 } from "@/lib/api/project-health-lists";
 import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
-import { BackToProjectHealth, ErrorBlock, formatDateTime, HealthBadge, StatTile } from "./project-health-kpi";
+import { HeartPulse } from "lucide-react";
+
+import { BackToProjectHealth, Card, ErrorBlock, formatDateTime, HealthBadge, RagFilterTiles } from "./project-health-kpi";
 
 const PAGE_SIZE = 10;
 
 type Row = RagRow & { id: string };
 
 export function ProjectHealthRag() {
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
+  const [filters, setFilters] = useProjectHealthFilters();
   const [skip, setSkip] = React.useState(0);
+  // The KPI bucket picked on the tiles below — narrows the list to that bucket.
+  const { overall: status, setOverall: setStatus, reset: resetStatus } = useScreenFilters("rag");
 
   const { data: summary } = useProjectHealthDashboardSummary(filters);
-  const { data, isLoading, isError, error, refetch } = useProjectHealthRag({ ...filters, skip, limit: PAGE_SIZE });
+  const { data, isLoading, isError, error, refetch } = useProjectHealthRag({ ...filters, status: status || undefined, skip, limit: PAGE_SIZE });
 
   const columns: RegisterColumn<Row>[] = [
     {
@@ -46,7 +51,7 @@ export function ProjectHealthRag() {
       excelValue: (row) => formatGeoRegion(row.geo_name, row.region_name),
     },
     { key: "account_name", label: "Account" },
-    { key: "overall_rating", label: "Overall RAG", render: (row) => <HealthBadge value={row.overall_rating} /> },
+    { key: "overall_rating", label: "Overall RAG", render: (row) => <HealthBadge value={row.overall_rating ?? "Not Submitted"} /> },
     { key: "core_delivery_rating", label: "Core Delivery", render: (row) => <HealthBadge value={row.core_delivery_rating} /> },
     { key: "operational_rating", label: "Operational", render: (row) => <HealthBadge value={row.operational_rating} /> },
     { key: "financial_rating", label: "Financial", render: (row) => <HealthBadge value={row.financial_rating} /> },
@@ -70,23 +75,32 @@ export function ProjectHealthRag() {
           setFilters(next);
           setSkip(0);
         }}
+        extraFiltersActive={!!status}
+        onReset={resetStatus}
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <StatTile label="Green" value={summary?.health.green_count ?? "—"} accentClassName="border-t-emerald-500" />
-        <StatTile label="Amber" value={summary?.health.amber_count ?? "—"} accentClassName="border-t-amber-500" />
-        <StatTile
-          label="Potential Red"
-          value={summary?.health.potential_red_count ?? "—"}
-          accentClassName="border-t-orange-500"
+      <Card
+        title="Project Health"
+        icon={HeartPulse}
+        iconClassName="text-emerald-600"
+        period={`Selected Period: ${summary?.period_label ?? "current week"}`}
+      >
+        <RagFilterTiles
+          buckets={["Green", "Amber", "Potential Red", "Red", "Not Submitted"]}
+          counts={{
+            Green: summary?.health.green_count,
+            Amber: summary?.health.amber_count,
+            "Potential Red": summary?.health.potential_red_count,
+            Red: summary?.health.red_count,
+            "Not Submitted": summary?.health.not_submitted_count,
+          }}
+          selected={status}
+          onSelect={(bucket) => {
+            setStatus(bucket);
+            setSkip(0);
+          }}
         />
-        <StatTile label="Red" value={summary?.health.red_count ?? "—"} accentClassName="border-t-red-500" />
-        <StatTile
-          label="Not Submitted"
-          value={summary?.health.not_submitted_count ?? "—"}
-          accentClassName="border-t-slate-400"
-        />
-      </div>
+      </Card>
 
       {isError ? (
         <ErrorBlock title="Couldn't load the RAG report." error={error} onRetry={() => refetch()} />
@@ -96,7 +110,7 @@ export function ProjectHealthRag() {
             <ProjectHealthExportButton
               filename="project-health-rag"
               columns={columns}
-              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.rag, { ...filters })}
+              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.rag, { ...filters, status: status || undefined })}
             />
           </div>
           <RegisterTable items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No projects found."} />

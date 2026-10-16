@@ -26,6 +26,7 @@ import {
   type PageCompletionStatus,
 } from "@/lib/api/reporting-attestation";
 import { useReportingPeriods } from "@/lib/api/reference-data";
+import { isRestrictedOn, useProjectRestrictions, type ProjectActivity } from "@/lib/api/activity-restrictions";
 import { isReportFrozen, useStatusReports } from "@/lib/api/project-status";
 import { currentPeriod } from "@/lib/period-utils";
 import { useProjectDefaultPeriodId } from "@/lib/use-default-period";
@@ -106,6 +107,18 @@ export function PerformanceDashboardBody({
   const { data, isLoading, isError, error, refetch } = useProjectPerformanceDashboard(projectId, periodId);
   const { data: reports = [] } = useStatusReports(projectId);
 
+  // Measurement / Commitments / Payment Milestones can be switched off for the
+  // project (Configure Project Activities). Restrictions apply to periods that
+  // start on/after the date, so the month's start date decides; the PM's links to
+  // those pages are then disabled, as in the reporting nav rail.
+  const { data: restrictions } = useProjectRestrictions(projectId);
+  const { data: periods = [] } = useReportingPeriods();
+  const periodStart = periods.find((p) => p.id === periodId)?.start_date;
+  const notRequired = (activity: ProjectActivity) =>
+    !readOnly && isRestrictedOn(restrictions, activity, periodStart)
+      ? "Not required for this project — switched off in Configure Project Activities"
+      : undefined;
+
   // Reads go to the plain project-reporting pages (with the PM's full
   // editing nav rail) on the PM's own dashboard, but to the read-only
   // Account Head module views (no editing, no reporting nav) when this body
@@ -133,6 +146,7 @@ export function PerformanceDashboardBody({
           icon={BarChart3}
           iconClassName="text-[#1a6fc4]"
           href={`${base}/measurement?period=${periodId}`}
+          linkDisabledReason={notRequired("METRICS")}
         >
           <BigStat value={`${data.metrics.compliant_pct}%`} label="Compliant" />
           <div className="flex flex-col gap-1">
@@ -151,6 +165,7 @@ export function PerformanceDashboardBody({
           icon={Handshake}
           iconClassName="text-teal-600"
           href={`${base}/contractual-commitments?period=${periodId}`}
+          linkDisabledReason={notRequired("COMMITMENTS")}
         >
           <BigStat value={data.commitments.open_count} label="Open" />
           <div className="flex flex-col gap-1">
@@ -165,6 +180,7 @@ export function PerformanceDashboardBody({
           icon={Wallet}
           iconClassName="text-emerald-600"
           href={`${base}/milestones?period=${periodId}`}
+          linkDisabledReason={notRequired("PAYMENT_MILESTONES")}
         >
           <BigStat
             value={formatNumber(data.payment_milestones.value_due)}

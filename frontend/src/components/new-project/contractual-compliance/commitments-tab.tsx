@@ -61,7 +61,7 @@ const COMMITMENT_FIELDS: FieldDef[] = [
   { key: "commitment_name", label: "Name of the Commitment", kind: "text", mandatory: true, fullWidth: true },
   {
     key: "frequency",
-    label: "Frequency",
+    label: "Reporting Frequency",
     kind: "select",
     options: FREQUENCIES,
     mandatory: true,
@@ -124,7 +124,7 @@ export function CommitmentsTab() {
   const submit = () => {
     const nextErrors: Record<string, string> = {};
     if (!values.commitment_name?.trim()) nextErrors.commitment_name = "Name of the Commitment is required.";
-    if (!values.frequency) nextErrors.frequency = "Frequency is required.";
+    if (!values.frequency) nextErrors.frequency = "Reporting Frequency is required.";
     if (!values.penalty_applicable) nextErrors.penalty_applicable = "Penalty Applicability is required.";
     if (!values.commitment_details?.trim()) nextErrors.commitment_details = "Commitment Details is required.";
     setErrors(nextErrors);
@@ -194,7 +194,7 @@ export function CommitmentsTab() {
           onDelete={handleDelete}
           columns={[
             { key: "commitment_name", label: "Commitment" },
-            { key: "frequency", label: "Frequency" },
+            { key: "frequency", label: "Reporting Frequency" },
             {
               key: "penalty_applicable",
               label: "Penalty Applicability",

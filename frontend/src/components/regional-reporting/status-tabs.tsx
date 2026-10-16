@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { RegionalScope } from "@/lib/api/regional-status";
 import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
+import { usePageBanner } from "@/stores/page-banner";
+import { unsavedItemsMessage } from "@/lib/unsaved-items";
 import { StatusItemsTab } from "./status-items-tab";
 import { useRegionalStatusForm } from "./use-regional-status-form";
 
@@ -28,6 +30,7 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
     isSaving,
     saveDetails,
   } = useRegionalStatusForm(scope, scopeId);
+  const showError = usePageBanner((state) => state.showError);
 
   return (
     <div>
@@ -73,6 +76,8 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
               <Input
                 id="projects_count"
                 type="number"
+                  step="1"
+                  min="0"
                 className="h-11"
                 value={metrics.projects_count}
                 onChange={setMetric("projects_count")}
@@ -107,7 +112,11 @@ export function StatusTabs({ scope, scopeId }: { scope: RegionalScope; scopeId: 
           <Button
             className="h-10 gap-2 bg-[#1a4a7a] px-5 text-sm font-semibold text-white hover:bg-[#15406b]"
             disabled={isSaving}
-            onClick={() => saveDetails()}
+            onClick={() => {
+              const unsaved = unsavedItemsMessage();
+              if (unsaved) showError(unsaved);
+              else void saveDetails();
+            }}
           >
             {isSaving ? <ButtonSpinner /> : null}
             Save Details

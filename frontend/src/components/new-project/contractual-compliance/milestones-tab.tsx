@@ -172,6 +172,7 @@ export function MilestonesTab() {
           createMutation={createMilestone}
         />
         <RegisterTable
+          pageSize={10}
           items={items}
           emptyLabel="No payment milestones defined yet."
           onEdit={startEdit}

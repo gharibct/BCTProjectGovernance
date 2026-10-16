@@ -17,12 +17,18 @@ import type { HealthRating } from "@/lib/api/projects";
 // per cell, no per-cell text — a `title` tooltip covers accessibility
 // instead, same lightweight pattern as status-review/rag-status-section.tsx's
 // dot indicator.
-export function RagCell({ rating }: { rating: HealthRating | null }) {
-  if (!rating) {
-    return <div className="h-8 w-full rounded-md bg-slate-200" title="Not assessed" />;
+export function RagCell({ rating, circle = false }: { rating: HealthRating | null; circle?: boolean }) {
+  const level = rating ? HEALTH_LEVELS.find((l) => l.value === RATING_FROM_API[rating])! : null;
+  const color = level ? level.dotClass : "bg-slate-200";
+  const title = level ? level.label : "Not assessed";
+  if (circle) {
+    return (
+      <div className="flex justify-center">
+        <div className={cn("size-4 rounded-full", color)} title={title} />
+      </div>
+    );
   }
-  const level = HEALTH_LEVELS.find((l) => l.value === RATING_FROM_API[rating])!;
-  return <div className={cn("h-8 w-full rounded-md", level.dotClass)} title={level.label} />;
+  return <div className={cn("h-8 w-full rounded-md", color)} title={title} />;
 }
 
 export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
@@ -38,6 +44,8 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
   entityClickable,
   actionColumn,
   emptyLabel,
+  overallLabel = "Overall",
+  circleCategories = false,
 }: {
   heading: string;
   // Optional colored PPT-divider-style header (see lib/section-accent-colors.ts)
@@ -63,6 +71,10 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
   // Optional extra column right after the entity column (e.g. a "View Report" button).
   actionColumn?: { label: string; render: (row: T) => React.ReactNode };
   emptyLabel: string;
+  // Header for the rolled-up rating column (High Risk Dashboard: "Delivery RAG").
+  overallLabel?: string;
+  // Render the per-category cells as small circles instead of full-width blocks.
+  circleCategories?: boolean;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -87,7 +99,7 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
                 {showAccountColumn ? <th className="min-w-[140px] px-4 py-3">Account</th> : null}
                 <th className="min-w-[170px] px-4 py-3">{entityColumnLabel}</th>
                 {actionColumn ? <th className="px-3 py-3">{actionColumn.label}</th> : null}
-                <th className="min-w-[72px] px-2 py-3 text-center">Overall</th>
+                <th className="min-w-[72px] px-2 py-3 text-center">{overallLabel}</th>
                 {CATEGORIES.map((category) => (
                   <th key={category.key} className="min-w-[72px] px-2 py-3 text-center">
                     {category.name}
@@ -97,7 +109,7 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.entity_id} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
+                <tr key={row.entity_id} data-row-key={row.entity_id} className="border-b border-[#E4E9EE] bg-white last:border-b-0 even:bg-[#F8FAFB] hover:bg-[#EDF3F7]">
                   {showAccountColumn ? (
                     <td className="px-4 py-2.5 text-slate-700">{row.account_name ?? "—"}</td>
                   ) : null}
@@ -122,7 +134,7 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
                   </td>
                   {CATEGORIES.map((category) => (
                     <td key={category.key} className="px-2 py-2.5">
-                      <RagCell rating={row[category.ratingField]} />
+                      <RagCell rating={row[category.ratingField]} circle={circleCategories} />
                     </td>
                   ))}
                 </tr>

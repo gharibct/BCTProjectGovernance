@@ -155,12 +155,18 @@ export function BulkProjectImportPanel() {
     },
     { key: "project_owned", label: "Project Owned", kind: "select", options: PROJECT_OWNED_OPTIONS },
     { key: "critical_flag", label: "Critical Flag", kind: "select", options: YES_NO },
-    { key: "product_flag", label: "Product Flag", kind: "select", options: YES_NO },
+    {
+      key: "product_flag",
+      label: "BCT Product Implemented",
+      aliases: ["Product Flag"],
+      kind: "select",
+      options: YES_NO,
+    },
     {
       key: "product_id",
       label: "Product",
       kind: "select",
-      hint: "Required when Product Flag is Yes.",
+      hint: "Required when BCT Product Implemented is Yes.",
       choices: products.map((p) => ({ value: p.id, label: p.name })),
     },
     {

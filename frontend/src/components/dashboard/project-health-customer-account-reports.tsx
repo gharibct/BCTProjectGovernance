@@ -1,5 +1,6 @@
 "use client";
 
+import { useProjectHealthFilters } from "@/stores/project-health-filters";
 import * as React from "react";
 import Link from "next/link";
 
@@ -7,7 +8,7 @@ import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { NativeSelect } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
-import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { useProjectHealthDashboardSummary } from "@/lib/api/project-health-dashboard";
 import {
   CUSTOMER_REPORT_STATUSES,
   fetchAllProjectHealthRows,
@@ -50,7 +51,7 @@ const dash = (value: string | null | undefined) => (value && value.trim() ? valu
 // previous or the current calendar quarter. The dashboard's Period filter
 // doesn't apply (the window is fixed).
 export function ProjectHealthCustomerAccountReports() {
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
+  const [filters, setFilters] = useProjectHealthFilters();
   const [status, setStatus] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [skip, setSkip] = React.useState(0);

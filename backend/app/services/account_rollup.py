@@ -22,6 +22,15 @@ from app.schemas.regional_status import AccountStatusItemCreate
 from app.services.report_lock import assert_report_editable
 
 
+def effective_rollup_status(item) -> str:
+    """A source item marked Pulled whose account-register copy has since been
+    deleted (the FK is ON DELETE SET NULL, so the link is cleared but the status
+    stays "Pulled") is available again — report it as Pending."""
+    if item.account_rollup_status == RollupStatus.PULLED and item.rolled_up_account_item_id is None:
+        return RollupStatus.PENDING.value
+    return item.account_rollup_status
+
+
 def _sum(values: list[Decimal | int | None]) -> Decimal | int | None:
     present = [v for v in values if v is not None]
     if not present:
@@ -87,7 +96,7 @@ async def compute_account_rollup(db: AsyncSession, account_id: UUID, period_id: 
             project_name=project_by_id[item.project_id].project_name,
             category=item.category,
             description=item.description,
-            account_rollup_status=item.account_rollup_status,
+            account_rollup_status=effective_rollup_status(item),
             rolled_up_account_item_id=item.rolled_up_account_item_id,
         )
         for item in status_items
@@ -111,7 +120,7 @@ async def pull_rollup_item(db: AsyncSession, account_id: UUID, project_item_id: 
     project = await db.get(Project, item.project_id)
     if project is None or project.account_id != account_id:
         raise RollupItemNotFoundError
-    if item.account_rollup_status != RollupStatus.PENDING:
+    if effective_rollup_status(item) != RollupStatus.PENDING:
         raise RollupItemAlreadyHandledError
 
     # Pulling inserts a new row into the Account's own status-item register

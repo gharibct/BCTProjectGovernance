@@ -2,53 +2,37 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+
+import { useReturnToRow } from "@/lib/return-to-row";
 import { FileText, HeartPulse, LayoutGrid } from "lucide-react";
 
 import { GovernanceMatrix } from "@/components/dashboard/governance-matrix";
 import { ProjectHealthFilterBar } from "@/components/dashboard/project-health-filter-bar";
-import { Card, ErrorBlock, RagCountCell } from "@/components/dashboard/project-health-kpi";
+import { Card, ErrorBlock, RagFilterTiles } from "@/components/dashboard/project-health-kpi";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
+  DELIVERY_HEALTH_STATUSES,
   HIGH_RISK_STATUSES,
   useHighRisks,
   type HighRiskAccountRow,
   type HighRiskStatus,
 } from "@/lib/api/high-risks";
-import { useProjectHealthPeriods, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { useScreenFilters, useProjectHealthFilters } from "@/stores/project-health-filters";
+import { useProjectHealthPeriods } from "@/lib/api/project-health-dashboard";
 import { sectionAccentColor } from "@/lib/section-accent-colors";
-import { cn } from "@/lib/utils";
 
-const KPI_TILES: {
-  status: HighRiskStatus;
-  label: string;
-  key: "red" | "potential_red" | "amber" | "not_submitted";
-  className: string;
-  valueClassName: string;
-}[] = [
-  { status: "Red", label: "Red", key: "red", className: "border-red-100 bg-red-50 text-red-700", valueClassName: "text-red-600" },
-  {
-    status: "Potential Red",
-    label: "Pot. Red",
-    key: "potential_red",
-    className: "border-orange-100 bg-orange-50 text-orange-700",
-    valueClassName: "text-orange-600",
-  },
-  {
-    status: "Amber",
-    label: "Amber",
-    key: "amber",
-    className: "border-amber-100 bg-amber-50 text-amber-700",
-    valueClassName: "text-amber-500",
-  },
-  {
-    status: "Not Submitted",
-    label: "Not Submitted",
-    key: "not_submitted",
-    className: "border-slate-200 bg-slate-50 text-slate-500",
-    valueClassName: "text-slate-900",
-  },
-];
+// Executive Risk Dashboard: only the worst two statuses.
+const EXECUTIVE_STATUSES: HighRiskStatus[] = ["Red", "Potential Red"];
+
+// Counts per bucket come from the response's `kpis`.
+const KPI_KEYS: Record<HighRiskStatus, "red" | "potential_red" | "amber" | "green" | "not_submitted"> = {
+  Red: "red",
+  "Potential Red": "potential_red",
+  Amber: "amber",
+  Green: "green",
+  "Not Submitted": "not_submitted",
+};
 
 // Links/bubbles inside the clickable first column handle their own click.
 const stop = (e: React.MouseEvent) => e.stopPropagation();
@@ -56,57 +40,92 @@ const stop = (e: React.MouseEvent) => e.stopPropagation();
 const bubbleClass =
   "inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-[#1a6fc4] ring-1 ring-blue-200 transition-colors hover:bg-blue-100";
 
+// Account chip (Project Health Dashboard) — a different colour from the Geo / Region chips.
+const accountBubbleClass =
+  "inline-flex items-center rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-200 transition-colors hover:bg-violet-100";
+
 // High Risks (CXO / Geo Head): every account that is not Green for the chosen
 // weekly period, plus the accounts that have not filed — same grid as the Geo
 // report's Summary, in the Project Health page chrome (filter bar, KPI cells).
-// Filters ride along in `?back=` so the account report's breadcrumb returns
-// here with the same view.
-export function HighRisks() {
+// Filters live in the shared project-health-filters store; `?back=` only tells
+// the account report's breadcrumb where to return.
+export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" | "delivery-health" | "project-health" }) {
+  const executive = variant === "executive";
+  const deliveryHealth = variant === "delivery-health";
+  // Project Health Dashboard: the Delivery Health grid at project level.
+  const projectHealth = variant === "project-health";
+  const basePath = executive
+    ? "/executive-risk"
+    : deliveryHealth
+      ? "/delivery-health"
+      : projectHealth
+        ? "/projects-health"
+        : "/high-risks";
+  const statuses = executive
+    ? EXECUTIVE_STATUSES
+    : deliveryHealth || projectHealth
+      ? DELIVERY_HEALTH_STATUSES
+      : HIGH_RISK_STATUSES;
+  const title = executive
+    ? "Executive Risk Dashboard"
+    : deliveryHealth
+      ? "Delivery Health Dashboard"
+      : projectHealth
+        ? "Project Health Dashboard"
+        : "High Risk Dashboard";
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: periods = [] } = useProjectHealthPeriods();
 
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({
-    periodId: searchParams.get("period") ?? undefined,
-    geoId: searchParams.get("geo") ?? undefined,
-    regionId: searchParams.get("region") ?? undefined,
-    accountId: searchParams.get("account") ?? undefined,
-  });
-  const [overall, setOverall] = React.useState<HighRiskStatus | "">(
-    HIGH_RISK_STATUSES.find((s) => s === searchParams.get("overall")) ?? ""
-  );
+  const [filters, setFilters] = useProjectHealthFilters();
+  // Overall RAG, plus the Delivery Manager (Delivery Health) / Project Manager
+  // (Project Health) filter — kept per screen in the same store.
+  const { overall: overallRaw, managerId, setOverall: setOverallRaw, setManagerId, reset: resetExtras } =
+    useScreenFilters(variant);
+  const overall: HighRiskStatus | "" = statuses.find((s) => s === overallRaw) ?? "";
+  const setOverall = (value: HighRiskStatus | "") => setOverallRaw(value);
 
   const periodId = filters.periodId ?? periods[0]?.id ?? "";
   const period = periods.find((p) => p.id === periodId);
 
-  const { data, isLoading, isError, error, refetch } = useHighRisks({
-    periodId,
-    geoId: filters.geoId,
-    regionId: filters.regionId,
-    accountId: filters.accountId,
-    overall,
-  });
+  const { data, isLoading, isError, error, refetch } = useHighRisks(
+    {
+      periodId,
+      geoId: filters.geoId,
+      regionId: filters.regionId,
+      accountId: filters.accountId,
+      overall,
+      deliveryManagerId: deliveryHealth ? managerId || undefined : undefined,
+      projectManagerId: projectHealth ? managerId || undefined : undefined,
+    },
+    deliveryHealth ? "delivery-health" : projectHealth ? "project-health-grid" : "high-risks"
+  );
 
-  const backPath = React.useMemo(() => {
-    const qs = new URLSearchParams();
-    if (periodId) qs.set("period", periodId);
-    if (filters.geoId) qs.set("geo", filters.geoId);
-    if (filters.regionId) qs.set("region", filters.regionId);
-    if (filters.accountId) qs.set("account", filters.accountId);
-    if (overall) qs.set("overall", overall);
-    return `/high-risks?${qs.toString()}`;
-  }, [periodId, filters, overall]);
+  // Only the breadcrumb target for the report page — the filters themselves
+  // live in the shared store, so they are still set when the user comes back.
+  const backPath = basePath;
+
+  // Back from a report: scroll to and highlight the row that was opened.
+  const { markRow, onClickCapture } = useReturnToRow(variant, !isLoading && !!data);
 
   const accountHref = (id: string) =>
     `/account-review/${id}?period=${periodId}&back=${encodeURIComponent(backPath)}`;
+  const projectHref = (id: string) =>
+    `/project-review/${id}?period=${periodId}&back=${encodeURIComponent(backPath)}`;
+  const rowHref = projectHealth ? projectHref : accountHref;
 
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">High Risks</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
           <p className="mt-1.5 text-slate-500">
-            Accounts that are not Green for the selected week, plus accounts that have not submitted their report.
+            {executive
+              ? "Accounts rated Red or Potential Red for the selected week."
+              : projectHealth
+                ? "Delivery health of every active project for the selected week, including Green projects and projects that have not submitted their report."
+                : deliveryHealth
+                ? "Delivery health of every account for the selected week, including Green accounts and accounts that have not submitted their report."
+                : "Accounts that are not Green for the selected week, plus accounts that have not submitted their report."}
           </p>
         </div>
         {period ? <p className="text-sm text-slate-400">Period: {period.label}</p> : null}
@@ -115,8 +134,8 @@ export function HighRisks() {
       <ProjectHealthFilterBar
         filters={filters}
         onChange={setFilters}
-        extraFiltersActive={!!overall}
-        onReset={() => setOverall("")}
+        extraFiltersActive={!!overall || !!managerId}
+        onReset={resetExtras}
       >
         <div className="w-44">
           <NativeSelect
@@ -126,55 +145,65 @@ export function HighRisks() {
             onChange={(e) => setOverall(e.target.value as HighRiskStatus | "")}
           >
             <option value="">Overall RAG [All]</option>
-            {HIGH_RISK_STATUSES.map((s) => (
+            {statuses.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
             ))}
           </NativeSelect>
         </div>
+        {deliveryHealth || projectHealth ? (
+          <div className="w-48">
+            <NativeSelect
+              aria-label={projectHealth ? "Project Manager" : "Delivery Manager"}
+              className="h-9 bg-white text-sm"
+              value={managerId}
+              onChange={(e) => setManagerId(e.target.value)}
+            >
+              <option value="">{projectHealth ? "Project Manager [All]" : "Delivery Manager [All]"}</option>
+              {(projectHealth ? (data?.project_managers ?? []) : (data?.delivery_managers ?? [])).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+        ) : null}
       </ProjectHealthFilterBar>
 
-      <Card title="Accounts at Risk" icon={HeartPulse} iconClassName="text-red-600" period={period ? `Selected Period: ${period.label}` : undefined}>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {KPI_TILES.map((tile) => {
-            const selected = overall === tile.status;
-            return (
-              <button
-                key={tile.status}
-                type="button"
-                aria-pressed={selected}
-                title={selected ? "Show all" : `Show only ${tile.label}`}
-                onClick={() => setOverall(selected ? "" : tile.status)}
-                className={cn(
-                  "cursor-pointer rounded-md text-left no-underline transition-shadow hover:shadow-md",
-                  selected && "ring-2 ring-[#1a6fc4]"
-                )}
-              >
-                <RagCountCell
-                  label={tile.label}
-                  value={data ? data.kpis[tile.key] : "—"}
-                  className={cn("py-2", tile.className)}
-                  valueClassName={cn("text-2xl underline underline-offset-4", tile.valueClassName)}
-                />
-              </button>
-            );
-          })}
-        </div>
+      <Card title={projectHealth ? "Project Health" : deliveryHealth ? "Account Health" : "Accounts at Risk"} icon={HeartPulse} iconClassName="text-red-600" period={period ? `Selected Period: ${period.label}` : undefined}>
+        <RagFilterTiles
+          buckets={statuses}
+          counts={Object.fromEntries(statuses.map((st) => [st, data ? data.kpis[KPI_KEYS[st]] : "—"]))}
+          selected={overall}
+          onSelect={(bucket) => setOverall(bucket as HighRiskStatus | "")}
+        />
       </Card>
 
       {isError ? (
-        <ErrorBlock title="Couldn't load High Risks." error={error} onRetry={() => refetch()} />
+        <ErrorBlock title={`Couldn't load ${title}.`} error={error} onRetry={() => refetch()} />
       ) : (
+        <div onClickCapture={onClickCapture}>
         <GovernanceMatrix<HighRiskAccountRow>
-          heading={period ? `Accounts at risk — ${period.label}` : "Accounts at risk"}
+          heading={
+            projectHealth
+              ? period
+                ? `Projects — ${period.label}`
+                : "Projects"
+              : period
+                ? `Accounts at risk — ${period.label}`
+                : "Accounts at risk"
+          }
           icon={LayoutGrid}
           accentColor={sectionAccentColor(0)}
-          entityColumnLabel="Accounts"
-          rows={data?.items}
-          entityHref={accountHref}
-          // Not Submitted accounts have no report to open, so nothing launches for them.
-          onEntityClick={(row) => router.push(accountHref(row.entity_id))}
+          entityColumnLabel={projectHealth ? "Projects" : "Accounts"}
+          rows={executive ? data?.items.filter((r) => statuses.includes(r.risk_status)) : data?.items}
+          entityHref={rowHref}
+          // Not Submitted rows have no report to open, so nothing launches for them.
+          onEntityClick={(row) => {
+            markRow(row.entity_id);
+            router.push(rowHref(row.entity_id));
+          }}
           entityClickable={(row) => row.risk_status !== "Not Submitted"}
           actionColumn={{
             label: "Report",
@@ -190,8 +219,8 @@ export function HighRisks() {
                 </span>
               ) : (
               <Link
-                href={accountHref(row.entity_id)}
-                title="Open this account's report"
+                href={rowHref(row.entity_id)}
+                title={projectHealth ? "Open this project's report" : "Open this account's report"}
                 className="inline-flex items-center gap-1 rounded-full bg-[#1a6fc4] px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap text-white transition-colors hover:bg-[#15406b]"
               >
                 <FileText className="size-3" />
@@ -205,7 +234,7 @@ export function HighRisks() {
                 {row.risk_status === "Not Submitted" ? (
                   <span>{row.entity_label}</span>
                 ) : (
-                  <Link href={accountHref(row.entity_id)} onClick={stop} className="hover:underline">
+                  <Link href={rowHref(row.entity_id)} onClick={stop} className="hover:underline">
                     {row.entity_label}
                   </Link>
                 )}
@@ -242,12 +271,31 @@ export function HighRisks() {
                     {row.region_name}
                   </button>
                 ) : null}
+                {projectHealth && row.account_name ? (
+                  <button
+                    type="button"
+                    className={accountBubbleClass}
+                    title="Filter by this account"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFilters((f) => ({ ...f, accountId: row.account_id ?? undefined }));
+                    }}
+                  >
+                    {row.account_name}
+                  </button>
+                ) : null}
                 <span className="text-xs font-normal text-slate-500">DM: {row.delivery_manager_name ?? "—"}</span>
+                {projectHealth ? (
+                  <span className="text-xs font-normal text-slate-500">PM: {row.project_manager_name ?? "—"}</span>
+                ) : null}
               </div>
             </div>
           )}
-          emptyLabel={isLoading || !periodId ? "Loading…" : "No high-risk accounts for these filters."}
+          overallLabel="Delivery RAG"
+          circleCategories
+          emptyLabel={isLoading || !periodId ? "Loading…" : executive ? "No Red / Potential Red accounts for these filters." : "No high-risk accounts for these filters."}
         />
+        </div>
       )}
     </div>
   );

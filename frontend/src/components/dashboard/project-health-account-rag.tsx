@@ -1,10 +1,11 @@
 "use client";
 
+import { useProjectHealthFilters, useScreenFilters } from "@/stores/project-health-filters";
 import * as React from "react";
 
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
-import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { useProjectHealthDashboardSummary } from "@/lib/api/project-health-dashboard";
 import {
   fetchAllProjectHealthRows,
   PROJECT_HEALTH_LIST_PATHS,
@@ -13,18 +14,22 @@ import {
 } from "@/lib/api/project-health-lists";
 import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
-import { BackToProjectHealth, ErrorBlock, formatDateTime, HealthBadge, StatTile } from "./project-health-kpi";
+import { HeartPulse } from "lucide-react";
+
+import { BackToProjectHealth, Card, ErrorBlock, formatDateTime, HealthBadge, RagFilterTiles } from "./project-health-kpi";
 
 const PAGE_SIZE = 10;
 
 type Row = AccountRagRow & { id: string };
 
 export function ProjectHealthAccountRag() {
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
+  const [filters, setFilters] = useProjectHealthFilters();
   const [skip, setSkip] = React.useState(0);
+  // The KPI bucket picked on the tiles below — narrows the list to that bucket.
+  const { overall: status, setOverall: setStatus, reset: resetStatus } = useScreenFilters("account-rag");
 
   const { data: summary } = useProjectHealthDashboardSummary(filters);
-  const { data, isLoading, isError, error, refetch } = useProjectHealthAccountRag({ ...filters, skip, limit: PAGE_SIZE });
+  const { data, isLoading, isError, error, refetch } = useProjectHealthAccountRag({ ...filters, status: status || undefined, skip, limit: PAGE_SIZE });
 
   const columns: RegisterColumn<Row>[] = [
     {
@@ -39,7 +44,7 @@ export function ProjectHealthAccountRag() {
       excelValue: (row) => `${row.account_name} (${row.project_count} project${row.project_count === 1 ? "" : "s"})`,
     },
     { key: "geo_name", label: "Geo" },
-    { key: "overall_rating", label: "Overall RAG", render: (row) => <HealthBadge value={row.overall_rating} /> },
+    { key: "overall_rating", label: "Overall RAG", render: (row) => <HealthBadge value={row.overall_rating ?? "Not Submitted"} /> },
     { key: "core_delivery_rating", label: "Core Delivery", render: (row) => <HealthBadge value={row.core_delivery_rating} /> },
     { key: "people_rating", label: "People", render: (row) => <HealthBadge value={row.people_rating} /> },
     { key: "operational_rating", label: "Operational", render: (row) => <HealthBadge value={row.operational_rating} /> },
@@ -66,23 +71,32 @@ export function ProjectHealthAccountRag() {
           setFilters(next);
           setSkip(0);
         }}
+        extraFiltersActive={!!status}
+        onReset={resetStatus}
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <StatTile label="Green" value={summary?.account_health.green_count ?? "—"} accentClassName="border-t-emerald-500" />
-        <StatTile label="Amber" value={summary?.account_health.amber_count ?? "—"} accentClassName="border-t-amber-500" />
-        <StatTile
-          label="Potential Red"
-          value={summary?.account_health.potential_red_count ?? "—"}
-          accentClassName="border-t-orange-500"
+      <Card
+        title="Account Health"
+        icon={HeartPulse}
+        iconClassName="text-emerald-600"
+        period={`Selected Period: ${summary?.period_label ?? "current week"}`}
+      >
+        <RagFilterTiles
+          buckets={["Green", "Amber", "Potential Red", "Red", "Not Submitted"]}
+          counts={{
+            Green: summary?.account_health.green_count,
+            Amber: summary?.account_health.amber_count,
+            "Potential Red": summary?.account_health.potential_red_count,
+            Red: summary?.account_health.red_count,
+            "Not Submitted": summary?.account_health.not_submitted_count,
+          }}
+          selected={status}
+          onSelect={(bucket) => {
+            setStatus(bucket);
+            setSkip(0);
+          }}
         />
-        <StatTile label="Red" value={summary?.account_health.red_count ?? "—"} accentClassName="border-t-red-500" />
-        <StatTile
-          label="Not Submitted"
-          value={summary?.account_health.not_submitted_count ?? "—"}
-          accentClassName="border-t-slate-400"
-        />
-      </div>
+      </Card>
 
       {isError ? (
         <ErrorBlock title="Couldn't load the Account RAG report." error={error} onRetry={() => refetch()} />
@@ -92,7 +106,7 @@ export function ProjectHealthAccountRag() {
             <ProjectHealthExportButton
               filename="project-health-account-rag"
               columns={columns}
-              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.accountRag, { ...filters })}
+              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.accountRag, { ...filters, status: status || undefined })}
             />
           </div>
           <RegisterTable items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No accounts found."} />

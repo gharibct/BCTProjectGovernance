@@ -8,7 +8,7 @@ import { selectProjectHref } from "@/lib/project-context-targets";
 import { useProject } from "@/lib/api/projects";
 import { useReportingActivityForYear, useStatusReports } from "@/lib/api/project-status";
 
-// Alternative landing page for Report Project Status (weekly) — the original
+// Alternative landing page for Update Project Status Report (weekly) — the original
 // hub is components/project-reporting/reporting-hub.tsx. The report form itself
 // (project-status page) is unchanged.
 export function DeliveryStatusCalendarHub() {
@@ -28,10 +28,10 @@ export function DeliveryStatusCalendarHub() {
 
   return (
     <DeliveryCalendarView
-      title={project?.project_code ? `${project.project_code} - Report Project Status` : "Report Project Status"}
+      title={project?.project_code ? `${project.project_code} - Update Project Status Report` : "Update Project Status Report"}
       subtitle={project?.project_name}
       breadcrumb={[
-        { label: "Report Project Status", href: selectProjectHref("delivery-reporting") },
+        { label: "Update Project Status Report", href: selectProjectHref("delivery-reporting") },
         ...(project?.project_code ? [{ label: project.project_code }] : []),
       ]}
       weeklyItems={weeklyItems}

@@ -12,6 +12,7 @@ import { CopyFromLatestButton, ReplaceFromLatestDialog } from "@/components/form
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageBanner } from "@/stores/page-banner";
+import { unsavedItemsMessage } from "@/lib/unsaved-items";
 import { useAccounts } from "@/lib/api/reference-data";
 import { useCopyAccountItemsFromLatest } from "@/lib/api/regional-status";
 import { useUploadReportAttachment } from "@/lib/api/report-attachments";
@@ -20,7 +21,9 @@ import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
 import { SECTION_IDS, statusSectionId } from "@/components/reporting/report-progress";
 import { StatusItemsTab } from "@/components/regional-reporting/status-items-tab";
 import { useRegionalStatusForm } from "@/components/regional-reporting/use-regional-status-form";
-import { AccountHealthSections, useAccountHealthDeclarationForm } from "./rag-status-form";
+import { AccountHealthSections, useAccountHealthDeclarationForm, useAccountHealthRollupProps } from "./rag-status-form";
+import { PullFromProjectsDrawer } from "./pull-from-projects-drawer";
+import { useAccountReportRecall } from "@/components/regional-reporting/submit-report-action";
 
 // The Account Delivery Status Report as one long page: Overview, the four
 // status registers and the six RAG categories stacked top to bottom, with a
@@ -35,6 +38,7 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
     copyMetricsFromLatest,
     rollupItems,
     handlePull,
+    handlePullAll,
     handleIgnore,
     handleUndo,
     rollupBusy,
@@ -42,7 +46,9 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
     existing,
     saveDetails,
   } = useRegionalStatusForm("account", accountId);
+  const { lockedMessage, recallControls } = useAccountReportRecall(accountId, existing);
   const health = useAccountHealthDeclarationForm();
+  const healthRollup = useAccountHealthRollupProps(accountId, periodId);
   const uploadAttachment = useUploadReportAttachment("account", accountId);
   const [pendingAttachments, setPendingAttachments] = React.useState<File[]>([]);
   const { data: accounts } = useAccounts();
@@ -89,6 +95,11 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
   // One Save Report for the whole page: report metrics first, then the six RAG
   // ratings. Line items in the registers already saved per row as edited.
   const saveReport = async () => {
+    const unsaved = unsavedItemsMessage();
+    if (unsaved) {
+      showError(unsaved);
+      return;
+    }
     const reportId = await saveDetails({ silent: true });
     if (!reportId) return;
     // Attachments picked on this page are uploaded once the report exists;
@@ -120,7 +131,25 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
   return (
     <div className="flex flex-col gap-8">
       {periodId && !frozen ? (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-3">
+          <PullFromProjectsDrawer
+            status={{
+              items: rollupItems,
+              onPull: handlePull,
+              onPullAll: handlePullAll,
+              onIgnore: handleIgnore,
+              onUndo: handleUndo,
+              busy: rollupBusy,
+            }}
+            health={{
+              items: healthRollup.rollupItems,
+              onPull: healthRollup.handlePull,
+              onPullAll: healthRollup.handlePullAll,
+              onIgnore: healthRollup.handleIgnore,
+              onUndo: healthRollup.handleUndo,
+              busy: healthRollup.rollupBusy,
+            }}
+          />
           <CopyFromLatestButton onClick={copyFromLatest} busy={copyItems.isPending} />
         </div>
       ) : null}
@@ -175,6 +204,8 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
                 <Input
                   id="projects_count"
                   type="number"
+                  step="1"
+                  min="0"
                   className="h-11"
                   value={metrics.projects_count}
                   onChange={setMetric("projects_count")}
@@ -199,11 +230,6 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
             title={t.label}
             icon={t.icon}
             frozen={frozen}
-            rollupItems={rollupItems}
-            onPullRollupItem={handlePull}
-            onIgnoreRollupItem={handleIgnore}
-            onUndoRollupItem={handleUndo}
-            rollupBusy={rollupBusy}
           />
         </section>
       ))}
@@ -230,11 +256,12 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
             frozen ? (
               <p role="status" className="flex items-center gap-2 text-sm text-amber-800">
                 <Lock className="size-4 shrink-0" />
-                This report has been submitted and is now read-only.
+                {lockedMessage ?? "This report has been submitted and is now read-only."}
               </p>
             ) : undefined
           }
         >
+          {recallControls}
           <Button
             className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
             disabled={isBusy || frozen}

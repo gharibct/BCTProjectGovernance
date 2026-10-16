@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { HighRisks } from "@/components/dashboard/high-risks";
 
 export const metadata: Metadata = {
-  title: "High Risks | Governance One",
+  title: "High Risk Dashboard | Governance One",
 };
 
 export default function HighRisksPage() {

@@ -41,7 +41,7 @@ const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
 export type StatusReviewMode = "view" | "approve";
 
 const APPROVE_NAV_LABEL: Partial<Record<ReviewScope, string>> = {
-  project: "Approve Project Delivery Status",
+  project: "Approve Project Status Report",
   account: "Approve Account Delivery Status",
 };
 const APPROVE_NAV_HREF: Partial<Record<ReviewScope, string>> = {
@@ -124,9 +124,15 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
           items={[
             {
               label: back
-                ? back.startsWith("/high-risks")
-                  ? "High Risks"
-                  : "Report Submissions"
+                ? back.startsWith("/executive-risk")
+                  ? "Executive Risk Dashboard"
+                  : back.startsWith("/high-risks")
+                    ? "High Risk Dashboard"
+                    : back.startsWith("/delivery-health")
+                      ? "Delivery Health Dashboard"
+                      : back.startsWith("/projects-health")
+                        ? "Project Health Dashboard"
+                        : "Report Submissions"
                 : approving
                   ? APPROVE_NAV_LABEL[scope]!
                   : SCOPE_NAV_LABEL[scope],

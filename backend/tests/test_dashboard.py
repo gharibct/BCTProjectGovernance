@@ -104,6 +104,14 @@ async def test_high_risks_is_cxo_and_geo_head_only(client, override_auth):
         assert response.status_code == 403, role
 
 
+async def test_delivery_and_project_health_grids_are_not_open_to_pm_or_team_member(client, override_auth):
+    for path in ("delivery-health", "project-health-grid"):
+        for role in (RoleCode.PROJECT_MANAGER, RoleCode.TEAM_MEMBER):
+            response = await client.get(f"/api/v1/dashboard/{path}", headers=override_auth(role))
+            assert response.status_code == 403, (path, role)
+        assert (await client.get(f"/api/v1/dashboard/{path}")).status_code == 401
+
+
 async def test_my_summary_requires_auth(client):
     response = await client.get("/api/v1/dashboard/my-summary")
     assert response.status_code == 401

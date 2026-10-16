@@ -1,13 +1,15 @@
 "use client";
 
+import { useProjectHealthFilters, useScreenFilters } from "@/stores/project-health-filters";
+import { readReturnSkip, useReturnToRow } from "@/lib/return-to-row";
 import * as React from "react";
 import Link from "next/link";
 
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
-import { NativeSelect } from "@/components/ui/native-select";
+import { ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { useProjectHealthDashboardSummary } from "@/lib/api/project-health-dashboard";
 import {
   fetchAllProjectHealthRows,
   PROJECT_HEALTH_LIST_PATHS,
@@ -18,15 +20,23 @@ import {
 } from "@/lib/api/project-health-lists";
 import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
-import { BackToProjectHealth, ErrorBlock, formatDate, StatTile } from "./project-health-kpi";
+import {
+  BackToProjectHealth,
+  Card,
+  ErrorBlock,
+  formatDate,
+  RAG_BUCKET_STYLES,
+  RagCountCell,
+  RagFilterTiles,
+  StatTile,
+  type RagBucket,
+} from "./project-health-kpi";
 import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 import { useEffectiveRole } from "@/stores/session";
 
 const PAGE_SIZE = 15;
 
 type Row = ReportSubmissionDetailRow & { id: string };
-
-type StatusFilter = "all" | "pending" | "submitted";
 
 // Columns carrying a dimension that is always blank for a given stream — hidden
 // on that stream's KPI-scoped sub screen so the grid isn't mostly em dashes.
@@ -37,19 +47,79 @@ const SCOPED_HIDDEN_COLUMNS: Record<ReportSubmissionStreamKey, string[]> = {
   "delivery-status-geo": ["project_label", "project_manager_name", "account_name", "account_head_name"],
 };
 
+const PILL_TONE: Record<string, string> = {
+  Approved: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  Baselined: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  Submitted: "bg-blue-50 text-blue-700 ring-blue-200",
+  "Auto Generated": "bg-slate-50 text-slate-500 ring-slate-200",
+};
+
+// Statuses that mean a report exists to open (anything else is still owed).
+const FILED_STATUSES = new Set(["Submitted", "Approved", "Baselined"]);
+
 function StatusPill({ value }: { value: string }) {
-  const submitted = value === "Submitted";
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ring-1",
-        submitted ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-red-50 text-red-700 ring-red-200",
+        PILL_TONE[value] ?? "bg-red-50 text-red-700 ring-red-200",
       )}
     >
       {value}
     </span>
   );
 }
+
+// Per stream: the card title (as on the GovOne Dashboard), the clickable
+// buckets, and the one pre-selected when the page opens ("who hasn't filed").
+const STREAM_TILES: Record<ReportSubmissionStreamKey, { title: string; buckets: RagBucket[]; defaultBucket: RagBucket }> = {
+  "delivery-status-projects": {
+    title: "Delivery Status \u2014 Projects",
+    buckets: ["Not Submitted", "Submitted", "Approved"],
+    defaultBucket: "Not Submitted",
+  },
+  "delivery-status-account": {
+    title: "Delivery Status \u2014 Account",
+    buckets: ["Not Submitted", "Submitted", "Approved"],
+    defaultBucket: "Not Submitted",
+  },
+  "delivery-status-geo": {
+    title: "Delivery Status \u2014 Geo",
+    buckets: ["Not Baselined", "Baselined", "Auto Generated"],
+    defaultBucket: "Not Baselined",
+  },
+  "metrics-projects": {
+    title: "Project Performance",
+    buckets: ["Not Submitted", "Submitted"],
+    defaultBucket: "Not Submitted",
+  },
+};
+
+// The same counts the dashboard card shows, from the summary.
+function bucketCounts(
+  kpi: ReportSubmissionStreamKey,
+  k: { submitted_count: number; expected_count: number; approved_count: number; auto_generated_count: number } | null,
+): Partial<Record<RagBucket, number>> {
+  if (!k) return {};
+  const notFiled = Math.max(k.expected_count - k.submitted_count, 0);
+  if (kpi === "delivery-status-geo") {
+    return {
+      "Not Baselined": Math.max(notFiled - k.auto_generated_count, 0),
+      Baselined: k.submitted_count,
+      "Auto Generated": k.auto_generated_count,
+    };
+  }
+  if (kpi === "metrics-projects") return { "Not Submitted": notFiled, Submitted: k.submitted_count };
+  return {
+    "Not Submitted": notFiled,
+    Submitted: Math.max(k.submitted_count - k.approved_count, 0),
+    Approved: k.approved_count,
+  };
+}
+
+// Stored selection: "" = not touched (use the stream's default), ALL = the user
+// clicked the selected tile again to see every row.
+const ALL = "__all__";
 
 const dash = (value: string | null | undefined) => (value && value.trim() ? value : "—");
 
@@ -87,23 +157,34 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
   const showGeoTile = useEffectiveRole() !== "ACCOUNT_MANAGER";
   const backPath = stream ? stream.route : "/project-health/report-submissions";
 
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>(stream ? "pending" : "all");
-  const [skip, setSkip] = React.useState(0);
+  const [filters, setFilters] = useProjectHealthFilters();
+  // Stream screens: the KPI bucket picked on the tiles ("" = the stream's default).
+  const { overall: picked, setOverall: setPicked, reset: resetPicked } = useScreenFilters(kpi ?? "report-submissions");
 
-  const pending = statusFilter === "all" ? undefined : statusFilter === "pending";
+  // Back from a report: reopen the same page of results, focused on the clicked row.
+  const returnKey = kpi ?? "report-submissions";
+  const [skip, setSkip] = React.useState(() => readReturnSkip(returnKey));
+  const { data: summary } = useProjectHealthDashboardSummary(filters);
+  const tiles = kpi ? STREAM_TILES[kpi] : null;
+  const bucket = tiles ? (picked === ALL ? undefined : picked || tiles.defaultBucket) : undefined;
+  // Stream screens list the selected week's rows (the ones the card counts); the
+  // combined screen keeps the all-periods history.
+  const periodId = filters.periodId ?? summary?.period_id ?? undefined;
   const listParams = {
     ...filters,
+    periodId: stream ? periodId : undefined,
     reportType: stream?.reportType,
-    pending,
+    status: bucket,
   };
 
-  const { data: summary } = useProjectHealthDashboardSummary(filters);
-  const { data, isLoading, isError, error, refetch } = useProjectHealthReportSubmissions({
-    ...listParams,
-    skip,
-    limit: PAGE_SIZE,
-  });
+  const { data, isLoading, isError, error, refetch } = useProjectHealthReportSubmissions(
+    {
+      ...listParams,
+      skip,
+      limit: PAGE_SIZE,
+    },
+    { enabled: !stream || !!periodId },
+  );
 
   const allColumns: RegisterColumn<Row>[] = [
     { key: "report_type", label: "Report" },
@@ -126,7 +207,7 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
       label: "",
       excelValue: () => "",
       render: (row) => {
-        if (row.status !== "Submitted") return null;
+        if (!FILED_STATUSES.has(row.status)) return null;
         const href = reportHref(row, backPath);
         return href ? (
           <Link href={href} className="text-sm font-semibold text-[#1a6fc4] hover:underline">
@@ -141,10 +222,10 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
   const columns = allColumns.filter((c) => !(stream && (c.key === "report_type" || hidden.includes(c.key))));
 
   const rows: Row[] = (data?.items ?? []).map((row) => ({ ...row, id: row.row_key }));
+  const { onClickCapture } = useReturnToRow(returnKey, !isLoading && rows.length > 0, skip);
 
   const rs = summary?.report_submissions;
   const streamKpi = stream && rs ? rs[stream.summaryKey] : null;
-  const pendingCount = streamKpi ? Math.max(streamKpi.expected_count - streamKpi.submitted_count, 0) : null;
 
   return (
     <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
@@ -155,7 +236,7 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
         </h1>
         <p className="text-slate-500">
           {stream
-            ? "Reporting periods this stream owed since onboarding — pending (not yet filed) by default."
+            ? "The reports owed for the selected period \u2014 the same ones the GovOne Dashboard card counts."
             : "Every delivery-status and metrics report owed by a project, account, or geo since it was onboarded — filed or not."}
         </p>
       </header>
@@ -166,50 +247,48 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
           setFilters(next);
           setSkip(0);
         }}
-        showPeriod={false}
-        extraFiltersActive={stream ? statusFilter !== "pending" : false}
+        showPeriod={!!stream}
+        extraFiltersActive={stream ? picked !== "" : false}
         onReset={
           stream
             ? () => {
-                setStatusFilter("pending");
+                resetPicked();
                 setSkip(0);
               }
             : undefined
         }
-      >
-        {stream ? (
-          <div className="w-52">
-            <NativeSelect
-              aria-label="Submission status"
-              className="h-9 bg-white text-sm"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as StatusFilter);
-                setSkip(0);
-              }}
-            >
-              <option value="pending">Pending (Not Submitted)</option>
-              <option value="submitted">Submitted</option>
-              <option value="all">All</option>
-            </NativeSelect>
-          </div>
-        ) : null}
-      </ProjectHealthFilterBar>
+      />
 
-      {stream ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatTile
-            label="Adherence"
-            value={streamKpi ? `${streamKpi.adherence_pct}%` : "—"}
-            accentClassName="border-t-[#1a6fc4]"
+      {stream && tiles ? (
+        <Card
+          title={tiles.title}
+          icon={ClipboardCheck}
+          iconClassName="text-slate-500"
+          period={
+            kpi === "metrics-projects"
+              ? `Previous Month: ${summary?.previous_month_label ?? "\u2014"}`
+              : `Selected Period: ${summary?.period_label ?? "current week"}`
+          }
+        >
+          <RagFilterTiles
+            buckets={tiles.buckets}
+            counts={bucketCounts(kpi!, streamKpi)}
+            selected={bucket ?? ""}
+            redNotSubmitted
+            onSelect={(next) => {
+              setPicked(next === "" ? ALL : next);
+              setSkip(0);
+            }}
+            leading={
+              <RagCountCell
+                label="Adherence"
+                value={streamKpi ? `${streamKpi.adherence_pct}%` : "\u2014"}
+                className={cn("py-2", RAG_BUCKET_STYLES["Not Assessed"].className)}
+                valueClassName="text-2xl text-[#1a6fc4]"
+              />
+            }
           />
-          <StatTile
-            label="Reports Owed"
-            value={streamKpi ? streamKpi.expected_count : "—"}
-            accentClassName="border-t-indigo-500"
-          />
-          <StatTile label="Pending" value={pendingCount ?? "—"} accentClassName="border-t-amber-500" />
-        </div>
+        </Card>
       ) : (
         <div className={cn("grid grid-cols-2 gap-4", showGeoTile ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
           <StatTile
@@ -240,7 +319,7 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
       {isError ? (
         <ErrorBlock title="Couldn't load report submissions." error={error} onRetry={() => refetch()} />
       ) : (
-        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div onClickCapture={onClickCapture} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex justify-end">
             <ProjectHealthExportButton
               filename={stream ? `project-health-report-submissions-${kpi}` : "project-health-report-submissions"}

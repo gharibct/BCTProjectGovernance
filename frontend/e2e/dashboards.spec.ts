@@ -28,7 +28,7 @@ const ROLES = [
       "New Project",
       "Maintain Project",
       "Report Project",
-      "Report Account Status",
+      "Update Account Status Report",
       "Report Geo Status",
       "DE Assessment",
     ] as string[],
@@ -38,7 +38,7 @@ const ROLES = [
     identifier: "pm",
     landing: "/dashboard",
     expectMenu: ["My Summary", "Project Delivery Status", "New Project", "Maintain Project", "Report Project"],
-    avoidMenu: ["Admin Dashboard", "Users & Roles", "Accounts", "Report Account Status", "Report Geo Status"],
+    avoidMenu: ["Admin Dashboard", "Users & Roles", "Accounts", "Update Account Status Report", "Report Geo Status"],
   },
   {
     slug: "delivery-excellence",
@@ -50,7 +50,7 @@ const ROLES = [
       "Maintain Project",
       "Report Project",
       "Admin Dashboard",
-      "Report Account Status",
+      "Update Account Status Report",
       "Report Geo Status",
       "Project Delivery Status",
       "Users & Roles",
@@ -62,7 +62,7 @@ const ROLES = [
     identifier: "cxo",
     landing: "/dashboard/cxo",
     expectMenu: ["My Summary", "Delivery Status Report - Geo"],
-    avoidMenu: ["New Project", "Report Account Status", "Report Geo Status", "Admin Dashboard", "Project Delivery Status"],
+    avoidMenu: ["New Project", "Update Account Status Report", "Report Geo Status", "Admin Dashboard", "Project Delivery Status"],
   },
   {
     slug: "account-manager",
@@ -71,7 +71,7 @@ const ROLES = [
     expectMenu: [
       "My Summary",
       "Delivery Status Report - Account",
-      "Report Account Status",
+      "Update Account Status Report",
       "Project Delivery Status",
       "Reassign Owners",
     ],
@@ -82,7 +82,7 @@ const ROLES = [
     identifier: "geohead",
     landing: "/dashboard/geo-head",
     expectMenu: ["My Summary", "Delivery Status Report - Geo", "Report Geo Status", "Delivery Status Report - Account", "Reassign Owners"],
-    avoidMenu: ["Admin Dashboard", "New Project", "Report Account Status", "Project Delivery Status", "Maintain Project"],
+    avoidMenu: ["Admin Dashboard", "New Project", "Update Account Status Report", "Project Delivery Status", "Maintain Project"],
   },
 ] as const;
 

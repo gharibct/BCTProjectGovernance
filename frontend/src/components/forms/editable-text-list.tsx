@@ -4,6 +4,7 @@ import * as React from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useItemDrafts } from "@/stores/item-drafts";
 
 export type EditableTextListItem = { id: string; text: string };
 
@@ -18,6 +19,9 @@ export type EditableTextListProps = {
   // Show the add input from the start instead of behind a "+ Add …" button,
   // so adding an item is one step (type, press Enter or Add).
   addOpenByDefault?: boolean;
+  // Name shown in the page-level "item should be added or removed" error when
+  // text is left in this register's box on Save.
+  draftLabel?: string;
 };
 
 const rowClass = "flex items-center justify-between gap-3 px-4 py-3 text-sm text-slate-800";
@@ -43,6 +47,7 @@ export function EditableTextList({
   addLabel = "Add item",
   emptyLabel = "Nothing added yet.",
   addOpenByDefault = false,
+  draftLabel = "An item",
 }: EditableTextListProps) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editDraft, setEditDraft] = React.useState("");
@@ -50,8 +55,17 @@ export function EditableTextList({
   const [addDraft, setAddDraft] = React.useState("");
   const addInputRef = React.useRef<HTMLInputElement>(null);
   const adding = isAdding || addOpenByDefault;
-  // Escape sets this so the blur it triggers doesn't also commit.
-  const skipNextBlurCommit = React.useRef(false);
+
+  // Report left-behind text (typed but not added, or an edit not saved) so the
+  // page's Save can refuse it.
+  const draftId = React.useId();
+  const setDraft = useItemDrafts((s) => s.setDraft);
+  const editedItem = items.find((i) => i.id === editingId);
+  const hasDraft = addDraft.trim() !== "" || (!!editedItem && editDraft.trim() !== editedItem.text);
+  React.useEffect(() => {
+    setDraft(draftId, hasDraft ? draftLabel : null);
+  }, [draftId, draftLabel, hasDraft, setDraft]);
+  React.useEffect(() => () => setDraft(draftId, null), [draftId, setDraft]);
 
   const startEdit = (item: EditableTextListItem) => {
     setEditingId(item.id);
@@ -72,26 +86,16 @@ export function EditableTextList({
     cancelEdit();
   };
 
-  const commitAdd = (continueAdding: boolean) => {
+  // An item is only added by clicking Add or pressing Enter — leaving the
+  // textbox (blur) never saves anything.
+  const commitAdd = () => {
     const trimmed = addDraft.trim();
-    if (trimmed) {
-      onAdd(trimmed);
-      setAddDraft("");
-      if (continueAdding) {
-        // Stay in add mode so Enter can be pressed repeatedly to keep
-        // logging items without re-clicking "+ Add item".
-        requestAnimationFrame(() => addInputRef.current?.focus());
-        return;
-      }
-      setIsAdding(false);
-      return;
-    }
-    // Empty: Enter is a no-op (stay open); blur collapses back to the
-    // "+ Add item" affordance.
-    if (!continueAdding) {
-      setIsAdding(false);
-      setAddDraft("");
-    }
+    if (!trimmed) return;
+    onAdd(trimmed);
+    setAddDraft("");
+    // Stay in add mode so Enter can be pressed repeatedly to keep
+    // logging items without re-clicking "+ Add item".
+    requestAnimationFrame(() => addInputRef.current?.focus());
   };
 
   return (
@@ -114,26 +118,13 @@ export function EditableTextList({
                         e.preventDefault();
                         commitEdit();
                       } else if (e.key === "Escape") {
-                        skipNextBlurCommit.current = true;
                         cancelEdit();
                       }
                     }}
-                    onBlur={() => {
-                      if (skipNextBlurCommit.current) {
-                        skipNextBlurCommit.current = false;
-                        return;
-                      }
-                      commitEdit();
-                    }}
                   />
-                  {/* onMouseDown + preventDefault stops the input from
-                      blurring first, so there's no competing blur-commit. */}
                   <button
                     type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      commitEdit();
-                    }}
+                    onClick={commitEdit}
                     className="h-8 shrink-0 rounded-md bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
                   >
                     Save
@@ -177,36 +168,23 @@ export function EditableTextList({
                 autoFocus={!addOpenByDefault}
                 className={inputClass}
                 value={addDraft}
-                placeholder="Type an item and press Enter…"
+                placeholder="Type an item, then click Add…"
                 onChange={(e) => setAddDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    commitAdd(true);
+                    commitAdd();
                   } else if (e.key === "Escape") {
-                    skipNextBlurCommit.current = true;
                     setIsAdding(false);
                     setAddDraft("");
                   }
                 }}
-                onBlur={() => {
-                  if (skipNextBlurCommit.current) {
-                    skipNextBlurCommit.current = false;
-                    return;
-                  }
-                  commitAdd(false);
-                }}
               />
               {/* Same effect as pressing Enter — commits and stays open for
-                  the next item. onMouseDown (not onClick) + preventDefault
-                  stops the input from blurring first, so there's no
-                  competing blur-commit for the same value. */}
+                  the next item. */}
               <button
                 type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  commitAdd(true);
-                }}
+                onClick={commitAdd}
                 className="h-8 shrink-0 rounded-md bg-[#1a4a7a] px-4 text-sm font-semibold text-white hover:bg-[#15406b]"
               >
                 Add

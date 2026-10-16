@@ -119,7 +119,7 @@ export function RegionalReportingHub({ scope }: { scope: RegionalScope }) {
         {scope === "account" ? (
           <div className="mb-4">
             <PageBreadcrumb
-              items={[{ label: "Report Account Status", href: selectAccountHref("account-reporting") }, { label: name }]}
+              items={[{ label: "Update Account Status Report", href: selectAccountHref("account-reporting") }, { label: name }]}
             />
           </div>
         ) : null}

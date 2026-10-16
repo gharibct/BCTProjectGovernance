@@ -28,7 +28,7 @@ type NavItem = { label: string; href: string };
 type NavSection = { heading: string; icon: LucideIcon; items: NavItem[] };
 
 const SECTIONS: NavSection[] = [
-  { heading: "Overview", icon: HeartPulse, items: [{ label: "Project Health", href: "/project-health" }] },
+  { heading: "Overview", icon: HeartPulse, items: [{ label: "GovOne Dashboard", href: "/project-health" }] },
   {
     heading: "Project & Account",
     icon: FolderOpen,

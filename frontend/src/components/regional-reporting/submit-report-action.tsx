@@ -44,6 +44,49 @@ function formatDateTime(value: string): string {
   });
 }
 
+// Locked-report message + Recall button/dialog for an Account report, shared by
+// the Submit bar below and the Save Report bar on the Delivery Status Report so
+// both show the same text and the same Recall control.
+export function useAccountReportRecall(accountId: string, report: RegionalStatusReport | undefined) {
+  const recallAccountReport = useRecallAccountStatusReport(accountId);
+  const showSuccess = usePageBanner((s) => s.showSuccess);
+  const [open, setOpen] = React.useState(false);
+
+  const isSubmitted = report?.status === "Submitted";
+  const isApproved = report?.status === "Approved";
+  const lockedMessage = isApproved
+    ? "This report has been approved and is now read-only."
+    : isSubmitted
+      ? `This report has been submitted and is now read-only. Recall it to make changes while it awaits ${REVIEWER_LABEL.account} review.`
+      : null;
+
+  const recallControls =
+    isSubmitted || isApproved ? (
+      <>
+        <Button
+          variant="outline"
+          className="h-10 gap-2 border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
+          disabled={!isSubmitted || recallAccountReport.isPending}
+          onClick={() => setOpen(true)}
+        >
+          {recallAccountReport.isPending ? <ButtonSpinner /> : <Undo2 className="size-4" />}
+          Recall Report
+        </Button>
+        <RecallReportDialog
+          open={open}
+          onOpenChange={setOpen}
+          description={`The report will go back to Draft so you can edit and resubmit it. This is only possible until the ${REVIEWER_LABEL.account} reviews it. Do you want to proceed?`}
+          onRecall={async (remarks) => {
+            await recallAccountReport.mutateAsync({ id: report!.id, remarks });
+            showSuccess("Status Report Recalled — it is back to Draft");
+          }}
+        />
+      </>
+    ) : null;
+
+  return { lockedMessage, recallControls };
+}
+
 // Scope-generic counterpart to components/project-dashboard/submit-report-action.tsx
 // — the Delivery Manager's / Geo Head's own submit action, mirroring
 // status-review/review-actions.tsx's ReviewActions (their reviewer's

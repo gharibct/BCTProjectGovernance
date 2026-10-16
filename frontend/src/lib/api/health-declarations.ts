@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
+import { invalidateReportingDerived } from "./invalidate-derived";
 
 export type HealthRating = "Red" | "Potential Red" | "Amber" | "Green";
 
@@ -80,6 +81,7 @@ function invalidateHealthDeclarations(queryClient: ReturnType<typeof useQueryCli
   // Creating/updating a declaration updates the Project's cached health
   // fields server-side (delivery_declared_overall_health / overall_project_health).
   queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateHealthDeclaration(projectId: string | null) {
@@ -145,6 +147,7 @@ function invalidateHealthItems(
   category: HealthCategory
 ) {
   queryClient.invalidateQueries({ queryKey: ["health-items", projectId, periodId, category] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateHealthItem(projectId: string | null, periodId: string | null, category: HealthCategory) {

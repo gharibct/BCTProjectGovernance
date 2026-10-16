@@ -125,7 +125,7 @@ function ContextBody({
   const [reportStatus, setReportStatus] = React.useState(ALL);
   const [skip, setSkip] = React.useState(0);
 
-  // Report Project Status / Project Delivery Status (weekly) and Report Project Performance /
+  // Update Project Status Report / Project Delivery Status (weekly) and Update Project Performance Report /
   // Project Performance (monthly): pick one of
   // the last 12 completed periods and show each project's report state for it.
   const monthly = targetId === "performance-reporting" || targetId === "project-performance";
@@ -186,13 +186,8 @@ function ContextBody({
           return false;
         return true;
       })
-      .sort((a, b) => {
-        const la = lastAccessed[a.id] ?? "";
-        const lb = lastAccessed[b.id] ?? "";
-        if (la !== lb) return lb.localeCompare(la);
-        return a.project_code.localeCompare(b.project_code);
-      });
-  }, [eligible, search, projectStatus, geoId, regionId, accountId, lastAccessed, showPeriod, reportStatus, statusByProject, monthly]);
+      .sort((a, b) => a.project_name.localeCompare(b.project_name) || a.project_code.localeCompare(b.project_code));
+  }, [eligible, search, projectStatus, geoId, regionId, accountId, showPeriod, reportStatus, statusByProject, monthly]);
 
   const page = filtered.slice(skip, skip + PAGE_SIZE);
   const filtersActive = !!(search || projectStatus || geoId || regionId || accountId || reportStatus);

@@ -47,17 +47,21 @@ from app.models.metric_target import (
     MetricTargetTesting,
 )
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
-from app.models.projects import Project
+from app.models.projects import Project, ProjectProxyManager
 from app.services.project_managers import pm_condition
 from app.services.activity_restriction import restricted_from_by_project
+from app.services.report_timeliness import is_late, submission_deadline
 from app.models.raid import AssumptionLog, DependencyLog, IssueLog, OpportunityLog, RiskLog
 from app.models.reference_data import Account, Geo, ProjectType, Region, ReportingPeriod
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusReport
 from app.models.users import Role, User, UserAccount, UserGeo
 from app.schemas.dashboard import (
     HighRiskAccountRow,
+    DeliveryManagerOption,
     HighRiskKpis,
     HighRisksResponse,
+    ProjectHealthDashboardResponse,
+    ProjectHealthDashboardRow,
     AccountHealthRow,
     AccountPortfolioHealthRow,
     AccountRagCardSummary,
@@ -2585,8 +2589,8 @@ async def _project_reporting_bucket(
         if report is not None and report.status == ReportStatus.REJECTED:
             result[project.project_id] = ("Rework", report.updated_at.date())
         elif report is not None and report.status in (ReportStatus.SUBMITTED, ReportStatus.APPROVED):
-            on_time = report.updated_at.date() <= nearest_period.end_date
-            result[project.project_id] = ("On Time" if on_time else "Late", nearest_period.end_date)
+            late = is_late(report, nearest_period)
+            result[project.project_id] = ("Late" if late else "On Time", submission_deadline(nearest_period))
         elif not_yet_onboarded:
             result[project.project_id] = ("On Time", nearest_period.end_date)  # not due yet — nothing was ever owed
         elif nearest_period.end_date < today:
@@ -3075,22 +3079,27 @@ async def list_projects_for_health(
     return items, total
 
 
-async def list_rag_rows(db: AsyncSession, filters: DashboardFilters, period_id: UUID | None = None) -> list[RagRow]:
+async def list_rag_rows(
+    db: AsyncSession,
+    filters: DashboardFilters,
+    period: ReportingPeriod | None = None,
+    status: str | None = None,
+) -> list[RagRow]:
+    """One row per Active project for the selected week, bucketed by exactly the
+    rule the dashboard's Project Health KPI uses (_weekly_health_ratings): a
+    project is rated only once its weekly report is filed, otherwise it is
+    "Not Submitted" and carries no ratings. `status` narrows to one bucket."""
     projects = await project_health_rows(db, filters)
+    if period is not None:
+        # Projects whose Delivery Status is switched off for the period owe no RAG.
+        keep = set(
+            await drop_restricted_projects(
+                db, [p.project_id for p in projects], ProjectActivity.DELIVERY_STATUS, period.start_date
+            )
+        )
+        projects = [p for p in projects if p.project_id in keep]
     if not projects:
         return []
-    if period_id is not None:
-        # Projects whose Delivery Status is switched off for the period owe no RAG.
-        rag_period = await db.get(ReportingPeriod, period_id)
-        if rag_period is not None:
-            keep = set(
-                await drop_restricted_projects(
-                    db, [p.project_id for p in projects], ProjectActivity.DELIVERY_STATUS, rag_period.start_date
-                )
-            )
-            projects = [p for p in projects if p.project_id in keep]
-            if not projects:
-                return []
     project_ids = [p.project_id for p in projects]
 
     project_geo = (
@@ -3099,25 +3108,23 @@ async def list_rag_rows(db: AsyncSession, filters: DashboardFilters, period_id: 
     geo_by_project = {pid: g for pid, g, _ in project_geo}
     region_by_project = {pid: r for pid, _, r in project_geo}
 
-    decl_conditions = [HealthDeclaration.project_id.in_(project_ids)]
-    if period_id is not None:
-        decl_conditions.append(HealthDeclaration.period_id == period_id)
-    declarations = (await db.execute(select(HealthDeclaration).where(*decl_conditions))).scalars().all()
-    latest: dict[UUID, HealthDeclaration] = {}
-    for decl in declarations:
-        current = latest.get(decl.project_id)
-        if current is None or decl.created_at > current.created_at:
-            latest[decl.project_id] = decl
-
-    period_ids = {decl.period_id for decl in latest.values()}
-    period_labels: dict[UUID, str] = {}
-    if period_ids:
-        period_rows = (await db.execute(select(ReportingPeriod.id, ReportingPeriod.label).where(ReportingPeriod.id.in_(period_ids)))).all()
-        period_labels = dict(period_rows)
+    rated = await _weekly_health_ratings(
+        db,
+        project_ids,
+        period,
+        report_model=ProjectStatusReport,
+        report_fk=ProjectStatusReport.project_id,
+        declaration_model=HealthDeclaration,
+        declaration_fk=HealthDeclaration.project_id,
+    )
 
     rows: list[RagRow] = []
     for p in projects:
-        decl = latest.get(p.project_id)
+        entry = rated.get(p.project_id)
+        decl = entry[1] if entry else None
+        bucket = HealthRating(entry[0]).value if entry else NOT_SUBMITTED
+        if status and bucket != status:
+            continue
         rows.append(
             RagRow(
                 project_id=p.project_id,
@@ -3130,7 +3137,7 @@ async def list_rag_rows(db: AsyncSession, filters: DashboardFilters, period_id: 
                 core_delivery_rating=decl.core_delivery_rating if decl else None,
                 operational_rating=decl.operational_rating if decl else None,
                 financial_rating=decl.financial_rating if decl else None,
-                period_label=period_labels.get(decl.period_id) if decl else None,
+                period_label=period.label if decl and period else None,
                 last_updated=decl.created_at if decl else None,
             )
         )
@@ -3148,18 +3155,25 @@ _HIGH_RISK_ORDER = {
     HealthRating.RED.value: 0,
     HealthRating.POTENTIAL_RED.value: 1,
     HealthRating.AMBER.value: 2,
-    NOT_SUBMITTED: 3,
+    HealthRating.GREEN.value: 3,
+    NOT_SUBMITTED: 4,
 }
 _HIGH_RISK_KPI_KEY = {
     HealthRating.RED.value: "red",
     HealthRating.POTENTIAL_RED.value: "potential_red",
     HealthRating.AMBER.value: "amber",
+    HealthRating.GREEN.value: "green",
     NOT_SUBMITTED: "not_submitted",
 }
 
 
 async def high_risk_accounts(
-    db: AsyncSession, filters: DashboardFilters, period_id: UUID, overall: str | None = None
+    db: AsyncSession,
+    filters: DashboardFilters,
+    period_id: UUID,
+    overall: str | None = None,
+    include_green: bool = False,
+    delivery_manager_id: UUID | None = None,
 ) -> HighRisksResponse:
     account_rows = (
         await db.execute(
@@ -3169,7 +3183,7 @@ async def high_risk_accounts(
             .where(Account.is_active.is_(True), *_account_conditions(filters))
         )
     ).all()
-    kpis = {"red": 0, "potential_red": 0, "amber": 0, "not_submitted": 0}
+    kpis = {"red": 0, "potential_red": 0, "amber": 0, "not_submitted": 0, "green": 0}
     if not account_rows:
         return HighRisksResponse(kpis=HighRiskKpis(**kpis), items=[])
     account_ids = [row[0] for row in account_rows]
@@ -3207,7 +3221,7 @@ async def high_risk_accounts(
     # Delivery Manager = the primary Account Head (a proxy only if no primary).
     dm_rows = (
         await db.execute(
-            select(UserAccount.account_id, User.full_name)
+            select(UserAccount.account_id, User.full_name, User.id)
             .join(User, User.id == UserAccount.user_id)
             .join(Role, Role.id == User.role_id)
             .where(
@@ -3217,16 +3231,20 @@ async def high_risk_accounts(
             .order_by(UserAccount.is_proxy, User.created_at)
         )
     ).all()
-    dm_by_account: dict[UUID, str] = {}
-    for dm_account_id, full_name in dm_rows:
-        dm_by_account.setdefault(dm_account_id, full_name)
+    dm_by_account: dict[UUID, tuple[UUID, str]] = {}
+    for dm_account_id, full_name, dm_user_id in dm_rows:
+        dm_by_account.setdefault(dm_account_id, (dm_user_id, full_name))
+    managers = {uid: DeliveryManagerOption(id=uid, name=name) for uid, name in dm_by_account.values()}
 
     items: list[HighRiskAccountRow] = []
     for account_id, name, geo_id, geo_name, region_id, region_name in account_rows:
+        dm = dm_by_account.get(account_id)
+        if delivery_manager_id is not None and (dm is None or dm[0] != delivery_manager_id):
+            continue
         decl = declarations.get(account_id)
         if decl is None:
             risk_status = NOT_SUBMITTED
-        elif decl.overall_rating == HealthRating.GREEN:
+        elif decl.overall_rating == HealthRating.GREEN and not include_green:
             continue
         else:
             risk_status = HealthRating(decl.overall_rating).value
@@ -3241,7 +3259,8 @@ async def high_risk_accounts(
                 geo_name=geo_name,
                 region_id=region_id,
                 region_name=region_name,
-                delivery_manager_name=dm_by_account.get(account_id),
+                delivery_manager_id=dm[0] if dm else None,
+                delivery_manager_name=dm[1] if dm else None,
                 risk_status=risk_status,
                 core_delivery_rating=decl.core_delivery_rating if decl else None,
                 people_rating=decl.people_rating if decl else None,
@@ -3253,7 +3272,160 @@ async def high_risk_accounts(
             )
         )
     items.sort(key=lambda r: (_HIGH_RISK_ORDER[r.risk_status], r.entity_label.lower()))
-    return HighRisksResponse(kpis=HighRiskKpis(**kpis), items=items)
+    return HighRisksResponse(
+        kpis=HighRiskKpis(**kpis),
+        items=items,
+        delivery_managers=sorted(managers.values(), key=lambda m: m.name.lower()),
+    )
+
+
+# Project Health Dashboard — the Delivery Health grid at project level. Active
+# (approved, not Hold / Closed) projects in scope; a project counts as filed when
+# its status report for the period is Submitted/Approved, and its ratings then
+# come from that period's declaration (latest wins). Everything else is
+# "Not Submitted". The Project Manager filter matches the primary or a proxy PM;
+# the PM column shows the primary.
+async def project_health_dashboard(
+    db: AsyncSession,
+    filters: DashboardFilters,
+    period_id: UUID,
+    overall: str | None = None,
+    project_manager_id: UUID | None = None,
+) -> ProjectHealthDashboardResponse:
+    scope = replace(filters, active_only=True)
+    project_rows = (
+        await db.execute(
+            select(
+                Project.id,
+                Project.project_code,
+                Project.project_name,
+                Project.account_id,
+                Account.name,
+                Project.geo_id,
+                Geo.name,
+                Project.region_id,
+                Region.name,
+                Project.project_manager_id,
+            )
+            .outerjoin(Account, Account.id == Project.account_id)
+            .outerjoin(Geo, Geo.id == Project.geo_id)
+            .outerjoin(Region, Region.id == Project.region_id)
+            .where(*_project_conditions(scope))
+        )
+    ).all()
+    kpis = {"red": 0, "potential_red": 0, "amber": 0, "not_submitted": 0, "green": 0}
+    if not project_rows:
+        return ProjectHealthDashboardResponse(kpis=HighRiskKpis(**kpis), items=[])
+    project_ids = [row[0] for row in project_rows]
+
+    filed_ids = set(
+        (
+            await db.execute(
+                select(ProjectStatusReport.project_id).where(
+                    ProjectStatusReport.period_id == period_id,
+                    ProjectStatusReport.project_id.in_(project_ids),
+                    ProjectStatusReport.status.in_((ReportStatus.SUBMITTED, ReportStatus.APPROVED)),
+                )
+            )
+        ).scalars()
+    )
+    declarations: dict[UUID, HealthDeclaration] = {}
+    if filed_ids:
+        decls = (
+            (
+                await db.execute(
+                    select(HealthDeclaration).where(
+                        HealthDeclaration.period_id == period_id,
+                        HealthDeclaration.project_id.in_(filed_ids),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for decl in decls:
+            current = declarations.get(decl.project_id)
+            if current is None or decl.created_at > current.created_at:
+                declarations[decl.project_id] = decl
+
+    # Delivery Manager = the account's primary Account Head (a proxy only if no primary).
+    account_ids = list({row[3] for row in project_rows if row[3] is not None})
+    dm_by_account: dict[UUID, str] = {}
+    if account_ids:
+        dm_rows = (
+            await db.execute(
+                select(UserAccount.account_id, User.full_name)
+                .join(User, User.id == UserAccount.user_id)
+                .join(Role, Role.id == User.role_id)
+                .where(
+                    UserAccount.account_id.in_(account_ids),
+                    Role.code.in_((RoleCode.ACCOUNT_MANAGER.value, RoleCode.GEO_HEAD.value)),
+                )
+                .order_by(UserAccount.is_proxy, User.created_at)
+            )
+        ).all()
+        for dm_account_id, full_name in dm_rows:
+            dm_by_account.setdefault(dm_account_id, full_name)
+
+    pm_ids = {row[9] for row in project_rows if row[9] is not None}
+    pm_names: dict[UUID, str] = {}
+    if pm_ids:
+        pm_names = dict((await db.execute(select(User.id, User.full_name).where(User.id.in_(pm_ids)))).all())
+    managers = [DeliveryManagerOption(id=uid, name=name) for uid, name in pm_names.items()]
+
+    proxied: set[UUID] = set()
+    if project_manager_id is not None:
+        proxied = set(
+            (
+                await db.execute(
+                    select(ProjectProxyManager.project_id).where(
+                        ProjectProxyManager.user_id == project_manager_id,
+                        ProjectProxyManager.project_id.in_(project_ids),
+                    )
+                )
+            ).scalars()
+        )
+
+    items: list[ProjectHealthDashboardRow] = []
+    for pid, code, name, account_id, account_name, geo_id, geo_name, region_id, region_name, pm_id in project_rows:
+        if project_manager_id is not None and pm_id != project_manager_id and pid not in proxied:
+            continue
+        decl = declarations.get(pid)
+        risk_status = NOT_SUBMITTED if decl is None else HealthRating(decl.overall_rating).value
+        kpis[_HIGH_RISK_KPI_KEY[risk_status]] += 1
+        if overall and risk_status != overall:
+            continue
+        items.append(
+            ProjectHealthDashboardRow(
+                entity_id=pid,
+                entity_label=name,
+                project_code=code,
+                project_name=name,
+                account_id=account_id,
+                account_name=account_name,
+                geo_id=geo_id,
+                geo_name=geo_name,
+                region_id=region_id,
+                region_name=region_name,
+                delivery_manager_name=dm_by_account.get(account_id) if account_id else None,
+                project_manager_id=pm_id,
+                project_manager_name=pm_names.get(pm_id) if pm_id else None,
+                risk_status=risk_status,
+                core_delivery_rating=decl.core_delivery_rating if decl else None,
+                people_rating=decl.people_rating if decl else None,
+                operational_rating=decl.operational_rating if decl else None,
+                customer_rating=decl.customer_rating if decl else None,
+                financial_rating=decl.financial_rating if decl else None,
+                compliance_rating=decl.compliance_rating if decl else None,
+                overall_rating=decl.overall_rating if decl else None,
+            )
+        )
+    items.sort(key=lambda r: (_HIGH_RISK_ORDER[r.risk_status], r.project_name.lower()))
+    return ProjectHealthDashboardResponse(
+        kpis=HighRiskKpis(**kpis),
+        items=items,
+        project_managers=sorted(managers, key=lambda m: m.name.lower()),
+    )
 
 
 # Account-level sibling of list_rag_rows — one row per in-scope account, its
@@ -3261,9 +3433,16 @@ async def high_risk_accounts(
 # Backs the Project Health dashboard's "Account Health -> View Account RAG"
 # drill-down. Paginated in Python by the endpoint, same as list_rag_rows.
 async def list_account_rag_rows(
-    db: AsyncSession, filters: DashboardFilters, period_id: UUID | None = None
+    db: AsyncSession,
+    filters: DashboardFilters,
+    period: ReportingPeriod | None = None,
+    status: str | None = None,
 ) -> list[AccountRagRow]:
-    accounts = await account_health_rows(db, filters)
+    """One row per active account for the selected week, bucketed by exactly the
+    rule the dashboard's Account Health KPI uses (_weekly_health_ratings).
+    `status` narrows to one bucket."""
+    active_ids = set(await active_account_ids(db, filters))
+    accounts = [a for a in await account_health_rows(db, filters) if a.account_id in active_ids]
     if not accounts:
         return []
     account_ids = [a.account_id for a in accounts]
@@ -3275,29 +3454,23 @@ async def list_account_rag_rows(
     ).all()
     geo_by_account = dict(geo_rows)
 
-    decl_conditions = [AccountHealthDeclaration.account_id.in_(account_ids)]
-    if period_id is not None:
-        decl_conditions.append(AccountHealthDeclaration.period_id == period_id)
-    declarations = (await db.execute(select(AccountHealthDeclaration).where(*decl_conditions))).scalars().all()
-    latest: dict[UUID, AccountHealthDeclaration] = {}
-    for decl in declarations:
-        current = latest.get(decl.account_id)
-        if current is None or decl.created_at > current.created_at:
-            latest[decl.account_id] = decl
-
-    period_ids = {decl.period_id for decl in latest.values()}
-    period_labels: dict[UUID, str] = {}
-    if period_ids:
-        period_rows = (
-            await db.execute(
-                select(ReportingPeriod.id, ReportingPeriod.label).where(ReportingPeriod.id.in_(period_ids))
-            )
-        ).all()
-        period_labels = dict(period_rows)
+    rated = await _weekly_health_ratings(
+        db,
+        account_ids,
+        period,
+        report_model=AccountStatusReport,
+        report_fk=AccountStatusReport.account_id,
+        declaration_model=AccountHealthDeclaration,
+        declaration_fk=AccountHealthDeclaration.account_id,
+    )
 
     rows: list[AccountRagRow] = []
     for a in accounts:
-        decl = latest.get(a.account_id)
+        entry = rated.get(a.account_id)
+        decl = entry[1] if entry else None
+        bucket = HealthRating(entry[0]).value if entry else NOT_SUBMITTED
+        if status and bucket != status:
+            continue
         rows.append(
             AccountRagRow(
                 account_id=a.account_id,
@@ -3311,7 +3484,7 @@ async def list_account_rag_rows(
                 customer_rating=decl.customer_rating if decl else None,
                 financial_rating=decl.financial_rating if decl else None,
                 compliance_rating=decl.compliance_rating if decl else None,
-                period_label=period_labels.get(decl.period_id) if decl else None,
+                period_label=period.label if decl and period else None,
                 last_updated=decl.created_at if decl else None,
             )
         )
@@ -4127,64 +4300,86 @@ async def de_assessments_card_summary(
 # health) comes from Project.delivery_declared_overall_health — the PM's own
 # self-declared rating, same field the portfolio dashboard's health matrix
 # tracks alongside the DE-assessed one.
-async def list_assessments_for_health(
-    db: AsyncSession, filters: DashboardFilters, skip: int, limit: int
-) -> tuple[list[AssessmentRow], int]:
-    conditions = [DEAssessment.project_id.in_(await _matching_project_ids(db, filters))]
+NOT_ASSESSED = "Not Assessed"
 
-    total = (await db.execute(select(func.count()).select_from(DEAssessment).where(*conditions))).scalar_one()
-    rows = (
-        await db.execute(
-            select(
-                DEAssessment,
-                Project.project_code,
-                Project.project_name,
-                Geo.name,
-                Region.name,
-                Account.name,
-                Project.delivery_declared_overall_health,
-                User.full_name,
+
+async def list_assessments_for_health(
+    db: AsyncSession,
+    filters: DashboardFilters,
+    week: ReportingPeriod | None,
+    status: str | None = None,
+) -> list[AssessmentRow]:
+    """One row per Active project for the selected week, bucketed by exactly the
+    rule the dashboard's DE Assessment KPI uses (de_assessments_card_summary): the
+    project's latest Submitted assessment dated within the week, else "Not
+    Assessed". `status` narrows to one bucket."""
+    window = selected_week_window(week)
+    projects = await project_health_rows(db, filters)
+    keep = set(
+        await drop_restricted_projects(
+            db, [p.project_id for p in projects], ProjectActivity.DE_ASSESSMENT, window.start
+        )
+    )
+    projects = [p for p in projects if p.project_id in keep]
+    if not projects:
+        return []
+    project_ids = [p.project_id for p in projects]
+
+    project_info = {
+        pid: (geo, region, pm_health)
+        for pid, geo, region, pm_health in (
+            await db.execute(
+                select(Project.id, Geo.name, Region.name, Project.delivery_declared_overall_health)
+                .outerjoin(Geo, Geo.id == Project.geo_id)
+                .outerjoin(Region, Region.id == Project.region_id)
+                .where(Project.id.in_(project_ids))
             )
-            .outerjoin(Project, Project.id == DEAssessment.project_id)
-            .outerjoin(Geo, Geo.id == Project.geo_id)
-            .outerjoin(Region, Region.id == Project.region_id)
-            .outerjoin(Account, Account.id == Project.account_id)
+        ).all()
+    }
+
+    latest: dict[UUID, tuple[DEAssessment, str | None]] = {}
+    assessed = (
+        await db.execute(
+            select(DEAssessment, User.full_name)
             .outerjoin(User, User.id == DEAssessment.assessed_by)
-            .where(*conditions)
-            .order_by(DEAssessment.assessment_date.desc())
-            .offset(skip)
-            .limit(limit)
+            .where(
+                DEAssessment.project_id.in_(project_ids),
+                DEAssessment.status == "Submitted",
+                DEAssessment.assessment_date >= window.start,
+                DEAssessment.assessment_date <= window.end,
+            )
         )
     ).all()
+    for a, assessed_by_name in assessed:
+        current = latest.get(a.project_id)
+        if current is None or a.assessment_date > current[0].assessment_date:
+            latest[a.project_id] = (a, assessed_by_name)
 
-    periods = (await db.execute(select(ReportingPeriod))).scalars().all()
-
-    def period_label_for(d: date | None) -> str | None:
-        if d is None:
-            return None
-        for p in periods:
-            if p.start_date <= d <= p.end_date:
-                return p.label
-        return None
-
-    items = [
-        AssessmentRow(
-            project_id=a.project_id,
-            project_label=f"{project_code} · {project_name}" if project_code else str(a.project_id),
-            geo_name=geo_name,
-            region_name=region_name,
-            account_name=account_name,
-            assessment_id=a.id,
-            pm_health=pm_health,
-            de_health=a.de_assessed_project_health,
-            pci_score=a.pci_score,
-            assessment_period=period_label_for(a.assessment_date),
-            assessed_by_name=assessed_by_name,
-            status="Compliant" if a.de_assessed_project_health == HealthRating.GREEN else "Red/Amber",
+    rows: list[AssessmentRow] = []
+    for p in projects:
+        geo_name, region_name, pm_health = project_info.get(p.project_id, (None, None, None))
+        entry = latest.get(p.project_id)
+        a = entry[0] if entry else None
+        bucket = HealthRating(a.de_assessed_project_health).value if a and a.de_assessed_project_health else NOT_ASSESSED
+        if status and bucket != status:
+            continue
+        rows.append(
+            AssessmentRow(
+                project_id=p.project_id,
+                project_label=f"{p.project_code} · {p.project_name}",
+                geo_name=geo_name,
+                region_name=region_name,
+                account_name=p.account_name,
+                assessment_id=a.id if a else None,
+                pm_health=pm_health,
+                de_health=a.de_assessed_project_health if a else None,
+                pci_score=a.pci_score if a else None,
+                assessment_period=week.label if a and week else None,
+                assessed_by_name=entry[1] if entry else None,
+                status=NOT_ASSESSED if not a else ("Compliant" if bucket == HealthRating.GREEN.value else "Red/Amber"),
+            )
         )
-        for a, project_code, project_name, geo_name, region_name, account_name, pm_health, assessed_by_name in rows
-    ]
-    return items, total
+    return rows
 
 
 # Metrics compliance card — no generic "Metric" table exists, so a project's
@@ -4613,7 +4808,7 @@ async def monthly_period_for(db: AsyncSession, month: MonthRange) -> ReportingPe
 # --- Project Health dashboard: bucketed, project-level cards ---------------------
 
 
-async def _weekly_health_buckets(
+async def _weekly_health_ratings(
     db: AsyncSession,
     entity_ids: list[UUID],
     period: ReportingPeriod | None,
@@ -4622,14 +4817,13 @@ async def _weekly_health_buckets(
     report_fk,
     declaration_model,
     declaration_fk,
-) -> WeeklyHealthBuckets:
-    """Green / Amber / Pot. Red / Red / Not Submitted for `entity_ids` in one
-    weekly period. An entity is rated only if its weekly status report is
-    Submitted/Approved AND it has a health declaration for that period;
-    everything else is Not Submitted, so the buckets always sum to
-    len(entity_ids)."""
-    counts: Counter = Counter()
-    rated: dict[UUID, str] = {}
+) -> dict[UUID, tuple[str, object]]:
+    """entity id -> (overall rating, its latest declaration) for the entities
+    that are rated in one weekly period. An entity is rated only if its weekly
+    status report is Submitted/Approved AND it has a health declaration for that
+    period; everything else is absent (= Not Submitted). The single rule behind
+    both the dashboard KPI counts and the drill-down lists, so they always agree."""
+    rated: dict[UUID, tuple[str, object]] = {}
     if entity_ids and period is not None:
         filed = set(
             (
@@ -4655,7 +4849,38 @@ async def _weekly_health_buckets(
             current = latest.get(key)
             if current is None or decl.created_at > current.created_at:
                 latest[key] = decl
-        rated = {key: decl.overall_rating for key, decl in latest.items()}
+        rated = {key: (decl.overall_rating, decl) for key, decl in latest.items()}
+    return rated
+
+
+async def _weekly_health_buckets(
+    db: AsyncSession,
+    entity_ids: list[UUID],
+    period: ReportingPeriod | None,
+    *,
+    report_model,
+    report_fk,
+    declaration_model,
+    declaration_fk,
+) -> WeeklyHealthBuckets:
+    """Green / Amber / Pot. Red / Red / Not Submitted for `entity_ids` in one
+    weekly period (see _weekly_health_ratings); the buckets always sum to
+    len(entity_ids)."""
+    counts: Counter = Counter()
+    rated = {
+        key: rating
+        for key, (rating, _decl) in (
+            await _weekly_health_ratings(
+                db,
+                entity_ids,
+                period,
+                report_model=report_model,
+                report_fk=report_fk,
+                declaration_model=declaration_model,
+                declaration_fk=declaration_fk,
+            )
+        ).items()
+    }
 
     for entity_id in entity_ids:
         rating = rated.get(entity_id)
@@ -4811,19 +5036,57 @@ async def _status_by_pair(db: AsyncSession, model, entity_fk, entity_ids: list[U
     return {(entity_id, period_id): report_status for entity_id, period_id, report_status in rows}
 
 
-async def report_submissions_week_summary(
+# Buckets of the selected week's report-submission streams. The GovOne dashboard
+# cards and the detail lists are both built from _week_stream_entries, so a card's
+# numbers always equal the list's row counts.
+SUB_NOT_SUBMITTED = "Not Submitted"
+SUB_SUBMITTED = "Submitted"
+SUB_APPROVED = "Approved"
+SUB_BASELINED = "Baselined"
+SUB_NOT_BASELINED = "Not Baselined"
+SUB_AUTO_GENERATED = "Auto Generated"
+
+STREAM_BY_REPORT_TYPE = {
+    "Delivery Status - Project": "delivery-status-projects",
+    "Metrics - Project": "metrics-projects",
+    "Delivery Status - Account": "delivery-status-account",
+    "Delivery Status - Geo": "delivery-status-geo",
+}
+
+
+def submission_bucket(stream: str, report_status) -> str:
+    """Bucket of one owed (entity, week) pair from its report status (None = no
+    report). Draft / Rejected / missing are Not Submitted (Not Baselined for Geo)."""
+    if stream == "delivery-status-geo":
+        if report_status in _SUBMITTED_REPORT_STATUSES:
+            return SUB_BASELINED
+        if report_status == ReportStatus.AUTO_GENERATED:
+            return SUB_AUTO_GENERATED
+        return SUB_NOT_BASELINED
+    if report_status == ReportStatus.APPROVED:
+        return SUB_APPROVED
+    if report_status in _SUBMITTED_REPORT_STATUSES:
+        return SUB_SUBMITTED
+    return SUB_NOT_SUBMITTED
+
+
+async def _week_stream_entries(
     db: AsyncSession,
     filters: DashboardFilters,
     active_project_ids: list[UUID],
     week: ReportingPeriod | None,
     month_period: ReportingPeriod | None,
-) -> ReportSubmissionsWeekSummary:
-    """Submitted vs Not Submitted for the selected week (Delivery Status —
-    Projects / Account / Geo, Weekly only) and for the previous month's Project
-    Performance report. Draft / Rejected reports count as Not Submitted."""
-    empty = _submission_kpi(0, 0)
+) -> dict[str, list[tuple[UUID, ReportingPeriod | None, str]]]:
+    """stream -> [(entity id, period, bucket)] for every report owed in the
+    selected week (Project Performance: the previous month). Draft / Rejected
+    reports count as Not Submitted."""
     today = date.today()
-    delivery_projects = delivery_accounts = delivery_geos = performance = empty
+    out: dict[str, list[tuple[UUID, ReportingPeriod | None, str]]] = {
+        "delivery-status-projects": [],
+        "metrics-projects": [],
+        "delivery-status-account": [],
+        "delivery-status-geo": [],
+    }
 
     if week is not None:
         if active_project_ids:
@@ -4846,12 +5109,13 @@ async def report_submissions_week_summary(
                 today,
                 await project_period_restriction(db, active_project_ids, "delivery"),
             )
-            by_status = await _status_by_pair(db, ProjectStatusReport, ProjectStatusReport.project_id, active_project_ids, week)
-            delivery_projects = _submission_kpi(
-                sum(1 for pair in owed if by_status.get(pair) in _SUBMITTED_REPORT_STATUSES),
-                len(owed),
-                approved=sum(1 for pair in owed if by_status.get(pair) == ReportStatus.APPROVED),
+            by_status = await _status_by_pair(
+                db, ProjectStatusReport, ProjectStatusReport.project_id, active_project_ids, week
             )
+            out["delivery-status-projects"] = [
+                (pid, week, submission_bucket("delivery-status-projects", by_status.get((pid, per_id))))
+                for pid, per_id in owed
+            ]
 
         account_ids = await active_account_ids(db, filters)
         if account_ids:
@@ -4859,12 +5123,13 @@ async def report_submissions_week_summary(
                 (await db.execute(select(Account.id, Account.tool_effective_date).where(Account.id.in_(account_ids)))).all()
             )
             owed_acc = _owed_pairs(account_ids, start_by_account, [week], today)
-            by_status_acc = await _status_by_pair(db, AccountStatusReport, AccountStatusReport.account_id, account_ids, week)
-            delivery_accounts = _submission_kpi(
-                sum(1 for pair in owed_acc if by_status_acc.get(pair) in _SUBMITTED_REPORT_STATUSES),
-                len(owed_acc),
-                approved=sum(1 for pair in owed_acc if by_status_acc.get(pair) == ReportStatus.APPROVED),
+            by_status_acc = await _status_by_pair(
+                db, AccountStatusReport, AccountStatusReport.account_id, account_ids, week
             )
+            out["delivery-status-account"] = [
+                (aid, week, submission_bucket("delivery-status-account", by_status_acc.get((aid, per_id))))
+                for aid, per_id in owed_acc
+            ]
 
         if filters.geo_id is not None:
             geo_ids = [filters.geo_id]
@@ -4878,30 +5143,204 @@ async def report_submissions_week_summary(
             )
             owed_geo = _owed_pairs(geo_ids, start_by_geo, [week], today)
             by_status_geo = await _status_by_pair(db, GeoStatusReport, GeoStatusReport.geo_id, geo_ids, week)
-            delivery_geos = _submission_kpi(
-                sum(1 for pair in owed_geo if by_status_geo.get(pair) in _SUBMITTED_REPORT_STATUSES),
-                len(owed_geo),
-                auto_generated=sum(1 for pair in owed_geo if by_status_geo.get(pair) == ReportStatus.AUTO_GENERATED),
-            )
+            out["delivery-status-geo"] = [
+                (gid, week, submission_bucket("delivery-status-geo", by_status_geo.get((gid, per_id))))
+                for gid, per_id in owed_geo
+            ]
 
     # Project Performance is the monthly report. "Submitted" = every section of
     # the previous month's report is complete (saved, or attested "Reviewed -
     # No Changes"); the report has no Draft/Submitted status of its own.
-    if active_project_ids:
-        submitted = 0
+    for pid in active_project_ids:
+        done = False
         if month_period is not None:
-            for pid in active_project_ids:
-                completion = await compute_monthly_completion(db, pid, month_period)
-                if completion and all(item.complete for item in completion):
-                    submitted += 1
-        performance = _submission_kpi(submitted, len(active_project_ids))
+            completion = await compute_monthly_completion(db, pid, month_period)
+            done = bool(completion) and all(item.complete for item in completion)
+        out["metrics-projects"].append((pid, month_period, SUB_SUBMITTED if done else SUB_NOT_SUBMITTED))
+    return out
 
+
+async def report_submissions_week_summary(
+    db: AsyncSession,
+    filters: DashboardFilters,
+    active_project_ids: list[UUID],
+    week: ReportingPeriod | None,
+    month_period: ReportingPeriod | None,
+) -> ReportSubmissionsWeekSummary:
+    """Submitted vs Not Submitted for the selected week (Delivery Status —
+    Projects / Account / Geo, Weekly only) and for the previous month's Project
+    Performance report. Draft / Rejected reports count as Not Submitted."""
+    entries = await _week_stream_entries(db, filters, active_project_ids, week, month_period)
+
+    def count(stream: str, *buckets: str) -> int:
+        return sum(1 for _, _, bucket in entries[stream] if bucket in buckets)
+
+    projects = "delivery-status-projects"
+    accounts = "delivery-status-account"
+    geos = "delivery-status-geo"
+    perf = "metrics-projects"
     return ReportSubmissionsWeekSummary(
-        delivery_status_projects=delivery_projects,
-        project_performance=performance,
-        delivery_status_accounts=delivery_accounts,
-        delivery_status_geos=delivery_geos,
+        delivery_status_projects=_submission_kpi(
+            count(projects, SUB_SUBMITTED, SUB_APPROVED),
+            len(entries[projects]),
+            approved=count(projects, SUB_APPROVED),
+        ),
+        project_performance=_submission_kpi(count(perf, SUB_SUBMITTED), len(entries[perf])),
+        delivery_status_accounts=_submission_kpi(
+            count(accounts, SUB_SUBMITTED, SUB_APPROVED),
+            len(entries[accounts]),
+            approved=count(accounts, SUB_APPROVED),
+        ),
+        delivery_status_geos=_submission_kpi(
+            count(geos, SUB_BASELINED),
+            len(entries[geos]),
+            auto_generated=count(geos, SUB_AUTO_GENERATED),
+        ),
     )
+
+
+async def list_report_submissions_for_week(
+    db: AsyncSession,
+    filters: DashboardFilters,
+    active_project_ids: list[UUID],
+    week: ReportingPeriod | None,
+    month_period: ReportingPeriod | None,
+    skip: int,
+    limit: int,
+    report_type: str | None = None,
+    status: str | None = None,
+) -> tuple[list[ReportSubmissionDetailRow], int]:
+    """The rows behind one stream's card for the selected week (or previous
+    month): exactly the entries report_submissions_week_summary counts, each with
+    its bucket as `status`. `status` narrows to one bucket before paging."""
+    entries = await _week_stream_entries(db, filters, active_project_ids, week, month_period)
+    wanted = [STREAM_BY_REPORT_TYPE[report_type]] if report_type in STREAM_BY_REPORT_TYPE else list(entries)
+    report_type_by_stream = {v: k for k, v in STREAM_BY_REPORT_TYPE.items()}
+
+    account_head_by_id = await _head_names_by_scope(db, RoleCode.ACCOUNT_MANAGER, UserAccount, UserAccount.account_id)
+    geo_head_by_id = await _head_names_by_scope(db, RoleCode.GEO_HEAD, UserGeo, UserGeo.geo_id)
+
+    project_ids = list({pid for stream in ("delivery-status-projects", "metrics-projects") if stream in wanted for pid, _, _ in entries[stream]})
+    project_meta = {}
+    if project_ids:
+        project_meta = {
+            r[0]: r
+            for r in (
+                await db.execute(
+                    select(
+                        Project.id,
+                        Project.project_code,
+                        Project.project_name,
+                        Project.geo_id,
+                        Project.account_id,
+                        Geo.name,
+                        Account.name,
+                        User.full_name,
+                    )
+                    .outerjoin(Geo, Geo.id == Project.geo_id)
+                    .outerjoin(Account, Account.id == Project.account_id)
+                    .outerjoin(User, User.id == Project.project_manager_id)
+                    .where(Project.id.in_(project_ids))
+                )
+            ).all()
+        }
+    account_ids = [eid for eid, _, _ in entries["delivery-status-account"]] if "delivery-status-account" in wanted else []
+    account_meta = {}
+    if account_ids:
+        account_meta = {
+            r[0]: r
+            for r in (
+                await db.execute(
+                    select(Account.id, Account.name, Account.geo_id, Geo.name)
+                    .outerjoin(Geo, Geo.id == Account.geo_id)
+                    .where(Account.id.in_(account_ids))
+                )
+            ).all()
+        }
+    geo_ids = [eid for eid, _, _ in entries["delivery-status-geo"]] if "delivery-status-geo" in wanted else []
+    geo_names = dict((await db.execute(select(Geo.id, Geo.name).where(Geo.id.in_(geo_ids)))).all()) if geo_ids else {}
+
+    # Filing date of each filed report (project / account / geo) in the week.
+    filed_on: dict[tuple[str, UUID], date] = {}
+    if week is not None:
+        for stream, model, fk in (
+            ("delivery-status-projects", ProjectStatusReport, ProjectStatusReport.project_id),
+            ("delivery-status-account", AccountStatusReport, AccountStatusReport.account_id),
+            ("delivery-status-geo", GeoStatusReport, GeoStatusReport.geo_id),
+        ):
+            if stream not in wanted or not entries[stream]:
+                continue
+            for entity_id, updated in (
+                await db.execute(
+                    select(fk, model.updated_at).where(
+                        fk.in_([eid for eid, _, _ in entries[stream]]),
+                        model.period_id == week.id,
+                        model.status.in_(_SUBMITTED_REPORT_STATUSES),
+                    )
+                )
+            ).all():
+                filed_on[(stream, entity_id)] = updated.date()
+
+    rows: list[ReportSubmissionDetailRow] = []
+    for stream in wanted:
+        for entity_id, period, bucket in entries[stream]:
+            if status and bucket != status:
+                continue
+            base = dict(
+                row_key=f"{stream}-{entity_id}-{period.id if period else 'none'}",
+                report_type=report_type_by_stream[stream],
+                entity_id=entity_id,
+                period_id=(period or week).id if (period or week) else entity_id,
+                period_label=period.label if period else "",
+                status=bucket,
+                submission_date=filed_on.get((stream, entity_id)),
+            )
+            if stream in ("delivery-status-projects", "metrics-projects"):
+                m = project_meta.get(entity_id)
+                code, name = (m[1], m[2]) if m else ("", "")
+                rows.append(
+                    ReportSubmissionDetailRow(
+                        geo_name=m[5] if m else None,
+                        account_name=m[6] if m else None,
+                        project_label=f"{code} \u00b7 {name}".strip(" \u00b7"),
+                        project_manager_name=m[7] if m else None,
+                        account_head_name=account_head_by_id.get(m[4]) if m else None,
+                        geo_head_name=geo_head_by_id.get(m[3]) if m else None,
+                        **base,
+                    )
+                )
+            elif stream == "delivery-status-account":
+                m = account_meta.get(entity_id)
+                rows.append(
+                    ReportSubmissionDetailRow(
+                        geo_name=m[3] if m else None,
+                        account_name=m[1] if m else None,
+                        account_head_name=account_head_by_id.get(entity_id),
+                        geo_head_name=geo_head_by_id.get(m[2]) if m else None,
+                        **base,
+                    )
+                )
+            else:
+                rows.append(
+                    ReportSubmissionDetailRow(
+                        geo_name=geo_names.get(entity_id),
+                        geo_head_name=geo_head_by_id.get(entity_id),
+                        **base,
+                    )
+                )
+
+    # Reports still owed first, then by scope names.
+    not_filed = {SUB_NOT_SUBMITTED, SUB_NOT_BASELINED}
+    rows.sort(
+        key=lambda r: (
+            r.status not in not_filed,
+            r.report_type,
+            r.geo_name or "",
+            r.account_name or "",
+            r.project_label or "",
+        )
+    )
+    return rows[skip : skip + limit], len(rows)
 
 
 async def _customer_project_report_statuses(

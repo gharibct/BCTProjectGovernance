@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, type Page } from "./client";
+import { invalidateReportingDerived } from "./invalidate-derived";
 
 export type ContractType = "FPP" | "T&M" | "Capped T&M" | "Internal";
 export type ProjectOwned = "Fully Owned" | "Co-Owned" | "Customer Driven";
@@ -214,6 +215,7 @@ export function useCreateProject() {
     mutationFn: (payload: ProjectPayload) => api.post<Project>("/projects", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      invalidateReportingDerived(queryClient);
     },
   });
 }
@@ -232,6 +234,7 @@ export function useBulkCreateProject() {
     mutationFn: (payload: ProjectBulkPayload) => api.post<Project>("/projects/bulk", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      invalidateReportingDerived(queryClient);
     },
   });
 }

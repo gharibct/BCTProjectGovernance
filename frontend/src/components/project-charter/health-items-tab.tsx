@@ -57,6 +57,7 @@ export function HealthItemsTab({
         addOpenByDefault
         items={items.map((item) => ({ id: item.id, text: item.description }))}
         addLabel={`Add ${title} Note`}
+        draftLabel={title}
         emptyLabel="Nothing logged yet."
         onAdd={(text) =>
           createItem.mutate(

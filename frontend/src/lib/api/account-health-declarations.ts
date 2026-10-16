@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
+import { invalidateReportingDerived } from "./invalidate-derived";
 
 // Account RAG Status — account-level equivalent of health-declarations.ts,
 // deliberately its own file (not folded into the generic regional-status.ts
@@ -78,6 +79,7 @@ export function useAccountHealthDeclarations(accountId: string | null) {
 function invalidateAccountHealthDeclarations(queryClient: ReturnType<typeof useQueryClient>, accountId: string | null) {
   queryClient.invalidateQueries({ queryKey: ["account-health-declaration-latest", accountId] });
   queryClient.invalidateQueries({ queryKey: ["account-health-declarations", accountId] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateAccountHealthDeclaration(accountId: string | null) {
@@ -143,6 +145,7 @@ function invalidateAccountHealthItems(
   category: HealthCategory
 ) {
   queryClient.invalidateQueries({ queryKey: ["account-health-items", accountId, periodId, category] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateAccountHealthItem(

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, ApiError } from "./client";
+import { invalidateReportingDerived } from "./invalidate-derived";
 
 // Geo RAG Status — geo-level equivalent of account-health-declarations.ts,
 // deliberately its own file (not folded into the generic regional-status.ts
@@ -78,6 +79,7 @@ export function useGeoHealthDeclarations(geoId: string | null) {
 function invalidateGeoHealthDeclarations(queryClient: ReturnType<typeof useQueryClient>, geoId: string | null) {
   queryClient.invalidateQueries({ queryKey: ["geo-health-declaration-latest", geoId] });
   queryClient.invalidateQueries({ queryKey: ["geo-health-declarations", geoId] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateGeoHealthDeclaration(geoId: string | null) {

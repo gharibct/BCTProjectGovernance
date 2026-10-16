@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
 from app.models.mixins import TimestampColumns, UUIDPrimaryKey
+from app.models.submitted_at import track_submitted_at
 from app.models.types import PortableJSON
 
 
@@ -37,6 +38,9 @@ class ProjectStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     # Manager approved it — the remarks they gave and when. Cleared on resubmit.
     recall_remarks: Mapped[str | None]
     recalled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the report was last filed (Submitted / Approved) — what "late" is judged
+    # from; kept by models/submitted_at.py. NULL while Draft / Rejected.
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Open Alerts snapshot (see api/v1/endpoints/project_status.py) — a
     # frozen count + row-detail list of Open Alerts as of this period's end
     # date, refreshed on every save while the report is still editable.
@@ -59,6 +63,11 @@ class ProjectStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
 # One row per line item in a Project Status grid (see
 # db/tables/35_project_status_items.sql) — replaces ProjectStatusReport's
 # free-text columns above with an add/edit/delete register per category.
+
+
+track_submitted_at(ProjectStatusReport)
+
+
 class ProjectStatusItem(Base, UUIDPrimaryKey, TimestampColumns):
     __tablename__ = "project_status_items"
 

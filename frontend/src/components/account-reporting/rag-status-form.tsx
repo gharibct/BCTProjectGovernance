@@ -37,7 +37,7 @@ import {
 } from "@/components/project-charter/health-declaration";
 import { HEALTH_CATEGORIES } from "@/lib/health-categories";
 import { AccountHealthItemsTab } from "./health-items-tab";
-import type { RollupSourceItem } from "@/components/regional-reporting/rollup-source-panel";
+import type { PullAllResult, RollupSourceItem } from "@/components/regional-reporting/rollup-source-panel";
 import { usePageBanner } from "@/stores/page-banner";
 import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
@@ -209,6 +209,19 @@ export function useAccountHealthRollupProps(accountId: string | null, periodId: 
       onError: (err) => showError(err instanceof Error ? err.message : "Failed to pull item."),
     });
   };
+  const handlePullAll = async (items: RollupSourceItem[]): Promise<PullAllResult> => {
+    const result: PullAllResult = { pulled: 0, failed: 0 };
+    for (const item of items) {
+      try {
+        await pullHealthItem.mutateAsync(item.id);
+        result.pulled += 1;
+      } catch (err) {
+        result.failed += 1;
+        result.firstError ??= err instanceof Error ? err.message : "Failed to pull item.";
+      }
+    }
+    return result;
+  };
   const handleIgnore = (item: RollupSourceItem) => {
     setHealthItemRollupStatus.mutate(
       { projectId: item.sourceEntityId, itemId: item.id, status: "Ignored" },
@@ -222,7 +235,7 @@ export function useAccountHealthRollupProps(accountId: string | null, periodId: 
     );
   };
 
-  return { rollupItems, handlePull, handleIgnore, handleUndo, rollupBusy };
+  return { rollupItems, handlePull, handlePullAll, handleIgnore, handleUndo, rollupBusy };
 }
 
 function AccountRagStatusFormInner() {
@@ -267,16 +280,18 @@ function AccountRagStatusFormInner() {
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="min-w-0">
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-slate-800">{activeCategory.name}</p>
           <p className="mt-0.5 text-xs text-slate-400">{activeCategory.covers}</p>
         </div>
-        <HealthPicker
-          value={ratings[activeCategory.key]}
-          onChange={(value) => setRating(activeCategory.key, value)}
-          disabled={frozen}
-        />
+        <div className="shrink-0">
+          <HealthPicker
+            value={ratings[activeCategory.key]}
+            onChange={(value) => setRating(activeCategory.key, value)}
+            disabled={frozen}
+          />
+        </div>
       </div>
 
       <div className="mt-6">
@@ -334,8 +349,7 @@ export function AccountHealthSections({
 }: {
   form: ReturnType<typeof useAccountHealthDeclarationForm>;
 }) {
-  const { accountId, periodId, ratings, setRating, frozen } = form;
-  const rollup = useAccountHealthRollupProps(accountId, periodId);
+  const { accountId, ratings, setRating, frozen } = form;
 
   if (!accountId) {
     return <EmptyState>No account selected.</EmptyState>;
@@ -352,16 +366,18 @@ export function AccountHealthSections({
           const category = CATEGORIES.find((c) => c.name === tab.category)!;
           return (
             <div key={category.key} id={`rag-${category.key}`} className="scroll-mt-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="min-w-0">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-slate-800">{category.name}</p>
                   <p className="mt-0.5 text-xs text-slate-400">{category.covers}</p>
                 </div>
-                <HealthPicker
-                  value={ratings[category.key]}
-                  onChange={(value) => setRating(category.key, value)}
-                  disabled={frozen}
-                />
+                <div className="shrink-0">
+                  <HealthPicker
+                    value={ratings[category.key]}
+                    onChange={(value) => setRating(category.key, value)}
+                    disabled={frozen}
+                  />
+                </div>
               </div>
               <div className="mt-4">
                 <AccountHealthItemsTab
@@ -370,11 +386,6 @@ export function AccountHealthSections({
                   title={tab.label}
                   icon={tab.icon}
                   frozen={frozen}
-                  rollupItems={rollup.rollupItems}
-                  onPullRollupItem={rollup.handlePull}
-                  onIgnoreRollupItem={rollup.handleIgnore}
-                  onUndoRollupItem={rollup.handleUndo}
-                  rollupBusy={rollup.rollupBusy}
                 />
               </div>
             </div>

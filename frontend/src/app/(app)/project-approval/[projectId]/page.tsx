@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { StatusReviewPage } from "@/components/status-review/status-review-page";
 
 export const metadata: Metadata = {
-  title: "Approve Project Delivery Status | Governance One",
+  title: "Approve Project Status Report | Governance One",
 };
 
 // The Account Manager's worklist copy of Project Delivery Status: same report as

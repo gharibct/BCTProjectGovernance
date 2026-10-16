@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
 from app.models.mixins import TimestampColumns, UUIDPrimaryKey
+from app.models.submitted_at import track_submitted_at
 from app.models.types import PortableJSON
 
 
@@ -36,6 +37,9 @@ class AccountStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     # Recall remarks + time (cleared on resubmit/rebaseline) — see db/add_account_geo_report_recall.sql.
     recall_remarks: Mapped[str | None]
     recalled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the report was last filed (Submitted / Approved / Baselined) — what "late"
+    # is judged from; kept by models/submitted_at.py. NULL while not filed.
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Open Alerts snapshot (see api/v1/endpoints/regional_status.py) — a
     # frozen count + row-detail list of Open Alerts as of this period's end
     # date, refreshed on every save while the report is still editable.
@@ -66,11 +70,18 @@ class GeoStatusReport(Base, UUIDPrimaryKey, TimestampColumns):
     # Recall remarks + time (cleared on resubmit/rebaseline) — see db/add_account_geo_report_recall.sql.
     recall_remarks: Mapped[str | None]
     recalled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the report was last filed (Submitted / Approved / Baselined) — what "late"
+    # is judged from; kept by models/submitted_at.py. NULL while not filed.
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Open Alerts snapshot (see api/v1/endpoints/regional_status.py) — a
     # frozen count + row-detail list of Open Alerts as of this period's end
     # date, refreshed on every save while the report is still editable.
     open_alerts_count: Mapped[int] = mapped_column(default=0, server_default="0")
     open_alerts_snapshot: Mapped[list | None] = mapped_column(PortableJSON)
+
+
+track_submitted_at(AccountStatusReport)
+track_submitted_at(GeoStatusReport)
 
 
 # Account Reporting / Geo Reporting status grids (see

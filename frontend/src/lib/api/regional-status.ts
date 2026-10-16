@@ -4,6 +4,7 @@ import { api, ApiError } from "./client";
 import type { OpenNcRow } from "./dashboard";
 import type { CopyFromLatestArgs, CopyFromLatestResult, ProjectStatusCategory, ReportStatus } from "./project-status";
 import type { ReportingActivitySeries } from "@/lib/reporting-activity";
+import { invalidateReportingDerived } from "./invalidate-derived";
 
 // Account Reporting / Geo Reporting — manually authored, period-scoped
 // narrative reports (see backend/app/api/v1/endpoints/regional_status.py).
@@ -137,6 +138,7 @@ function invalidateRegionalStatusReports(
 ) {
   queryClient.invalidateQueries({ queryKey: ["regional-status-report-latest", scope, scopeId] });
   queryClient.invalidateQueries({ queryKey: ["regional-status-reports", scope, scopeId] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateRegionalStatusReport(scope: RegionalScope, scopeId: string | null) {
@@ -248,6 +250,7 @@ function invalidateRegionalStatusItems(
   category: ProjectStatusCategory
 ) {
   queryClient.invalidateQueries({ queryKey: ["regional-status-items", scope, scopeId, periodId, category] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateRegionalStatusItem(
@@ -301,6 +304,7 @@ export function useCopyAccountItemsFromLatest(accountId: string | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["regional-status-items", "account", accountId] });
       queryClient.invalidateQueries({ queryKey: ["account-health-items", accountId] });
+      invalidateReportingDerived(queryClient);
     },
   });
 }

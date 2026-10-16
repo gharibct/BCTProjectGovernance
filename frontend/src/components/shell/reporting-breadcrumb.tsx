@@ -14,7 +14,7 @@ export function ReportingBreadcrumb({ periodLabel }: { periodLabel?: string } = 
   const genericPeriod = useReportingPeriod();
   const period = periodLabel ?? genericPeriod;
 
-  // Weekly periods belong to Report Project Status, Monthly to Report Project
+  // Weekly periods belong to Update Project Status Report, Monthly to Report Project
   // Performance — link back to the matching hub.
   const periodId = useSearchParams().get("period");
   const { data: periods = [] } = useReportingPeriods();
@@ -24,7 +24,7 @@ export function ReportingBreadcrumb({ periodLabel }: { periodLabel?: string } = 
     <PageBreadcrumb
       items={[
         {
-          label: isPerformance ? "Report Project Performance" : "Report Project Status",
+          label: isPerformance ? "Update Project Performance Report" : "Update Project Status Report",
           href: `/project-reporting/${projectId}/${isPerformance ? "performance" : "delivery-calendar"}`,
         },
         { label: period },

@@ -18,7 +18,11 @@ from app.models.regional_status import AccountStatusReport
 from app.schemas.account_health_declarations import AccountHealthItemCreate
 from app.schemas.account_health_rollup import AccountHealthRollupItem, AccountHealthRollupResponse
 from app.schemas.enums import RollupStatus
-from app.services.account_rollup import RollupItemAlreadyHandledError, RollupItemNotFoundError
+from app.services.account_rollup import (
+    RollupItemAlreadyHandledError,
+    RollupItemNotFoundError,
+    effective_rollup_status,
+)
 from app.services.report_lock import assert_report_editable
 
 
@@ -51,7 +55,7 @@ async def compute_account_health_rollup(
             project_name=project_by_id[item.project_id].project_name,
             category=item.category,
             description=item.description,
-            account_rollup_status=item.account_rollup_status,
+            account_rollup_status=effective_rollup_status(item),
             rolled_up_account_item_id=item.rolled_up_account_item_id,
         )
         for item in health_items
@@ -67,7 +71,7 @@ async def pull_health_rollup_item(db: AsyncSession, account_id: UUID, project_it
     project = await db.get(Project, item.project_id)
     if project is None or project.account_id != account_id:
         raise RollupItemNotFoundError
-    if item.account_rollup_status != RollupStatus.PENDING:
+    if effective_rollup_status(item) != RollupStatus.PENDING:
         raise RollupItemAlreadyHandledError
 
     # RAG Status freezes with the Account Status Report package — see

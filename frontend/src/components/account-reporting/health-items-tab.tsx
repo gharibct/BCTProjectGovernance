@@ -92,6 +92,7 @@ export function AccountHealthItemsTab({
           items={items.map((item) => ({ id: item.id, text: item.description }))}
           disabled={frozen}
           addLabel={`Add ${title} Note`}
+          draftLabel={title}
           emptyLabel="Nothing logged yet."
           onAdd={(text) =>
             createItem.mutate(

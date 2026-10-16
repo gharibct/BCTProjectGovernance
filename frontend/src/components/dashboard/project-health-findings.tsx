@@ -1,12 +1,13 @@
 "use client";
 
+import { useProjectHealthFilters } from "@/stores/project-health-filters";
 import * as React from "react";
 
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { NativeSelect } from "@/components/ui/native-select";
 import { FINDING_CLASSIFICATION_OPTIONS } from "@/lib/api/de-assessment";
-import { useProjectHealthDashboardSummary, type ProjectHealthDashboardFilters } from "@/lib/api/project-health-dashboard";
+import { useProjectHealthDashboardSummary } from "@/lib/api/project-health-dashboard";
 import {
   fetchAllProjectHealthRows,
   formatGeoRegion,
@@ -29,7 +30,7 @@ function formatDate(value: string | null): string {
 }
 
 export function ProjectHealthFindings() {
-  const [filters, setFilters] = React.useState<ProjectHealthDashboardFilters>({});
+  const [filters, setFilters] = useProjectHealthFilters();
   const [classification, setClassification] = React.useState<string>("");
   const [dueStatus, setDueStatus] = React.useState<DueStatus>("all");
   const [skip, setSkip] = React.useState(0);

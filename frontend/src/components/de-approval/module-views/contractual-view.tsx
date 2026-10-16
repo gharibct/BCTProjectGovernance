@@ -36,7 +36,7 @@ export function ContractualView() {
           onRowClick={(c) => setOpenFor(c)}
           columns={[
             { key: "commitment_name", label: "Commitment" },
-            { key: "frequency", label: "Frequency" },
+            { key: "frequency", label: "Reporting Frequency" },
             {
               key: "penalty_applicable",
               label: "Penalty Applicability",

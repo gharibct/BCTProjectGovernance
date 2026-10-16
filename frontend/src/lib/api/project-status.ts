@@ -4,6 +4,7 @@ import { api, ApiError } from "./client";
 import type { OpenNcRow } from "./dashboard";
 import type { ReportingPeriod } from "./reference-data";
 import type { ReportingActivitySeries } from "@/lib/reporting-activity";
+import { invalidateReportingDerived } from "./invalidate-derived";
 
 // The last three are Geo-report-only: Geo reports are auto-generated from the
 // accounts' filed reports, saved as a draft once the Geo Head edits them, and
@@ -197,6 +198,7 @@ export function statusMetricsFromReport(report: ProjectStatusReport) {
 function invalidateStatusReports(queryClient: ReturnType<typeof useQueryClient>, projectId: string | null) {
   queryClient.invalidateQueries({ queryKey: ["status-report-latest", projectId] });
   queryClient.invalidateQueries({ queryKey: ["status-reports", projectId] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateStatusReport(projectId: string | null) {
@@ -321,6 +323,7 @@ function invalidateStatusItems(
   category: ProjectStatusCategory
 ) {
   queryClient.invalidateQueries({ queryKey: ["status-items", projectId, periodId, category] });
+  invalidateReportingDerived(queryClient);
 }
 
 export function useCreateStatusItem(projectId: string | null, periodId: string | null, category: ProjectStatusCategory) {
@@ -368,11 +371,12 @@ export function useCopyStatusItemsFromLatest(projectId: string | null) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["status-items", projectId] });
       queryClient.invalidateQueries({ queryKey: ["health-items", projectId] });
+      invalidateReportingDerived(queryClient);
     },
   });
 }
 
-// Select-Project grid, Report Project Performance: Completed / In Progress / Not Started
+// Select-Project grid, Update Project Performance Report: Completed / In Progress / Not Started
 // per project for one Monthly period (GET /project-performance/status-by-period).
 export function useProjectPerformanceStatusByPeriod(periodId: string | null) {
   return useQuery({

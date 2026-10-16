@@ -32,6 +32,18 @@ export class ApiError extends Error {
 // the error's message so every `err.message` toast shows something readable.
 function detailMessage(detail: unknown): string | null {
   if (typeof detail === "string") return detail;
+  // FastAPI validation errors (422): [{ loc: [..., "field"], msg }, ...].
+  if (Array.isArray(detail) && detail.length > 0) {
+    const parts = detail
+      .map((entry) => {
+        if (!entry || typeof entry !== "object" || typeof (entry as { msg?: unknown }).msg !== "string") return null;
+        const { loc, msg } = entry as { loc?: unknown; msg: string };
+        const field = Array.isArray(loc) ? String(loc[loc.length - 1] ?? "") : "";
+        return field && field !== "body" ? `${field}: ${msg}` : msg;
+      })
+      .filter((part): part is string => part !== null);
+    if (parts.length > 0) return parts.join("; ");
+  }
   if (detail && typeof detail === "object" && !Array.isArray(detail) && "message" in detail) {
     const message = (detail as { message: unknown }).message;
     if (typeof message === "string" && message.trim()) return message;

@@ -1,11 +1,14 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { ExecutiveUpdateView } from "@/components/regional-reporting/executive-update-view";
-
-export const metadata: Metadata = {
-  title: "Geo Reporting — Executive Update | Governance One",
-};
-
-export default function GeoExecutiveUpdatePage() {
-  return <ExecutiveUpdateView />;
+// Executive Update moved to Update Leadership Status Report.
+export default async function GeoExecutiveUpdateRedirect({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ geoId: string }>;
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const { geoId } = await params;
+  const { period } = await searchParams;
+  redirect(`/leadership-reporting/${geoId}/executive-update${period ? `?period=${period}` : ""}`);
 }

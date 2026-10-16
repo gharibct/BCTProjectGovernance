@@ -24,6 +24,8 @@ import {
 } from "@/lib/api/project-status";
 import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
 import { StatusItemsTab } from "@/components/project-status/status-items-tab";
+import { unsavedItemsMessage } from "@/lib/unsaved-items";
+import { isWholeNumber, PROJECTS_COUNT_ERROR } from "@/lib/whole-number";
 
 // Same 4-category item-grid as project-status/project-status-tabs.tsx (the
 // ongoing weekly/monthly reporting screen), reused here so the New Project
@@ -91,6 +93,15 @@ export function NewProjectStatusTabs() {
 
   const save = (status: "Draft" | "Submitted") => {
     if (!projectId || !periodId) return;
+    const unsaved = unsavedItemsMessage();
+    if (unsaved) {
+      showError(unsaved);
+      return;
+    }
+    if (!isWholeNumber(metrics.projects_count)) {
+      showError(PROJECTS_COUNT_ERROR);
+      return;
+    }
     const fields = {
       revenue: metrics.revenue || undefined,
       onsite_fte: metrics.onsite_fte || undefined,
@@ -175,6 +186,8 @@ export function NewProjectStatusTabs() {
                 <Input
                   id="projects_count"
                   type="number"
+                  step="1"
+                  min="0"
                   className="h-11"
                   value={metrics.projects_count}
                   onChange={setMetric("projects_count")}

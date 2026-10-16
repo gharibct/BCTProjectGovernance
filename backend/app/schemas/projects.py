@@ -191,7 +191,7 @@ class ProjectRead(ProjectBase):
                 self.product_flag,
             )
         )
-        # Product is only collected (and so only required) once Product Flag
+        # Product is only collected (and so only required) once BCT Product Implemented
         # is Yes — see the Project Profile form's "Product" field.
         product_ok = self.product_flag != YesNo.YES or _is_filled(self.product_id)
         return base_fields_filled and product_ok

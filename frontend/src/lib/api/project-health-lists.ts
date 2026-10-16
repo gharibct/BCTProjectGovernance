@@ -189,7 +189,7 @@ export type AssessmentRow = {
   geo_name: string | null;
   region_name: string | null;
   account_name: string | null;
-  assessment_id: string;
+  assessment_id: string | null;
   pm_health: string | null;
   de_health: string | null;
   pci_score: string | null;
@@ -252,7 +252,8 @@ export type ReportSubmissionDetailRow = {
   account_head_name: string | null;
   geo_head_name: string | null;
   period_label: string;
-  status: string; // "Submitted" | "Not Submitted"
+  // Not Submitted | Submitted | Approved (Geo: Not Baselined | Baselined | Auto Generated)
+  status: string;
   submission_date: string | null;
 };
 
@@ -328,7 +329,8 @@ export type OracleProjectDemographyEntry = {
 };
 
 export type ProjectHealthListParams = ProjectHealthDashboardFilters & {
-  // Customer reporting drill-downs only — narrow to one status; undefined = all.
+  // Narrow to one status / KPI bucket (customer reporting, RAG, Account RAG and
+  // Assessment drill-downs); undefined = all.
   status?: string;
   skip?: number;
   limit?: number;
@@ -570,9 +572,10 @@ export function useProjectHealthDataIntegrity(params: ProjectHealthListParams) {
   });
 }
 
-export function useProjectHealthReportSubmissions(params: ProjectHealthListParams) {
+export function useProjectHealthReportSubmissions(params: ProjectHealthListParams, options?: { enabled?: boolean }) {
   const query = buildParams(params);
   return useQuery({
+    enabled: options?.enabled ?? true,
     queryKey: ["dashboard-project-health-report-submissions", params],
     queryFn: () =>
       api.get<Page<ReportSubmissionDetailRow>>(`${PROJECT_HEALTH_LIST_PATHS.reportSubmissions}?${query}`),

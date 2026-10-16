@@ -30,6 +30,7 @@ from app.schemas.dashboard import (
     FindingRow,
     GeoHeadDashboardSummary,
     HighRisksResponse,
+    ProjectHealthDashboardResponse,
     IssueRow,
     MetricRow,
     MyDashboardSummary,
@@ -474,6 +475,9 @@ def _health_filters(
     )
 
 
+HealthStatusFilter = Literal["Green", "Amber", "Potential Red", "Red", "Not Submitted"]
+
+
 async def _weekly_period_or_current(db: AsyncSession, period_id: UUID | None) -> ReportingPeriod | None:
     """The selected Weekly period, or the current week when none is selected."""
     if period_id is None:
@@ -673,13 +677,14 @@ async def get_project_health_rag(
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     period_id: UUID | None = Query(default=None),
+    status: HealthStatusFilter | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
     scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
     filters = _health_filters(geo_id, account_id, project_type_id, active_only=True, **scope)
     week = await _weekly_period_or_current(db, period_id)
-    rows = await dashboard_service.list_rag_rows(db, filters, period_id=week.id if week else None)
+    rows = await dashboard_service.list_rag_rows(db, filters, period=week, status=status)
     page = rows[pagination.skip : pagination.skip + pagination.limit]
     return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
 
@@ -714,19 +719,109 @@ async def get_high_risks(
     return await dashboard_service.high_risk_accounts(db, filters, week.id, overall)
 
 
+# Project Health Dashboard (CXO / Geo Head / Delivery Manager): the Delivery
+# Health grid at project level, filterable by Project Manager. Same scoping.
+@router.get(
+    "/project-health-grid",
+    response_model=ProjectHealthDashboardResponse,
+    dependencies=[
+        Depends(require_role(RoleCode.CXO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))
+    ],
+)
+async def get_project_health_grid(
+    period_id: UUID | None = Query(default=None),
+    geo_id: UUID | None = Query(default=None),
+    region_id: UUID | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    project_manager_id: UUID | None = Query(default=None),
+    overall: Literal["Red", "Potential Red", "Amber", "Green", "Not Submitted"] | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = DashboardFilters(geo_id=geo_id, region_id=region_id, account_id=account_id)
+    role = await _role_code(db, current_user)
+    if role == RoleCode.GEO_HEAD:
+        owned = list(
+            (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == current_user.id))).scalars().all()
+        )
+        if geo_id is not None and geo_id not in owned:
+            raise HTTPException(status_code=403, detail="You do not have access to this geo.")
+        filters = replace(filters, geo_ids=owned)
+    elif role == RoleCode.ACCOUNT_MANAGER:
+        owned_accounts = list(
+            (await db.execute(select(UserAccount.account_id).where(UserAccount.user_id == current_user.id)))
+            .scalars()
+            .all()
+        )
+        if account_id is not None and account_id not in owned_accounts:
+            raise HTTPException(status_code=403, detail="You do not have access to this account.")
+        filters = replace(filters, account_ids=owned_accounts)
+    week = await _weekly_period_or_current(db, period_id)
+    if week is None:
+        raise HTTPException(status_code=404, detail="No reporting period found.")
+    return await dashboard_service.project_health_dashboard(db, filters, week.id, overall, project_manager_id)
+
+
+# Delivery Health Dashboard (CXO / Geo Head / Delivery Manager): the High Risks
+# grid plus Green accounts, filterable by Delivery Manager. A Geo Head only sees
+# their own geos; a Delivery Manager only their own accounts.
+@router.get(
+    "/delivery-health",
+    response_model=HighRisksResponse,
+    dependencies=[
+        Depends(require_role(RoleCode.CXO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))
+    ],
+)
+async def get_delivery_health(
+    period_id: UUID | None = Query(default=None),
+    geo_id: UUID | None = Query(default=None),
+    region_id: UUID | None = Query(default=None),
+    account_id: UUID | None = Query(default=None),
+    delivery_manager_id: UUID | None = Query(default=None),
+    overall: Literal["Red", "Potential Red", "Amber", "Green", "Not Submitted"] | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = DashboardFilters(geo_id=geo_id, region_id=region_id, account_id=account_id)
+    role = await _role_code(db, current_user)
+    if role == RoleCode.GEO_HEAD:
+        owned = list(
+            (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == current_user.id))).scalars().all()
+        )
+        if geo_id is not None and geo_id not in owned:
+            raise HTTPException(status_code=403, detail="You do not have access to this geo.")
+        filters = replace(filters, geo_ids=owned)
+    elif role == RoleCode.ACCOUNT_MANAGER:
+        owned_accounts = list(
+            (await db.execute(select(UserAccount.account_id).where(UserAccount.user_id == current_user.id)))
+            .scalars()
+            .all()
+        )
+        if account_id is not None and account_id not in owned_accounts:
+            raise HTTPException(status_code=403, detail="You do not have access to this account.")
+        filters = replace(filters, account_ids=owned_accounts)
+    week = await _weekly_period_or_current(db, period_id)
+    if week is None:
+        raise HTTPException(status_code=404, detail="No reporting period found.")
+    return await dashboard_service.high_risk_accounts(
+        db, filters, week.id, overall, include_green=True, delivery_manager_id=delivery_manager_id
+    )
+
+
 @router.get("/project-health/account-rag", response_model=Page[AccountRagRow])
 async def get_project_health_account_rag(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     period_id: UUID | None = Query(default=None),
+    status: HealthStatusFilter | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
     scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
     filters = _health_filters(geo_id, account_id, project_type_id, active_only=True, **scope)
     week = await _weekly_period_or_current(db, period_id)
-    rows = await dashboard_service.list_account_rag_rows(db, filters, period_id=week.id if week else None)
+    rows = await dashboard_service.list_account_rag_rows(db, filters, period=week, status=status)
     page = rows[pagination.skip : pagination.skip + pagination.limit]
     return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
 
@@ -880,15 +975,17 @@ async def get_project_health_assessments(
     geo_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
+    period_id: UUID | None = Query(default=None),
+    status: Literal["Green", "Amber", "Potential Red", "Red", "Not Assessed"] | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
     scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = _health_filters(geo_id, account_id, project_type_id, **scope)
-    items, total = await dashboard_service.list_assessments_for_health(
-        db, filters, skip=pagination.skip, limit=pagination.limit
-    )
-    return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+    filters = _health_filters(geo_id, account_id, project_type_id, active_only=True, **scope)
+    week = await _weekly_period_or_current(db, period_id)
+    rows = await dashboard_service.list_assessments_for_health(db, filters, week, status=status)
+    page = rows[pagination.skip : pagination.skip + pagination.limit]
+    return Page(items=page, total=len(rows), skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/project-health/findings", response_model=Page[FindingRow])
@@ -965,10 +1062,33 @@ async def get_project_health_report_submissions(
     # keeps only Not Submitted, pending=False only Submitted, unset keeps both.
     report_type: str | None = Query(default=None),
     pending: bool | None = Query(default=None),
+    # Selected-week mode (the four stream screens): the same rows the dashboard
+    # card counts for that week, narrowed to one bucket by `status` (Not Submitted /
+    # Submitted / Approved; Geo: Not Baselined / Baselined / Auto Generated).
+    period_id: UUID | None = Query(default=None),
+    status: str | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
     scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
+    if period_id is not None:
+        active_filters = _health_filters(geo_id, account_id, project_type_id, active_only=True, **scope)
+        active_projects = await dashboard_service.project_health_rows(db, active_filters)
+        week = await _weekly_period_or_current(db, period_id)
+        month = dashboard_service.previous_month_window(week)
+        month_period = await dashboard_service.monthly_period_for(db, month)
+        items, total = await dashboard_service.list_report_submissions_for_week(
+            db,
+            active_filters,
+            [p.project_id for p in active_projects],
+            week,
+            month_period,
+            skip=pagination.skip,
+            limit=pagination.limit,
+            report_type=report_type,
+            status=status,
+        )
+        return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
     filters = _health_filters(geo_id, account_id, project_type_id, **scope)
     projects = await dashboard_service.project_health_rows(db, filters)
     items, total = await dashboard_service.list_report_submissions_for_health(

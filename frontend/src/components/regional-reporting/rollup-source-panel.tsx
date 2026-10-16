@@ -30,6 +30,9 @@ export type RollupSourceItem = {
   account_rollup_status: RollupStatus;
 };
 
+// Result of a "Pull All": how many points were added and how many failed.
+export type PullAllResult = { pulled: number; failed: number; firstError?: string };
+
 type RollupSourceHandlers = {
   emptyLabel: string;
   category: string;
@@ -42,7 +45,7 @@ type RollupSourceHandlers = {
 
 // The category's rollup items with their Pull / Ignore / Undo controls,
 // shared by the inline panel (Geo) and the drawer (Account).
-function RollupSourceList({ emptyLabel, category, items, onPull, onIgnore, onUndo, busy }: RollupSourceHandlers) {
+export function RollupSourceList({ emptyLabel, category, items, onPull, onIgnore, onUndo, busy }: RollupSourceHandlers) {
   const categoryItems = items.filter((item) => item.category === category);
 
   return categoryItems.length === 0 ? (

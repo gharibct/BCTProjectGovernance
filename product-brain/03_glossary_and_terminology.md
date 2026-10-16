@@ -80,7 +80,7 @@
 | **Patch** | Informal term for the set of Accounts/Geos a scoped user owns — the data "patch" they can see and act on. | Scope |
 | **PCI Score** | Delivery Excellence's numeric project compliance / quality index, captured per DE Assessment. | DE Assessment |
 | **PMO** | Project Management Office — both the function and the `PMO` role. Intended owner of Contractual Compliance, Milestone Payments, and the Data Integrity checklist. | Role |
-| **Product Flag / Product** | A Charter attribute: whether the project delivers a product; if so, a Product is chosen from reference data (`PendingPoints` #7). | Charter |
+| **BCT Product Implemented / Product** (formerly "Product Flag") | A Charter attribute: whether the project delivers a product; if so, a Product is chosen from reference data (`PendingPoints` #7). | Charter |
 | **`project_status`** | The project lifecycle field: `Draft` → `Pending Approval` → `Approved`; plus `Hold`, `Closed`, `Open Only for Billing`. | `de_review_status`, `product-brain/06` |
 | **Project Health (portfolio)** | The read-only portfolio view at `/project-health/*` — 14 filterable grids (Project List, RAG, RAIDO, Metrics, Commitments, Payment Milestones, Assessments, Findings, Actions, Data Integrity, …) with Geo / Account / Project filters. | My Summary |
 | **Project Type** | Reference data selecting a project's delivery model and Measurement tab; includes Consulting (added later). | Engagement type |

@@ -56,7 +56,7 @@ import { useProjectContext } from "@/stores/project-context";
 const itemClass =
   "flex w-full items-center justify-start gap-3.5 rounded-lg px-4 py-2.5 text-left text-white transition-colors";
 
-// "Project Health Dashboard" — the primary destination. Always shown in this
+// "GovOne Dashboard" — the primary destination. Always shown in this
 // strong accent regardless of active/idle (it's meant to look like the one
 // place you're always one click from, not something that only lights up
 // when you happen to be on it).
@@ -71,6 +71,11 @@ const SECTION_HEADER_COLORS: Record<string, string> = {
   "My Worklist": "bg-[#14B8A6]",
   "Team Worklist": "bg-[#14B8A6]",
   "My Reports": "bg-[#3B8DE3]",
+  "Status & Performance Dashboards": "bg-[#3B8DE3]",
+  "Report Status & Performance": "bg-[#14B8A6]",
+  "Approvals & Assignments": "bg-[#14B8A6]",
+  "DE & Actions": "bg-[#3B8DE3]",
+  "Project Configuration": "bg-[#14B8A6]",
 };
 const sectionHeaderHoverClass = "hover:brightness-110";
 
@@ -176,7 +181,7 @@ function CollapsibleGroup({
       >
         <span className="flex items-center gap-3.5">
           <Icon className="size-5 shrink-0" />
-          {label}
+          {renderLabel(label)}
         </span>
         <ChevronDown
           className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")}
@@ -249,6 +254,19 @@ function CollapsibleSection({
   );
 }
 
+// "Update|Approve <Account|Project|Leadership|Project Performance> ... Report" — the verb
+// and noun repeat across these menu items, so the distinguishing word is bolded.
+function renderLabel(label: string): React.ReactNode {
+  const m = /^(Update|Approve) (Account|Project Performance|Project|Leadership)( Status)? Report$/.exec(label);
+  if (!m) return label;
+  return (
+    <span>
+      {m[1]} <strong className="font-extrabold">{m[2]}</strong>
+      {m[3] ?? ""} Report
+    </span>
+  );
+}
+
 function SimpleLink({
   href,
   icon: Icon,
@@ -262,7 +280,7 @@ function SimpleLink({
   label: string;
   active: boolean;
   bold?: boolean;
-  // "dashboard" — the "Project Health Dashboard" links specifically: always
+  // "dashboard" — the "GovOne Dashboard" links specifically: always
   // shown in the strong dashboardClass accent, not the plain active/idle
   // toggle every other link uses.
   tone?: "dashboard";
@@ -284,7 +302,7 @@ function SimpleLink({
       className={cn(itemClass, bold ? "text-[13px]" : "text-[12px]", weightClass, stateClass)}
     >
       <Icon className="size-5 shrink-0" />
-      {label}
+      {renderLabel(label)}
     </Link>
   );
 }
@@ -337,7 +355,7 @@ type SidebarCtx = {
   // Group headings ("My Worklist"/"My Reports", via CollapsibleSection) are
   // always bold; items rendered inside one of those sections are normal
   // weight, per design-reference/left-menu-reference.png. An item outside
-  // any heading (e.g. the top "Project Health Dashboard" link, or a flat
+  // any heading (e.g. the top "GovOne Dashboard" link, or a flat
   // out-of-scope role's whole menu) stays bold. Computed per-section in
   // AppSidebar's render loop, not per-item.
   bold: boolean;
@@ -349,6 +367,7 @@ type SidebarCtx = {
   isDeAssessmentReport: boolean;
   isAccountReporting: boolean;
   isGeoReporting: boolean;
+  isLeadershipReporting: boolean;
   reportingGeoId: string | undefined;
   isProjectReview: boolean;
   isProjectPerformance: boolean;
@@ -362,7 +381,7 @@ type SidebarCtx = {
 // One render function per MenuEntryId — the single place each item's JSX is
 // defined, regardless of how many roles/sections include it. Ordering and
 // grouping come entirely from ROLE_MENU_SECTIONS, not from this registry.
-// Report Project Status (Weekly) / Report Project Performance (Monthly). Both
+// Update Project Status Report (Weekly) / Update Project Performance Report (Monthly). Both
 // live under /project-reporting/:projectId; which one is active comes from the
 // hub route itself, else from the open period's type (?period=).
 function ReportingLink({ kind, ctx }: { kind: "delivery" | "performance"; ctx: SidebarCtx }) {
@@ -380,7 +399,7 @@ function ReportingLink({ kind, ctx }: { kind: "delivery" | "performance"; ctx: S
     <SimpleLink
       href={selectProjectHref(target)}
       icon={kind === "delivery" ? FolderOpen : FileBarChart2}
-      label={ctx.labelFor(target, kind === "delivery" ? "Report Project Status" : "Report Project Performance")}
+      label={ctx.labelFor(target, kind === "delivery" ? "Update Project Status Report" : "Update Project Performance Report")}
       active={
         (ctx.isProjectReporting && (openKind === kind || (openKind === null && kind === "delivery"))) ||
         ctx.pathname === selectProjectHref(target)
@@ -398,7 +417,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/project-health"
       icon={LayoutGrid}
-      label={ctx.labelFor("project-manager-dashboard", "Project Health Dashboard")}
+      label={ctx.labelFor("project-manager-dashboard", "GovOne Dashboard")}
       active={ctx.pathname.startsWith("/project-health")}
       bold={ctx.bold}
       tone="dashboard"
@@ -408,7 +427,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/project-health"
       icon={LayoutGrid}
-      label={ctx.labelFor("delivery-excellence-dashboard", "Project Health Dashboard")}
+      label={ctx.labelFor("delivery-excellence-dashboard", "GovOne Dashboard")}
       active={ctx.pathname.startsWith("/project-health")}
       bold={ctx.bold}
       tone="dashboard"
@@ -490,7 +509,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/project-health"
       icon={LayoutGrid}
-      label={ctx.labelFor("cxo-dashboard", "Project Health Dashboard")}
+      label={ctx.labelFor("cxo-dashboard", "GovOne Dashboard")}
       active={ctx.pathname.startsWith("/project-health")}
       bold={ctx.bold}
       tone="dashboard"
@@ -500,7 +519,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/project-health"
       icon={HeartPulse}
-      label="Project Health"
+      label="GovOne Dashboard"
       active={ctx.pathname.startsWith("/project-health")}
       bold={ctx.bold}
     />
@@ -509,7 +528,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/project-health"
       icon={LayoutGrid}
-      label={ctx.labelFor("account-manager-dashboard", "Project Health Dashboard")}
+      label={ctx.labelFor("account-manager-dashboard", "GovOne Dashboard")}
       active={ctx.pathname.startsWith("/project-health")}
       bold={ctx.bold}
       tone="dashboard"
@@ -519,7 +538,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/project-health"
       icon={LayoutGrid}
-      label={ctx.labelFor("geo-head-dashboard", "Project Health Dashboard")}
+      label={ctx.labelFor("geo-head-dashboard", "GovOne Dashboard")}
       active={ctx.pathname.startsWith("/project-health")}
       bold={ctx.bold}
       tone="dashboard"
@@ -550,11 +569,27 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       />
     </CollapsibleGroup>
   ),
+  "leadership-reporting": (ctx) => (
+    <CollapsibleGroup
+      icon={Globe}
+      label={ctx.labelFor("leadership-reporting", "Update Leadership Status Report")}
+      active={ctx.isLeadershipReporting}
+      defaultOpen={ctx.isLeadershipReporting}
+      bold={ctx.bold}
+    >
+      <EntityNavList
+        entities={ctx.reportingGeos}
+        activeId={ctx.reportingGeoId}
+        hrefFor={(geo) => `/leadership-reporting/${geo.id}`}
+        emptyLabel="No geos assigned yet."
+      />
+    </CollapsibleGroup>
+  ),
   "account-reporting": (ctx) => (
     <SimpleLink
       href={selectAccountHref("account-reporting")}
       icon={Building2}
-      label={ctx.labelFor("account-reporting", "Report Account Status")}
+      label={ctx.labelFor("account-reporting", "Update Account Status Report")}
       active={ctx.isAccountReporting || ctx.pathname === selectAccountHref("account-reporting")}
       bold={ctx.bold}
     />
@@ -581,7 +616,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href={selectProjectHref("view-amend-projects")}
       icon={Eye}
-      label={ctx.labelFor("view-amend-projects", "Amend Project")}
+      label={ctx.labelFor("view-amend-projects", "Amend Setup")}
       active={ctx.isAmendProject || ctx.pathname === selectProjectHref("view-amend-projects")}
       bold={ctx.bold}
     />
@@ -612,12 +647,39 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       />
     </CollapsibleGroup>
   ),
+  "executive-risk": (ctx) => (
+    <SimpleLink
+      href="/executive-risk"
+      icon={TriangleAlert}
+      label={ctx.labelFor("executive-risk", "Executive Risk Dashboard")}
+      active={ctx.pathname.startsWith("/executive-risk")}
+      bold={ctx.bold}
+    />
+  ),
   "high-risks": (ctx) => (
     <SimpleLink
       href="/high-risks"
       icon={TriangleAlert}
-      label={ctx.labelFor("high-risks", "High Risks")}
+      label={ctx.labelFor("high-risks", "High Risk Dashboard")}
       active={ctx.pathname.startsWith("/high-risks")}
+      bold={ctx.bold}
+    />
+  ),
+  "delivery-health": (ctx) => (
+    <SimpleLink
+      href="/delivery-health"
+      icon={TriangleAlert}
+      label={ctx.labelFor("delivery-health", "Account Health Dashboard")}
+      active={ctx.pathname.startsWith("/delivery-health")}
+      bold={ctx.bold}
+    />
+  ),
+  "projects-health": (ctx) => (
+    <SimpleLink
+      href="/projects-health"
+      icon={TriangleAlert}
+      label={ctx.labelFor("projects-health", "Project Health Dashboard")}
+      active={ctx.pathname.startsWith("/projects-health")}
       bold={ctx.bold}
     />
   ),
@@ -634,7 +696,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/account-approval"
       icon={CheckCircle2}
-      label={ctx.labelFor("account-approval", "Approve Account Delivery Status")}
+      label={ctx.labelFor("account-approval", "Approve Account Status Report")}
       active={!!ctx.routeActive["account-approval"]}
       bold={ctx.bold}
     />
@@ -733,7 +795,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/project-approval"
       icon={CheckCircle2}
-      label={ctx.labelFor("project-approval", "Approve Project Delivery Status")}
+      label={ctx.labelFor("project-approval", "Approve Project Status Report")}
       active={!!ctx.routeActive["project-approval"]}
       bold={ctx.bold}
     />
@@ -742,7 +804,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href={selectProjectHref("project-performance")}
       icon={ChartColumn}
-      label={ctx.labelFor("project-performance", "Project Performance")}
+      label={ctx.labelFor("project-performance", "Project Performance Dashboard")}
       active={ctx.isProjectPerformance || ctx.pathname === selectProjectHref("project-performance")}
       bold={ctx.bold}
     />
@@ -801,6 +863,11 @@ const SECTION_ICONS: Record<string, React.ElementType> = {
   "My Worklist": Briefcase,
   "My Reports": FileBarChart2,
   "Team Worklist": Users,
+  "Status & Performance Dashboards": ChartColumn,
+  "Report Status & Performance": FileBarChart2,
+  "Approvals & Assignments": CheckCircle2,
+  "DE & Actions": FileSearch,
+  "Project Configuration": Wrench,
 };
 
 export function AppSidebar() {
@@ -830,6 +897,7 @@ export function AppSidebar() {
   const isAccountCommunications = /^\/account-reporting\/[^/]+\/customer-communications/.test(pathname);
   const isAccountReporting = pathname.startsWith("/account-reporting") && !isAccountCommunications;
   const isGeoReporting = pathname.startsWith("/geo-reporting");
+  const isLeadershipReporting = pathname.startsWith("/leadership-reporting");
   const isProjectReview = pathname.startsWith("/project-review");
   const isProjectApproval = pathname.startsWith("/project-approval");
   const isProjectPerformance = pathname.startsWith("/project-performance");
@@ -852,7 +920,7 @@ export function AppSidebar() {
   const isDeAssessmentReport = pathname.startsWith("/de-assessment");
   const deAssessmentReportProjectId = isDeAssessmentReport ? pathname.split("/")[2] : undefined;
   const reportingAccountId = isAccountReporting ? pathname.split("/")[2] : undefined;
-  const reportingGeoId = isGeoReporting ? pathname.split("/")[2] : undefined;
+  const reportingGeoId = isGeoReporting || isLeadershipReporting ? pathname.split("/")[2] : undefined;
   const reviewProjectId = isProjectReview || isProjectApproval ? pathname.split("/")[2] : undefined;
   const performanceProjectId = isProjectPerformance ? pathname.split("/")[2] : undefined;
   const reviewAccountId = isAccountReview || isAccountApproval ? pathname.split("/")[2] : undefined;
@@ -874,7 +942,7 @@ export function AppSidebar() {
     if (openProjectId) touchProject(openProjectId);
   }, [openProjectId, touchProject]);
 
-  // Same for the account screens (Report Account Status / Account Delivery Status).
+  // Same for the account screens (Update Account Status Report / Account Delivery Status).
   const openAccountId = reportingAccountId || reviewAccountId || undefined;
   const { touch: touchAccount } = useAccountContext();
   React.useEffect(() => {
@@ -899,10 +967,14 @@ export function AppSidebar() {
     "account-review": isAccountReview,
     "account-approval": isAccountApproval,
     "geo-review": isGeoReview,
+    "executive-risk": pathname.startsWith("/executive-risk"),
     "high-risks": pathname.startsWith("/high-risks"),
+    "delivery-health": pathname.startsWith("/delivery-health"),
+    "projects-health": pathname.startsWith("/projects-health"),
     "account-reporting": isAccountReporting,
     "account-communications": isAccountCommunications,
     "geo-reporting": isGeoReporting,
+    "leadership-reporting": isLeadershipReporting,
     "new-project": isNewProject && !isMaintaining,
     reassignment: pathname.startsWith("/reassignment"),
     actions: pathname.startsWith("/actions"),
@@ -924,6 +996,7 @@ export function AppSidebar() {
     isDeAssessmentReport,
     isAccountReporting,
     isGeoReporting,
+    isLeadershipReporting,
     reportingGeoId,
     isProjectReview,
     isProjectPerformance,

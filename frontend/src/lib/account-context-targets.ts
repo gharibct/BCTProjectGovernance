@@ -17,7 +17,7 @@ type AccountTarget = {
 
 export const ACCOUNT_TARGETS: Record<AccountTargetId, AccountTarget> = {
   "account-reporting": {
-    label: "Report Account Status",
+    label: "Update Account Status Report",
     hrefFor: (id) => `/account-reporting/${id}/summary`,
     emptyLabel: "No accounts assigned yet.",
   },

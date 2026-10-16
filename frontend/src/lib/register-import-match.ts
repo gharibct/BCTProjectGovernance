@@ -30,7 +30,9 @@ function matchColumnsToFields(defs: FieldDef[], columns: string[]): (FieldDef | 
   // Pass 1: label matches (priority).
   normalizedColumns.forEach((col, i) => {
     if (!col || result[i]) return;
-    const def = defs.find((d) => !claimed.has(d.key) && normalize(d.label) === col);
+    const def = defs.find(
+      (d) => !claimed.has(d.key) && (normalize(d.label) === col || d.aliases?.some((a) => normalize(a) === col))
+    );
     if (def) {
       claimed.add(def.key);
       result[i] = def;

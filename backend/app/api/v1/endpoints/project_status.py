@@ -33,6 +33,7 @@ from app.schemas.copy_from_latest import CopyFromLatestResult
 from app.schemas.reporting_activity import ReportingActivityResponse
 from app.schemas.status_review import StatusReportRecallRequest, StatusReportReviewRequest
 from app.services import dashboard as dashboard_service
+from app.services.account_rag_validation import assert_project_rag_within_submitted_account
 from app.services.copy_from_latest import copy_category_items
 from app.services import notifications as notify_svc
 from app.services.report_lock import assert_report_editable
@@ -99,7 +100,7 @@ async def _previous_period_report(
 # mandatory to submit; answering Yes also requires the date shared and the
 # uploaded presentation / status report. Answering No drops both (the PM may
 # have changed their mind after filling them in).
-_CUSTOMER_REPORT_EXTENSIONS = {"pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx"}
+_CUSTOMER_REPORT_EXTENSIONS = {"pdf", "ppt", "pptx", "doc", "docx", "xls", "xlsx", "zip"}
 _UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9_-]+")
 
 
@@ -184,6 +185,7 @@ async def create_status_report(
     # Project Performance (Monthly) is never shared with the customer, so the
     # Customer Communication section doesn't apply to it.
     if payload.status == ReportStatus.SUBMITTED and period.period_type != "Monthly":
+        await assert_project_rag_within_submitted_account(db, project_id, payload.period_id)
         # A brand-new report has no uploaded file yet, so only "No" can pass.
         problem = _customer_communication_problem(
             payload.customer_report_shared,
@@ -236,6 +238,7 @@ async def update_status_report(
         _delete_customer_report_file(updated)  # nothing may be disclosed
     period = await db.get(ReportingPeriod, updated.period_id)
     if updated.status == ReportStatus.SUBMITTED and not (period and period.period_type == "Monthly"):
+        await assert_project_rag_within_submitted_account(db, project_id, updated.period_id)
         # Project Performance (Monthly) is never shared with the customer, so
         # the Customer Communication section doesn't apply to it.
         # Raising rolls the whole request back (see get_db), so the report
