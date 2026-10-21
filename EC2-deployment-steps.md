@@ -118,7 +118,7 @@ SESSION_COOKIE_SECURE=true        # only once HTTPS is live (step 10); use false
 FRONTEND_BASE_URL=https://<DOMAIN>
 ENABLE_SCHEDULER=true
 NOTIFICATION_SCAN_HOUR=7
-Keep AUTH_TYPE=no_password until HTTPS works, then switch to onelogin (step 12). Lock the file down with chmod 600 .env. Quick test:
+Keep AUTH_TYPE=no_password until HTTPS works, then switch to entra (step 12). Lock the file down with chmod 600 .env. Quick test:
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 # in another shell: curl http://127.0.0.1:8000/health   -> {"status":"ok"} ; Ctrl+C
 
@@ -209,9 +209,9 @@ Nightly database dump, /etc/cron.d/pgov-backup:
 0 2 * * * postgres pg_dump -Fc project_governance > /tmp/pgov.dump && aws s3 cp /tmp/pgov.dump s3://<bucket>/pgov-$(date +\%F).dump && rm /tmp/pgov.dump
 This needs the AWS CLI and an instance role with write access to that bucket. Also enable daily EBS snapshots through AWS Backup, and cover the uploads directory as well.
 
-12. Switching to OneLogin (once HTTPS works)
+12. Switching to Microsoft Entra (once HTTPS works)
 
-In the backend .env, set AUTH_TYPE=onelogin, ONELOGIN_CLIENT_ID, ONELOGIN_CLIENT_SECRET, ONELOGIN_ISSUER, and ONELOGIN_REDIRECT_URI=https://<DOMAIN>/api/v1/auth/onelogin/callback. Register that exact redirect URI in OneLogin, then restart the backend.
+First run db/add_user_entra_oid.sql. Then in the backend .env, set AUTH_TYPE=entra, ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET, and ENTRA_REDIRECT_URI=https://<DOMAIN>/api/v1/auth/entra/callback. Register that exact redirect URI (platform: Web) in the Entra app registration, then restart the backend. Every active user's email must equal their Entra UPN/mail.
 
 13. Updating later
 

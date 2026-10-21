@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.deps import get_current_user, touch_project_on_write
+from app.api.v1.endpoints.auth import redirect_router as auth_redirect_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -44,7 +45,7 @@ app.add_middleware(
 )
 
 # Only used transiently by Authlib to hold OIDC state/nonce/PKCE during the
-# OneLogin redirect round-trip (see auth.py's onelogin_login/onelogin_callback)
+# Entra redirect round-trip (see auth.py's entra_login/entra_callback)
 # — separate from our own long-lived pg_session app cookie (core/session.py).
 app.add_middleware(
     SessionMiddleware,
@@ -61,6 +62,9 @@ async def health() -> dict[str, str]:
 
 # /auth/* must stay reachable without an existing session (login/callback/config).
 app.include_router(auth_router, prefix="/api/v1", dependencies=[Depends(verify_api_key)])
+# Entra login/callback are browser navigations (no way to send X-API-Key), so they
+# are mounted without the API-key dependency.
+app.include_router(auth_redirect_router, prefix="/api/v1")
 # Everything else now requires both the shared API key and a valid session.
 # touch_project_on_write records project activity after any successful write to a
 # project-scoped route (no-op for reads / non-project paths / in unit tests).

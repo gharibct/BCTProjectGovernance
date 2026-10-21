@@ -15,7 +15,7 @@ export type RoleCode =
   | "PMO";
 
 // Matches backend Settings.auth_type (app/core/config.py).
-export type AuthType = "no_password" | "password" | "onelogin";
+export type AuthType = "no_password" | "password" | "entra";
 
 // Lets the login page know which login UI to render without a rebuild — see
 // GET /auth/config in backend/app/api/v1/endpoints/auth.py.
@@ -30,7 +30,7 @@ export function useAuthConfig() {
 // auth_type="no_password": the identifier (ldap_username or email) just has to
 // resolve to an active user, `password` is ignored. auth_type="password": the
 // identifier + a local password are both checked. Disabled server-side once
-// auth_type="onelogin". See backend/app/api/v1/endpoints/auth.py.
+// auth_type="entra". See backend/app/api/v1/endpoints/auth.py.
 export function useLogin() {
   return useMutation({
     mutationFn: ({ identifier, password }: { identifier: string; password?: string }) =>
@@ -39,7 +39,7 @@ export function useLogin() {
 }
 
 // Fetches the current session from the backend's session cookie — used after
-// the OneLogin redirect lands back in the app (see app/login/callback) since
+// the Entra redirect lands back in the app (see app/login/callback) since
 // that flow never goes through useLogin()'s response body.
 export function useMe(enabled: boolean) {
   return useQuery({

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// The whole app sits behind client-only OneLogin/session auth (see
+// The whole app sits behind client-only Entra/session auth (see
 // AuthGuard) and has no anonymous/cacheable content worth static
 // prerendering — so there's nothing to lose by forcing every route dynamic.
 // Doing it here, once, also works around an intermittent Turbopack build

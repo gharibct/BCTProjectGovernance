@@ -24,15 +24,15 @@ API_KEY=<pick a real secret>
 CORS_ORIGINS=http://<new-server-ip-or-domain>:3000
 Point DATABASE_URL at the new box's own Postgres instance (localhost, once you've created the database there — see step 0 below), not at 192.168.1.175. Set CORS_ORIGINS to wherever the frontend will actually be reached from — otherwise the browser will get CORS errors.
 
-Auth (see the OneLogin SSO integration plan for the full picture):
-AUTH_TYPE=no_password | onelogin
+Auth (Microsoft Entra ID OIDC; users must be pre-created and match by email/UPN):
+AUTH_TYPE=no_password | entra
 SESSION_SECRET=<pick a real secret>
 SESSION_TTL_MINUTES=480
 SESSION_COOKIE_SECURE=false   # set true once this box is served over HTTPS
 FRONTEND_BASE_URL=http://<new-server-ip-or-domain>:3000
-ONELOGIN_CLIENT_ID=, ONELOGIN_CLIENT_SECRET=, ONELOGIN_ISSUER=, ONELOGIN_REDIRECT_URI=
-  — only needed once AUTH_TYPE=onelogin; AUTH_TYPE=onelogin also requires
-  HTTPS on this box (OneLogin won't redirect to a plain-HTTP non-localhost
+ENTRA_TENANT_ID=, ENTRA_CLIENT_ID=, ENTRA_CLIENT_SECRET=, ENTRA_REDIRECT_URI=
+  — only needed once AUTH_TYPE=entra; AUTH_TYPE=entra also requires
+  HTTPS on this box (Entra won't redirect to a plain-HTTP non-localhost
   URL) — keep AUTH_TYPE=no_password until the reverse-proxy/TLS setup below
   is in place.
 
@@ -43,7 +43,7 @@ NEXT_PUBLIC_API_KEY must match the backend's API_KEY — the frontend sends it
 as the X-API-Key header, and the backend checks it against API_KEY.
 API_PROXY_TARGET is where next.config.ts's rewrite proxies /api/v1/* to — the
 browser always calls the frontend's own origin (same-origin, no CORS, and
-required for the OneLogin session cookie to work), and Next.js forwards those
+required for the Entra session cookie to work), and Next.js forwards those
 requests server-side to the backend.
 
 Steps

@@ -1,5 +1,5 @@
 -- Users & Roles (UX requirements §4.14 Admin — Users & Roles).
--- Auth is LDAP/OneLogin-based by default; `password_hash` holds a local scrypt
+-- Auth is LDAP/Entra-based by default; `password_hash` holds a local scrypt
 -- hash for the optional AUTH_TYPE=password mode (null = no local password set,
 -- so that user can only sign in under a non-password auth mode). MFA enrollment
 -- is tracked here.
@@ -23,6 +23,7 @@ CREATE TABLE users (
     role_id UUID NOT NULL REFERENCES roles(id),
     is_active BOOLEAN NOT NULL,
     password_hash TEXT,
+    entra_oid TEXT, -- Entra object ID, bound on first Entra sign-in (AUTH_TYPE=entra)
     mfa_enrolled BOOLEAN NOT NULL,
     mfa_enrolled_at TIMESTAMPTZ,
     last_login_at TIMESTAMPTZ,
@@ -32,5 +33,6 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_role_id ON users(role_id);
 CREATE INDEX idx_users_is_active ON users(is_active);
+CREATE UNIQUE INDEX idx_users_entra_oid ON users(entra_oid) WHERE entra_oid IS NOT NULL;
 
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();

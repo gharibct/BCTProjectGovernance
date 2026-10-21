@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+from urllib.parse import urlencode
 from uuid import UUID
 
 from authlib.integrations.starlette_client import OAuth
@@ -22,13 +24,19 @@ from app.schemas.users import (
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
+# Browser-navigation endpoints (the Entra redirect out and the redirect back from
+# Microsoft). A top-level navigation can't carry the X-API-Key header, so these
+# are mounted WITHOUT verify_api_key (see main.py); they're protected by the OIDC
+# state/nonce/PKCE round-trip and only ever mint a session for a pre-provisioned user.
+redirect_router = APIRouter(prefix="/auth", tags=["Auth"])
+
 oauth = OAuth()
 oauth.register(
-    name="onelogin",
-    client_id=settings.onelogin_client_id,
-    client_secret=settings.onelogin_client_secret,
-    server_metadata_url=f"{settings.onelogin_issuer}/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
+    name="entra",
+    client_id=settings.entra_client_id,
+    client_secret=settings.entra_client_secret,
+    server_metadata_url=f"{settings.entra_authority}/v2.0/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile", "code_challenge_method": "S256"},
 )
 
 
@@ -65,7 +73,7 @@ async def auth_config() -> dict[str, str]:
 
 # Identifier + (optionally) local password login. Serves AUTH_TYPE=no_password
 # (dev-only identifier lookup) and AUTH_TYPE=password (identifier + scrypt-hashed
-# password). Disabled entirely once AUTH_TYPE=onelogin so neither path can be
+# password). Disabled entirely once AUTH_TYPE=entra so neither path can be
 # used to bypass real SSO.
 @router.post("/login", response_model=UserSessionRead)
 async def login(body: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
@@ -118,34 +126,63 @@ async def change_password(
     await db.flush()
 
 
-@router.get("/onelogin/login")
-async def onelogin_login(request: Request):
-    if settings.auth_type != "onelogin":
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
-    return await oauth.onelogin.authorize_redirect(request, settings.onelogin_redirect_uri)
+async def resolve_entra_user(db: AsyncSession, claims: dict) -> User:
+    """Map verified Entra ID-token claims to a pre-provisioned app user.
 
+    Matches the immutable `oid` first; otherwise falls back to email/UPN
+    (case-insensitive) and binds the `oid` on that first match. No JIT
+    provisioning: unknown or inactive users get a 403.
+    """
+    if (claims.get("tid") or "").lower() != settings.entra_tenant_id.lower():
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Sign-in from an unexpected tenant.")
 
-@router.get("/onelogin/callback")
-async def onelogin_callback(request: Request, db: AsyncSession = Depends(get_db)):
-    if settings.auth_type != "onelogin":
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    oid = (claims.get("oid") or "").strip().lower()
+    if not oid:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Entra did not return an oid claim.")
 
-    token = await oauth.onelogin.authorize_access_token(request)
-    claims = token.get("userinfo") or {}
-    email = (claims.get("email") or "").strip().lower()
-    if not email:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="OneLogin did not return an email claim.")
+    user = (await db.execute(select(User).where(User.entra_oid == oid))).scalar_one_or_none()
+    if user is None:
+        # `email` is optional in Entra tokens; preferred_username/upn carry the UPN.
+        candidates = {
+            (claims.get(key) or "").strip().lower()
+            for key in ("email", "preferred_username", "upn")
+        } - {""}
+        if not candidates:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Entra did not return an email or UPN claim.")
+        stmt = select(User).where(func.lower(User.email).in_(candidates))
+        matches = (await db.execute(stmt)).scalars().all()
+        user = matches[0] if len(matches) == 1 else None
+        # A user already bound to a different oid must not be taken over by
+        # someone who merely shares the email/UPN.
+        if user is not None and user.entra_oid and user.entra_oid != oid:
+            user = None
+        if user is not None and user.is_active:
+            user.entra_oid = oid
 
-    stmt = select(User).where(func.lower(User.email) == email)
-    user = (await db.execute(stmt)).scalar_one_or_none()
     if user is None or not user.is_active:
-        # Strict pre-provisioned policy: OneLogin authenticated this person,
-        # but no admin has created an app account for them yet — no JIT
-        # auto-provisioning.
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            detail="No active Project Governance Tool account for that email.",
+            detail="No active Project Governance Tool account for that Microsoft account.",
         )
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.flush()
+    return user
+
+
+@redirect_router.get("/entra/login")
+async def entra_login(request: Request):
+    if settings.auth_type != "entra":
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return await oauth.entra.authorize_redirect(request, settings.entra_redirect_uri)
+
+
+@redirect_router.get("/entra/callback")
+async def entra_callback(request: Request, db: AsyncSession = Depends(get_db)):
+    if settings.auth_type != "entra":
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+    token = await oauth.entra.authorize_access_token(request)
+    user = await resolve_entra_user(db, token.get("userinfo") or {})
 
     response = RedirectResponse(url=f"{settings.frontend_base_url}/login/callback")
     _set_session_cookie(response, user.id)
@@ -160,5 +197,10 @@ async def me(current_user: User = Depends(get_current_user), db: AsyncSession = 
 @router.post("/logout")
 async def logout(response: Response) -> dict[str, str | None]:
     response.delete_cookie(SESSION_COOKIE_NAME, path="/")
-    logout_url = f"{settings.onelogin_issuer}/logout" if settings.auth_type == "onelogin" else None
+    logout_url = None
+    if settings.auth_type == "entra":
+        logout_url = (
+            f"{settings.entra_authority}/oauth2/v2.0/logout"
+            f"?{urlencode({'post_logout_redirect_uri': f'{settings.frontend_base_url}/login'})}"
+        )
     return {"logout_url": logout_url}

@@ -1,7 +1,7 @@
 import { useSession } from "@/stores/session";
 
 // Relative — proxied to the backend by next.config.ts's rewrite so the
-// browser sees it as same-origin, which is what lets the OneLogin session
+// browser sees it as same-origin, which is what lets the Entra session
 // cookie (httpOnly, SameSite=Lax) work without needing HTTPS locally.
 const BASE_URL = "/api/v1";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";

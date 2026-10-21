@@ -27,6 +27,8 @@ class User(Base, UUIDPrimaryKey, TimestampColumns):
     # Local scrypt hash for AUTH_TYPE=password; null when no local password is
     # set (see app/core/security.py, app/api/v1/endpoints/auth.py).
     password_hash: Mapped[str | None] = mapped_column(default=None)
+    # Immutable Entra object ID, bound on first Entra sign-in (AUTH_TYPE=entra).
+    entra_oid: Mapped[str | None] = mapped_column(default=None)
     mfa_enrolled: Mapped[bool]
     mfa_enrolled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

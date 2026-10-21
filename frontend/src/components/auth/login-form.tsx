@@ -62,7 +62,7 @@ export function LoginForm() {
     return null;
   }
 
-  if (authConfig.data?.auth_type === "onelogin") {
+  if (authConfig.data?.auth_type === "entra") {
     return (
       <div>
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">
@@ -70,18 +70,18 @@ export function LoginForm() {
         </h2>
 
         <p className="mt-4 text-sm text-slate-600">
-          This app now signs in through your organization&apos;s OneLogin
+          This app signs in through your organization&apos;s Microsoft
           account.
         </p>
 
         <Button
           type="button"
           onClick={() => {
-            window.location.href = "/api/v1/auth/onelogin/login";
+            window.location.href = "/api/v1/auth/entra/login";
           }}
           className="mt-8 h-12 w-full rounded-lg bg-[#16283e] text-sm font-semibold tracking-[0.08em] text-white uppercase hover:bg-[#1d3350]"
         >
-          Sign in with OneLogin
+          Sign in with Microsoft
         </Button>
       </div>
     );

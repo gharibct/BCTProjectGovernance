@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     import_template_dir: str = "./import_templates"
 
     # "no_password" (dev-only identifier lookup), "password" (identifier + a
-    # local scrypt-hashed password, see app/core/security.py), or "onelogin"
-    # (OIDC SSO).
+    # local scrypt-hashed password, see app/core/security.py), or "entra"
+    # (Microsoft Entra ID OIDC SSO).
     auth_type: str = "no_password"
     session_secret: str = "change-me-session-secret"
     session_ttl_minutes: int = 480
@@ -28,11 +28,15 @@ class Settings(BaseSettings):
     enable_scheduler: bool = True
     notification_scan_hour: int = 7  # local server hour for the daily run
 
-    # Only required when auth_type=onelogin.
-    onelogin_client_id: str = ""
-    onelogin_client_secret: str = ""
-    onelogin_issuer: str = ""
-    onelogin_redirect_uri: str = ""
+    # Only required when auth_type=entra.
+    entra_tenant_id: str = ""
+    entra_client_id: str = ""
+    entra_client_secret: str = ""
+    entra_redirect_uri: str = ""
+
+    @property
+    def entra_authority(self) -> str:
+        return f"https://login.microsoftonline.com/{self.entra_tenant_id}"
 
     @property
     def cors_origin_list(self) -> list[str]:

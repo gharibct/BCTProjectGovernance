@@ -9,8 +9,8 @@ import { useMe } from "@/lib/api/auth";
 import { ROLE_LANDING_ROUTE } from "@/lib/menu-config";
 import { useSession } from "@/stores/session";
 
-// Landing spot for the backend's OneLogin callback redirect
-// (backend/app/api/v1/endpoints/auth.py's onelogin_callback). By the time the
+// Landing spot for the backend's Entra callback redirect
+// (backend/app/api/v1/endpoints/auth.py's entra_callback). By the time the
 // browser lands here, the session cookie is already set — this page just
 // fetches /auth/me to hydrate the Zustand store, then routes to the role's
 // landing page, mirroring login-form.tsx's no_password success path.
@@ -27,7 +27,7 @@ export default function LoginCallbackPage() {
 
   const error = me.isError
     ? me.error instanceof ApiError && me.error.status === 403
-      ? "OneLogin sign-in succeeded, but there's no Governance One account for that email. Contact your admin."
+      ? "Your Microsoft account is not registered in Governance One. Contact your administrator."
       : "Sign-in could not be completed. Try again."
     : null;
 

@@ -99,6 +99,6 @@ async def test_user_without_local_password_is_400(client, as_user):
 async def test_disabled_when_auth_type_is_not_password(client, as_user, monkeypatch):
     user = _make_user(hash_password(_CURRENT))
     headers = as_user(user)
-    monkeypatch.setattr(settings, "auth_type", "onelogin")
+    monkeypatch.setattr(settings, "auth_type", "entra")
     resp = await _post(client, headers, current_password=_CURRENT, new_password=_NEW)
     assert resp.status_code == 403
