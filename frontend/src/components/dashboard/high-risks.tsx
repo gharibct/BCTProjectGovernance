@@ -9,7 +9,7 @@ import { FileText, HeartPulse, LayoutGrid } from "lucide-react";
 
 import { GovernanceMatrix } from "@/components/dashboard/governance-matrix";
 import { ProjectHealthFilterBar } from "@/components/dashboard/project-health-filter-bar";
-import { Card, ErrorBlock, RagFilterTiles } from "@/components/dashboard/project-health-kpi";
+import { BackToProjectHealth, Card, ErrorBlock, RagFilterTiles } from "@/components/dashboard/project-health-kpi";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   DELIVERY_HEALTH_STATUSES,
@@ -22,13 +22,12 @@ import { useScreenFilters, useProjectHealthFilters } from "@/stores/project-heal
 import { useProjectHealthPeriods } from "@/lib/api/project-health-dashboard";
 import { sectionAccentColor } from "@/lib/section-accent-colors";
 
-// Executive Risk Dashboard: only the worst two statuses.
-const EXECUTIVE_STATUSES: HighRiskStatus[] = ["Red", "Potential Red"];
+// Executive Risk Dashboard: only the worst status.
+const EXECUTIVE_STATUSES: HighRiskStatus[] = ["Red"];
 
 // Counts per bucket come from the response's `kpis`.
-const KPI_KEYS: Record<HighRiskStatus, "red" | "potential_red" | "amber" | "green" | "not_submitted"> = {
+const KPI_KEYS: Record<HighRiskStatus, "red" | "amber" | "green" | "not_submitted"> = {
   Red: "red",
-  "Potential Red": "potential_red",
   Amber: "amber",
   Green: "green",
   "Not Submitted": "not_submitted",
@@ -37,19 +36,35 @@ const KPI_KEYS: Record<HighRiskStatus, "red" | "potential_red" | "amber" | "gree
 // Links/bubbles inside the clickable first column handle their own click.
 const stop = (e: React.MouseEvent) => e.stopPropagation();
 
-const bubbleClass =
+export const bubbleClass =
   "inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-[#1a6fc4] ring-1 ring-blue-200 transition-colors hover:bg-blue-100";
 
 // Account chip (Project Health Dashboard) — a different colour from the Geo / Region chips.
-const accountBubbleClass =
+export const accountBubbleClass =
   "inline-flex items-center rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-200 transition-colors hover:bg-violet-100";
+
+// Total FTE chip next to the DM name — informational (not a filter), so its own
+// colour and no hover state.
+const fteBubbleClass =
+  "inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200";
+
+const formatFte = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 // High Risks (CXO / Geo Head): every account that is not Green for the chosen
 // weekly period, plus the accounts that have not filed — same grid as the Geo
 // report's Summary, in the Project Health page chrome (filter bar, KPI cells).
 // Filters live in the shared project-health-filters store; `?back=` only tells
 // the account report's breadcrumb where to return.
-export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" | "delivery-health" | "project-health" }) {
+// `govOne` = launched from the GovOne Dashboard cards (/project-health/rag and
+// /project-health/account-rag): same screen, but with the GovOne breadcrumb and
+// report back-links that return to the GovOne-hosted route.
+export function HighRisks({
+  variant = "all",
+  govOne = false,
+}: {
+  variant?: "all" | "executive" | "delivery-health" | "project-health";
+  govOne?: boolean;
+}) {
   const executive = variant === "executive";
   const deliveryHealth = variant === "delivery-health";
   // Project Health Dashboard: the Delivery Health grid at project level.
@@ -57,9 +72,13 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
   const basePath = executive
     ? "/executive-risk"
     : deliveryHealth
-      ? "/delivery-health"
+      ? govOne
+        ? "/project-health/account-rag"
+        : "/delivery-health"
       : projectHealth
-        ? "/projects-health"
+        ? govOne
+          ? "/project-health/rag"
+          : "/projects-health"
         : "/high-risks";
   const statuses = executive
     ? EXECUTIVE_STATUSES
@@ -79,7 +98,7 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
   const [filters, setFilters] = useProjectHealthFilters();
   // Overall RAG, plus the Delivery Manager (Delivery Health) / Project Manager
   // (Project Health) filter — kept per screen in the same store.
-  const { overall: overallRaw, managerId, setOverall: setOverallRaw, setManagerId, reset: resetExtras } =
+  const { overall: overallRaw, managerId, dmId, setOverall: setOverallRaw, setManagerId, setDmId, reset: resetExtras } =
     useScreenFilters(variant);
   const overall: HighRiskStatus | "" = statuses.find((s) => s === overallRaw) ?? "";
   const setOverall = (value: HighRiskStatus | "") => setOverallRaw(value);
@@ -94,7 +113,9 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
       regionId: filters.regionId,
       accountId: filters.accountId,
       overall,
-      deliveryManagerId: deliveryHealth ? managerId || undefined : undefined,
+      // Delivery Health: the one manager filter is the DM. Project Health has both
+      // a Delivery Manager and a Project Manager filter.
+      deliveryManagerId: deliveryHealth ? managerId || undefined : projectHealth ? dmId || undefined : undefined,
       projectManagerId: projectHealth ? managerId || undefined : undefined,
     },
     deliveryHealth ? "delivery-health" : projectHealth ? "project-health-grid" : "high-risks"
@@ -117,10 +138,11 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
+          {govOne ? <BackToProjectHealth current={projectHealth ? "Project RAG" : "Account RAG"} /> : null}
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
           <p className="mt-1.5 text-slate-500">
             {executive
-              ? "Accounts rated Red or Potential Red for the selected week."
+              ? "Accounts rated Red for the selected week."
               : projectHealth
                 ? "Delivery health of every active project for the selected week, including Green projects and projects that have not submitted their report."
                 : deliveryHealth
@@ -134,7 +156,7 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
       <ProjectHealthFilterBar
         filters={filters}
         onChange={setFilters}
-        extraFiltersActive={!!overall || !!managerId}
+        extraFiltersActive={!!overall || !!managerId || !!dmId}
         onReset={resetExtras}
       >
         <div className="w-44">
@@ -152,6 +174,23 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
             ))}
           </NativeSelect>
         </div>
+        {projectHealth ? (
+          <div className="w-48">
+            <NativeSelect
+              aria-label="Delivery Manager"
+              className="h-9 bg-white text-sm"
+              value={dmId}
+              onChange={(e) => setDmId(e.target.value)}
+            >
+              <option value="">Delivery Manager [All]</option>
+              {(data?.delivery_managers ?? []).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+        ) : null}
         {deliveryHealth || projectHealth ? (
           <div className="w-48">
             <NativeSelect
@@ -212,19 +251,19 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
                 <span
                   aria-disabled="true"
                   title="No report submitted for this period"
-                  className="inline-flex cursor-not-allowed items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap text-slate-400"
+                  className="inline-flex cursor-not-allowed items-center gap-1 rounded-xl bg-slate-200 px-2.5 py-1 text-xs leading-tight font-semibold text-slate-400"
                 >
-                  <FileText className="size-3" />
-                  View Report
+                  <FileText className="size-3 shrink-0" />
+                  <span>View<br />Report</span>
                 </span>
               ) : (
               <Link
                 href={rowHref(row.entity_id)}
                 title={projectHealth ? "Open this project's report" : "Open this account's report"}
-                className="inline-flex items-center gap-1 rounded-full bg-[#1a6fc4] px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap text-white transition-colors hover:bg-[#15406b]"
+                className="inline-flex items-center gap-1 rounded-xl bg-[#1a6fc4] px-2.5 py-1 text-xs leading-tight font-semibold text-white transition-colors hover:bg-[#15406b]"
               >
-                <FileText className="size-3" />
-                View Report
+                <FileText className="size-3 shrink-0" />
+                <span>View<br />Report</span>
               </Link>
             ),
           }}
@@ -285,6 +324,11 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
                   </button>
                 ) : null}
                 <span className="text-xs font-normal text-slate-500">DM: {row.delivery_manager_name ?? "—"}</span>
+                {!projectHealth && row.total_fte != null ? (
+                  <span className={fteBubbleClass} title="Total FTE = Onsite FTE + Offshore FTE">
+                    Total FTE: {formatFte(row.total_fte)}
+                  </span>
+                ) : null}
                 {projectHealth ? (
                   <span className="text-xs font-normal text-slate-500">PM: {row.project_manager_name ?? "—"}</span>
                 ) : null}
@@ -293,7 +337,8 @@ export function HighRisks({ variant = "all" }: { variant?: "all" | "executive" |
           )}
           overallLabel="Delivery RAG"
           circleCategories
-          emptyLabel={isLoading || !periodId ? "Loading…" : executive ? "No Red / Potential Red accounts for these filters." : "No high-risk accounts for these filters."}
+          riskColumns={!projectHealth}
+          emptyLabel={isLoading || !periodId ? "Loading…" : executive ? "No Red accounts for these filters." : "No high-risk accounts for these filters."}
         />
         </div>
       )}

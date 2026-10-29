@@ -7,13 +7,14 @@ import type { Project, ProjectLifecycleStatus, ProjectStatus } from "./projects"
 // Maintain Project — "Send To Approval" screen. The PM-facing mirror of the DE
 // governance completeness check: the modules a Project Manager must finish
 // before a Draft project can be submitted for DE approval. Project Profile,
-// Scope & Schedule, Measurement, Commitments and Milestones are mandatory;
+// Scope & Schedule, Link Contract Documents, Measurement, Commitments and Milestones are mandatory;
 // RAIDO is informational and never blocks. Backed by
 // GET/POST /api/v1/projects/{id}/(approval-readiness|send-to-approval).
 
 export type ApprovalReadinessModuleKey =
   | "project_profile"
   | "scope_schedule"
+  | "map_oracle_projects"
   | "measurement"
   | "commitments"
   | "milestones"
@@ -69,6 +70,7 @@ export type SendToApprovalError = {
 export const APPROVAL_MODULE_VIEW_PATH: Record<ApprovalReadinessModuleKey, string> = {
   project_profile: "project-charter",
   scope_schedule: "project-charter/schedule",
+  map_oracle_projects: "map-oracle-projects",
   measurement: "measurement",
   commitments: "contractual-commitments",
   milestones: "milestones",

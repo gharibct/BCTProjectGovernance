@@ -16,7 +16,8 @@ import type { ProjectHealthDashboardFilters } from "@/lib/api/project-health-das
 //
 // `extras` are a screen's own filters (the selected KPI bucket, Delivery /
 // Project Manager), kept per screen because their meaning differs.
-export type ScreenFilters = { overall: string; managerId: string };
+// `dmId` is the Delivery Manager filter on screens that also have a Project Manager one.
+export type ScreenFilters = { overall: string; managerId: string; dmId?: string };
 
 type State = {
   byScope: Record<string, ProjectHealthDashboardFilters>;
@@ -78,7 +79,11 @@ export function useScreenFilters(screen: string) {
     (managerId: string) => setExtras(key, { ...(useStore.getState().extras[key] ?? NO_EXTRAS), managerId }),
     [key, setExtras]
   );
+  const setDmId = React.useCallback(
+    (dmId: string) => setExtras(key, { ...(useStore.getState().extras[key] ?? NO_EXTRAS), dmId }),
+    [key, setExtras]
+  );
   const reset = React.useCallback(() => setExtras(key, NO_EXTRAS), [key, setExtras]);
 
-  return { overall: extras.overall, managerId: extras.managerId, setOverall, setManagerId, reset };
+  return { overall: extras.overall, managerId: extras.managerId, dmId: extras.dmId ?? "", setOverall, setManagerId, setDmId, reset };
 }

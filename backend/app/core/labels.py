@@ -8,3 +8,6 @@ databases need a one-off UPDATE (see db/rename_account_manager_to_delivery_manag
 """
 
 ACCOUNT_MANAGER_LABEL = "Delivery Manager"
+
+# Display name of the PMO role (code stays PMO); mirrored in role-labels.ts.
+PMO_LABEL = "Enablers"

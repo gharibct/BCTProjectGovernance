@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { ApiError } from "@/lib/api/client";
 import { HEALTH_RATING_COLORS } from "@/lib/health-rating-colors";
+import { sectionAccentColor } from "@/lib/section-accent-colors";
 import { cn } from "@/lib/utils";
 
 // Back-to-overview link for every drill-down list screen's header — the main
@@ -11,6 +12,33 @@ import { cn } from "@/lib/utils";
 // footer, but had no way back short of the browser's own back button.
 export function BackToProjectHealth({ current }: { current: string }) {
   return <PageBreadcrumb items={[{ label: "GovOne Dashboard", href: "/project-health" }, { label: current }]} />;
+}
+
+// A drill-down grid's panel with the blue accent heading bar — same panel the
+// GovernanceMatrix draws on View Project RAG / Account RAG. Children sit edge to
+// edge (pair with <RegisterTable flush /> and a PaginationBar).
+export function AccentSection({
+  heading,
+  icon: Icon,
+  children,
+}: {
+  heading: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  const accent = sectionAccentColor(0);
+  return (
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <h2
+        className={cn("flex items-center gap-3 px-6 py-4 text-lg font-bold tracking-wide", accent.text)}
+        style={{ backgroundColor: accent.bg }}
+      >
+        {Icon ? <Icon className="size-5 shrink-0" /> : null}
+        {heading}
+      </h2>
+      {children}
+    </section>
+  );
 }
 
 // Shared error panel for the drill-down list screens' fetch failures — same
@@ -166,12 +194,21 @@ export type RagBucket =
   | "Approved"
   | "Baselined"
   | "Not Baselined"
-  | "Auto Generated";
+  | "Auto Generated"
+  // Account QBR Reporting buckets
+  | "Conducted"
+  | "Scheduled"
+  | "Initiated"
+  | "Not Planned";
 
 export const RAG_BUCKET_STYLES: Record<
   RagBucket,
   { label: string; shortLabel: string; className: string; valueClassName: string }
 > = {
+  Conducted: { label: "Conducted", shortLabel: "Conducted", className: "border-green-800 bg-green-700 text-white", valueClassName: "text-white" },
+  Scheduled: { label: "Scheduled", shortLabel: "Scheduled", className: "border-green-300 bg-green-200 text-green-900", valueClassName: "text-green-900" },
+  Initiated: { label: "Initiated", shortLabel: "Initiated", className: "border-green-100 bg-green-50 text-green-800", valueClassName: "text-green-700" },
+  "Not Planned": { label: "Not Planned", shortLabel: "Not Planned", className: "border-red-100 bg-red-50 text-red-700", valueClassName: "text-red-600" },
   Green: { label: "Green", shortLabel: "Green", className: "border-emerald-100 bg-emerald-50 text-emerald-700", valueClassName: "text-emerald-600" },
   Amber: { label: "Amber", shortLabel: "Amber", className: "border-amber-100 bg-amber-50 text-amber-700", valueClassName: "text-amber-500" },
   "Potential Red": { label: "Pot. Red", shortLabel: "Pot. Red", className: "border-orange-100 bg-orange-50 text-orange-700", valueClassName: "text-orange-600" },

@@ -1,7 +1,7 @@
 // Sample portfolio data until there's a backend. `fetchProjects` mimics an
 // async API call so the grid can swap to a real endpoint without UI changes.
 
-export type Health = "red" | "potential-red" | "amber" | "green";
+export type Health = "red" | "amber" | "green";
 
 export type ProjectFilter = "all" | Health | "status-pending";
 
@@ -34,7 +34,7 @@ export const PROJECTS: ProjectRow[] = [
   {
     id: "PRJ-2026-0038",
     name: "Quantum Logistics Engine",
-    health: "potential-red",
+    health: "amber",
     criticalReason: "Resource gap: Technical Lead",
     priority: "P1",
     daysOpen: 4,
@@ -89,7 +89,7 @@ export const PROJECTS: ProjectRow[] = [
   {
     id: "PRJ-2026-0019",
     name: "Atlas CRM Rollout",
-    health: "potential-red",
+    health: "amber",
     criticalReason: "Client sponsor unavailable for 3 weeks",
     priority: "P1",
     daysOpen: 11,
@@ -122,7 +122,7 @@ export const PROJECTS: ProjectRow[] = [
   {
     id: "PRJ-2025-0096",
     name: "Zephyr API Gateway",
-    health: "potential-red",
+    health: "amber",
     criticalReason: "Forecast exceeds baseline by 18%",
     priority: "P1",
     daysOpen: 8,

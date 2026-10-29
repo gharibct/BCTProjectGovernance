@@ -51,7 +51,6 @@ export type MyDashboardSummary = {
   projects_requiring_attention: number;
   health_green: number;
   health_amber: number;
-  health_potential_red: number;
   health_red: number;
   // Projects with no health declaration yet — the gap between
   // my_projects_count and the 4 declared-only buckets above.

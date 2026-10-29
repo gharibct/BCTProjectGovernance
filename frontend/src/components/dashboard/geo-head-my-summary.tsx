@@ -57,7 +57,7 @@ function StatCard({
 
 const GEO_HEALTH_TEXT_CLASS: Record<HealthRating, string> = {
   Red: "text-red-600",
-  "Potential Red": "text-red-600",
+  "Potential Red": "text-red-600", // legacy stored value
   Amber: "text-amber-500",
   Green: "text-emerald-600",
 };

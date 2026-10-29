@@ -186,8 +186,11 @@ export type PaymentMilestoneRow = {
 export type AssessmentRow = {
   project_id: string;
   project_label: string;
+  geo_id: string | null;
   geo_name: string | null;
+  region_id: string | null;
   region_name: string | null;
+  account_id: string | null;
   account_name: string | null;
   assessment_id: string | null;
   pm_health: string | null;
@@ -283,16 +286,29 @@ export type CustomerProjectReportRow = {
 export type CustomerAccountReportRow = {
   account_id: string;
   account_name: string;
+  geo_id: string | null;
   geo_name: string | null;
+  region_id: string | null;
   region_name: string | null;
   account_head_name: string | null;
   geo_head_name: string | null;
-  onboarded_date: string | null;
-  status: string; // "Shared with Customer" | "Not Shared" | "New"
-  last_shared_date: string | null;
-  last_title: string | null;
-  communications_count: number;
+  status: QbrReportStatus;
+  // Conducted QBRs in each of the 3 quarters before the selected one, oldest first.
+  previous_quarters_conducted: number[];
+  // Selected quarter: Conducted (by actual date) and planned (Initiated / Scheduled).
+  current_quarter_conducted: number;
+  current_quarter_planned: number;
+  next_quarter_open_count: number; // Initiated / Scheduled QBRs planned next quarter
+  // Latest Conducted QBR held on or before the selected quarter's end.
+  last_qbr_id: string | null;
+  last_qbr_date: string | null;
+  last_qbr_title: string | null;
+  last_qbr_file_name: string | null;
 };
+
+export type QbrReportStatus = "Initiated" | "Scheduled" | "Conducted" | "Not Planned";
+// Display order on the Account QBR Reporting card and its drill-down.
+export const QBR_REPORT_STATUSES: QbrReportStatus[] = ["Conducted", "Scheduled", "Initiated", "Not Planned"];
 
 // Project Health -> Oracle Projects. Not for Project Managers / Team Members
 // (the endpoints 403 for them). `mapped` = a governance project carries this
@@ -314,6 +330,8 @@ export type OracleProjectRow = {
   last_seen_month: string;
   mapped: boolean;
   governance_project_code: string | null;
+  // This Oracle project's Contract Documents link (SharePoint), when captured.
+  contract_url: string | null;
 };
 
 export type OracleProjectSummary = {
@@ -344,6 +362,10 @@ export type ProjectHealthListParams = ProjectHealthDashboardFilters & {
   // (true = Not Submitted only) / filed (false = Submitted only); undefined = both.
   reportType?: string;
   pending?: boolean;
+  // Selected-week stream screens only — narrow to one Project Manager /
+  // Delivery Manager (user ids).
+  projectManagerId?: string;
+  accountHeadId?: string;
 };
 
 // Single source for the drill-down list endpoint paths — shared by the
@@ -447,6 +469,8 @@ function buildParams(params: ProjectHealthListParams): string {
   if (params.reportType) q.set("report_type", params.reportType);
   if (params.pending !== undefined) q.set("pending", String(params.pending));
   if (params.status) q.set("status", params.status);
+  if (params.projectManagerId) q.set("project_manager_id", params.projectManagerId);
+  if (params.accountHeadId) q.set("account_head_id", params.accountHeadId);
   q.set("skip", String(params.skip ?? 0));
   q.set("limit", String(params.limit ?? 10));
   return q.toString();

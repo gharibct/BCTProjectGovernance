@@ -131,7 +131,7 @@ async def list_users(
     total = (await db.execute(count_stmt.where(*conditions))).scalar_one()
     stmt = (
         stmt.where(*conditions)
-        .order_by(User.full_name)
+        .order_by(func.lower(func.trim(User.full_name)), User.id)
         .offset(pagination.skip)
         .limit(pagination.limit)
     )

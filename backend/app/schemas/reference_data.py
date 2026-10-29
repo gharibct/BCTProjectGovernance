@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.schemas.enums import PeriodType
+from app.schemas.enums import PeriodType, YesNo
 
 
 class OrganizationBase(BaseModel):
@@ -127,6 +127,8 @@ class AccountBase(BaseModel):
     description: str | None = None
     is_active: bool = True
     tool_effective_date: date | None = None
+    # Yes = quarterly QBR mandatory.
+    critical_flag: YesNo = YesNo.NO
 
 
 class AccountCreate(AccountBase):
@@ -140,6 +142,7 @@ class AccountUpdate(BaseModel):
     description: str | None = None
     is_active: bool | None = None
     tool_effective_date: date | None = None
+    critical_flag: YesNo | None = None
 
 
 class AccountRead(AccountBase):

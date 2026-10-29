@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, project_scope_conditions, require_project_access, require_project_read_access
@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.db import get_db
 from app.crud.project_status import project_status_item_crud, project_status_report_crud
 from app.crud.projects import project_crud
-from app.models.health_declarations import ProjectHealthItem
+from app.models.health_declarations import HealthDeclaration, ProjectHealthItem
 from app.models.project_status import ProjectStatusItem, ProjectStatusReport
 from app.models.projects import Project
 from app.models.reference_data import ReportingPeriod
@@ -502,6 +502,49 @@ async def copy_items_from_latest_report(
         source_period_id=status_source or health_source,
         skipped=status_skipped + health_skipped,
     )
+
+
+# "Clear Report": empties the user-entered content of this period's Delivery
+# Status report — both registers, the six RAG ratings, Key Metrics and the
+# Customer Communication answer / date / remarks — so the PM can start over (e.g.
+# with Copy from latest report). Attachments (report attachments and the
+# uploaded customer report file) and their references are left alone.
+@items_router.post("/clear-report", status_code=status.HTTP_204_NO_CONTENT, dependencies=_pm_write)
+async def clear_status_report(project_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
+    await _assert_period_editable(db, project_id, period_id)
+    await db.execute(
+        delete(ProjectStatusItem).where(ProjectStatusItem.project_id == project_id, ProjectStatusItem.period_id == period_id)
+    )
+    await db.execute(
+        delete(ProjectHealthItem).where(ProjectHealthItem.project_id == project_id, ProjectHealthItem.period_id == period_id)
+    )
+    await db.execute(
+        delete(HealthDeclaration).where(
+            HealthDeclaration.project_id == project_id, HealthDeclaration.period_id == period_id
+        )
+    )
+    report = (
+        (
+            await db.execute(
+                select(ProjectStatusReport).where(
+                    ProjectStatusReport.project_id == project_id, ProjectStatusReport.period_id == period_id
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if report is not None:
+        report.revenue = None
+        report.onsite_fte = None
+        report.offshore_fte = None
+        report.projects_count = None
+        report.customer_report_shared = None
+        report.customer_report_date = None
+        report.customer_report_confidential = False
+        # The uploaded customer file (and its reference) is an attachment — kept.
+        report.customer_remarks = None
+    await db.flush()
 
 
 @items_router.get("", response_model=list[ProjectStatusItemRead], dependencies=_pm_read)

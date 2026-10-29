@@ -34,6 +34,8 @@ export type Account = {
   description: string | null;
   is_active: boolean;
   tool_effective_date: string | null;
+  // Yes = the account owes the customer a QBR every quarter.
+  critical_flag: "Yes" | "No";
 };
 
 export type PeriodType = "Weekly" | "Monthly" | "Baseline";

@@ -93,9 +93,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // For multipart uploads (document-processing) — deliberately omits
 // Content-Type so fetch sets its own multipart boundary; a FormData body
 // can't be JSON.stringify'd like request()'s other callers.
-async function postForm<T>(path: string, formData: FormData): Promise<T> {
+async function sendForm<T>(method: "POST" | "PUT", path: string, formData: FormData): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
+    method,
     credentials: "include",
     headers: { "X-API-Key": API_KEY },
     body: formData,
@@ -138,7 +138,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) }),
-  postForm: <T>(path: string, formData: FormData) => postForm<T>(path, formData),
+  postForm: <T>(path: string, formData: FormData) => sendForm<T>("POST", path, formData),
+  putForm: <T>(path: string, formData: FormData) => sendForm<T>("PUT", path, formData),
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PUT", body: body === undefined ? undefined : JSON.stringify(body) }),
   patch: <T>(path: string, body?: unknown) =>

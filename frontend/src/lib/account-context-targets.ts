@@ -22,7 +22,7 @@ export const ACCOUNT_TARGETS: Record<AccountTargetId, AccountTarget> = {
     emptyLabel: "No accounts assigned yet.",
   },
   "account-communications": {
-    label: "Record Account Presentation",
+    label: "Update Account QBR",
     hrefFor: (id) => `/account-reporting/${id}/customer-communications`,
     emptyLabel: "No accounts assigned yet.",
   },

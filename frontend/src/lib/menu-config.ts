@@ -1,10 +1,9 @@
 import type { RoleCode } from "@/lib/api/auth";
-import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
+import { ACCOUNT_MANAGER_LABEL, PMO_LABEL } from "@/lib/role-labels";
 
 // Which sidebar entries each role sees, and where their login lands them.
-// Admin keeps only the admin-specific screens (plus PMO, which has no
-// Work-as option). Everything owned by PM / Account Head / Geo Head / DE /
-// CXO is reached by switching the top-bar "Work as" combo to that role —
+// Admin keeps only the admin-specific screens. Everything owned by PM /
+// Account Head / Geo Head / DE / CXO / PMO is reached by switching the top-bar "Work as" combo to that role —
 // see WORK_CONTEXTS below (and docs/ux-requirements.md §5).
 export type MenuEntryId =
   | "dashboard"
@@ -46,6 +45,7 @@ export type MenuEntryId =
   | "high-risks"
   | "delivery-health"
   | "projects-health"
+  | "account-qbr"
   | "admin-users-roles"
   | "admin-integrations"
   | "admin-regions"
@@ -77,7 +77,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
       items: ["projects-health", "project-performance"],
     },
     {
-      heading: "Report Status & Performance",
+      heading: "Update Status & Performance",
       items: ["delivery-reporting", "performance-reporting"],
     },
     {
@@ -93,36 +93,35 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
   DELIVERY_EXCELLENCE: [
     { items: ["delivery-excellence-dashboard"] },
     {
-      heading: "My Worklist",
-      items: [
-        "de-project-requests",
-        "project-activity-restriction",
-        "de-allocation",
-        "de-approval",
-        "de-assessment",
-        "de-findings",
-        "de-projects",
-        "reassignment",
-      ],
+      heading: "DE Worklists",
+      items: ["project-activity-restriction", "de-assessment", "de-findings", "de-projects"],
+    },
+    {
+      heading: "DE Approvals",
+      items: ["de-project-requests", "de-allocation", "de-approval", "reassignment"],
     },
     {
       heading: "My Reports",
       items: ["actions"],
     },
   ],
-  // No PMO login exists yet — this is wired the same way as every other
-  // role's My Summary, ready for when a PMO user can sign in (see
-  // pmo-my-summary.tsx). Out of scope for grouping.
-  PMO: [{ items: ["project-health"] }],
+  // PMO sees every CXO screen except Project Performance.
+  PMO: [
+    { items: ["cxo-dashboard"] },
+    {
+      heading: "Status & Performance Dashboards",
+      items: ["executive-risk", "high-risks", "delivery-health", "projects-health"],
+    },
+  ],
   ACCOUNT_MANAGER: [
     { items: ["account-manager-dashboard"] },
     {
       heading: "Status & Performance Dashboards",
-      items: ["delivery-health", "projects-health", "project-performance"],
+      items: ["delivery-health", "projects-health", "project-performance", "account-qbr"],
     },
     {
-      heading: "Report Status & Performance",
-      items: ["account-reporting", "delivery-reporting", "performance-reporting"],
+      heading: "Update Status & Performance",
+      items: ["account-reporting", "account-communications", "delivery-reporting", "performance-reporting"],
     },
     {
       heading: "Approvals & Assignments",
@@ -141,11 +140,11 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     { items: ["geo-head-dashboard"] },
     {
       heading: "Status & Performance Dashboards",
-      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance"],
+      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance", "account-qbr"],
     },
     {
-      heading: "Report Status & Performance",
-      items: ["leadership-reporting", "account-reporting", "delivery-reporting", "performance-reporting"],
+      heading: "Update Status & Performance",
+      items: ["leadership-reporting", "account-reporting", "account-communications", "delivery-reporting", "performance-reporting"],
     },
     {
       heading: "Approvals & Assignments",
@@ -164,7 +163,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     { items: ["cxo-dashboard"] },
     {
       heading: "Status & Performance Dashboards",
-      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance"],
+      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance", "account-qbr"],
     },
   ],
   // Admin-only screens. Everything else (PM / Account Head / Geo Head / DE /
@@ -236,6 +235,7 @@ export const WORK_CONTEXTS: Partial<Record<RoleCode, RoleCode[]>> = {
     "ADMIN",
     "PROJECT_MANAGER",
     "ACCOUNT_MANAGER",
+    "PMO",
     "GEO_HEAD",
     "DELIVERY_EXCELLENCE",
     "CXO",
@@ -249,6 +249,6 @@ export const WORK_CONTEXT_LABEL: Record<RoleCode, string> = {
   CXO: "CXO",
   TEAM_MEMBER: "Team Member",
   DELIVERY_EXCELLENCE: "DE",
-  PMO: "PMO",
+  PMO: PMO_LABEL,
   ADMIN: "Admin",
 };

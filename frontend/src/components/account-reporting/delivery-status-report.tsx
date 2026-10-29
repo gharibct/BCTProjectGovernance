@@ -9,12 +9,13 @@ import { cn } from "@/lib/utils";
 
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { CopyFromLatestButton, ReplaceFromLatestDialog } from "@/components/forms/copy-from-latest-button";
+import { ClearReportButton, ClearReportDialog } from "@/components/forms/clear-report-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageBanner } from "@/stores/page-banner";
 import { unsavedItemsMessage } from "@/lib/unsaved-items";
 import { useAccounts } from "@/lib/api/reference-data";
-import { useCopyAccountItemsFromLatest } from "@/lib/api/regional-status";
+import { useClearAccountReport, useCopyAccountItemsFromLatest } from "@/lib/api/regional-status";
 import { useUploadReportAttachment } from "@/lib/api/report-attachments";
 import { ReportAttachmentsSection } from "@/components/reporting/report-attachments-section";
 import { STATUS_CATEGORIES as TABS } from "@/lib/status-categories";
@@ -36,6 +37,7 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
     metrics,
     setMetric,
     copyMetricsFromLatest,
+    clearMetrics,
     rollupItems,
     handlePull,
     handlePullAll,
@@ -90,6 +92,23 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
   const copyFromLatest = () => {
     if (existing || health.hasSavedRatings) setConfirmReplace(true);
     else void runCopy(false);
+  };
+
+  // "Clear Report": after the user confirms, the server empties both registers,
+  // the six ratings and Key Metrics; the local Key Metrics state is reset here
+  // (it only re-syncs when the report row changes). Ratings fall back to their
+  // defaults on their own once the saved declaration is gone.
+  const clearReport = useClearAccountReport(accountId);
+  const [confirmClear, setConfirmClear] = React.useState(false);
+  const runClear = async () => {
+    if (!periodId) return;
+    try {
+      await clearReport.mutateAsync(periodId);
+      clearMetrics();
+      showSuccess("Report cleared. You can now copy from the latest report or pull from projects.");
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to clear the report.");
+    }
   };
 
   // One Save Report for the whole page: report metrics first, then the six RAG
@@ -151,8 +170,17 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
             }}
           />
           <CopyFromLatestButton onClick={copyFromLatest} busy={copyItems.isPending} />
+          <ClearReportButton onClick={() => setConfirmClear(true)} busy={clearReport.isPending} />
         </div>
       ) : null}
+      <ClearReportDialog
+        open={confirmClear}
+        onOpenChange={setConfirmClear}
+        onConfirm={() => {
+          setConfirmClear(false);
+          void runClear();
+        }}
+      />
       <ReplaceFromLatestDialog
         open={confirmReplace}
         onOpenChange={setConfirmReplace}

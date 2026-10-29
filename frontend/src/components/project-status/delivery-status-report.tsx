@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { CopyFromLatestButton, ReplaceFromLatestDialog } from "@/components/forms/copy-from-latest-button";
+import { ClearReportButton, ClearReportDialog } from "@/components/forms/clear-report-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePageBanner } from "@/stores/page-banner";
@@ -22,6 +23,7 @@ import {
   isReportFrozen,
   previousPeriodReport,
   statusMetricsFromReport,
+  useClearStatusReport,
   useCopyStatusItemsFromLatest,
   useCreateStatusReport,
   useStatusReports,
@@ -215,6 +217,25 @@ export function DeliveryStatusReport() {
     else void runCopy(false);
   };
 
+  // "Clear Report": after the user confirms, the server empties both registers,
+  // the six ratings, Key Metrics and Customer Communication; the local form
+  // state is reset here (it only re-syncs when the report row changes). Ratings
+  // fall back to their defaults once the saved declaration is gone.
+  const clearReport = useClearStatusReport(projectId ?? null);
+  const [confirmClear, setConfirmClear] = React.useState(false);
+  const runClear = async () => {
+    if (!periodId) return;
+    try {
+      await clearReport.mutateAsync(periodId);
+      setMetrics({ ...BLANK_METRICS });
+      setCustomer(BLANK_CUSTOMER_COMMUNICATION);
+      setCustomerErrors({});
+      showSuccess("Report cleared. You can now copy from the latest report.");
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Failed to clear the report.");
+    }
+  };
+
   // One Save Report for the whole page: report fields first (Key Metrics +
   // Customer Communication), then the six RAG ratings. Line items in the
   // registers already saved per row as they were edited.
@@ -237,10 +258,20 @@ export function DeliveryStatusReport() {
   return (
     <div className="flex flex-col gap-8">
       {periodId && !frozen ? (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-3">
           <CopyFromLatestButton onClick={copyFromLatest} busy={copyItems.isPending} />
+          <ClearReportButton onClick={() => setConfirmClear(true)} busy={clearReport.isPending} />
         </div>
       ) : null}
+      <ClearReportDialog
+        open={confirmClear}
+        onOpenChange={setConfirmClear}
+        extra="customer communication"
+        onConfirm={() => {
+          setConfirmClear(false);
+          void runClear();
+        }}
+      />
       <ReplaceFromLatestDialog
         open={confirmReplace}
         onOpenChange={setConfirmReplace}

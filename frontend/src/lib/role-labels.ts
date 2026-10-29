@@ -6,8 +6,14 @@
 export const ACCOUNT_MANAGER_LABEL = "Delivery Manager";
 export const ACCOUNT_MANAGER_LABEL_PLURAL = "Delivery Managers";
 
+// Display name of the PMO role — same rule: the code stays PMO, only the label
+// changes (mirrored in backend/app/core/labels.py).
+export const PMO_LABEL = "Enablers";
+
 // Role name for display. The roles table may still hold the old
-// "Account Manager" name, so the label is applied by code, not trusted from the API.
+// "Account Manager" / "PMO" names, so the label is applied by code, not trusted from the API.
 export function roleDisplayName(role: { code: string; name: string }): string {
-  return role.code === "ACCOUNT_MANAGER" ? ACCOUNT_MANAGER_LABEL : role.name;
+  if (role.code === "ACCOUNT_MANAGER") return ACCOUNT_MANAGER_LABEL;
+  if (role.code === "PMO") return PMO_LABEL;
+  return role.name;
 }

@@ -211,7 +211,10 @@ export function useHealthDeclarationForm() {
   const deAssessedHealth = project?.de_assessed_project_health
     ? RATING_FROM_API[project.de_assessed_project_health]
     : null;
-  const overall = deAssessedHealth ? worstOf([declaredOverall, deAssessedHealth]) : declaredOverall;
+  // Potential Red is a DE-only rating; the project's overall RAG treats it as Amber.
+  const overall = deAssessedHealth
+    ? worstOf([declaredOverall, deAssessedHealth === "potential-red" ? "amber" : deAssessedHealth])
+    : declaredOverall;
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const showSuccess = usePageBanner((state) => state.showSuccess);
@@ -267,14 +270,18 @@ export function useHealthDeclarationForm() {
   };
 }
 
+// Potential Red is only a DE Rating; the Project / Account / Geo RAG scale is
+// Red / Amber / Green, so those pickers pass omitPotentialRed.
 export function HealthPicker({
   value,
   onChange,
   disabled = false,
+  omitPotentialRed = false,
 }: {
   value: HealthRating;
   onChange: (value: HealthRating) => void;
   disabled?: boolean;
+  omitPotentialRed?: boolean;
 }) {
   return (
     <div
@@ -284,7 +291,7 @@ export function HealthPicker({
         disabled && "opacity-60"
       )}
     >
-      {HEALTH_LEVELS.map((level) => (
+      {HEALTH_LEVELS.filter((level) => !omitPotentialRed || level.value !== "potential-red").map((level) => (
         <button
           key={level.value}
           type="button"
@@ -380,6 +387,7 @@ export function HealthDeclaration({
             <HealthPicker
               value={ratings[activeCategory.key]}
               onChange={(value) => setRating(activeCategory.key, value)}
+              omitPotentialRed
             />
           </div>
         </div>
@@ -429,6 +437,7 @@ export function HealthSections({
                     value={ratings[category.key]}
                     onChange={(value) => setRating(category.key, value)}
                     disabled={disabled}
+                    omitPotentialRed
                   />
                 </div>
               </div>

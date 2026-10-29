@@ -8,17 +8,15 @@ import { RegisterTable, type RegisterColumn } from "@/components/forms/register-
 import { cn } from "@/lib/utils";
 import { useProjectHealthDashboardSummary } from "@/lib/api/project-health-dashboard";
 import {
-  fetchAllProjectHealthRows,
   formatGeoRegion,
-  PROJECT_HEALTH_LIST_PATHS,
   useProjectHealthAssessments,
   type AssessmentRow,
 } from "@/lib/api/project-health-lists";
-import { ProjectHealthExportButton } from "./project-health-export-button";
+import { accountBubbleClass, bubbleClass } from "./high-risks";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
-import { ShieldCheck } from "lucide-react";
+import { LayoutGrid, ShieldCheck } from "lucide-react";
 
-import { BackToProjectHealth, Card, ErrorBlock, HealthBadge, RagFilterTiles } from "./project-health-kpi";
+import { AccentSection, BackToProjectHealth, Card, ErrorBlock, HealthBadge, RagFilterTiles } from "./project-health-kpi";
 
 const PAGE_SIZE = 10;
 
@@ -52,15 +50,60 @@ export function ProjectHealthAssessments() {
   const { data: summary } = useProjectHealthDashboardSummary(filters);
   const { data, isLoading, isError, error, refetch } = useProjectHealthAssessments({ ...filters, status: status || undefined, skip, limit: PAGE_SIZE });
 
+  // Same entity cell as View Project RAG / Account RAG: the project, with its
+  // Geo / Region / Account as chips that narrow the page filters.
+  const chip = (className: string, title: string, label: string, apply: () => void) => (
+    <button
+      type="button"
+      className={className}
+      title={title}
+      onClick={(e) => {
+        e.stopPropagation();
+        apply();
+        setSkip(0);
+      }}
+    >
+      {label}
+    </button>
+  );
+
   const columns: RegisterColumn<Row>[] = [
-    { key: "project_label", label: "Project" },
     {
-      key: "geo_name",
-      label: "Geo - Region",
-      render: (row) => formatGeoRegion(row.geo_name, row.region_name),
-      excelValue: (row) => formatGeoRegion(row.geo_name, row.region_name),
+      key: "project_label",
+      label: "Project",
+      render: (row) => (
+        <div className="flex flex-col gap-1.5">
+          <span className="font-semibold text-slate-900">{row.project_label}</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {row.geo_name
+              ? chip(bubbleClass, "Filter by this geo", row.geo_name, () =>
+                  setFilters((f) => ({ ...f, geoId: row.geo_id ?? undefined, regionId: undefined, accountId: undefined })),
+                )
+              : null}
+            {row.region_name
+              ? chip(bubbleClass, "Filter by this region", row.region_name, () =>
+                  setFilters((f) => ({
+                    ...f,
+                    geoId: row.geo_id ?? f.geoId,
+                    regionId: row.region_id ?? undefined,
+                    accountId: undefined,
+                  })),
+                )
+              : null}
+            {row.account_name
+              ? chip(accountBubbleClass, "Filter by this account", row.account_name, () =>
+                  setFilters((f) => ({ ...f, accountId: row.account_id ?? undefined })),
+                )
+              : null}
+          </div>
+        </div>
+      ),
+      // The export keeps Geo - Region and Account in the project cell's text.
+      excelValue: (row) =>
+        [row.project_label, formatGeoRegion(row.geo_name, row.region_name), row.account_name]
+          .filter((v) => v && v !== "—")
+          .join(" | "),
     },
-    { key: "account_name", label: "Account" },
     { key: "pm_health", label: "Project Manager Health", render: (row) => <HealthBadge value={row.pm_health} /> },
     { key: "de_health", label: "DE Health", render: (row) => <HealthBadge value={row.de_health} /> },
     { key: "pci_score", label: "DE Score", render: (row) => (row.pci_score ? `${row.pci_score}%` : "—") },
@@ -115,17 +158,13 @@ export function ProjectHealthAssessments() {
       {isError ? (
         <ErrorBlock title="Couldn't load assessments." error={error} onRetry={() => refetch()} />
       ) : (
-        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex justify-end">
-            <ProjectHealthExportButton
-              filename="project-health-assessments"
-              columns={columns}
-              fetchAll={() => fetchAllProjectHealthRows<Row>(PROJECT_HEALTH_LIST_PATHS.assessments, { ...filters, status: status || undefined })}
-            />
-          </div>
-          <RegisterTable items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No assessments found."} />
+        <AccentSection
+          icon={LayoutGrid}
+          heading={summary?.period_label ? `Projects — ${summary.period_label}` : "Projects"}
+        >
+          <RegisterTable flush items={rows} columns={columns} emptyLabel={isLoading ? "Loading…" : "No assessments found."} />
           <PaginationBar skip={skip} limit={PAGE_SIZE} total={data?.total ?? 0} onPageChange={setSkip} />
-        </div>
+        </AccentSection>
       )}
     </div>
   );

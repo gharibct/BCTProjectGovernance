@@ -149,6 +149,9 @@ class ProjectRead(ProjectBase):
     delivery_declared_overall_health: HealthRating | None = None
     de_assessed_project_health: HealthRating | None = None
     overall_project_health: HealthRating | None = None
+    # Mapped Oracle Project IDs. Filled only by GET /projects (list), from
+    # project_oracle_ids in one batched query — not stored on the project row.
+    oracle_project_ids: list[str] = []
     created_by: UUID | None = None
     updated_by: UUID | None = None
     created_at: datetime
@@ -214,13 +217,20 @@ class ProjectOracleIdBase(BaseModel):
 
 
 class ProjectOracleIdCreate(ProjectOracleIdBase):
-    pass
+    # Contract Documents link; required by POST /oracle-ids, absent on internal
+    # creates (creation request approval, bulk import).
+    contract_url: str | None = None
+
+
+class ProjectOracleIdUpdate(BaseModel):
+    contract_url: str
 
 
 class ProjectOracleIdRead(ProjectOracleIdBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     project_id: UUID
+    contract_url: str | None = None
     created_at: datetime
     # The Oracle project's name from oracle_project_master; None when the ID isn't
     # in the master (not loaded yet, or mistyped).

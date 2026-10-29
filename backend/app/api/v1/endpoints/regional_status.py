@@ -3,7 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_account_geo_scope, require_account_or_geo_scope, require_geo_scope, require_role
@@ -14,7 +14,7 @@ from app.crud.regional_status import (
     geo_status_item_crud,
     geo_status_report_crud,
 )
-from app.models.account_health_declarations import AccountHealthItem
+from app.models.account_health_declarations import AccountHealthDeclaration, AccountHealthItem
 from app.models.projects import Project
 from app.models.project_status import ProjectStatusReport
 from app.models.reference_data import Account, ReportingPeriod
@@ -73,9 +73,10 @@ _account_read = [
             RoleCode.ACCOUNT_MANAGER,
             RoleCode.GEO_HEAD,
             RoleCode.CXO,
+            RoleCode.PMO,
             RoleCode.DELIVERY_EXCELLENCE,
             RoleCode.ADMIN,
-            bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE),
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.PMO, RoleCode.DELIVERY_EXCELLENCE),
         )
     )
 ]
@@ -84,9 +85,10 @@ _geo_read = [
         require_geo_scope(
             RoleCode.GEO_HEAD,
             RoleCode.CXO,
+            RoleCode.PMO,
             RoleCode.DELIVERY_EXCELLENCE,
             RoleCode.ADMIN,
-            bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.DELIVERY_EXCELLENCE),
+            bypass_roles=(RoleCode.ADMIN, RoleCode.CXO, RoleCode.PMO, RoleCode.DELIVERY_EXCELLENCE),
         )
     )
 ]
@@ -520,6 +522,44 @@ async def copy_account_items_from_latest_report(
         source_period_id=status_source or health_source,
         skipped=status_skipped + health_skipped,
     )
+
+
+# "Clear Report": empties this period's Account Delivery Status report — both
+# registers, the six RAG ratings and Key Metrics. Attachments are left alone.
+# Project items already pulled in show as Pending again (their account copy is gone).
+@account_status_items_router.post(
+    "/clear-report", status_code=status.HTTP_204_NO_CONTENT, dependencies=_account_manager_write
+)
+async def clear_account_report(account_id: UUID, period_id: UUID, db: AsyncSession = Depends(get_db)):
+    await _assert_account_period_editable(db, account_id, period_id)
+    await db.execute(
+        delete(AccountStatusItem).where(AccountStatusItem.account_id == account_id, AccountStatusItem.period_id == period_id)
+    )
+    await db.execute(
+        delete(AccountHealthItem).where(AccountHealthItem.account_id == account_id, AccountHealthItem.period_id == period_id)
+    )
+    await db.execute(
+        delete(AccountHealthDeclaration).where(
+            AccountHealthDeclaration.account_id == account_id, AccountHealthDeclaration.period_id == period_id
+        )
+    )
+    report = (
+        (
+            await db.execute(
+                select(AccountStatusReport).where(
+                    AccountStatusReport.account_id == account_id, AccountStatusReport.period_id == period_id
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if report is not None:
+        report.revenue = None
+        report.onsite_fte = None
+        report.offshore_fte = None
+        report.projects_count = None
+    await db.flush()
 
 
 @account_status_items_router.get("", response_model=list[AccountStatusItemRead], dependencies=_account_read)

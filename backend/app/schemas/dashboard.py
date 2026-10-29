@@ -185,10 +185,9 @@ class MyDashboardSummary(BaseModel):
     projects_requiring_attention: int
     health_green: int
     health_amber: int
-    health_potential_red: int
     health_red: int
     # Projects with no health declaration yet at all — health_green/amber/
-    # potential_red/red only cover declared projects, so this is what closes
+    # red only cover declared projects, so this is what closes
     # the gap between them and my_projects_count.
     health_not_assessed: int
     reports_due: ReportsDueSummary
@@ -233,7 +232,6 @@ class AccountPortfolioHealthRow(BaseModel):
     active_projects_count: int
     health_green: int
     health_amber: int
-    health_potential_red: int
     health_red: int
     status_label: str  # "On Track" | "At Risk" | "Critical" | "Not Rated"
 
@@ -263,7 +261,6 @@ class AccountHeadDashboardSummary(BaseModel):
     active_projects_count: int
     health_green: int
     health_amber: int
-    health_potential_red: int
     health_red: int
     awaiting_review_count: int
     high_critical_risks_count: int
@@ -459,7 +456,6 @@ class ProjectPortfolioSummary(BaseModel):
 class ProjectHealthCardSummary(BaseModel):
     green_count: int
     amber_count: int
-    potential_red_count: int
     red_count: int
     reporting_overdue_count: int
 
@@ -471,7 +467,6 @@ class ProjectHealthCardSummary(BaseModel):
 class AccountRagCardSummary(BaseModel):
     green_count: int
     amber_count: int
-    potential_red_count: int
     red_count: int
     reporting_overdue_count: int
 
@@ -589,23 +584,43 @@ class CustomerProjectReportRow(BaseModel):
 class CustomerAccountReportRow(BaseModel):
     account_id: UUID
     account_name: str
+    # Ids back the Geo / Region filter chips on the Account QBR Reporting grid.
+    geo_id: UUID | None = None
     geo_name: str | None = None
+    region_id: UUID | None = None
     region_name: str | None = None
     account_head_name: str | None = None
     geo_head_name: str | None = None
-    onboarded_date: date | None = None
-    status: str  # "Shared with Customer" | "Not Shared"
-    last_shared_date: date | None = None  # latest communication in the previous + current calendar quarter
-    last_title: str | None = None
-    communications_count: int = 0  # communications dated in the previous + current calendar quarter
+    # The account's QBR status in the selected quarter: "Initiated" | "Scheduled" |
+    # "Conducted" | "Not Planned" (no QBR record dated in the quarter).
+    status: str
+    # Conducted QBRs in each of the 3 quarters before the selected one, oldest first
+    # (labels in CustomerAccountReportSummary.previous_quarter_labels).
+    previous_quarters_conducted: list[int] = []
+    # The selected quarter's QBRs: Conducted (by Actual QBR Date) and planned
+    # (Initiated / Scheduled, by Planned QBR Date).
+    current_quarter_conducted: int = 0
+    current_quarter_planned: int = 0
+    next_quarter_open_count: int = 0  # Initiated / Scheduled QBRs planned in the next quarter
+    # The latest Conducted QBR held on or before the selected quarter's end.
+    last_qbr_id: UUID | None = None
+    last_qbr_date: date | None = None
+    last_qbr_title: str | None = None
+    last_qbr_file_name: str | None = None
 
 
-# Customer account reporting on a calendar-quarter cadence: active accounts that
-# shared at least one presentation with the customer in the previous or the
-# current calendar quarter, and those that did not (no entry = not shared).
+# Account QBR Reporting for the current calendar quarter (today's date):
+# critical active accounts by the status of their QBR dated in that quarter.
+# The four counts sum to the critical active accounts in scope.
 class CustomerAccountReportSummary(BaseModel):
-    shared_count: int
-    not_shared_count: int
+    initiated_count: int
+    scheduled_count: int
+    conducted_count: int
+    not_planned_count: int
+    quarter_label: str  # e.g. "Oct-Dec 2026"
+    # Column headers for the drill-down: e.g. ["Jan-Mar 2026", "Apr-Jun 2026", "Jul-Sep 2026"] and "Jan-Mar 2027".
+    previous_quarter_labels: list[str] = []
+    next_quarter_label: str = ""
 
 
 # Weekly Project / Account health buckets for the selected week; the five counts
@@ -613,7 +628,6 @@ class CustomerAccountReportSummary(BaseModel):
 class WeeklyHealthBuckets(BaseModel):
     green_count: int
     amber_count: int
-    potential_red_count: int
     red_count: int
     not_submitted_count: int
 
@@ -835,8 +849,12 @@ class PaymentMilestoneRow(BaseModel):
 class AssessmentRow(BaseModel):
     project_id: UUID
     project_label: str
+    # Ids back the Geo / Region / Account filter chips on the Assessments grid.
+    geo_id: UUID | None = None
     geo_name: str | None = None
+    region_id: UUID | None = None
     region_name: str | None = None
+    account_id: UUID | None = None
     account_name: str | None = None
     assessment_id: UUID | None = None
     pm_health: HealthRating | None = None
@@ -963,14 +981,23 @@ class HighRiskAccountRow(HealthMatrixRow):
     region_name: str | None = None
     delivery_manager_id: UUID | None = None
     delivery_manager_name: str | None = None
-    # "Red" / "Potential Red" / "Amber" / "Green" / "Not Submitted" (Green only
+    # Onsite + Offshore FTE from the account's filed status report for the
+    # period (None when not filed or neither figure was entered).
+    total_fte: float | None = None
+    # "Red" / "Amber" / "Green" / "Not Submitted" (Green only
     # on the Delivery Health Dashboard).
     risk_status: str
+    # Account-level rows only. DE RAG = worst of the account's active projects'
+    # latest Submitted DE assessments dated in the selected week (None = not
+    # assessed); de_assessment_date = the most recent of those. Account RAG =
+    # worst of Delivery RAG and DE RAG on the Red / Amber / Green scale.
+    de_rating: HealthRating | None = None
+    de_assessment_date: date | None = None
+    account_rating: HealthRating | None = None
 
 
 class HighRiskKpis(BaseModel):
     red: int
-    potential_red: int
     amber: int
     not_submitted: int
     # Only counted for the Delivery Health Dashboard (include_green).
@@ -997,6 +1024,8 @@ class ProjectHealthDashboardResponse(BaseModel):
     # Project Manager filter options — PMs of the in-scope projects, before the
     # PM filter itself is applied.
     project_managers: list[DeliveryManagerOption] = []
+    # Delivery Manager filter options — DMs of the in-scope projects' accounts.
+    delivery_managers: list[DeliveryManagerOption] = []
 
 
 class HighRisksResponse(BaseModel):

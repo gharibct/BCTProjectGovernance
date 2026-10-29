@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
-from app.core.labels import ACCOUNT_MANAGER_LABEL
+from app.core.labels import ACCOUNT_MANAGER_LABEL, PMO_LABEL
 from app.crud.reference_data import (
     account_crud,
     geo_crud,
@@ -45,7 +45,7 @@ ROLES = [
     ("PROJECT_MANAGER", "Project Manager", "Owns project charter and delivery"),
     ("TEAM_MEMBER", "Team Member", "Delivery team member"),
     ("DELIVERY_EXCELLENCE", "Delivery Excellence", "DE assessments and governance"),
-    ("PMO", "PMO", "Project Management Office"),
+    ("PMO", PMO_LABEL, "Enablers (formerly Project Management Office)"),
 ]
 
 ORGANIZATIONS = [

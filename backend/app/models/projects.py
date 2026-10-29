@@ -82,6 +82,10 @@ class ProjectOracleId(Base, UUIDPrimaryKey):
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     oracle_project_id: Mapped[str]
+    # SharePoint folder with this Oracle project's contract documents; the folder
+    # name must carry oracle_project_id (services/sharepoint_link.py). NULL only on
+    # mappings made without the form (creation requests, bulk import) until edited.
+    contract_url: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

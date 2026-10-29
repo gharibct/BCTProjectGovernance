@@ -27,7 +27,7 @@ export default function LoginCallbackPage() {
 
   const error = me.isError
     ? me.error instanceof ApiError && me.error.status === 403
-      ? "Your Microsoft account is not registered in Governance One. Contact your administrator."
+      ? "Your Microsoft account is not registered in Governance One. Contact the Delivery Excellence team."
       : "Sign-in could not be completed. Try again."
     : null;
 

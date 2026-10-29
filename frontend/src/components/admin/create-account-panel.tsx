@@ -218,6 +218,7 @@ export function CreateAccountPanel() {
               label: "Active",
               render: (item) => (item.is_active ? "Yes" : "No"),
             },
+            { key: "critical_flag", label: "Critical Flag" },
             {
               key: "tool_effective_date",
               label: "Tool Effective Date",

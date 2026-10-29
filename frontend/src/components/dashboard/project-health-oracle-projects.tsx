@@ -20,6 +20,7 @@ import { useEffectiveRole } from "@/stores/session";
 import { ProjectHealthExportButton } from "./project-health-export-button";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BackToProjectHealth, ErrorBlock, formatDate, StatTile } from "./project-health-kpi";
+import { ContractDocumentsLink } from "@/components/projects/contract-documents-link";
 
 const PAGE_SIZE = 15;
 
@@ -92,6 +93,12 @@ export const oracleProjectColumns: RegisterColumn<Row>[] = [
     label: "Governance Project",
     render: (row) => <MappingPill row={row} />,
     excelValue: (row) => (row.mapped ? (row.governance_project_code ?? "Mapped") : "Not Mapped"),
+  },
+  {
+    key: "contract_url",
+    label: "Contract Docs",
+    render: (row) => <ContractDocumentsLink url={row.contract_url} iconOnly />,
+    excelValue: (row) => row.contract_url ?? "",
   },
 ];
 

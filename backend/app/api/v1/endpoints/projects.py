@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Literal
 from datetime import UTC, datetime
 from uuid import UUID
@@ -35,6 +36,7 @@ from app.schemas.projects import (
     ProjectCreate,
     ProjectOracleIdCreate,
     ProjectOracleIdRead,
+    ProjectOracleIdUpdate,
     ProjectRead,
     ProjectResourceCreate,
     ProjectResourceRead,
@@ -47,6 +49,8 @@ from app.services.amendment import active_amendment, initiate_amendment
 from app.services.approval_readiness import compute_approval_readiness
 from app.services.code_generator import generate_code
 from app.services.oracle_project_profile import oracle_project_descriptions
+from app.services.oracle_id_validation import oracle_id_blockers
+from app.services.sharepoint_link import validate_contract_url
 from app.services.oracle_resource_allocation import (
     list_resource_allocations,
     resource_allocation_detail,
@@ -111,7 +115,9 @@ async def list_projects(
         items, total = await project_crud.list(
             db, skip=pagination.skip, limit=pagination.limit, order_by=Project.updated_at.desc()
         )
-        return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
+        return Page(
+            items=await _with_oracle_ids(db, items), total=total, skip=pagination.skip, limit=pagination.limit
+        )
 
     total = (
         await db.execute(select(func.count()).select_from(Project).where(*conditions))
@@ -125,7 +131,28 @@ async def list_projects(
             .limit(pagination.limit)
         )
     ).scalars().all()
-    return Page(items=list(items), total=total, skip=pagination.skip, limit=pagination.limit)
+    return Page(
+        items=await _with_oracle_ids(db, items), total=total, skip=pagination.skip, limit=pagination.limit
+    )
+
+
+async def _with_oracle_ids(db: AsyncSession, projects: Sequence[Project]) -> list[ProjectRead]:
+    """Attach each project's mapped Oracle Project IDs — one indexed IN query
+    for the whole page rather than one per project."""
+    ids = [p.id for p in projects]
+    by_project: dict[UUID, list[str]] = {}
+    if ids:
+        rows = await db.execute(
+            select(ProjectOracleId.project_id, ProjectOracleId.oracle_project_id)
+            .where(ProjectOracleId.project_id.in_(ids))
+            .order_by(ProjectOracleId.created_at)
+        )
+        for project_id, oracle_id in rows:
+            by_project.setdefault(project_id, []).append(oracle_id)
+    return [
+        ProjectRead.model_validate(p).model_copy(update={"oracle_project_ids": by_project.get(p.id, [])})
+        for p in projects
+    ]
 
 
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED, dependencies=_pm_create)
@@ -155,6 +182,9 @@ async def bulk_create_project(
     oracle_project_id = payload.oracle_project_id.strip()
     if not oracle_project_id:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Oracle Project ID is required.")
+    blocker = (await oracle_id_blockers(db, [oracle_project_id])).get(oracle_project_id)
+    if blocker:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, blocker)
     if payload.region_id is not None and payload.geo_id is not None:
         region = await db.get(Region, payload.region_id)
         if region is None or region.geo_id != payload.geo_id:
@@ -383,9 +413,48 @@ async def list_oracle_ids(project_id: UUID, db: AsyncSession = Depends(get_db)):
     dependencies=_baseline_write,
 )
 async def add_oracle_id(project_id: UUID, payload: ProjectOracleIdCreate, db: AsyncSession = Depends(get_db)):
-    item = await project_oracle_id_crud.create(db, payload, project_id=project_id)
+    """Map an Oracle project together with its Contract Documents link. The ID must
+    exist in the Oracle project master and not be claimed by another project or a
+    pending creation request (services/oracle_id_validation.py)."""
+    oracle_project_id = payload.oracle_project_id.strip()
+    if not oracle_project_id:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Oracle Project ID is required.")
+    blocker = (await oracle_id_blockers(db, [oracle_project_id])).get(oracle_project_id)
+    if blocker:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, blocker)
+    contract_url = (payload.contract_url or "").strip()
+    error = validate_contract_url(contract_url, oracle_project_id)
+    if error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, error)
+    item = await project_oracle_id_crud.create(
+        db,
+        ProjectOracleIdCreate(oracle_project_id=oracle_project_id, contract_url=contract_url),
+        project_id=project_id,
+    )
     descriptions = await oracle_project_descriptions(db, [item.oracle_project_id])
     return _oracle_id_read(item, descriptions)
+
+
+@router.patch(
+    "/{project_id}/oracle-ids/{oracle_id_id}", response_model=ProjectOracleIdRead, dependencies=_baseline_write
+)
+async def update_oracle_id(
+    project_id: UUID, oracle_id_id: UUID, payload: ProjectOracleIdUpdate, db: AsyncSession = Depends(get_db)
+):
+    """Edit an Oracle project's Contract Documents link (the ID itself is fixed —
+    remove and re-add to change it)."""
+    obj = await project_oracle_id_crud.get(db, oracle_id_id)
+    if obj is None or obj.project_id != project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Oracle ID mapping not found")
+    contract_url = payload.contract_url.strip()
+    error = validate_contract_url(contract_url, obj.oracle_project_id)
+    if error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, error)
+    obj.contract_url = contract_url
+    await db.flush()
+    await db.refresh(obj)
+    descriptions = await oracle_project_descriptions(db, [obj.oracle_project_id])
+    return _oracle_id_read(obj, descriptions)
 
 
 @router.delete(

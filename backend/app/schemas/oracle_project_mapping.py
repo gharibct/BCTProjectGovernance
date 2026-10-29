@@ -38,3 +38,5 @@ class OracleProjectRow(BaseModel):
     mapped: bool
     # A governance project this Oracle project is mapped to (lowest code when several).
     governance_project_code: str | None
+    # This Oracle project's Contract Documents link (SharePoint), when captured.
+    contract_url: str | None = None

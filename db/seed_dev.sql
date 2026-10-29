@@ -11,7 +11,7 @@ INSERT INTO roles (id, code, name, description) VALUES
     (gen_random_uuid(), 'PROJECT_MANAGER', 'Project Manager', 'Owns project charter and delivery'),
     (gen_random_uuid(), 'TEAM_MEMBER', 'Team Member', 'Delivery team member'),
     (gen_random_uuid(), 'DELIVERY_EXCELLENCE', 'Delivery Excellence', 'DE assessments and governance'),
-    (gen_random_uuid(), 'PMO', 'PMO', 'Project Management Office');
+    (gen_random_uuid(), 'PMO', 'Enablers', 'Enablers (formerly Project Management Office)');
 
 INSERT INTO organizations (id, code, name, is_active, created_at, updated_at) VALUES
     (gen_random_uuid(), 'BCTPL', 'BCT Private Limited', true, now(), now()),

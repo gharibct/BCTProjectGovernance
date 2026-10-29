@@ -15,6 +15,15 @@ class HealthRating(StrEnum):
     GREEN = "Green"
 
 
+class RagRating(StrEnum):
+    """Scale for the Project / Account / Geo Delivery Status RAG declarations.
+    Potential Red is a DE Rating only (HealthRating), not a declarable RAG value."""
+
+    RED = "Red"
+    AMBER = "Amber"
+    GREEN = "Green"
+
+
 # Worst-to-best severity order, used by services.health_rollup for "worst wins" rollups.
 HEALTH_RATING_SEVERITY = [HealthRating.RED, HealthRating.POTENTIAL_RED, HealthRating.AMBER, HealthRating.GREEN]
 
@@ -521,6 +530,15 @@ class RollupStatus(StrEnum):
     PENDING = "Pending"
     PULLED = "Pulled"
     IGNORED = "Ignored"
+
+
+class QbrStatus(StrEnum):
+    """account_customer_communications.status — where an account's QBR stands.
+    Only a Conducted QBR counts as shared with the customer."""
+
+    INITIATED = "Initiated"
+    SCHEDULED = "Scheduled"
+    CONDUCTED = "Conducted"
 
 
 class DocumentContext(StrEnum):

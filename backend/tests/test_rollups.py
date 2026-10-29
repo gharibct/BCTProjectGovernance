@@ -249,8 +249,8 @@ def test_account_rag_must_be_same_or_worse_than_projects_per_parameter():
     assert rag_violations(green, [("P3", green)]) == []
     # Account RAG not set yet while a project is Amber -> blocked.
     assert rag_violations(None, [("P1", amber_people)])
-    # Amber project, account Potential Red -> allowed.
-    assert rag_violations({**green, "people_rating": "Potential Red"}, [("P1", amber_people)]) == []
+    # Amber project, account Red -> allowed.
+    assert rag_violations({**green, "people_rating": "Red"}, [("P1", amber_people)]) == []
 
 
 

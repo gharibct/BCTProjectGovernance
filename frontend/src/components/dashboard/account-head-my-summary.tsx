@@ -89,7 +89,6 @@ export function AccountHeadMySummary() {
                 <span className="flex items-baseline gap-3">
                   <span className="text-emerald-600">{data.health_green}</span>
                   <span className="text-amber-500">{data.health_amber}</span>
-                  <span className="text-orange-600">{data.health_potential_red}</span>
                   <span className="text-red-600">{data.health_red}</span>
                 </span>
               }

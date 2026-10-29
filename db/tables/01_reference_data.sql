@@ -76,6 +76,9 @@ CREATE TABLE accounts (
     -- restriction (current behavior) for reporting "owed" calculations —
     -- see services/reporting_activity.py and services/dashboard.py.
     tool_effective_date DATE,
+    -- Yes / No (YesNo). Yes = the account owes the customer a QBR every
+    -- quarter; only critical accounts are judged on Customer Account Reporting.
+    critical_flag TEXT NOT NULL DEFAULT 'No',
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );

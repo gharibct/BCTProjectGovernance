@@ -95,6 +95,11 @@ CREATE TABLE project_oracle_ids (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     oracle_project_id TEXT NOT NULL,
+    -- Contract Documents link: SharePoint folder (BCT_Finance site) whose name
+    -- contains oracle_project_id (validated by the app). Required on the Link
+    -- Contract Documents screen; NULL on mappings made by creation-request
+    -- approval / bulk import until the PM edits them.
+    contract_url TEXT,
     created_at TIMESTAMPTZ NOT NULL,
 
     UNIQUE (project_id, oracle_project_id)

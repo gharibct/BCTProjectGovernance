@@ -32,7 +32,7 @@ export function ProjectHealthExportButton<T extends Record<string, unknown>>({
         toast.info("Nothing to export.");
         return;
       }
-      const headers = columns.map((c) => c.label);
+      const headers = columns.map((c) => (c.subLabel ? `${c.label} (${c.subLabel})` : c.label));
       const rows = data.map((item) =>
         columns.map((c) => {
           const value = c.excelValue ? c.excelValue(item) : (item[c.key] as unknown);

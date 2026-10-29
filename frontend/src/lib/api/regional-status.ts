@@ -309,6 +309,24 @@ export function useCopyAccountItemsFromLatest(accountId: string | null) {
   });
 }
 
+// "Clear Report": empties this period's Account Delivery Status report
+// (registers, RAG ratings, Key Metrics) on the server.
+export function useClearAccountReport(accountId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (periodId: string) =>
+      api.post<void>(`/accounts/${accountId}/status-items/clear-report?period_id=${periodId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regional-status-items", "account", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account-health-items", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["account-health-declarations", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["regional-status-reports", "account", accountId] });
+      queryClient.invalidateQueries({ queryKey: ["regional-status-report-latest", "account", accountId] });
+      invalidateReportingDerived(queryClient);
+    },
+  });
+}
+
 // Select-Account grid: the report state of every account for one period
 // (GET /account-status-reports/by-period). Accounts with no row have no report yet.
 export function useAccountReportStatusByPeriod(periodId: string | null) {

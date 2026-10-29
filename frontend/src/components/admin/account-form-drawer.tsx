@@ -28,7 +28,7 @@ import { useAccountHead, useSetAccountHead } from "@/lib/api/users";
 import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 
 function toValues(account: Account | null): Record<string, string> {
-  if (!account) return { is_active: "Yes" };
+  if (!account) return { is_active: "Yes", critical_flag: "No" };
   return {
     name: account.name,
     geo_id: account.geo_id ?? "",
@@ -36,6 +36,7 @@ function toValues(account: Account | null): Record<string, string> {
     description: account.description ?? "",
     is_active: account.is_active ? "Yes" : "No",
     tool_effective_date: account.tool_effective_date ?? "",
+    critical_flag: account.critical_flag,
   };
 }
 
@@ -47,6 +48,7 @@ export function buildAccountPayload(values: Record<string, string>): AccountPayl
     description: values.description || undefined,
     is_active: values.is_active !== "No",
     tool_effective_date: values.tool_effective_date || undefined,
+    critical_flag: values.critical_flag === "Yes" ? "Yes" : "No",
   };
 }
 
@@ -71,6 +73,13 @@ export function buildAccountFields(geos: Geo[], regions: Region[], selectedGeoId
       choices: regions.filter((r) => r.geo_id === selectedGeoId).map((r) => ({ value: r.id, label: r.name })),
     },
     { key: "is_active", label: "Active", kind: "select", options: ["Yes", "No"] },
+    {
+      key: "critical_flag",
+      label: "Critical Flag",
+      kind: "select",
+      options: ["Yes", "No"],
+      hint: "Yes = a QBR with the customer is mandatory every quarter.",
+    },
     {
       key: "description",
       label: "Description",

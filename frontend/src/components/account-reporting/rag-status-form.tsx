@@ -290,6 +290,7 @@ function AccountRagStatusFormInner() {
             value={ratings[activeCategory.key]}
             onChange={(value) => setRating(activeCategory.key, value)}
             disabled={frozen}
+            omitPotentialRed
           />
         </div>
       </div>
@@ -376,6 +377,7 @@ export function AccountHealthSections({
                     value={ratings[category.key]}
                     onChange={(value) => setRating(category.key, value)}
                     disabled={frozen}
+                    omitPotentialRed
                   />
                 </div>
               </div>

@@ -19,7 +19,7 @@ from tests.test_authorization import override_auth
 pytestmark = pytest.mark.asyncio
 
 
-async def test_health_split_gives_potential_red_its_own_bucket():
+async def test_health_split_folds_leftover_potential_red_into_amber():
     rows = [
         SimpleNamespace(overall_rating=HealthRating.GREEN),
         SimpleNamespace(overall_rating=HealthRating.AMBER),
@@ -27,23 +27,21 @@ async def test_health_split_gives_potential_red_its_own_bucket():
         SimpleNamespace(overall_rating=HealthRating.RED),
         SimpleNamespace(overall_rating=None),
     ]
-    green, amber, potential_red, red = dashboard_service.health_split(rows)
-    assert (green, amber, potential_red, red) == (1, 1, 1, 1)
-    # Potential Red must not be folded into the red count.
-    assert red == 1
+    green, amber, red = dashboard_service.health_split(rows)
+    assert (green, amber, red) == (1, 2, 1)
 
 
-async def test_account_portfolio_health_separates_potential_red():
+async def test_account_portfolio_health_counts_red_and_amber():
     account_id = uuid4()
     project_matrix = [
-        SimpleNamespace(account_id=account_id, overall_rating=HealthRating.POTENTIAL_RED),
+        SimpleNamespace(account_id=account_id, overall_rating=HealthRating.AMBER),
         SimpleNamespace(account_id=account_id, overall_rating=HealthRating.RED),
     ]
     account_matrix = [
         SimpleNamespace(entity_id=account_id, entity_label="Acme", overall_rating=HealthRating.RED),
     ]
     [row] = dashboard_service.account_portfolio_health(project_matrix, account_matrix)
-    assert row.health_potential_red == 1
+    assert row.health_amber == 1
     assert row.health_red == 1
 
 
@@ -572,7 +570,7 @@ async def test_project_health_week_summary_buckets_sum_to_active(session_factory
         assert buckets.green_count == 1
         assert buckets.not_submitted_count == 2  # Draft report and missing report both count as Not Submitted
         assert (
-            buckets.green_count + buckets.amber_count + buckets.potential_red_count + buckets.red_count
+            buckets.green_count + buckets.amber_count + buckets.red_count
             + buckets.not_submitted_count
         ) == len(ids)
 
@@ -651,48 +649,78 @@ async def test_customer_project_report_summary_splits_shared_not_shared_not_subm
         assert summary.not_submitted_count == 2  # Draft + missing; the not-yet-started project owes nothing
 
 
-async def test_customer_account_report_summary_previous_and_current_quarter(session_factory):
+async def test_account_qbr_summary_for_selected_quarter(session_factory):
     from app.models.customer_communications import AccountCustomerCommunication
 
-    today = date.today()
-    prev_start, prev_end, current_start = dashboard_service._calendar_quarter_bounds(today)
-
-    async def make_account(session, name, onboarded):
+    async def make_account(session, name, critical="Yes"):
         account = Account(
-            id=uuid4(), name=name, is_active=True, tool_effective_date=onboarded, created_at=_now(), updated_at=_now()
+            id=uuid4(), name=name, is_active=True, tool_effective_date=date(2024, 1, 1), critical_flag=critical,
+            created_at=_now(), updated_at=_now(),
         )
         session.add(account)
         await session.commit()
         return account
 
-    async def communicate(session, account, when):
+    async def qbr(session, account, status, planned, actual=None):
         session.add(
             AccountCustomerCommunication(
-                id=uuid4(), account_id=account.id, reporting_date=when, title="QBR", file_name="q.pdf",
-                file_path="x/q.pdf", created_at=_now(), updated_at=_now(),
+                id=uuid4(), account_id=account.id, planned_date=planned, actual_date=actual,
+                status=status, title="QBR", file_name="q.pdf", file_path="x/q.pdf", created_at=_now(), updated_at=_now(),
             )
         )
         await session.commit()
 
     async with session_factory() as session:
-        old = today - timedelta(days=800)
-        recent = await make_account(session, "Recent", old)
-        stale = await make_account(session, "Stale", old)
-        silent = await make_account(session, "Silent", old)
-        current_only = await make_account(session, "CurrentOnly", old)
-        onboarded_now = await make_account(session, "OnboardedNow", current_start)  # no special "New" status
-        await communicate(session, recent, prev_start + timedelta(days=5))
-        await communicate(session, recent, prev_end)  # last day of the previous quarter counts
-        await communicate(session, stale, prev_start - timedelta(days=1))  # the quarter before is outside the window
-        await communicate(session, current_only, current_start)  # the current quarter counts too
+        today = date(2026, 8, 6)  # Jul-Sep 2026
+        conducted = await make_account(session, "Conducted")
+        scheduled = await make_account(session, "Scheduled")
+        initiated = await make_account(session, "Initiated")
+        not_planned = await make_account(session, "NotPlanned")
+        last_quarter = await make_account(session, "LastQuarter")
+        optional = await make_account(session, "Optional", critical="No")  # owes no QBR: left out
+        # Conducted in the quarter, and its follow-up Initiated in the next: Conducted wins.
+        await qbr(session, conducted, "Conducted", date(2026, 6, 25), date(2026, 7, 2))
+        await qbr(session, conducted, "Initiated", date(2026, 10, 5))
+        await qbr(session, scheduled, "Scheduled", date(2026, 9, 30))  # last day of the quarter counts
+        await qbr(session, initiated, "Initiated", date(2026, 8, 20))
+        await qbr(session, not_planned, "Initiated", date(2026, 10, 1))  # next quarter
+        await qbr(session, last_quarter, "Conducted", date(2026, 6, 1), date(2026, 6, 30))
+        await qbr(session, optional, "Conducted", date(2026, 7, 1), date(2026, 7, 1))
 
-        summary = await dashboard_service.customer_account_report_summary(
-            session, [recent.id, stale.id, silent.id, current_only.id, onboarded_now.id]
+        ids = [a.id for a in (conducted, scheduled, initiated, not_planned, last_quarter, optional)]
+        summary = await dashboard_service.customer_account_report_summary(session, ids, today)
+        assert (
+            summary.conducted_count,
+            summary.scheduled_count,
+            summary.initiated_count,
+            summary.not_planned_count,
+        ) == (1, 1, 1, 2)
+        assert summary.quarter_label == "Jul-Sep 2026"
+
+        items, total = await dashboard_service.list_customer_account_reports_for_health(session, ids, 0, 10, today=today)
+        assert total == 5
+        assert [r.status for r in items] == ["Not Planned", "Not Planned", "Initiated", "Scheduled", "Conducted"]
+        assert summary.previous_quarter_labels == ["Oct-Dec 2025", "Jan-Mar 2026", "Apr-Jun 2026"]
+        assert summary.next_quarter_label == "Oct-Dec 2026"
+        by_name = {r.account_name: r for r in items}
+        row = by_name["Conducted"]
+        assert (row.current_quarter_conducted, row.current_quarter_planned, row.next_quarter_open_count) == (1, 0, 1)
+        assert (row.last_qbr_date, row.last_qbr_title) == (date(2026, 7, 2), "QBR")
+        assert by_name["LastQuarter"].previous_quarters_conducted == [0, 0, 1]
+        assert by_name["LastQuarter"].last_qbr_date == date(2026, 6, 30)
+        assert by_name["NotPlanned"].next_quarter_open_count == 1
+        items, total = await dashboard_service.list_customer_account_reports_for_health(
+            session, ids, 0, 10, status="Scheduled", today=today
         )
+        assert (total, items[0].current_quarter_planned, items[0].last_qbr_date) == (1, 1, None)
 
-        # recent + current_only are Shared; stale, silent and the just-onboarded account are Not Shared.
-        assert (summary.shared_count, summary.not_shared_count) == (2, 3)
-        assert not hasattr(summary, "new_count")
+
+def test_qbr_quarter_label():
+    assert dashboard_service.qbr_quarter(date(2026, 12, 31))[2] == "Oct-Dec 2026"
+    assert dashboard_service.qbr_quarter(date(2026, 1, 4))[:2] == (
+        date(2026, 1, 1),
+        date(2026, 3, 31),
+    )
 
 
 async def test_calendar_quarter_bounds():
@@ -728,24 +756,3 @@ async def test_customer_report_list_functions_filter_by_status_and_page(session_
         assert (total, len(items)) == (1, 1)
         items, total = await dashboard_service.list_customer_project_reports_for_health(session, ids, week, 1, 1)
         assert (total, len(items)) == (2, 1)
-
-        old = date.today() - timedelta(days=800)
-        account = Account(id=uuid4(), name="Acme", is_active=True, tool_effective_date=old, created_at=_now(), updated_at=_now())
-        session.add(account)
-        await session.commit()
-        session.add(
-            AccountCustomerCommunication(
-                id=uuid4(), account_id=account.id, reporting_date=dashboard_service._calendar_quarter_bounds(date.today())[0], title="QBR",
-                file_name="q.pdf", file_path="x/q.pdf", created_at=_now(), updated_at=_now(),
-            )
-        )
-        await session.commit()
-
-        items, total = await dashboard_service.list_customer_account_reports_for_health(session, [account.id], 0, 10)
-        assert total == 1
-        row = items[0]
-        assert (row.status, row.last_title, row.communications_count) == ("Shared with Customer", "QBR", 1)
-        items, total = await dashboard_service.list_customer_account_reports_for_health(
-            session, [account.id], 0, 10, status="Not Shared"
-        )
-        assert total == 0

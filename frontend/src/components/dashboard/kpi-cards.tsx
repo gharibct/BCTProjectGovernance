@@ -26,13 +26,6 @@ const CARDS: {
     valueClass: "text-red-600",
   },
   {
-    filter: "potential-red",
-    label: "Potential Red",
-    hint: "Trending toward red",
-    accent: "border-l-orange-500",
-    valueClass: "text-orange-600",
-  },
-  {
     filter: "status-pending",
     label: "Status Pending",
     hint: "Weekly report overdue",
@@ -49,7 +42,7 @@ export function KpiCards({
   onSelect: (filter: ProjectFilter) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
       {CARDS.map((card) => {
         const active = card.filter === selected;
         return (

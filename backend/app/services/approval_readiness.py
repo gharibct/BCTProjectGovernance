@@ -31,7 +31,7 @@ from app.models.metric_target import (
     MetricTargetSupport,
     MetricTargetTesting,
 )
-from app.models.projects import Project
+from app.models.projects import Project, ProjectOracleId
 from app.models.raid import (
     AssumptionLog,
     DependencyLog,
@@ -49,6 +49,7 @@ from app.schemas.enums import (
     YesNo,
 )
 from app.services.activity_restriction import restrictions_for_project
+from app.services.sharepoint_link import validate_contract_url
 from app.schemas.metric_target import (
     MetricTargetCloudMaintenanceIn,
     MetricTargetCloudMigrationIn,
@@ -62,6 +63,7 @@ from app.schemas.metric_target import (
 MODULES: list[tuple[str, str, bool]] = [
     ("project_profile", "Project Profile", True),
     ("scope_schedule", "Scope & Schedule", True),
+    ("map_oracle_projects", "Link Contract Documents", True),
     ("measurement", "Measurement", True),
     ("commitments", "Commitments", True),
     ("milestones", "Milestones", True),
@@ -91,6 +93,7 @@ _RESTRICTABLE_MODULE: dict[str, ProjectActivity] = {
 _GAP_TEXT: dict[str, str] = {
     "project_profile": "Project Profile fields incomplete",
     "scope_schedule": "Scope description, planned start date, or planned end date missing",
+    "map_oracle_projects": "Oracle Project ID or Contract Documents link missing",
     "measurement": "Measurement targets not captured",
     "commitments": "No commitments added",
     "milestones": "No payment milestones added",
@@ -292,6 +295,28 @@ async def _module_status(
         size_fc, size_ft, gap_override = await scope_size_effort_progress(db, project)
         fc += size_fc
         ft += size_ft
+        last_updated = project.updated_at
+    elif key == "map_oracle_projects":
+        mappings = (
+            await db.execute(
+                select(ProjectOracleId.oracle_project_id, ProjectOracleId.contract_url)
+                .where(ProjectOracleId.project_id == project.id)
+                .order_by(ProjectOracleId.oracle_project_id)
+            )
+        ).all()
+        # One field for "at least one Oracle project", plus one per mapping for its
+        # Contract Documents link — re-validated live against that Oracle ID.
+        ft = 1 + len(mappings)
+        fc = 1 if mappings else 0
+        link_gaps: list[str] = []
+        for oracle_id, contract_url in mappings:
+            link_error = validate_contract_url(contract_url, oracle_id)
+            if link_error:
+                link_gaps.append(f"{oracle_id}: {link_error}")
+            else:
+                fc += 1
+        if mappings and link_gaps:
+            gap_override = "Contract Documents link — " + "; ".join(link_gaps)
         last_updated = project.updated_at
     elif key == "measurement":
         fc, ft, gap_override = await measurement_progress(db, project)

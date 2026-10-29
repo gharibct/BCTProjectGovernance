@@ -37,14 +37,17 @@ test("create a project and walk every New Project screen", async ({ page }) => {
     expect(projectId).toBeTruthy();
   });
 
-  await test.step("Map Oracle Projects — add a second mapping", async () => {
-    await page.getByRole("link", { name: "Map Oracle Projects" }).click();
+  await test.step("Link Contract Documents — add a second mapping", async () => {
+    await page.getByRole("link", { name: "Link Contract Documents" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     // The mapping added during creation should already be here.
     await expect(page.getByRole("row", { name: new RegExp(firstOracleId) })).toBeVisible();
 
     const secondOracleId = `ORA-${Date.now()}-2`;
     await page.getByLabel("Oracle Project ID").fill(secondOracleId);
+    await page
+      .getByLabel("Contract Documents Link")
+      .fill(`https://bahwancybertek.sharepoint.com/sites/BCT_Finance/Shared%20Documents/${secondOracleId}`);
     await page.getByRole("button", { name: "Add Projects" }).click();
     await expect(page.getByRole("row", { name: new RegExp(secondOracleId) })).toBeVisible();
   });

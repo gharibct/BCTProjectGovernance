@@ -19,7 +19,6 @@ export type ProjectPortfolioSummary = {
 export type WeeklyHealthBuckets = {
   green_count: number;
   amber_count: number;
-  potential_red_count: number;
   red_count: number;
   not_submitted_count: number;
 };
@@ -119,11 +118,17 @@ export type CustomerProjectReportSummary = {
   not_submitted_count: number;
 };
 
-// Customer account reporting over the previous + current calendar quarter:
-// Shared = at least one communication in either quarter, Not Shared = none.
+// Account QBR Reporting for the calendar quarter holding the selected week:
+// critical active accounts by the status of their QBR dated in that quarter
+// (Not Planned = no QBR record in the quarter).
 export type CustomerAccountReportSummary = {
-  shared_count: number;
-  not_shared_count: number;
+  initiated_count: number;
+  scheduled_count: number;
+  conducted_count: number;
+  not_planned_count: number;
+  quarter_label: string;
+  previous_quarter_labels: string[]; // oldest first, e.g. ["Jan-Mar 2026", "Apr-Jun 2026", "Jul-Sep 2026"]
+  next_quarter_label: string;
 };
 
 // Project-level DE assessment buckets (previous month's latest Submitted
@@ -189,6 +194,9 @@ export type ProjectHealthDashboardFilters = {
   projectTypeId?: string;
   projectOwned?: string;
   periodId?: string;
+  // Report Submissions card only — narrow its counts to one PM / Delivery Manager.
+  projectManagerId?: string;
+  accountHeadId?: string;
 };
 
 // One entry of the Period combo — Weekly periods only, last 10 incl. the
@@ -216,6 +224,8 @@ export function useProjectHealthDashboardSummary(filters: ProjectHealthDashboard
   if (filters.accountId) params.set("account_id", filters.accountId);
   if (filters.projectTypeId) params.set("project_type_id", filters.projectTypeId);
   if (filters.periodId) params.set("period_id", filters.periodId);
+  if (filters.projectManagerId) params.set("project_manager_id", filters.projectManagerId);
+  if (filters.accountHeadId) params.set("account_head_id", filters.accountHeadId);
   const query = params.toString();
 
   return useQuery({

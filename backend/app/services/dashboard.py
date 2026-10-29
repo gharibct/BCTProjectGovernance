@@ -147,11 +147,13 @@ from app.schemas.enums import (
     OpportunityStatus,
     ProjectActivity,
     ProjectLifecycleStatus,
+    QbrStatus,
     ReportStatus,
     RoleCode,
     RiskSeverity,
     RiskStatus,
     ValidationStatus,
+    YesNo,
 )
 from app.services import data_integrity_rollup
 from app.services.health_rollup import compute_overall_rating
@@ -1456,20 +1458,19 @@ def open_action_priority_split(actions: list[MyOpenActionRow] | list[AccountHead
     return high, medium, low
 
 
-def health_split(project_matrix: list[HealthMatrixRow]) -> tuple[int, int, int, int]:
-    """(green, amber, potential_red, red) counts off the same overall_rating
-    the health table shows — one bucket per RAG value, best-to-worst."""
-    green = amber = potential_red = red = 0
+def health_split(project_matrix: list[HealthMatrixRow]) -> tuple[int, int, int]:
+    """(green, amber, red) counts off the same overall_rating the health table
+    shows — one bucket per RAG value, best-to-worst. Potential Red is a DE-only
+    rating, so a leftover Potential Red row counts as Amber."""
+    green = amber = red = 0
     for row in project_matrix:
         if row.overall_rating == HealthRating.GREEN:
             green += 1
-        elif row.overall_rating == HealthRating.AMBER:
+        elif row.overall_rating in (HealthRating.AMBER, HealthRating.POTENTIAL_RED):
             amber += 1
-        elif row.overall_rating == HealthRating.POTENTIAL_RED:
-            potential_red += 1
         elif row.overall_rating == HealthRating.RED:
             red += 1
-    return green, amber, potential_red, red
+    return green, amber, red
 
 
 def health_not_assessed(project_matrix: list[HealthMatrixRow]) -> int:
@@ -1497,7 +1498,7 @@ def to_my_project_health_rows(
 # Approved == filed) across every active reporting period.
 async def account_rag_card_summary(db: AsyncSession, filters: DashboardFilters) -> AccountRagCardSummary:
     matrix = await account_health_matrix(db, filters)
-    green, amber, potential_red, red = health_split(matrix)
+    green, amber, red = health_split(matrix)
 
     accounts = await account_health_rows(db, filters)
     periods = await _active_reporting_periods(db)
@@ -1533,7 +1534,6 @@ async def account_rag_card_summary(db: AsyncSession, filters: DashboardFilters) 
     return AccountRagCardSummary(
         green_count=green,
         amber_count=amber,
-        potential_red_count=potential_red,
         red_count=red,
         reporting_overdue_count=overdue,
     )
@@ -1622,8 +1622,7 @@ def account_portfolio_health(
                 account_name=account.entity_label,
                 active_projects_count=active_counts.get(account.entity_id, 0),
                 health_green=sum(1 for r in ratings if r == HealthRating.GREEN),
-                health_amber=sum(1 for r in ratings if r == HealthRating.AMBER),
-                health_potential_red=sum(1 for r in ratings if r == HealthRating.POTENTIAL_RED),
+                health_amber=sum(1 for r in ratings if r in (HealthRating.AMBER, HealthRating.POTENTIAL_RED)),
                 health_red=sum(1 for r in ratings if r == HealthRating.RED),
                 status_label=_ACCOUNT_STATUS_LABELS.get(account.overall_rating, "Not Rated"),
             )
@@ -3151,20 +3150,79 @@ async def list_rag_rows(
 # rating) are "Not Submitted". Green accounts are left out. KPI counts reflect
 # the geo/region scope but not the `overall` filter, so the tiles stay a summary.
 NOT_SUBMITTED = "Not Submitted"
+
+def _rag_value(rating: str) -> str:
+    """Account / project RAG as a dashboard bucket. Potential Red is a DE-only
+    rating, so a leftover Potential Red declaration reads as Amber."""
+    value = HealthRating(rating)
+    return HealthRating.AMBER.value if value == HealthRating.POTENTIAL_RED else value.value
+
+
 _HIGH_RISK_ORDER = {
     HealthRating.RED.value: 0,
-    HealthRating.POTENTIAL_RED.value: 1,
-    HealthRating.AMBER.value: 2,
-    HealthRating.GREEN.value: 3,
-    NOT_SUBMITTED: 4,
+    HealthRating.AMBER.value: 1,
+    HealthRating.GREEN.value: 2,
+    NOT_SUBMITTED: 3,
 }
 _HIGH_RISK_KPI_KEY = {
     HealthRating.RED.value: "red",
-    HealthRating.POTENTIAL_RED.value: "potential_red",
     HealthRating.AMBER.value: "amber",
     HealthRating.GREEN.value: "green",
     NOT_SUBMITTED: "not_submitted",
 }
+
+
+async def _account_de_ratings(
+    db: AsyncSession, account_ids: list[UUID], period_id: UUID
+) -> dict[UUID, tuple[HealthRating, date]]:
+    """Per account: the worst latest-Submitted DE assessment rating among its active
+    projects for the selected week, and the most recent assessment date. Accounts
+    with no assessment in the week are absent (= Not Assessed)."""
+    week = await db.get(ReportingPeriod, period_id)
+    window = selected_week_window(week)
+    project_rows = (
+        await db.execute(
+            select(Project.id, Project.account_id).where(
+                *_project_conditions(DashboardFilters(active_only=True)), Project.account_id.in_(account_ids)
+            )
+        )
+    ).all()
+    account_of = {pid: aid for pid, aid in project_rows}
+    project_ids = await drop_restricted_projects(db, list(account_of), ProjectActivity.DE_ASSESSMENT, window.start)
+    if not project_ids:
+        return {}
+    assessments = (
+        await db.execute(
+            select(DEAssessment).where(
+                DEAssessment.project_id.in_(project_ids),
+                DEAssessment.status == "Submitted",
+                DEAssessment.assessment_date >= window.start,
+                DEAssessment.assessment_date <= window.end,
+            )
+        )
+    ).scalars().all()
+    latest: dict[UUID, DEAssessment] = {}
+    for a in assessments:
+        current = latest.get(a.project_id)
+        if current is None or a.assessment_date > current.assessment_date:
+            latest[a.project_id] = a
+    by_account: dict[UUID, list[DEAssessment]] = {}
+    for pid, a in latest.items():
+        by_account.setdefault(account_of[pid], []).append(a)
+    return {
+        aid: (
+            compute_overall_rating([HealthRating(a.de_assessed_project_health) for a in items]),
+            max(a.assessment_date for a in items),
+        )
+        for aid, items in by_account.items()
+    }
+
+
+def _account_rag(delivery: str | None, de: HealthRating | None) -> HealthRating | None:
+    """Account RAG = worst of Delivery RAG and DE RAG, on the Red / Amber / Green
+    scale (a DE Potential Red counts as Amber)."""
+    ratings = [HealthRating(_rag_value(r)) for r in (delivery, de.value if de else None) if r]
+    return compute_overall_rating(ratings) if ratings else None
 
 
 async def high_risk_accounts(
@@ -3183,22 +3241,28 @@ async def high_risk_accounts(
             .where(Account.is_active.is_(True), *_account_conditions(filters))
         )
     ).all()
-    kpis = {"red": 0, "potential_red": 0, "amber": 0, "not_submitted": 0, "green": 0}
+    kpis = {"red": 0, "amber": 0, "not_submitted": 0, "green": 0}
     if not account_rows:
         return HighRisksResponse(kpis=HighRiskKpis(**kpis), items=[])
     account_ids = [row[0] for row in account_rows]
 
-    filed_ids = set(
-        (
-            await db.execute(
-                select(AccountStatusReport.account_id).where(
-                    AccountStatusReport.period_id == period_id,
-                    AccountStatusReport.account_id.in_(account_ids),
-                    AccountStatusReport.status.in_((ReportStatus.SUBMITTED, ReportStatus.APPROVED)),
-                )
+    # Filed report per account -> Total FTE (Onsite + Offshore; None when neither is entered).
+    fte_by_account: dict[UUID, float | None] = {}
+    for filed_account_id, onsite, offshore in (
+        await db.execute(
+            select(
+                AccountStatusReport.account_id, AccountStatusReport.onsite_fte, AccountStatusReport.offshore_fte
+            ).where(
+                AccountStatusReport.period_id == period_id,
+                AccountStatusReport.account_id.in_(account_ids),
+                AccountStatusReport.status.in_((ReportStatus.SUBMITTED, ReportStatus.APPROVED)),
             )
-        ).scalars()
-    )
+        )
+    ).all():
+        fte_by_account[filed_account_id] = (
+            None if onsite is None and offshore is None else float((onsite or 0) + (offshore or 0))
+        )
+    filed_ids = set(fte_by_account)
     declarations: dict[UUID, AccountHealthDeclaration] = {}
     if filed_ids:
         decls = (
@@ -3217,6 +3281,8 @@ async def high_risk_accounts(
             current = declarations.get(decl.account_id)
             if current is None or decl.created_at > current.created_at:
                 declarations[decl.account_id] = decl
+
+    de_by_account = await _account_de_ratings(db, account_ids, period_id)
 
     # Delivery Manager = the primary Account Head (a proxy only if no primary).
     dm_rows = (
@@ -3247,7 +3313,7 @@ async def high_risk_accounts(
         elif decl.overall_rating == HealthRating.GREEN and not include_green:
             continue
         else:
-            risk_status = HealthRating(decl.overall_rating).value
+            risk_status = _rag_value(decl.overall_rating)
         kpis[_HIGH_RISK_KPI_KEY[risk_status]] += 1
         if overall and risk_status != overall:
             continue
@@ -3261,6 +3327,7 @@ async def high_risk_accounts(
                 region_name=region_name,
                 delivery_manager_id=dm[0] if dm else None,
                 delivery_manager_name=dm[1] if dm else None,
+                total_fte=fte_by_account.get(account_id),
                 risk_status=risk_status,
                 core_delivery_rating=decl.core_delivery_rating if decl else None,
                 people_rating=decl.people_rating if decl else None,
@@ -3269,6 +3336,12 @@ async def high_risk_accounts(
                 financial_rating=decl.financial_rating if decl else None,
                 compliance_rating=decl.compliance_rating if decl else None,
                 overall_rating=decl.overall_rating if decl else None,
+                de_rating=de_by_account[account_id][0] if account_id in de_by_account else None,
+                de_assessment_date=de_by_account[account_id][1] if account_id in de_by_account else None,
+                account_rating=_account_rag(
+                    decl.overall_rating if decl else None,
+                    de_by_account[account_id][0] if account_id in de_by_account else None,
+                ),
             )
         )
     items.sort(key=lambda r: (_HIGH_RISK_ORDER[r.risk_status], r.entity_label.lower()))
@@ -3291,6 +3364,7 @@ async def project_health_dashboard(
     period_id: UUID,
     overall: str | None = None,
     project_manager_id: UUID | None = None,
+    delivery_manager_id: UUID | None = None,
 ) -> ProjectHealthDashboardResponse:
     scope = replace(filters, active_only=True)
     project_rows = (
@@ -3313,7 +3387,7 @@ async def project_health_dashboard(
             .where(*_project_conditions(scope))
         )
     ).all()
-    kpis = {"red": 0, "potential_red": 0, "amber": 0, "not_submitted": 0, "green": 0}
+    kpis = {"red": 0, "amber": 0, "not_submitted": 0, "green": 0}
     if not project_rows:
         return ProjectHealthDashboardResponse(kpis=HighRiskKpis(**kpis), items=[])
     project_ids = [row[0] for row in project_rows]
@@ -3350,11 +3424,11 @@ async def project_health_dashboard(
 
     # Delivery Manager = the account's primary Account Head (a proxy only if no primary).
     account_ids = list({row[3] for row in project_rows if row[3] is not None})
-    dm_by_account: dict[UUID, str] = {}
+    dm_by_account: dict[UUID, tuple[UUID, str]] = {}
     if account_ids:
         dm_rows = (
             await db.execute(
-                select(UserAccount.account_id, User.full_name)
+                select(UserAccount.account_id, User.id, User.full_name)
                 .join(User, User.id == UserAccount.user_id)
                 .join(Role, Role.id == User.role_id)
                 .where(
@@ -3364,8 +3438,9 @@ async def project_health_dashboard(
                 .order_by(UserAccount.is_proxy, User.created_at)
             )
         ).all()
-        for dm_account_id, full_name in dm_rows:
-            dm_by_account.setdefault(dm_account_id, full_name)
+        for dm_account_id, dm_user_id, full_name in dm_rows:
+            dm_by_account.setdefault(dm_account_id, (dm_user_id, full_name))
+    dm_options = {uid: DeliveryManagerOption(id=uid, name=name) for uid, name in dm_by_account.values()}
 
     pm_ids = {row[9] for row in project_rows if row[9] is not None}
     pm_names: dict[UUID, str] = {}
@@ -3390,8 +3465,11 @@ async def project_health_dashboard(
     for pid, code, name, account_id, account_name, geo_id, geo_name, region_id, region_name, pm_id in project_rows:
         if project_manager_id is not None and pm_id != project_manager_id and pid not in proxied:
             continue
+        dm = dm_by_account.get(account_id) if account_id else None
+        if delivery_manager_id is not None and (dm is None or dm[0] != delivery_manager_id):
+            continue
         decl = declarations.get(pid)
-        risk_status = NOT_SUBMITTED if decl is None else HealthRating(decl.overall_rating).value
+        risk_status = NOT_SUBMITTED if decl is None else _rag_value(decl.overall_rating)
         kpis[_HIGH_RISK_KPI_KEY[risk_status]] += 1
         if overall and risk_status != overall:
             continue
@@ -3407,7 +3485,8 @@ async def project_health_dashboard(
                 geo_name=geo_name,
                 region_id=region_id,
                 region_name=region_name,
-                delivery_manager_name=dm_by_account.get(account_id) if account_id else None,
+                delivery_manager_id=dm[0] if dm else None,
+                delivery_manager_name=dm[1] if dm else None,
                 project_manager_id=pm_id,
                 project_manager_name=pm_names.get(pm_id) if pm_id else None,
                 risk_status=risk_status,
@@ -3425,6 +3504,7 @@ async def project_health_dashboard(
         kpis=HighRiskKpis(**kpis),
         items=items,
         project_managers=sorted(managers, key=lambda m: m.name.lower()),
+        delivery_managers=sorted(dm_options.values(), key=lambda m: m.name.lower()),
     )
 
 
@@ -4326,10 +4406,18 @@ async def list_assessments_for_health(
     project_ids = [p.project_id for p in projects]
 
     project_info = {
-        pid: (geo, region, pm_health)
-        for pid, geo, region, pm_health in (
+        pid: (geo_id, geo, region_id, region, account_id, pm_health)
+        for pid, geo_id, geo, region_id, region, account_id, pm_health in (
             await db.execute(
-                select(Project.id, Geo.name, Region.name, Project.delivery_declared_overall_health)
+                select(
+                    Project.id,
+                    Project.geo_id,
+                    Geo.name,
+                    Project.region_id,
+                    Region.name,
+                    Project.account_id,
+                    Project.delivery_declared_overall_health,
+                )
                 .outerjoin(Geo, Geo.id == Project.geo_id)
                 .outerjoin(Region, Region.id == Project.region_id)
                 .where(Project.id.in_(project_ids))
@@ -4357,7 +4445,9 @@ async def list_assessments_for_health(
 
     rows: list[AssessmentRow] = []
     for p in projects:
-        geo_name, region_name, pm_health = project_info.get(p.project_id, (None, None, None))
+        geo_id, geo_name, region_id, region_name, account_id, pm_health = project_info.get(
+            p.project_id, (None, None, None, None, None, None)
+        )
         entry = latest.get(p.project_id)
         a = entry[0] if entry else None
         bucket = HealthRating(a.de_assessed_project_health).value if a and a.de_assessed_project_health else NOT_ASSESSED
@@ -4367,8 +4457,11 @@ async def list_assessments_for_health(
             AssessmentRow(
                 project_id=p.project_id,
                 project_label=f"{p.project_code} · {p.project_name}",
+                geo_id=geo_id,
                 geo_name=geo_name,
+                region_id=region_id,
                 region_name=region_name,
+                account_id=account_id,
                 account_name=p.account_name,
                 assessment_id=a.id if a else None,
                 pm_health=pm_health,
@@ -4886,10 +4979,8 @@ async def _weekly_health_buckets(
         rating = rated.get(entity_id)
         if rating == HealthRating.GREEN:
             counts["green"] += 1
-        elif rating == HealthRating.AMBER:
+        elif rating in (HealthRating.AMBER, HealthRating.POTENTIAL_RED):
             counts["amber"] += 1
-        elif rating == HealthRating.POTENTIAL_RED:
-            counts["potential_red"] += 1
         elif rating == HealthRating.RED:
             counts["red"] += 1
         else:
@@ -4897,7 +4988,6 @@ async def _weekly_health_buckets(
     return WeeklyHealthBuckets(
         green_count=counts["green"],
         amber_count=counts["amber"],
-        potential_red_count=counts["potential_red"],
         red_count=counts["red"],
         not_submitted_count=counts["not_submitted"],
     )
@@ -5166,11 +5256,15 @@ async def report_submissions_week_summary(
     active_project_ids: list[UUID],
     week: ReportingPeriod | None,
     month_period: ReportingPeriod | None,
+    project_manager_id: UUID | None = None,
+    account_head_id: UUID | None = None,
 ) -> ReportSubmissionsWeekSummary:
     """Submitted vs Not Submitted for the selected week (Delivery Status —
     Projects / Account / Geo, Weekly only) and for the previous month's Project
     Performance report. Draft / Rejected reports count as Not Submitted."""
     entries = await _week_stream_entries(db, filters, active_project_ids, week, month_period)
+    if project_manager_id is not None or account_head_id is not None:
+        entries = await _narrow_entries_by_people(db, entries, project_manager_id, account_head_id)
 
     def count(stream: str, *buckets: str) -> int:
         return sum(1 for _, _, bucket in entries[stream] if bucket in buckets)
@@ -5199,6 +5293,52 @@ async def report_submissions_week_summary(
     )
 
 
+async def _narrow_entries_by_people(
+    db: AsyncSession,
+    entries: dict,
+    project_manager_id: UUID | None,
+    account_head_id: UUID | None,
+) -> dict:
+    project_streams = ("delivery-status-projects", "metrics-projects")
+    account_ids: set[UUID] | None = None
+    if account_head_id is not None:
+        account_ids = set(
+            (
+                await db.execute(
+                    select(UserAccount.account_id).where(
+                        UserAccount.user_id == account_head_id, UserAccount.is_proxy.is_(False)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+    project_ids = list({pid for stream in project_streams for pid, _, _ in entries.get(stream, [])})
+    allowed_projects: set[UUID] = set()
+    if project_ids:
+        query = select(Project.id).where(Project.id.in_(project_ids))
+        if project_manager_id is not None:
+            query = query.where(Project.project_manager_id == project_manager_id)
+        if account_head_id is not None:
+            # A project's own Delivery Manager wins; projects without one fall
+            # back to their account's primary DM (proxy DMs are not matched).
+            query = query.where(
+                or_(
+                    Project.delivery_manager_id == account_head_id,
+                    and_(Project.delivery_manager_id.is_(None), Project.account_id.in_(account_ids or set())),
+                )
+            )
+        allowed_projects = set((await db.execute(query)).scalars().all())
+
+    narrowed = dict(entries)
+    for stream in project_streams:
+        if stream in narrowed:
+            narrowed[stream] = [e for e in narrowed[stream] if e[0] in allowed_projects]
+    if account_ids is not None and "delivery-status-account" in narrowed:
+        narrowed["delivery-status-account"] = [e for e in narrowed["delivery-status-account"] if e[0] in account_ids]
+    return narrowed
+
+
 async def list_report_submissions_for_week(
     db: AsyncSession,
     filters: DashboardFilters,
@@ -5209,11 +5349,18 @@ async def list_report_submissions_for_week(
     limit: int,
     report_type: str | None = None,
     status: str | None = None,
+    project_manager_id: UUID | None = None,
+    account_head_id: UUID | None = None,
 ) -> tuple[list[ReportSubmissionDetailRow], int]:
     """The rows behind one stream's card for the selected week (or previous
     month): exactly the entries report_submissions_week_summary counts, each with
-    its bucket as `status`. `status` narrows to one bucket before paging."""
+    its bucket as `status`. `status` narrows to one bucket before paging.
+    `project_manager_id` narrows the project streams to that PM's projects;
+    `account_head_id` narrows the project and account streams to the accounts
+    that Delivery Manager owns (the geo stream is unaffected by either)."""
     entries = await _week_stream_entries(db, filters, active_project_ids, week, month_period)
+    if project_manager_id is not None or account_head_id is not None:
+        entries = await _narrow_entries_by_people(db, entries, project_manager_id, account_head_id)
     wanted = [STREAM_BY_REPORT_TYPE[report_type]] if report_type in STREAM_BY_REPORT_TYPE else list(entries)
     report_type_by_stream = {v: k for k, v in STREAM_BY_REPORT_TYPE.items()}
 
@@ -5492,71 +5639,113 @@ def _calendar_quarter_bounds(today: date) -> tuple[date, date, date]:
     return previous_start, previous_end, current_start
 
 
+QBR_NOT_PLANNED = "Not Planned"
+# Most advanced status wins when an account has several QBRs in the quarter.
+_QBR_RANK = {QbrStatus.INITIATED.value: 1, QbrStatus.SCHEDULED.value: 2, QbrStatus.CONDUCTED.value: 3}
+# Drill-down order: least progress first.
+_QBR_LIST_ORDER = {QBR_NOT_PLANNED: 0, **_QBR_RANK}
+
+
+def _shift_quarter(start: date, quarters: int) -> date:
+    """First day of the calendar quarter `quarters` away from the one starting on `start`."""
+    months = start.year * 12 + start.month - 1 + 3 * quarters
+    return date(months // 12, months % 12 + 1, 1)
+
+
+def _quarter_end(start: date) -> date:
+    return _shift_quarter(start, 1) - timedelta(days=1)
+
+
+def _quarter_short_label(start: date) -> str:
+    """e.g. "Jul-Sep 2026" (same as the Update Account QBR screen)."""
+    return f"{start:%b}-{_quarter_end(start):%b} {start.year}"
+
+
+def qbr_quarter(today: date | None = None) -> tuple[date, date, str]:
+    """(start, end, label) of the current calendar quarter. Account QBR reporting
+    always follows today's date, never the dashboard's selected week."""
+    _, _, start = _calendar_quarter_bounds(today or date.today())
+    return start, _quarter_end(start), _quarter_short_label(start)
+
+
 class _CustomerAccountStatus(NamedTuple):
     status: str
-    last_shared_date: date | None
-    last_title: str | None
-    communications_count: int  # entries dated within the previous + current calendar quarter
+    qbr_date: date | None
+    qbr_title: str | None
+    conducted_count: int  # Conducted QBRs held within the quarter
 
 
 async def _customer_account_statuses(
-    db: AsyncSession, account_ids: list[UUID]
+    db: AsyncSession, account_ids: list[UUID], quarter_start: date, quarter_end: date
 ) -> dict[UUID, _CustomerAccountStatus]:
-    """Customer account reporting on a calendar-quarter cadence (not
-    period-scoped). Accounts are judged on the previous and the current calendar
-    quarter together. Shared = the account has at least one customer
-    communication dated in either quarter; Not Shared = none (no entry is
-    assumed not shared)."""
+    """Account QBR status for one calendar quarter. A QBR belongs to the quarter
+    its Actual QBR Date (Conducted) or Planned QBR Date (Initiated / Scheduled)
+    falls in; with several, the most advanced status wins (Conducted > Scheduled
+    > Initiated). No QBR in the quarter = Not Planned. Only critical accounts
+    (critical_flag = Yes) owe a quarterly QBR, so the rest are left out."""
+    if not account_ids:
+        return {}
+    account_ids = list(
+        (
+            await db.execute(
+                select(Account.id).where(Account.id.in_(account_ids), Account.critical_flag == YesNo.YES.value)
+            )
+        ).scalars()
+    )
     if not account_ids:
         return {}
 
-    window_start, _, current_quarter_start = _calendar_quarter_bounds(date.today())
-    # Last day of the current quarter (the 1st of the quarter after it, minus a day).
-    next_quarter_start = (
-        date(current_quarter_start.year + 1, 1, 1)
-        if current_quarter_start.month == 10
-        else date(current_quarter_start.year, current_quarter_start.month + 3, 1)
-    )
-    window_end = next_quarter_start - timedelta(days=1)
-    latest: dict[UUID, tuple[date, str]] = {}
+    qbr = AccountCustomerCommunication
+    conducted = qbr.status == QbrStatus.CONDUCTED.value
+    best: dict[UUID, tuple[str, date, str | None]] = {}
     counts: Counter = Counter()
-    for account_id, reporting_date, title in (
+    for account_id, qbr_status, planned_date, actual_date, title in (
         await db.execute(
-            select(
-                AccountCustomerCommunication.account_id,
-                AccountCustomerCommunication.reporting_date,
-                AccountCustomerCommunication.title,
-            )
+            select(qbr.account_id, qbr.status, qbr.planned_date, qbr.actual_date, qbr.title)
             .where(
-                AccountCustomerCommunication.account_id.in_(account_ids),
-                AccountCustomerCommunication.reporting_date >= window_start,
-                AccountCustomerCommunication.reporting_date <= window_end,
+                qbr.account_id.in_(account_ids),
+                or_(
+                    and_(conducted, qbr.actual_date >= quarter_start, qbr.actual_date <= quarter_end),
+                    and_(~conducted, qbr.planned_date >= quarter_start, qbr.planned_date <= quarter_end),
+                ),
             )
-            .order_by(AccountCustomerCommunication.reporting_date, AccountCustomerCommunication.created_at)
+            .order_by(qbr.created_at)
         )
     ).all():
-        counts[account_id] += 1
-        latest[account_id] = (reporting_date, title)  # ascending order, so the last one wins
+        is_conducted = qbr_status == QbrStatus.CONDUCTED.value
+        when = actual_date if is_conducted else planned_date
+        if is_conducted:
+            counts[account_id] += 1
+        current = best.get(account_id)
+        # Higher status wins; within a status, the later date.
+        if current is None or (_QBR_RANK.get(qbr_status, 0), when) >= (_QBR_RANK.get(current[0], 0), current[1]):
+            best[account_id] = (qbr_status, when, title)
 
     out: dict[UUID, _CustomerAccountStatus] = {}
     for account_id in account_ids:
-        last = latest.get(account_id)
+        found = best.get(account_id)
         out[account_id] = _CustomerAccountStatus(
-            CUSTOMER_SHARED if last is not None else CUSTOMER_NOT_SHARED,
-            last[0] if last else None,
-            last[1] if last else None,
+            found[0] if found else QBR_NOT_PLANNED,
+            found[1] if found else None,
+            found[2] if found else None,
             counts.get(account_id, 0),
         )
     return out
 
 
 async def customer_account_report_summary(
-    db: AsyncSession, account_ids: list[UUID]
+    db: AsyncSession, account_ids: list[UUID], today: date | None = None
 ) -> CustomerAccountReportSummary:
-    statuses = [s.status for s in (await _customer_account_statuses(db, account_ids)).values()]
+    start, end, label = qbr_quarter(today)
+    statuses = [s.status for s in (await _customer_account_statuses(db, account_ids, start, end)).values()]
     return CustomerAccountReportSummary(
-        shared_count=statuses.count(CUSTOMER_SHARED),
-        not_shared_count=statuses.count(CUSTOMER_NOT_SHARED),
+        initiated_count=statuses.count(QbrStatus.INITIATED.value),
+        scheduled_count=statuses.count(QbrStatus.SCHEDULED.value),
+        conducted_count=statuses.count(QbrStatus.CONDUCTED.value),
+        not_planned_count=statuses.count(QBR_NOT_PLANNED),
+        quarter_label=label,
+        previous_quarter_labels=[_quarter_short_label(_shift_quarter(start, n)) for n in (-3, -2, -1)],
+        next_quarter_label=_quarter_short_label(_shift_quarter(start, 1)),
     )
 
 
@@ -5567,18 +5756,67 @@ async def list_customer_account_reports_for_health(
     limit: int,
     status: str | None = None,
     search: str | None = None,
+    today: date | None = None,
 ) -> tuple[list[CustomerAccountReportRow], int]:
-    """Drill-down behind the Customer Account Reporting card: one row per active
-    account with its customer-sharing status over the previous + current calendar quarter."""
-    statuses = await _customer_account_statuses(db, account_ids)
+    """Drill-down behind the Account QBR Reporting card: one row per critical
+    active account with its QBR status in the current calendar quarter,
+    Conducted counts for the 3 quarters before it, the current quarter's
+    conducted and planned QBRs, the next quarter's open QBRs and the latest
+    Conducted QBR."""
+    start, end, _ = qbr_quarter(today)
+    statuses = await _customer_account_statuses(db, account_ids, start, end)
     if not statuses:
         return [], 0
+
+    previous = [(_shift_quarter(start, n), _quarter_end(_shift_quarter(start, n))) for n in (-3, -2, -1)]
+    next_start = _shift_quarter(start, 1)
+    next_end = _quarter_end(next_start)
+    previous_counts: dict[UUID, list[int]] = {aid: [0, 0, 0] for aid in statuses}
+    current_conducted: Counter = Counter()
+    current_planned: Counter = Counter()
+    next_counts: Counter = Counter()
+    last_qbr: dict[UUID, AccountCustomerCommunication] = {}
+    for qbr in (
+        (
+            await db.execute(
+                select(AccountCustomerCommunication)
+                .where(AccountCustomerCommunication.account_id.in_(list(statuses)))
+                .order_by(AccountCustomerCommunication.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    ):
+        aid = qbr.account_id
+        if qbr.status == QbrStatus.CONDUCTED.value:
+            held = qbr.actual_date
+            if held is None:
+                continue
+            for i, (q_start, q_end) in enumerate(previous):
+                if q_start <= held <= q_end:
+                    previous_counts[aid][i] += 1
+            if start <= held <= end:
+                current_conducted[aid] += 1
+            if held <= end and (aid not in last_qbr or held >= last_qbr[aid].actual_date):
+                last_qbr[aid] = qbr
+        else:
+            if start <= qbr.planned_date <= end:
+                current_planned[aid] += 1
+            elif next_start <= qbr.planned_date <= next_end:
+                next_counts[aid] += 1
 
     meta = {
         r[0]: r
         for r in (
             await db.execute(
-                select(Account.id, Account.name, Account.geo_id, Geo.name, Region.name, Account.tool_effective_date, Account.created_at)
+                select(
+                    Account.id,
+                    Account.name,
+                    Account.geo_id,
+                    Geo.name,
+                    Account.region_id,
+                    Region.name,
+                )
                 .outerjoin(Geo, Geo.id == Account.geo_id)
                 .outerjoin(Region, Region.id == Account.region_id)
                 .where(Account.id.in_(list(statuses)))
@@ -5592,24 +5830,29 @@ async def list_customer_account_reports_for_health(
     for account_id, info in statuses.items():
         if status and info.status != status:
             continue
-        _, name, geo_id, geo_name, region_name, tool_effective_date, created_at = meta[account_id]
+        _, name, geo_id, geo_name, region_id, region_name = meta[account_id]
         if search and search.lower() not in name.lower():
             continue
         rows.append(
             CustomerAccountReportRow(
                 account_id=account_id,
                 account_name=name,
+                geo_id=geo_id,
                 geo_name=geo_name,
+                region_id=region_id,
                 region_name=region_name,
                 account_head_name=account_head_by_id.get(account_id),
                 geo_head_name=geo_head_by_id.get(geo_id),
-                onboarded_date=tool_effective_date or created_at.date(),
                 status=info.status,
-                last_shared_date=info.last_shared_date,
-                last_title=info.last_title,
-                communications_count=info.communications_count,
+                previous_quarters_conducted=previous_counts[account_id],
+                current_quarter_conducted=current_conducted.get(account_id, 0),
+                current_quarter_planned=current_planned.get(account_id, 0),
+                next_quarter_open_count=next_counts.get(account_id, 0),
+                last_qbr_id=last.id if (last := last_qbr.get(account_id)) else None,
+                last_qbr_date=last.actual_date if last else None,
+                last_qbr_title=last.title if last else None,
+                last_qbr_file_name=last.file_name if last else None,
             )
         )
-    order = {CUSTOMER_NOT_SHARED: 0, CUSTOMER_SHARED: 1}  # pending first
-    rows.sort(key=lambda r: (order[r.status], r.account_name.lower()))
+    rows.sort(key=lambda r: (_QBR_LIST_ORDER.get(r.status, 0), r.account_name.lower()))
     return rows[skip : skip + limit], len(rows)

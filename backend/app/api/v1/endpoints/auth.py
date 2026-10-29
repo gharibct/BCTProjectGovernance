@@ -126,6 +126,16 @@ async def change_password(
     await db.flush()
 
 
+class NoToolAccessError(HTTPException):
+    """Authenticated with Microsoft but not provisioned (or inactive) in the tool."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            status.HTTP_403_FORBIDDEN,
+            detail="No active Project Governance Tool account for that Microsoft account.",
+        )
+
+
 async def resolve_entra_user(db: AsyncSession, claims: dict) -> User:
     """Map verified Entra ID-token claims to a pre-provisioned app user.
 
@@ -160,10 +170,7 @@ async def resolve_entra_user(db: AsyncSession, claims: dict) -> User:
             user.entra_oid = oid
 
     if user is None or not user.is_active:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            detail="No active Project Governance Tool account for that Microsoft account.",
-        )
+        raise NoToolAccessError()
     user.last_login_at = datetime.now(timezone.utc)
     await db.flush()
     return user
@@ -182,7 +189,11 @@ async def entra_callback(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status.HTTP_404_NOT_FOUND)
 
     token = await oauth.entra.authorize_access_token(request)
-    user = await resolve_entra_user(db, token.get("userinfo") or {})
+    try:
+        user = await resolve_entra_user(db, token.get("userinfo") or {})
+    except NoToolAccessError:
+        # Browser navigation: show a friendly page instead of raw JSON.
+        return RedirectResponse(url=f"{settings.frontend_base_url}/login/no-access")
 
     response = RedirectResponse(url=f"{settings.frontend_base_url}/login/callback")
     _set_session_cookie(response, user.id)

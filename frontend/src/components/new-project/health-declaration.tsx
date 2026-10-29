@@ -235,7 +235,10 @@ export function useHealthDeclarationForm() {
   const deAssessedHealth = project?.de_assessed_project_health
     ? RATING_FROM_API[project.de_assessed_project_health]
     : null;
-  const overall = deAssessedHealth ? worstOf([declaredOverall, deAssessedHealth]) : declaredOverall;
+  // Potential Red is a DE-only rating; the project's overall RAG treats it as Amber.
+  const overall = deAssessedHealth
+    ? worstOf([declaredOverall, deAssessedHealth === "potential-red" ? "amber" : deAssessedHealth])
+    : declaredOverall;
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
 
@@ -279,19 +282,23 @@ export function useHealthDeclarationForm() {
   };
 }
 
+// Potential Red is only a DE Rating; the Project RAG scale is Red / Amber /
+// Green, so the declaration picker passes omitPotentialRed.
 export function HealthPicker({
   value,
   onChange,
+  omitPotentialRed = false,
 }: {
   value: HealthRating;
   onChange: (value: HealthRating) => void;
+  omitPotentialRed?: boolean;
 }) {
   return (
     <div
       role="radiogroup"
       className="inline-flex h-10 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1"
     >
-      {HEALTH_LEVELS.map((level) => (
+      {HEALTH_LEVELS.filter((level) => !omitPotentialRed || level.value !== "potential-red").map((level) => (
         <button
           key={level.value}
           type="button"
@@ -387,6 +394,7 @@ export function HealthDeclaration({
             <HealthPicker
               value={ratings[activeCategory.key]}
               onChange={(value) => form.setAndClear(activeCategory.ratingField)(RATING_TO_API[value])}
+              omitPotentialRed
             />
           </div>
         </div>

@@ -6,6 +6,7 @@ import { Link2 } from "lucide-react";
 import { useProjectOracleIds } from "@/lib/api/projects";
 import { SectionCard } from "@/components/forms/form-primitives";
 import { RegisterTable } from "@/components/forms/register-table";
+import { ContractDocumentsLink } from "@/components/projects/contract-documents-link";
 
 export function OracleMappingView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -14,7 +15,10 @@ export function OracleMappingView() {
   if (isLoading) return <p className="text-slate-400">Loading…</p>;
 
   return (
-    <SectionCard icon={Link2} title="Mapped Oracle Projects">
+    <SectionCard
+      icon={Link2}
+      title="Mapped Oracle Projects"
+    >
       <RegisterTable
         items={oracleIds}
         emptyLabel="No Oracle projects mapped."
@@ -24,6 +28,11 @@ export function OracleMappingView() {
             key: "project_description",
             label: "Project Description",
             render: (item) => item.project_description ?? "—",
+          },
+          {
+            key: "contract_url",
+            label: "Contract Documents",
+            render: (item) => <ContractDocumentsLink url={item.contract_url} label="Open folder" />,
           },
         ]}
       />

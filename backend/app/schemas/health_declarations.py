@@ -4,22 +4,22 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.enums import Category, HealthRating, RollupStatus
+from app.schemas.enums import Category, HealthRating, RagRating, RollupStatus
 
 
 class HealthDeclarationCreate(BaseModel):
     period_id: UUID
-    core_delivery_rating: HealthRating
+    core_delivery_rating: RagRating
     core_delivery_description: str | None = None
-    people_rating: HealthRating
+    people_rating: RagRating
     people_description: str | None = None
-    operational_rating: HealthRating
+    operational_rating: RagRating
     operational_description: str | None = None
-    customer_rating: HealthRating
+    customer_rating: RagRating
     customer_description: str | None = None
-    financial_rating: HealthRating
+    financial_rating: RagRating
     financial_description: str | None = None
-    compliance_rating: HealthRating
+    compliance_rating: RagRating
     compliance_description: str | None = None
     declared_by: UUID | None = None
     # overall_rating is NOT accepted from the client — services.health_rollup
@@ -31,17 +31,17 @@ class HealthDeclarationUpdate(BaseModel):
     """A re-declaration for a period that already has one is an edit, not a
     new row — one declaration per project+period (see 04_health_declarations.sql)."""
 
-    core_delivery_rating: HealthRating
+    core_delivery_rating: RagRating
     core_delivery_description: str | None = None
-    people_rating: HealthRating
+    people_rating: RagRating
     people_description: str | None = None
-    operational_rating: HealthRating
+    operational_rating: RagRating
     operational_description: str | None = None
-    customer_rating: HealthRating
+    customer_rating: RagRating
     customer_description: str | None = None
-    financial_rating: HealthRating
+    financial_rating: RagRating
     financial_description: str | None = None
-    compliance_rating: HealthRating
+    compliance_rating: RagRating
     compliance_description: str | None = None
     declared_by: UUID | None = None
 

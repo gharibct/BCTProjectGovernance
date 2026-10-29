@@ -18,6 +18,12 @@ export type RegisterColumn<T> = {
   // Falls back to item[key] when omitted — set it for columns whose
   // render() composes several fields into one cell.
   excelValue?: (item: T) => string | number | null | undefined;
+  // Extra classes for this column's header and cells (width, font size, padding).
+  className?: string;
+  // Smaller second line under the header label (e.g. "Previous Quarter").
+  subLabel?: string;
+  // Extra classes for the header cell only (e.g. a smaller header font).
+  headerClassName?: string;
 };
 
 // Shared list-view table for RAIDO registers (§4.5–4.9 of the spec): ID,
@@ -36,6 +42,7 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   onRowClick,
   headerClassName,
   pageSize,
+  flush = false,
 }: {
   items: T[];
   columns: RegisterColumn<T>[];
@@ -48,6 +55,9 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   headerClassName?: string;
   // When set, rows are paginated client-side with a PaginationBar below the grid.
   pageSize?: number;
+  // Edge-to-edge inside a panel (no own border / rounding) with the tighter rows
+  // of the GovOne RAG grids (GovernanceMatrix) — for grids under an AccentSection.
+  flush?: boolean;
 }) {
   const showActions = !!(onEdit || onDelete);
   const [pendingDelete, setPendingDelete] = React.useState<T | null>(null);
@@ -57,8 +67,8 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
   const visibleItems = pageSize ? items.slice(effectiveSkip, effectiveSkip + pageSize) : items;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-[#D0D9E2]">
-      <table className="w-full text-sm">
+    <div className={cn("overflow-x-auto", !flush && "rounded-lg border border-[#D0D9E2]")}>
+      <table className={cn("w-full text-sm", flush && "text-left")}>
         <thead>
           <tr
             className={cn(
@@ -69,20 +79,23 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
             {columns.map((c) => (
               <th
                 key={c.key}
-                className={cn("px-4 py-3", c.align === "right" && "text-right")}
+                className={cn("px-4 py-3", c.align === "right" && "text-right", c.className, c.headerClassName)}
               >
                 {c.label}
+                {c.subLabel ? (
+                  <span className="block text-[0.9em] font-semibold tracking-normal normal-case opacity-70">{c.subLabel}</span>
+                ) : null}
               </th>
             ))}
             {showActions ? <th className="px-4 py-3 text-right">Actions</th> : null}
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#E4E9EE] text-[#172033]">
+        <tbody className={cn("text-[#172033]", !flush && "divide-y divide-[#E4E9EE]")}>
           {items.length === 0 ? (
             <tr>
               <td
                 colSpan={columns.length + (showActions ? 1 : 0)}
-                className="px-4 py-6 text-center text-[#526273]"
+                className={flush ? "px-5 py-4 text-slate-400" : "px-4 py-6 text-center text-[#526273]"}
               >
                 {emptyLabel}
               </td>
@@ -95,6 +108,7 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
                 onClick={onRowClick ? () => onRowClick(item) : undefined}
                 className={cn(
                   "bg-white even:bg-[#F8FAFB] hover:bg-[#EDF3F7]",
+                  flush && "border-b border-[#E4E9EE] last:border-b-0",
                   onRowClick && "cursor-pointer"
                 )}
               >
@@ -102,8 +116,10 @@ export function RegisterTable<T extends { id: string } & Record<string, unknown>
                   <td
                     key={c.key}
                     className={cn(
-                      "px-4 py-3",
-                      c.align === "right" && "text-right tabular-nums"
+                      "px-4",
+                      flush ? "py-2.5" : "py-3",
+                      c.align === "right" && "text-right tabular-nums",
+                      c.className
                     )}
                   >
                     {c.render ? (

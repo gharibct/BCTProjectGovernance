@@ -87,7 +87,7 @@ function buildGroups(
       icon: FileText,
       items: [
         {
-          label: "Map Oracle Projects",
+          label: "Link Contract Documents",
           href: `${base}/map-oracle-projects`,
           done: oracleMapped,
         },
@@ -333,7 +333,9 @@ export function NewProjectNav() {
     !!newProjectId,
     project?.profile_completion_flag ?? false,
     (project?.schedule_completion_flag ?? false) && sizeEffortComplete,
-    (oracleIds?.length ?? 0) > 0,
+    // Done needs a Contract Documents link on every Oracle project; its folder-name
+    // match is checked by the server.
+    !!oracleIds?.length && oracleIds.every((o) => !!o.contract_url),
     commitmentsRestricted || (commitments?.length ?? 0) > 0,
     milestonesRestricted || (milestones?.length ?? 0) > 0,
     (risks?.length ?? 0) > 0 &&

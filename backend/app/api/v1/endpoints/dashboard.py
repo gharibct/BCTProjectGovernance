@@ -179,7 +179,7 @@ async def get_my_dashboard_summary(
     reports_due = await dashboard_service.reports_due_summary(db, filters, projects)
     open_actions = await dashboard_service.my_open_actions(db, filters, projects, current_user.id)
 
-    green, amber, potential_red, red = dashboard_service.health_split(project_matrix)
+    green, amber, red = dashboard_service.health_split(project_matrix)
     not_assessed = dashboard_service.health_not_assessed(project_matrix)
     actions_high, actions_medium, actions_low = dashboard_service.open_action_priority_split(open_actions)
 
@@ -188,7 +188,6 @@ async def get_my_dashboard_summary(
         projects_requiring_attention=projects_requiring_attention,
         health_green=green,
         health_amber=amber,
-        health_potential_red=potential_red,
         health_red=red,
         health_not_assessed=not_assessed,
         reports_due=reports_due,
@@ -249,7 +248,7 @@ async def get_account_head_dashboard_summary(
     projects = await dashboard_service.project_health_rows(db, filters)
     project_matrix = await dashboard_service.project_health_matrix(db, filters)
     account_matrix = await dashboard_service.account_health_matrix(db, filters)
-    green, amber, potential_red, red = dashboard_service.health_split(project_matrix)
+    green, amber, red = dashboard_service.health_split(project_matrix)
 
     queue, awaiting_review_count = await dashboard_service.report_review_queue(db, filters, projects)
     portfolio = dashboard_service.account_portfolio_health(project_matrix, account_matrix)
@@ -263,7 +262,6 @@ async def get_account_head_dashboard_summary(
         active_projects_count=await dashboard_service.count_active_projects(db, filters),
         health_green=green,
         health_amber=amber,
-        health_potential_red=potential_red,
         health_red=red,
         awaiting_review_count=awaiting_review_count,
         high_critical_risks_count=await dashboard_service.count_high_critical_risks(db, filters),
@@ -475,7 +473,7 @@ def _health_filters(
     )
 
 
-HealthStatusFilter = Literal["Green", "Amber", "Potential Red", "Red", "Not Submitted"]
+HealthStatusFilter = Literal["Green", "Amber", "Red", "Not Submitted"]
 
 
 async def _weekly_period_or_current(db: AsyncSession, period_id: UUID | None) -> ReportingPeriod | None:
@@ -504,6 +502,9 @@ async def get_project_health_dashboard(
     account_id: UUID | None = Query(default=None),
     project_type_id: UUID | None = Query(default=None),
     period_id: UUID | None = Query(default=None),
+    # Report Submissions card only: narrow to one PM / Delivery Manager.
+    project_manager_id: UUID | None = Query(default=None),
+    account_head_id: UUID | None = Query(default=None),
     scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
 ):
@@ -541,7 +542,13 @@ async def get_project_health_dashboard(
             db, active_project_ids, dashboard_service.selected_week_window(week)
         ),
         report_submissions=await dashboard_service.report_submissions_week_summary(
-            db, active_filters, active_project_ids, week, month_period
+            db,
+            active_filters,
+            active_project_ids,
+            week,
+            month_period,
+            project_manager_id=project_manager_id,
+            account_head_id=account_head_id,
         ),
         customer_project_reports=await dashboard_service.customer_project_report_summary(
             db, active_project_ids, week
@@ -694,14 +701,14 @@ async def get_project_health_rag(
 @router.get(
     "/high-risks",
     response_model=HighRisksResponse,
-    dependencies=[Depends(require_role(RoleCode.CXO, RoleCode.GEO_HEAD, RoleCode.ADMIN))],
+    dependencies=[Depends(require_role(RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.ADMIN))],
 )
 async def get_high_risks(
     period_id: UUID | None = Query(default=None),
     geo_id: UUID | None = Query(default=None),
     region_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
-    overall: Literal["Red", "Potential Red", "Amber", "Not Submitted"] | None = Query(default=None),
+    overall: Literal["Red", "Amber", "Not Submitted"] | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -725,7 +732,7 @@ async def get_high_risks(
     "/project-health-grid",
     response_model=ProjectHealthDashboardResponse,
     dependencies=[
-        Depends(require_role(RoleCode.CXO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))
+        Depends(require_role(RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))
     ],
 )
 async def get_project_health_grid(
@@ -734,7 +741,8 @@ async def get_project_health_grid(
     region_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     project_manager_id: UUID | None = Query(default=None),
-    overall: Literal["Red", "Potential Red", "Amber", "Green", "Not Submitted"] | None = Query(default=None),
+    delivery_manager_id: UUID | None = Query(default=None),
+    overall: Literal["Red", "Amber", "Green", "Not Submitted"] | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -759,7 +767,9 @@ async def get_project_health_grid(
     week = await _weekly_period_or_current(db, period_id)
     if week is None:
         raise HTTPException(status_code=404, detail="No reporting period found.")
-    return await dashboard_service.project_health_dashboard(db, filters, week.id, overall, project_manager_id)
+    return await dashboard_service.project_health_dashboard(
+        db, filters, week.id, overall, project_manager_id, delivery_manager_id
+    )
 
 
 # Delivery Health Dashboard (CXO / Geo Head / Delivery Manager): the High Risks
@@ -769,7 +779,7 @@ async def get_project_health_grid(
     "/delivery-health",
     response_model=HighRisksResponse,
     dependencies=[
-        Depends(require_role(RoleCode.CXO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))
+        Depends(require_role(RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))
     ],
 )
 async def get_delivery_health(
@@ -778,7 +788,7 @@ async def get_delivery_health(
     region_id: UUID | None = Query(default=None),
     account_id: UUID | None = Query(default=None),
     delivery_manager_id: UUID | None = Query(default=None),
-    overall: Literal["Red", "Potential Red", "Amber", "Green", "Not Submitted"] | None = Query(default=None),
+    overall: Literal["Red", "Amber", "Green", "Not Submitted"] | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1067,6 +1077,9 @@ async def get_project_health_report_submissions(
     # Submitted / Approved; Geo: Not Baselined / Baselined / Auto Generated).
     period_id: UUID | None = Query(default=None),
     status: str | None = Query(default=None),
+    # Selected-week mode only: narrow to one Project Manager / Delivery Manager.
+    project_manager_id: UUID | None = Query(default=None),
+    account_head_id: UUID | None = Query(default=None),
     pagination: PaginationParams = Depends(pagination_params),
     scope: dict = Depends(_health_scope),
     db: AsyncSession = Depends(get_db),
@@ -1087,6 +1100,8 @@ async def get_project_health_report_submissions(
             limit=pagination.limit,
             report_type=report_type,
             status=status,
+            project_manager_id=project_manager_id,
+            account_head_id=account_head_id,
         )
         return Page(items=items, total=total, skip=pagination.skip, limit=pagination.limit)
     filters = _health_filters(geo_id, account_id, project_type_id, **scope)
@@ -1104,8 +1119,8 @@ async def get_project_health_report_submissions(
 
 
 # Drill-downs behind the two customer-reporting cards. Project status covers the
-# selected weekly period (default: current week) for Active projects; account
-# reporting is the last 12 months and has no period.
+# selected weekly period (default: current week) for Active projects; Account QBR
+# reporting always covers the current calendar quarter (today's date).
 @router.get(
     "/project-health/customer-project-reports",
     response_model=Page[CustomerProjectReportRow],

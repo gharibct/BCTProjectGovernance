@@ -13,7 +13,6 @@ import {
 
 const HEALTH_STYLES: Record<Health, { label: string; badge: string }> = {
   red: { label: "Red", badge: HEALTH_RATING_COLORS.red.solid },
-  "potential-red": { label: "Potential Red", badge: HEALTH_RATING_COLORS["potential-red"].solid },
   amber: { label: "Amber", badge: HEALTH_RATING_COLORS.amber.solid },
   green: { label: "Green", badge: HEALTH_RATING_COLORS.green.solid },
 };
@@ -21,7 +20,6 @@ const HEALTH_STYLES: Record<Health, { label: string; badge: string }> = {
 const FILTER_LABELS: Record<ProjectFilter, string> = {
   all: "All active projects",
   red: "Red projects",
-  "potential-red": "Potential red projects",
   amber: "Amber projects",
   green: "Green projects",
   "status-pending": "Status report overdue",

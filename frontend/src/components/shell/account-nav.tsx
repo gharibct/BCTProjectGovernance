@@ -19,7 +19,7 @@ export function AccountNav() {
   // into each reporting area — this nav doesn't apply there.
   if (pathname === base || pathname === `${base}/summary`) return null;
 
-  // Record Account Presentation is launched straight from the left menu and
+  // Update Account QBR is launched straight from the left menu and
   // has no right-hand rail.
   if (pathname === `${base}/customer-communications`) return null;
 

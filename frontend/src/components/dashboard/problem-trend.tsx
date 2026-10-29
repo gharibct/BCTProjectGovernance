@@ -5,17 +5,17 @@ import { useState } from "react";
 // Status colors from the validated set (see region-breakdown.tsx). Both lines
 // carry direct end labels so identity never rests on color alone.
 const RED = "#b91c1c";
-const POTENTIAL = "#f97316";
+const AMBER = "#f5a623";
 
 // Weekly count of problem projects — sample data until there's a backend.
 const WEEKS = [
-  { week: "WK 32", red: 2, potentialRed: 5 },
-  { week: "WK 33", red: 3, potentialRed: 4 },
-  { week: "WK 34", red: 3, potentialRed: 5 },
-  { week: "WK 35", red: 4, potentialRed: 4 },
-  { week: "WK 36", red: 3, potentialRed: 4 },
-  { week: "WK 37", red: 4, potentialRed: 4 },
-  { week: "WK 38", red: 4, potentialRed: 3 },
+  { week: "WK 32", red: 2, amber: 5 },
+  { week: "WK 33", red: 3, amber: 4 },
+  { week: "WK 34", red: 3, amber: 5 },
+  { week: "WK 35", red: 4, amber: 4 },
+  { week: "WK 36", red: 3, amber: 4 },
+  { week: "WK 37", red: 4, amber: 4 },
+  { week: "WK 38", red: 4, amber: 3 },
 ];
 
 const VIEW_W = 440;
@@ -28,7 +28,7 @@ const Y_MAX = 6;
 const yFor = (value: number) => PAD.top + PLOT_H * (1 - value / Y_MAX);
 const xFor = (i: number) => PAD.left + (PLOT_W / (WEEKS.length - 1)) * i;
 
-function linePoints(key: "red" | "potentialRed") {
+function linePoints(key: "red" | "amber") {
   return WEEKS.map((d, i) => `${xFor(i)},${yFor(d[key])}`).join(" ");
 }
 
@@ -40,7 +40,7 @@ export function ProblemTrend() {
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="font-bold text-slate-900">Problem Projects Trend</h2>
       <p className="mt-0.5 text-sm text-slate-500">
-        Red and potential red count by week
+        Red and amber count by week
       </p>
 
       <div className="relative mt-4">
@@ -48,7 +48,7 @@ export function ProblemTrend() {
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
           className="w-full"
           role="img"
-          aria-label="Weekly count of red and potential red projects"
+          aria-label="Weekly count of red and amber projects"
           onMouseLeave={() => setHovered(null)}
         >
           {[0, 2, 4, 6].map((tick) => (
@@ -74,9 +74,9 @@ export function ProblemTrend() {
           ))}
 
           <polyline
-            points={linePoints("potentialRed")}
+            points={linePoints("amber")}
             fill="none"
-            stroke={POTENTIAL}
+            stroke={AMBER}
             strokeWidth={2}
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -96,9 +96,9 @@ export function ProblemTrend() {
               <g key={d.week}>
                 <circle
                   cx={xFor(i)}
-                  cy={yFor(d.potentialRed)}
+                  cy={yFor(d.amber)}
                   r={active ? 5.5 : 4.5}
-                  fill={POTENTIAL}
+                  fill={AMBER}
                   stroke="#ffffff"
                   strokeWidth={2}
                 />
@@ -142,10 +142,10 @@ export function ProblemTrend() {
           </text>
           <text
             x={xFor(last) + 10}
-            y={yFor(WEEKS[last].potentialRed) + 4}
+            y={yFor(WEEKS[last].amber) + 4}
             className="fill-slate-600 text-[11px] font-semibold"
           >
-            Potential
+            Amber
           </text>
         </svg>
 
@@ -167,9 +167,9 @@ export function ProblemTrend() {
             <div className="mt-0.5 flex items-center gap-1.5 text-slate-600">
               <span
                 className="size-2 rounded-full"
-                style={{ backgroundColor: POTENTIAL }}
+                style={{ backgroundColor: AMBER }}
               />
-              Potential red: {WEEKS[hovered].potentialRed}
+              Amber: {WEEKS[hovered].amber}
             </div>
           </div>
         )}

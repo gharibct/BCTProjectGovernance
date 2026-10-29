@@ -34,7 +34,7 @@ const SECTIONS: NavSection[] = [
     icon: FolderOpen,
     items: [
       { label: "Project List", href: "/project-health/project-list" },
-      { label: "RAG", href: "/project-health/rag" },
+      { label: "Project RAG", href: "/project-health/rag" },
       { label: "Account RAG", href: "/project-health/account-rag" },
       { label: "Oracle Projects", href: "/project-health/oracle-projects" },
     ],

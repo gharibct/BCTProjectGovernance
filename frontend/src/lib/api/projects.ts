@@ -112,6 +112,8 @@ export type Project = {
   delivery_declared_overall_health: HealthRating | null;
   de_assessed_project_health: HealthRating | null;
   overall_project_health: HealthRating | null;
+  // Mapped Oracle Project IDs — only on the GET /projects list response.
+  oracle_project_ids?: string[];
   created_at: string;
   updated_at: string;
   // Derived server-side (see schemas/projects.py) — true only once every
@@ -331,6 +333,9 @@ export type ProjectOracleId = {
   id: string;
   project_id: string;
   oracle_project_id: string;
+  // Contract Documents link (SharePoint folder; see lib/sharepoint-link.ts). Null on
+  // mappings made by creation-request approval / bulk import until edited.
+  contract_url: string | null;
   created_at: string;
   // Oracle project name from oracle_project_master; null when the ID isn't in it.
   project_description: string | null;
@@ -347,10 +352,25 @@ export function useProjectOracleIds(projectId: string | null) {
 export function useAddOracleId(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (oracleProjectId: string) =>
-      api.post<ProjectOracleId>(`/projects/${projectId}/oracle-ids`, { oracle_project_id: oracleProjectId }),
+    mutationFn: (payload: { oracle_project_id: string; contract_url: string }) =>
+      api.post<ProjectOracleId>(`/projects/${projectId}/oracle-ids`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-oracle-ids", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["approval-readiness", projectId] });
+    },
+  });
+}
+
+// Edit an Oracle project's Contract Documents link — validated server-side
+// against that Oracle ID; baseline-locked like the mapping itself.
+export function useUpdateOracleContractUrl(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, contractUrl }: { id: string; contractUrl: string }) =>
+      api.patch<ProjectOracleId>(`/projects/${projectId}/oracle-ids/${id}`, { contract_url: contractUrl }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-oracle-ids", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["approval-readiness", projectId] });
     },
   });
 }
@@ -361,6 +381,7 @@ export function useDeleteOracleId(projectId: string | null) {
     mutationFn: (oracleIdId: string) => api.delete(`/projects/${projectId}/oracle-ids/${oracleIdId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-oracle-ids", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["approval-readiness", projectId] });
     },
   });
 }

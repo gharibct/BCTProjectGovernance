@@ -72,7 +72,10 @@ class StubDB:
         staffing_parent=None,
         staffing_priorities=None,
         updated_at=None,
+        oracle_ids=(("ORA-101", None),),
     ):
+        # (oracle_project_id, contract_url); None url = the valid default link.
+        self._oracle_ids = [(oid, _CONTRACT_URL if url is None else url) for oid, url in oracle_ids]
         self._counts = {t: 1 for t in _COUNT_TABLES}
         self._counts.update(counts or {})
         self._project_type = project_type
@@ -99,7 +102,12 @@ class StubDB:
             return _Result(scalar_one_or_none=self._staffing_parent)
         if "metric_target_" in sql:
             return _Result(scalar_one_or_none=self._metric_row)
+        if "project_oracle_ids" in sql:
+            return _Result(rows=self._oracle_ids)
         return _Result(scalar_one=0)
+
+
+_CONTRACT_URL = "https://bahwancybertek.sharepoint.com/sites/BCT_Finance/Shared%20Documents/Projects/ORA-101%20Acme"
 
 
 def _project(**overrides):
@@ -153,7 +161,7 @@ async def test_all_mandatory_complete_can_submit():
     assert result.completion_pct == 100
     assert result.gaps_count == 0
     assert result.modules_incomplete == 0
-    assert result.modules_complete == 5
+    assert result.modules_complete == 6
     assert result.can_submit is True
     for m in result.modules:
         if m.mandatory:
@@ -174,17 +182,17 @@ async def test_planned_end_date_required_for_scope_schedule():
 
 async def test_partial_progress_is_field_weighted():
     # One Project Profile field blank -> that module is 13/14, and the overall
-    # % reflects the single missing field out of 31 mandatory fields.
+    # % reflects the single missing field out of 32 mandatory fields.
     result = await compute_approval_readiness(StubDB(), _project(project_currency=""))
     profile = next(m for m in result.modules if m.key == "project_profile")
     assert (profile.fields_complete, profile.fields_total) == (13, 14)
-    assert result.completion_pct == 97  # 29 / 30 mandatory fields
+    assert result.completion_pct == 97  # 31 / 32 mandatory fields
 
 
 async def test_missing_commitments_and_milestones_lowers_pct():
     db = StubDB(counts={"contractual_commitments": 0, "milestone_payments": 0})
     result = await compute_approval_readiness(db, _project())
-    assert result.completion_pct == 93  # 28 / 30 mandatory fields
+    assert result.completion_pct == 94  # 30 / 32 mandatory fields
     assert result.gaps_count == 2
     incomplete = {m.key for m in result.modules if not m.complete and m.mandatory}
     assert incomplete == {"commitments", "milestones"}
@@ -319,3 +327,30 @@ async def test_only_the_restricted_half_stops_being_mandatory():
 async def test_unrestricted_modules_report_restricted_false():
     result = await compute_approval_readiness(StubDB(), _project())
     assert all(m.restricted is False for m in result.modules)
+
+
+async def test_contract_link_required_for_oracle_mapping():
+    result = await compute_approval_readiness(StubDB(oracle_ids=(("ORA-101", ""),)), _project())
+    oracle = next(m for m in result.modules if m.key == "map_oracle_projects")
+    assert oracle.mandatory is True
+    assert oracle.complete is False
+    assert (oracle.fields_complete, oracle.fields_total) == (1, 2)
+    assert result.can_submit is False
+
+
+async def test_every_oracle_project_needs_its_own_contract_link():
+    # ORA-202's link points at ORA-101's folder, so ORA-202 is still missing one.
+    result = await compute_approval_readiness(
+        StubDB(oracle_ids=(("ORA-101", None), ("ORA-202", _CONTRACT_URL))), _project()
+    )
+    oracle = next(m for m in result.modules if m.key == "map_oracle_projects")
+    assert (oracle.fields_complete, oracle.fields_total) == (2, 3)
+    assert oracle.complete is False
+    assert oracle.gaps and "ORA-202" in oracle.gaps
+
+
+async def test_no_oracle_ids_marks_oracle_mapping_incomplete():
+    result = await compute_approval_readiness(StubDB(oracle_ids=()), _project())
+    oracle = next(m for m in result.modules if m.key == "map_oracle_projects")
+    assert (oracle.fields_complete, oracle.fields_total) == (0, 1)
+    assert oracle.complete is False

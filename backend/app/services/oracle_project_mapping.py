@@ -156,9 +156,22 @@ async def list_oracle_projects(
         .correlate(OPM)
         .scalar_subquery()
     )
+    contract_url = (
+        select(func.max(ProjectOracleId.contract_url))
+        .where(ProjectOracleId.oracle_project_id == OPM.project_number)
+        .correlate(OPM)
+        .scalar_subquery()
+    )
     rows = (
         await db.execute(
-            select(OPM, Geo.name, Region.name, mapped.label("mapped"), governance_code.label("governance_code"))
+            select(
+                OPM,
+                Geo.name,
+                Region.name,
+                mapped.label("mapped"),
+                governance_code.label("governance_code"),
+                contract_url.label("contract_url"),
+            )
             .outerjoin(Geo, Geo.id == OPM.geo_id)
             .outerjoin(Region, Region.id == OPM.region_id)
             .where(*conditions)
@@ -184,7 +197,8 @@ async def list_oracle_projects(
             last_seen_month=project.last_seen_month,
             mapped=bool(is_mapped),
             governance_project_code=code,
+            contract_url=contract,
         )
-        for project, geo_name, region_name, is_mapped, code in rows
+        for project, geo_name, region_name, is_mapped, code, contract in rows
     ]
     return items, total

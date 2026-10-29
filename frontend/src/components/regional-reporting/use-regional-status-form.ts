@@ -222,6 +222,7 @@ export function useRegionalStatusForm(scope: RegionalScope, scopeId: string) {
     metrics,
     setMetric,
     copyMetricsFromLatest,
+    clearMetrics: () => setMetrics(BLANK_METRICS),
     rollupItems,
     handlePull,
     handlePullAll,

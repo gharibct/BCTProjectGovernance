@@ -4,13 +4,13 @@ import { OracleMappingForm } from "@/components/new-project/oracle-mapping/oracl
 import { NewProjectHeader } from "@/components/new-project/new-project-header";
 
 export const metadata: Metadata = {
-  title: "Amend Project — Map Oracle Projects | Governance One",
+  title: "Amend Project — Link Contract Documents | Governance One",
 };
 
 export default function AmendProjectMapOracleProjectsPage() {
   return (
     <div className="mx-auto max-w-6xl">
-      <NewProjectHeader subheading="Map Oracle Projects" />
+      <NewProjectHeader subheading="Link Contract Documents" />
       <div className="mt-8">
         <OracleMappingForm />
       </div>

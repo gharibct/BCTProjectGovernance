@@ -19,6 +19,9 @@ def compute_overall_project_health(
     delivery_declared: HealthRating | None,
     de_assessed: HealthRating | None,
 ) -> HealthRating | None:
+    # Potential Red is a DE Rating only; the project's overall RAG treats it as Amber.
+    if de_assessed == HealthRating.POTENTIAL_RED:
+        de_assessed = HealthRating.AMBER
     candidates = [r for r in (delivery_declared, de_assessed) if r is not None]
     if not candidates:
         return None

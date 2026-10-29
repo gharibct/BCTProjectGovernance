@@ -70,9 +70,11 @@ const dashboardClass = "bg-[#8B5CF6] hover:bg-[#7C3AED]";
 const SECTION_HEADER_COLORS: Record<string, string> = {
   "My Worklist": "bg-[#14B8A6]",
   "Team Worklist": "bg-[#14B8A6]",
+  "DE Worklists": "bg-[#14B8A6]",
+  "DE Approvals": "bg-[#14B8A6]",
   "My Reports": "bg-[#3B8DE3]",
   "Status & Performance Dashboards": "bg-[#3B8DE3]",
-  "Report Status & Performance": "bg-[#14B8A6]",
+  "Update Status & Performance": "bg-[#14B8A6]",
   "Approvals & Assignments": "bg-[#14B8A6]",
   "DE & Actions": "bg-[#3B8DE3]",
   "Project Configuration": "bg-[#14B8A6]",
@@ -598,7 +600,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href={selectAccountHref("account-communications")}
       icon={Presentation}
-      label={ctx.labelFor("account-communications", "Record Account Presentation")}
+      label={ctx.labelFor("account-communications", "Update Account QBR")}
       active={!!ctx.routeActive["account-communications"] || ctx.pathname === selectAccountHref("account-communications")}
       bold={ctx.bold}
     />
@@ -671,6 +673,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       icon={TriangleAlert}
       label={ctx.labelFor("delivery-health", "Account Health Dashboard")}
       active={ctx.pathname.startsWith("/delivery-health")}
+      bold={ctx.bold}
+    />
+  ),
+  "account-qbr": (ctx) => (
+    <SimpleLink
+      href="/account-qbr"
+      icon={Presentation}
+      label={ctx.labelFor("account-qbr", "Account QBR Dashboard")}
+      active={ctx.pathname.startsWith("/account-qbr")}
       bold={ctx.bold}
     />
   ),
@@ -863,8 +874,10 @@ const SECTION_ICONS: Record<string, React.ElementType> = {
   "My Worklist": Briefcase,
   "My Reports": FileBarChart2,
   "Team Worklist": Users,
+  "DE Worklists": Briefcase,
+  "DE Approvals": CheckCircle2,
   "Status & Performance Dashboards": ChartColumn,
-  "Report Status & Performance": FileBarChart2,
+  "Update Status & Performance": FileBarChart2,
   "Approvals & Assignments": CheckCircle2,
   "DE & Actions": FileSearch,
   "Project Configuration": Wrench,
@@ -971,6 +984,7 @@ export function AppSidebar() {
     "high-risks": pathname.startsWith("/high-risks"),
     "delivery-health": pathname.startsWith("/delivery-health"),
     "projects-health": pathname.startsWith("/projects-health"),
+    "account-qbr": pathname.startsWith("/account-qbr"),
     "account-reporting": isAccountReporting,
     "account-communications": isAccountCommunications,
     "geo-reporting": isGeoReporting,

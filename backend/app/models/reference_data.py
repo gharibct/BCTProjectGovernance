@@ -66,6 +66,9 @@ class Account(Base, UUIDPrimaryKey, TimestampColumns):
     # Date this account started being tracked in the tool. NULL = no
     # restriction for reporting "owed" calculations — see services/dashboard.py.
     tool_effective_date: Mapped[date | None]
+    # YesNo. A critical account owes the customer a QBR every quarter — only
+    # these are judged on Account QBR Reporting (services/dashboard.py).
+    critical_flag: Mapped[str] = mapped_column(default="No", server_default="No")
 
 
 class ReportingPeriod(Base, UUIDPrimaryKey, TimestampColumns):

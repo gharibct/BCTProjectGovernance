@@ -10,6 +10,7 @@ export type AccountPayload = {
   description?: string;
   is_active?: boolean;
   tool_effective_date?: string;
+  critical_flag?: "Yes" | "No";
 };
 
 export function useCreateAccount() {

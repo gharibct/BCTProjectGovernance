@@ -25,7 +25,6 @@ export type AccountPortfolioHealthRow = {
   active_projects_count: number;
   health_green: number;
   health_amber: number;
-  health_potential_red: number;
   health_red: number;
   status_label: string;
 };

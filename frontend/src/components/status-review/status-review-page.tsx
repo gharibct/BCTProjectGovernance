@@ -132,7 +132,11 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
                       ? "Delivery Health Dashboard"
                       : back.startsWith("/projects-health")
                         ? "Project Health Dashboard"
-                        : "Report Submissions"
+                        : back.startsWith("/project-health/account-rag")
+                          ? "Account RAG"
+                          : back.startsWith("/project-health/rag")
+                            ? "Project RAG"
+                            : "Report Submissions"
                 : approving
                   ? APPROVE_NAV_LABEL[scope]!
                   : SCOPE_NAV_LABEL[scope],

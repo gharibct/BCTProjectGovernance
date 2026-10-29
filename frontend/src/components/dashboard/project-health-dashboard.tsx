@@ -25,6 +25,7 @@ import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import {
   useProjectHealthDashboardSummary,
+  type CustomerAccountReportSummary,
   type ReportSubmissionKpi,
 } from "@/lib/api/project-health-dashboard";
 import { REPORT_SUBMISSION_STREAMS } from "@/lib/api/project-health-lists";
@@ -80,9 +81,10 @@ function GroupHeading({ title }: { title: string }) {
   );
 }
 
-// Compact Green/Amber/Pot. Red/Red/Not Submitted count strip shared by the Project
+// Compact Green/Amber/(Pot. Red)/Red/Not Submitted count strip shared by the Project
 // Health, Account Health and DE-assessed health cards — kept small so all three
-// cards sit in one row. `notLabel` renames the last cell (e.g. "Not Assessed").
+// cards sit in one row. Potential Red is a DE-only rating, so only the DE card
+// passes `potentialRed`. `notLabel` renames the last cell (e.g. "Not Assessed").
 function RagCounts({
   green,
   amber,
@@ -94,19 +96,21 @@ function RagCounts({
 }: {
   green: React.ReactNode;
   amber: React.ReactNode;
-  potentialRed: React.ReactNode;
+  potentialRed?: React.ReactNode;
   red: React.ReactNode;
   notSubmitted: React.ReactNode;
   notLabel?: string;
   notSubmittedBucket?: RagBucket;
 }) {
   return (
-    <div className="grid grid-cols-5 gap-1">
+    <div className={potentialRed === undefined ? "grid grid-cols-4 gap-1" : "grid grid-cols-5 gap-1"}>
       {(
         [
           ["Green", green, RAG_BUCKET_STYLES.Green.shortLabel],
           ["Amber", amber, RAG_BUCKET_STYLES.Amber.shortLabel],
-          ["Potential Red", potentialRed, RAG_BUCKET_STYLES["Potential Red"].shortLabel],
+          ...(potentialRed === undefined
+            ? []
+            : [["Potential Red", potentialRed, RAG_BUCKET_STYLES["Potential Red"].shortLabel]]),
           ["Red", red, RAG_BUCKET_STYLES.Red.shortLabel],
           [notSubmittedBucket, notSubmitted, notLabel ?? RAG_BUCKET_STYLES[notSubmittedBucket].shortLabel],
         ] as [RagBucket, React.ReactNode, string][]
@@ -228,6 +232,36 @@ function CustomerReportCard({
   );
 }
 
+// Account QBR Reporting: critical accounts by QBR status in the selected quarter.
+// Adherence = Conducted / all critical accounts.
+function AccountQbrCard({ summary }: { summary: CustomerAccountReportSummary }) {
+  const total =
+    summary.initiated_count + summary.scheduled_count + summary.conducted_count + summary.not_planned_count;
+  const adherencePct = total > 0 ? Math.round((summary.conducted_count / total) * 100) : 0;
+  return (
+    <Card
+      title="Account QBR Reporting"
+      icon={Users}
+      iconClassName="text-[#1a6fc4]"
+      href="/project-health/customer-account-reports"
+      footerLabel="View Details"
+      period={`Current Quarter: ${summary.quarter_label}`}
+    >
+      <BigStat value={`${adherencePct}%`} label="Conducted" valueClass={adherenceTone(adherencePct)} />
+      <div className="flex flex-col gap-1">
+        <SubStat label="Initiated" value={summary.initiated_count} />
+        <SubStat label="Scheduled" value={summary.scheduled_count} />
+        <SubStat label="Conducted" value={summary.conducted_count} />
+        <SubStat
+          label="Not Planned"
+          value={summary.not_planned_count}
+          valueClass={summary.not_planned_count > 0 ? "text-red-600" : undefined}
+        />
+      </div>
+    </Card>
+  );
+}
+
 export function ProjectHealthDashboard() {
   const [filters, setFilters] = useProjectHealthFilters();
   const { data, isLoading, isError, error, refetch } = useProjectHealthDashboardSummary(filters);
@@ -295,7 +329,6 @@ export function ProjectHealthDashboard() {
                 <RagCounts
                   green={data.account_health.green_count}
                   amber={data.account_health.amber_count}
-                  potentialRed={data.account_health.potential_red_count}
                   red={data.account_health.red_count}
                   notSubmitted={data.account_health.not_submitted_count}
                 />
@@ -307,13 +340,12 @@ export function ProjectHealthDashboard() {
               icon={HeartPulse}
               iconClassName="text-emerald-600"
               href="/project-health/rag"
-              footerLabel="View RAG"
+              footerLabel="View Project RAG"
               period={weekPeriod}
             >
               <RagCounts
                 green={data.health.green_count}
                 amber={data.health.amber_count}
-                potentialRed={data.health.potential_red_count}
                 red={data.health.red_count}
                 notSubmitted={data.health.not_submitted_count}
               />
@@ -530,7 +562,7 @@ export function ProjectHealthDashboard() {
             <p className="text-xs text-slate-400">
               {isPm
                 ? "Project Performance is the monthly report for the month before the selected week. Customer Project Status Reporting covers the selected week."
-                : "Project Performance is the monthly report for the month before the selected week. Customer Project Status Reporting covers the selected week; Customer Account Reporting covers the previous and the current calendar quarter, as it is shared quarterly (accounts with no entry in either count as Not Shared)."}
+                : "Project Performance is the monthly report for the month before the selected week. Customer Project Status Reporting covers the selected week; Account QBR Reporting covers the current calendar quarter (critical accounts with no QBR in it count as Not Planned)."}
             </p>
             <div className={cn("grid grid-cols-1 gap-4", isPm ? "md:grid-cols-2" : "md:grid-cols-3")}>
               <ReportSubmissionCard
@@ -550,13 +582,7 @@ export function ProjectHealthDashboard() {
               />
 
               {isPm ? null : (
-                <CustomerReportCard
-                  title="Customer Account Reporting"
-                  href="/project-health/customer-account-reports"
-                  period="Previous & current quarter"
-                  shared={data.customer_account_reports.shared_count}
-                  notShared={data.customer_account_reports.not_shared_count}
-                />
+                <AccountQbrCard summary={data.customer_account_reports} />
               )}
             </div>
           </section>

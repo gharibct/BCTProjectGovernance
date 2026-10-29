@@ -24,7 +24,7 @@ import { HEALTH_CATEGORIES } from "@/lib/health-categories";
 const BORDER_CLASS: Record<HealthRating, string> = {
   green: "border-l-emerald-500",
   amber: "border-l-amber-400",
-  "potential-red": "border-l-orange-500",
+  "potential-red": "border-l-orange-500", // legacy stored value
   red: "border-l-red-500",
 };
 

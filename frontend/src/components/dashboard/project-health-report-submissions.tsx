@@ -8,6 +8,8 @@ import Link from "next/link";
 import { PaginationBar } from "@/components/forms/pagination-bar";
 import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { ClipboardCheck } from "lucide-react";
+import { ResourcePicker } from "@/components/forms/resource-picker";
+import { ACCOUNT_HEAD_CANDIDATE_ROLES, PM_CANDIDATE_ROLES } from "@/lib/api/reference-data";
 import { cn } from "@/lib/utils";
 import { useProjectHealthDashboardSummary } from "@/lib/api/project-health-dashboard";
 import {
@@ -154,7 +156,8 @@ function reportHref(row: Row, backPath: string): string | null {
 export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmissionStreamKey }) {
   const stream = kpi ? REPORT_SUBMISSION_STREAMS[kpi] : null;
   // Geo Delivery Status reports belong to Geo Heads and above.
-  const showGeoTile = useEffectiveRole() !== "ACCOUNT_MANAGER";
+  const effectiveRole = useEffectiveRole();
+  const showGeoTile = effectiveRole !== "ACCOUNT_MANAGER";
   const backPath = stream ? stream.route : "/project-health/report-submissions";
 
   const [filters, setFilters] = useProjectHealthFilters();
@@ -164,7 +167,17 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
   // Back from a report: reopen the same page of results, focused on the clicked row.
   const returnKey = kpi ?? "report-submissions";
   const [skip, setSkip] = React.useState(() => readReturnSkip(returnKey));
-  const { data: summary } = useProjectHealthDashboardSummary(filters);
+  // Delivery Status — Projects: PM + DM filters; Delivery Status — Account: DM only.
+  const [pmId, setPmId] = React.useState<string | null>(null);
+  const [dmId, setDmId] = React.useState<string | null>(null);
+  const showPmFilter = kpi === "delivery-status-projects" && effectiveRole !== "PROJECT_MANAGER";
+  const showDmFilter =
+    (kpi === "delivery-status-projects" || kpi === "delivery-status-account") &&
+    effectiveRole !== "PROJECT_MANAGER" &&
+    effectiveRole !== "ACCOUNT_MANAGER";
+  const projectManagerId = showPmFilter ? (pmId ?? undefined) : undefined;
+  const accountHeadId = showDmFilter ? (dmId ?? undefined) : undefined;
+  const { data: summary } = useProjectHealthDashboardSummary({ ...filters, projectManagerId, accountHeadId });
   const tiles = kpi ? STREAM_TILES[kpi] : null;
   const bucket = tiles ? (picked === ALL ? undefined : picked || tiles.defaultBucket) : undefined;
   // Stream screens list the selected week's rows (the ones the card counts); the
@@ -175,6 +188,8 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
     periodId: stream ? periodId : undefined,
     reportType: stream?.reportType,
     status: bucket,
+    projectManagerId,
+    accountHeadId,
   };
 
   const { data, isLoading, isError, error, refetch } = useProjectHealthReportSubmissions(
@@ -248,16 +263,43 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
           setSkip(0);
         }}
         showPeriod={!!stream}
-        extraFiltersActive={stream ? picked !== "" : false}
+        extraFiltersActive={stream ? picked !== "" || !!pmId || !!dmId : false}
         onReset={
           stream
             ? () => {
                 resetPicked();
+                setPmId(null);
+                setDmId(null);
                 setSkip(0);
               }
             : undefined
         }
-      />
+      >
+        {showPmFilter ? (
+          <ResourcePicker
+            className="h-9 w-52 text-sm"
+            value={pmId}
+            onChange={(id) => {
+              setPmId(id);
+              setSkip(0);
+            }}
+            roleCodes={PM_CANDIDATE_ROLES}
+            placeholder="PM [All]"
+          />
+        ) : null}
+        {showDmFilter ? (
+          <ResourcePicker
+            className="h-9 w-52 text-sm"
+            value={dmId}
+            onChange={(id) => {
+              setDmId(id);
+              setSkip(0);
+            }}
+            roleCodes={ACCOUNT_HEAD_CANDIDATE_ROLES}
+            placeholder={`${ACCOUNT_MANAGER_LABEL} [All]`}
+          />
+        ) : null}
+      </ProjectHealthFilterBar>
 
       {stream && tiles ? (
         <Card

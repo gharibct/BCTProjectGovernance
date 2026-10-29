@@ -201,7 +201,7 @@ def _scope_schedule_test_fields() -> list[AiFieldSuggestionIn]:
 def _self_assessment_test_fields() -> list[AiFieldSuggestionIn]:
     # field_keys match HealthDeclarationCreate's rating/description pairs;
     # rating values are the ApiHealthRating enum strings the frontend also
-    # uses ("Green"/"Amber"/"Potential Red"/"Red").
+    # uses ("Green"/"Amber"/"Red").
     return [
         AiFieldSuggestionIn(
             field_key="core_delivery_rating",

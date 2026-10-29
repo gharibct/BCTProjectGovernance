@@ -376,6 +376,22 @@ export function useCopyStatusItemsFromLatest(projectId: string | null) {
   });
 }
 
+// "Clear Report": empties this period's Delivery Status report (registers, RAG
+// ratings, Key Metrics, Customer Communication) on the server.
+export function useClearStatusReport(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (periodId: string) =>
+      api.post<void>(`/projects/${projectId}/status-items/clear-report?period_id=${periodId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["status-items", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["health-items", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["health-declarations", projectId] });
+      invalidateStatusReports(queryClient, projectId);
+    },
+  });
+}
+
 // Select-Project grid, Update Project Performance Report: Completed / In Progress / Not Started
 // per project for one Monthly period (GET /project-performance/status-by-period).
 export function useProjectPerformanceStatusByPeriod(periodId: string | null) {

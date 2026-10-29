@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     enable_scheduler: bool = True
     notification_scan_hour: int = 7  # local server hour for the daily run
 
+    # Project Documents links must be folders on this SharePoint host + site
+    # (see app/services/sharepoint_link.py).
+    sharepoint_host: str = "bahwancybertek.sharepoint.com"
+    sharepoint_site: str = "BCT_Finance"
+
     # Only required when auth_type=entra.
     entra_tenant_id: str = ""
     entra_client_id: str = ""

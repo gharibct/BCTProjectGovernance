@@ -17,21 +17,46 @@ import type { HealthRating } from "@/lib/api/projects";
 // per cell, no per-cell text — a `title` tooltip covers accessibility
 // instead, same lightweight pattern as status-review/rag-status-section.tsx's
 // dot indicator.
-export function RagCell({ rating, circle = false }: { rating: HealthRating | null; circle?: boolean }) {
+export function RagCell({
+  rating,
+  circle = false,
+  large = false,
+  caption,
+}: {
+  rating: HealthRating | null;
+  circle?: boolean;
+  // Bigger mark for the rolled-up RAGs so they read above the per-item circles:
+  // a larger circle (Delivery / DE) or a taller rectangle (Account).
+  large?: boolean;
+  // Small text under the circle (DE RAG: assessment date or "Not assessed").
+  caption?: string;
+}) {
   const level = rating ? HEALTH_LEVELS.find((l) => l.value === RATING_FROM_API[rating])! : null;
   const color = level ? level.dotClass : "bg-slate-200";
   const title = level ? level.label : "Not assessed";
   if (circle) {
     return (
-      <div className="flex justify-center">
-        <div className={cn("size-4 rounded-full", color)} title={title} />
+      <div className="flex flex-col items-center gap-1">
+        <div className={cn(large ? "size-7" : "size-4", "rounded-full", color)} title={title} />
+        {caption ? <span className="text-[11px] whitespace-nowrap text-slate-500">{caption}</span> : null}
       </div>
     );
   }
-  return <div className={cn("h-8 w-full rounded-md", color)} title={title} />;
+  return <div className={cn(large ? "h-11 w-full min-w-[72px]" : "h-8 w-full", "rounded-md", color)} title={title} />;
 }
 
-export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
+// Extra roll-up fields on High Risk / Account Health rows (see HighRiskAccountRow).
+export type RiskColumnFields = {
+  account_rating?: HealthRating | null;
+  de_rating?: HealthRating | null;
+  de_assessment_date?: string | null;
+};
+
+function formatAssessmentDate(value: string): string {
+  return new Date(value).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+}
+
+export function GovernanceMatrix<T extends HealthMatrixRow & RiskColumnFields = HealthMatrixRow>({
   heading,
   icon: Icon,
   accentColor,
@@ -46,6 +71,7 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
   emptyLabel,
   overallLabel = "Overall",
   circleCategories = false,
+  riskColumns = false,
 }: {
   heading: string;
   // Optional colored PPT-divider-style header (see lib/section-accent-colors.ts)
@@ -75,6 +101,10 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
   overallLabel?: string;
   // Render the per-category cells as small circles instead of full-width blocks.
   circleCategories?: boolean;
+  // Adds Account RAG before the Delivery RAG column and DE RAG (with assessment
+  // date / "Not assessed") as the last column, and draws the rolled-up RAGs as
+  // larger circles than the per-item ones. Implies circleCategories.
+  riskColumns?: boolean;
 }) {
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -97,14 +127,22 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
             <thead>
               <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                 {showAccountColumn ? <th className="min-w-[140px] px-4 py-3">Account</th> : null}
-                <th className="min-w-[170px] px-4 py-3">{entityColumnLabel}</th>
+                <th className={cn("px-4 py-3", riskColumns ? "min-w-[300px] w-full" : "min-w-[170px]")}>{entityColumnLabel}</th>
                 {actionColumn ? <th className="px-3 py-3">{actionColumn.label}</th> : null}
+                {riskColumns ? <th className="min-w-[72px] px-2 py-3 text-center">Account RAG</th> : null}
                 <th className="min-w-[72px] px-2 py-3 text-center">{overallLabel}</th>
                 {CATEGORIES.map((category) => (
-                  <th key={category.key} className="min-w-[72px] px-2 py-3 text-center">
+                  <th
+                    key={category.key}
+                    className={cn(
+                      "py-3 text-center",
+                      riskColumns ? "min-w-[56px] px-1 text-[10px] leading-tight" : "min-w-[72px] px-2"
+                    )}
+                  >
                     {category.name}
                   </th>
                 ))}
+                {riskColumns ? <th className="min-w-[110px] px-2 py-3 text-center">DE RAG</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -129,14 +167,29 @@ export function GovernanceMatrix<T extends HealthMatrixRow = HealthMatrixRow>({
                     )}
                   </td>
                   {actionColumn ? <td className="px-3 py-2.5">{actionColumn.render(row)}</td> : null}
+                  {riskColumns ? (
+                    <td className="px-2 py-2.5">
+                      <RagCell rating={row.account_rating ?? null} large />
+                    </td>
+                  ) : null}
                   <td className="px-2 py-2.5">
-                    <RagCell rating={row.overall_rating} />
+                    <RagCell rating={row.overall_rating} circle={riskColumns} large={riskColumns} />
                   </td>
                   {CATEGORIES.map((category) => (
                     <td key={category.key} className="px-2 py-2.5">
-                      <RagCell rating={row[category.ratingField]} circle={circleCategories} />
+                      <RagCell rating={row[category.ratingField]} circle={circleCategories || riskColumns} />
                     </td>
                   ))}
+                  {riskColumns ? (
+                    <td className="px-2 py-2.5">
+                      <RagCell
+                        rating={row.de_rating ?? null}
+                        circle
+                        large
+                        caption={row.de_assessment_date ? formatAssessmentDate(row.de_assessment_date) : "Not assessed"}
+                      />
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

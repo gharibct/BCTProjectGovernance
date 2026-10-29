@@ -23,6 +23,16 @@ import { PaginationBar } from "@/components/forms/pagination-bar";
 const PAGE_SIZE = 10;
 const ALL = "";
 
+// Oracle Project IDs as a comma-separated list, capped at 4 with a "+N more"
+// suffix; the full list is in the cell's tooltip.
+const MAX_ORACLE_IDS = 4;
+function formatOracleIds(ids: string[] | undefined): { text: string; full: string } {
+  if (!ids?.length) return { text: "—", full: "" };
+  const full = ids.join(", ");
+  const extra = ids.length - MAX_ORACLE_IDS;
+  return { text: extra > 0 ? `${ids.slice(0, MAX_ORACLE_IDS).join(", ")} +${extra} more` : full, full };
+}
+
 function formatAccessed(iso: string | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -180,7 +190,8 @@ function ContextBody({
         if (geoId && p.geo_id !== geoId) return false;
         if (regionId && p.region_id !== regionId) return false;
         if (accountId && p.account_id !== accountId) return false;
-        if (q && !`${p.project_code} ${p.project_name}`.toLowerCase().includes(q)) return false;
+        if (q && !`${p.project_code} ${p.project_name} ${(p.oracle_project_ids ?? []).join(" ")}`.toLowerCase().includes(q))
+          return false;
         // Report Status filter: only once the period's statuses have loaded.
         if (showPeriod && reportStatus && statusByProject && reportStatusLabel(statusByProject.get(p.id), monthly) !== reportStatus)
           return false;
@@ -234,7 +245,7 @@ function ContextBody({
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
             <Input
               aria-label="Search projects"
-              placeholder="Search project by code or name…"
+              placeholder="Search by project code, name or Oracle ID…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -384,6 +395,7 @@ function ContextBody({
                     <th className="px-4 py-3">Actions</th>
                     <th className="px-3 py-3">Project Code</th>
                     <th className="px-3 py-3">Project Name</th>
+                    <th className="px-3 py-3">Oracle Project ID</th>
                     <th className="px-3 py-3">Account</th>
                     {showPeriod ? <th className="px-3 py-3">Project Manager</th> : null}
                     {showPeriod ? <th className="px-3 py-3">Delivery Manager</th> : null}
@@ -395,6 +407,7 @@ function ContextBody({
                 </thead>
                 <tbody>
                   {page.map((p) => {
+                    const oracle = formatOracleIds(p.oracle_project_ids);
                     return (
                       <tr
                         key={p.id}
@@ -416,6 +429,9 @@ function ContextBody({
                         </td>
                         <td className="px-3 py-2.5 font-mono text-[#1a6fc4]">{p.project_code}</td>
                         <td className="px-3 py-2.5 text-[#172033]">{p.project_name}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-[#172033]" title={oracle.full || undefined}>
+                          {oracle.text}
+                        </td>
                         <td className="px-3 py-2.5 text-[#172033]">
                           {(p.account_id && accountName.get(p.account_id)) || "—"}
                         </td>
