@@ -84,3 +84,13 @@ export function useBaselinePeriodId(): string | null {
   const { data: periods = [] } = useReportingPeriods();
   return periods.find((p) => p.code === "BASELINE")?.id ?? null;
 }
+
+// DE assessments tied to a reporting period (Account Assessment, Project
+// Delivery Risk Review): dated on/after the period end date, within 35 days of it.
+export const ASSESSMENT_WINDOW_DAYS = 35;
+
+export function addDays(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}

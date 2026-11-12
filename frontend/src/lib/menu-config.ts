@@ -25,7 +25,13 @@ export type MenuEntryId =
   | "de-assessment"
   | "de-findings"
   | "de-projects"
+  | "de-login-details"
   | "de-allocation"
+  | "de-account-allocation"
+  | "de-bulk-copy"
+  | "de-account-audit"
+  | "de-account-findings"
+  | "account-findings"
   | "de-approval"
   | "de-project-requests"
   | "reassignment"
@@ -45,6 +51,7 @@ export type MenuEntryId =
   | "high-risks"
   | "delivery-health"
   | "projects-health"
+  | "pm-dm-compliance"
   | "account-qbr"
   | "admin-users-roles"
   | "admin-integrations"
@@ -92,17 +99,19 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
   TEAM_MEMBER: [{ items: DASHBOARD_ONLY_MENU }],
   DELIVERY_EXCELLENCE: [
     { items: ["delivery-excellence-dashboard"] },
+    { heading: "Account Assessment", items: ["de-account-audit", "de-account-findings", "de-account-allocation"] },
+    { heading: "Project Assessment", items: ["de-assessment", "de-findings", "de-allocation"] },
     {
       heading: "DE Worklists",
-      items: ["project-activity-restriction", "de-assessment", "de-findings", "de-projects"],
+      items: ["de-projects", "de-login-details", "de-bulk-copy", "actions", "reassignment"],
     },
     {
       heading: "DE Approvals",
-      items: ["de-project-requests", "de-allocation", "de-approval", "reassignment"],
+      items: ["de-project-requests", "project-activity-restriction", "de-approval"],
     },
     {
-      heading: "My Reports",
-      items: ["actions"],
+      heading: "Status & Performance Dashboards",
+      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance", "account-qbr", "pm-dm-compliance"],
     },
   ],
   // PMO sees every CXO screen except Project Performance.
@@ -129,7 +138,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     },
     {
       heading: "DE & Actions",
-      items: ["de-assessment-report", "de-findings", "actions"],
+      items: ["de-assessment-report", "de-findings", "account-findings", "actions"],
     },
     {
       heading: "Project Configuration",
@@ -140,7 +149,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     { items: ["geo-head-dashboard"] },
     {
       heading: "Status & Performance Dashboards",
-      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance", "account-qbr"],
+      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance", "account-qbr", "pm-dm-compliance"],
     },
     {
       heading: "Update Status & Performance",
@@ -163,7 +172,7 @@ export const ROLE_MENU_SECTIONS: Record<RoleCode, MenuSection[]> = {
     { items: ["cxo-dashboard"] },
     {
       heading: "Status & Performance Dashboards",
-      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance", "account-qbr"],
+      items: ["executive-risk", "high-risks", "delivery-health", "projects-health", "project-performance", "account-qbr", "pm-dm-compliance"],
     },
   ],
   // Admin-only screens. Everything else (PM / Account Head / Geo Head / DE /
@@ -205,7 +214,11 @@ export const ROLE_MENUS: Record<RoleCode, MenuEntryId[]> = Object.fromEntries(
 export const MENU_LABEL_OVERRIDES: Partial<Record<RoleCode, Partial<Record<MenuEntryId, string>>>> = {
   ACCOUNT_MANAGER: { reassignment: "Assign Role" },
   GEO_HEAD: { reassignment: "Assign Role" },
-  DELIVERY_EXCELLENCE: { reassignment: "Assign Role", "de-findings": "Create DE Finding" },
+  DELIVERY_EXCELLENCE: {
+    reassignment: "Assign Role",
+    "de-findings": "Project Findings",
+    "de-allocation": "Assign DE – Projects",
+  },
 };
 
 // Where a successful login sends each role — the first/primary item in
@@ -235,8 +248,8 @@ export const WORK_CONTEXTS: Partial<Record<RoleCode, RoleCode[]>> = {
     "ADMIN",
     "PROJECT_MANAGER",
     "ACCOUNT_MANAGER",
-    "PMO",
     "GEO_HEAD",
+    "PMO",
     "DELIVERY_EXCELLENCE",
     "CXO",
   ],

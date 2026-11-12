@@ -3,13 +3,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
-from app.schemas.enums import ActionHistoryEventType, ActionLevel, ActionPriority, ActionStatus
+from app.schemas.enums import ActionHistoryEventType, ActionLevel, ActionPriority, ActionStatus, ActionTriggeredFrom
 
 
 class ActionCreate(BaseModel):
     title: str
     description: str | None = None
     priority: ActionPriority
+    triggered_from: ActionTriggeredFrom | None = None
     action_by_id: UUID | None = None
     due_date: date
 
@@ -18,6 +19,7 @@ class ActionUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     priority: ActionPriority | None = None
+    triggered_from: ActionTriggeredFrom | None = None
     action_by_id: UUID | None = None
     due_date: date | None = None
 
@@ -32,6 +34,7 @@ class ActionRead(BaseModel):
     description: str | None = None
     action_by_id: UUID
     priority: ActionPriority
+    triggered_from: str | None = None
     status: ActionStatus
     due_date: date
     raised_by: UUID

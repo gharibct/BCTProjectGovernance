@@ -10,6 +10,7 @@ CREATE TABLE de_assessments (
     id UUID PRIMARY KEY,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     assessment_date DATE,
+    assessment_type TEXT NOT NULL DEFAULT 'Quality Audit', -- Quality Audit (no period), Delivery Risk Review (period + 35-day window)
     period_id UUID REFERENCES reporting_periods(id), -- Weekly period, aligned with Delivery Status reporting; NULL on older rows
     de_assessed_project_health TEXT NOT NULL, -- Red, Potential Red, Amber, Green
     pci_score NUMERIC(12, 2),

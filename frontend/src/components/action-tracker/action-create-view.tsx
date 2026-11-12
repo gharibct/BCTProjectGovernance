@@ -11,7 +11,13 @@ import { ResourcePicker } from "@/components/forms/resource-picker";
 import { useAccounts, useGeos } from "@/lib/api/reference-data";
 import { useAccountHead, useGeoHead } from "@/lib/api/users";
 import { useProject, useProjects } from "@/lib/api/projects";
-import { useCreateAction, type ActionLevel, type ActionPriority } from "@/lib/api/actions";
+import {
+  ACTION_TRIGGERED_FROM_OPTIONS,
+  useCreateAction,
+  type ActionLevel,
+  type ActionPriority,
+  type ActionTriggeredFrom,
+} from "@/lib/api/actions";
 import { usePageBanner } from "@/stores/page-banner";
 import { useSession } from "@/stores/session";
 
@@ -64,6 +70,7 @@ export function ActionCreateView({
   const [ownerTouched, setOwnerTouched] = React.useState(false);
   const [dueDate, setDueDate] = React.useState("");
   const [priority, setPriority] = React.useState<ActionPriority>("HIGH");
+  const [triggeredFrom, setTriggeredFrom] = React.useState<ActionTriggeredFrom | "">("");
   const [errors, setErrors] = React.useState<{ title?: string; due_date?: string; value?: string }>({});
 
   const currentOptions = optionsForLevel(initialLevel);
@@ -109,6 +116,7 @@ export function ActionCreateView({
         title: title.trim(),
         description: description.trim() || null,
         priority,
+        triggered_from: triggeredFrom || null,
         action_by_id: ownerId || derivedOwnerId || null,
         due_date: dueDate,
       },
@@ -190,6 +198,21 @@ export function ActionCreateView({
 
       <Field label="Priority">
         <Segmented options={PRIORITIES} value={priority} onChange={setPriority} className="w-full" />
+      </Field>
+
+      <Field label="Action Triggered From" htmlFor="action-triggered-from">
+        <NativeSelect
+          id="action-triggered-from"
+          value={triggeredFrom}
+          onChange={(e) => setTriggeredFrom(e.target.value as ActionTriggeredFrom | "")}
+        >
+          <option value="">Select…</option>
+          {ACTION_TRIGGERED_FROM_OPTIONS.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </NativeSelect>
       </Field>
 
       <div className="mt-2 flex justify-end gap-3">

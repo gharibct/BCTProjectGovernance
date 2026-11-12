@@ -285,12 +285,30 @@ async def test_unchanged_lifecycle_status_is_not_rejected_while_draft(lenient_cl
     assert not _is_locked(response), response.text
 
 
-async def test_project_type_change_rejected_once_approved(lenient_client, override_auth):
+async def test_project_type_change_rejected_once_measurement_submitted(
+    lenient_client, override_auth, monkeypatch
+):
+    async def _has(db, project_id):
+        return True
+
+    monkeypatch.setattr("app.api.v1.endpoints.projects._has_measurements", _has)
     current = uuid4()
     headers = override_auth(RoleCode.PROJECT_MANAGER, get_map=_put_map("Under Amendment", project_type_id=current))
     response = await lenient_client.put(BASE, json={"project_type_id": str(uuid4())}, headers=headers)
     assert _is_locked(response), response.text
     assert "Project Type" in response.json()["detail"]["message"]
+
+
+async def test_project_type_change_allowed_under_amendment_before_any_measurement(
+    lenient_client, override_auth, monkeypatch
+):
+    async def _has(db, project_id):
+        return False
+
+    monkeypatch.setattr("app.api.v1.endpoints.projects._has_measurements", _has)
+    headers = override_auth(RoleCode.PROJECT_MANAGER, get_map=_put_map("Under Amendment", project_type_id=uuid4()))
+    response = await lenient_client.put(BASE, json={"project_type_id": str(uuid4())}, headers=headers)
+    assert not _is_locked(response), response.text
 
 
 async def test_same_project_type_is_allowed_under_amendment(lenient_client, override_auth):

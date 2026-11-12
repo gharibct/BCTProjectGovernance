@@ -11,6 +11,7 @@ from app.schemas.enums import (
     EngagementType,
     HealthRating,
     ProjectLifecycleStatus,
+    PmAttentionNeeded,
     ProjectOwned,
     ProjectStatus,
     YesNo,
@@ -33,6 +34,7 @@ class ProjectBase(BaseModel):
     project_type_id: UUID | None = None
     organization_id: UUID | None = None
     project_owned: ProjectOwned | None = None
+    pm_attention_needed: PmAttentionNeeded | None = None
     geo_id: UUID | None = None
     region_id: UUID | None = None
     account_id: UUID | None = None
@@ -95,6 +97,7 @@ class ProjectUpdate(BaseModel):
     project_type_id: UUID | None = None
     organization_id: UUID | None = None
     project_owned: ProjectOwned | None = None
+    pm_attention_needed: PmAttentionNeeded | None = None
     geo_id: UUID | None = None
     region_id: UUID | None = None
     account_id: UUID | None = None

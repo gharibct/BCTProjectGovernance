@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportHistory } from "@/components/status-review/report-history";
 import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -387,6 +388,8 @@ export function DeliveryStatusReport() {
           />
         </section>
       ) : null}
+
+      {periodId ? <ReportHistory scope="project" scopeId={projectId ?? ""} report={existing} /> : null}
 
       {periodId ? (
         <StickyActionBar

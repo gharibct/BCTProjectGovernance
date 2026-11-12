@@ -97,8 +97,14 @@ ENUM_COLUMNS: dict[str, dict[str, type[e.StrEnum]]] = {
     "contractual_commitments": {"frequency": e.CommitmentFrequency},
     "contractual_commitment_actuals": {"met_status": e.MetStatus},
     "milestone_payment_actuals": {"status": e.MilestonePaymentStatus},
-    "de_assessments": {"de_assessed_project_health": e.HealthRating},
+    "de_assessments": {"de_assessed_project_health": e.HealthRating, "assessment_type": e.DEAssessmentType},
     "de_assessment_findings": {
+        "category": e.Category,
+        "classification": e.FindingClassification,
+        "status": e.FindingStatus,
+    },
+    "de_account_audits": {"de_assessed_health": e.HealthRating},
+    "de_account_findings": {
         "category": e.Category,
         "classification": e.FindingClassification,
         "status": e.FindingStatus,

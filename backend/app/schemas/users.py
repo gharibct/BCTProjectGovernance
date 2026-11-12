@@ -41,6 +41,19 @@ class UserUpdate(BaseModel):
     last_login_at: datetime | None = None
 
 
+class UserLoginDetail(BaseModel):
+    """Who has signed in and when — the DE "User Login Details" screen."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    full_name: str
+    email: str
+    ldap_username: str
+    role_id: UUID
+    is_active: bool
+    last_login_at: datetime | None = None
+
+
 class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
     id: UUID

@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { ButtonSpinner, Field, Segmented } from "@/components/forms/form-primitives";
 import { StatusBadge } from "@/components/forms/status-badge";
@@ -13,6 +14,7 @@ import { useUsersByIds, type User } from "@/lib/api/reference-data";
 import { canCreateAction, canTransitionAction } from "@/lib/api/action-permissions";
 import {
   ACTION_PRIORITY_LABEL,
+  ACTION_TRIGGERED_FROM_OPTIONS,
   ACTION_STATUS_LABEL,
   useActionHistory,
   useActions,
@@ -26,6 +28,7 @@ import {
   type ActionHistoryEntry,
   type ActionLevel,
   type ActionPriority,
+  type ActionTriggeredFrom,
 } from "@/lib/api/actions";
 import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole, useSession } from "@/stores/session";
@@ -108,6 +111,7 @@ export function ActionDetailView({
   const [ownerId, setOwnerId] = React.useState(() => action?.action_by_id ?? "");
   const [dueDate, setDueDate] = React.useState(() => action?.due_date ?? "");
   const [priority, setPriority] = React.useState<ActionPriority>(() => action?.priority ?? "MEDIUM");
+  const [triggeredFrom, setTriggeredFrom] = React.useState<ActionTriggeredFrom | "">(() => action?.triggered_from ?? "");
   const [commentText, setCommentText] = React.useState("");
 
   // Every name shown on this view (owner, raiser, closer, history authors and
@@ -150,7 +154,7 @@ export function ActionDetailView({
     updateAction.mutate(
       {
         actionId: action.id,
-        payload: { title: title.trim(), description: description.trim() || null, action_by_id: ownerId || null, due_date: dueDate, priority },
+        payload: { title: title.trim(), description: description.trim() || null, action_by_id: ownerId || null, due_date: dueDate, priority, triggered_from: triggeredFrom || null },
       },
       {
         onSuccess: () => showSuccess("Action updated."),
@@ -218,6 +222,22 @@ export function ActionDetailView({
 
       <Field label="Priority">
         <Segmented options={PRIORITIES} value={priority} onChange={setPriority} className="w-full" disabled={!canEdit} />
+      </Field>
+
+      <Field label="Action Triggered From" htmlFor="detail-triggered-from">
+        <NativeSelect
+          id="detail-triggered-from"
+          value={triggeredFrom}
+          onChange={(e) => setTriggeredFrom(e.target.value as ActionTriggeredFrom | "")}
+          disabled={!canEdit}
+        >
+          <option value="">Select…</option>
+          {ACTION_TRIGGERED_FROM_OPTIONS.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </NativeSelect>
       </Field>
 
       <dl className="grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 text-xs text-slate-500">

@@ -21,6 +21,8 @@ export type FieldDef = {
   // FK-backed select (e.g. a user picker): value is the referenced row's id,
   // label is its display name. Takes precedence over `options` when set.
   choices?: readonly { value: string; label: string }[];
+  // number fields only: whole numbers (template gets an integer column).
+  integer?: boolean;
   hint?: string;
   mandatory?: boolean;
   placeholder?: string;

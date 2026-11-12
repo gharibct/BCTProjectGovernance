@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { SectionCard } from "@/components/forms/form-primitives";
 import { PaginationBar } from "@/components/forms/pagination-bar";
-import { RegisterTable } from "@/components/forms/register-table";
+import { ProjectHealthExportButton } from "@/components/dashboard/project-health-export-button";
+import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { usePageBanner } from "@/stores/page-banner";
+import { api } from "@/lib/api/client";
 import { useRoles, useUserDirectory, type User } from "@/lib/api/reference-data";
 import { useDeleteUser } from "@/lib/api/users";
 import { roleDisplayName } from "@/lib/role-labels";
@@ -43,6 +45,25 @@ export function CreateUserPanel() {
   const users = directory.data?.items ?? [];
   const total = directory.data?.total ?? 0;
 
+  // The grid is server-paged — the export pulls every user matching the current
+  // filters, not just the visible page.
+  const fetchAllUsers = async (): Promise<User[]> => {
+    const all: User[] = [];
+    const size = 200;
+    for (let skipAt = 0; ; skipAt += size) {
+      const params = new URLSearchParams({
+        skip: String(skipAt),
+        limit: String(size),
+      });
+      if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
+      if (roleCode) params.append("role_code", roleCode);
+      if (active !== "") params.set("is_active", active);
+      const page = await api.get<{ items: User[]; total: number }>(`/users?${params.toString()}`);
+      all.push(...page.items);
+      if (all.length >= page.total || page.items.length === 0) return all;
+    }
+  };
+
   const deleteUser = useDeleteUser();
   const showSuccess = usePageBanner((state) => state.showSuccess);
   const showError = usePageBanner((state) => state.showError);
@@ -70,6 +91,30 @@ export function CreateUserPanel() {
       onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete user."),
     });
   };
+
+  const userColumns: RegisterColumn<User>[] = [
+    { key: "ldap_username", label: "Username" },
+    { key: "full_name", label: "Full Name" },
+    { key: "email", label: "Email" },
+    {
+      key: "role_id",
+      label: "Role",
+      render: (item) => roleName(item.role_id),
+      excelValue: (item) => roleName(item.role_id),
+    },
+    {
+      key: "is_active",
+      label: "Active",
+      render: (item) => (item.is_active ? "Yes" : "No"),
+      excelValue: (item) => (item.is_active ? "Yes" : "No"),
+    },
+    {
+      key: "password_set",
+      label: "Password",
+      render: (item) => (item.password_set ? "Set" : "—"),
+      excelValue: (item) => (item.password_set ? "Set" : "—"),
+    },
+  ];
 
   return (
     <>
@@ -147,42 +192,22 @@ export function CreateUserPanel() {
           ) : null}
         </div>
 
+        <div className="mb-3 flex justify-end">
+          <ProjectHealthExportButton filename="users.xlsx" columns={userColumns} fetchAll={fetchAllUsers} />
+        </div>
         <RegisterTable
           items={users}
           emptyLabel={
-            directory.isLoading
-              ? "Loading…"
-              : filtersActive
-                ? "No users match the current filters."
-                : "No users yet."
+            directory.isLoading ? "Loading…" : filtersActive ? "No users match the current filters." : "No users yet."
           }
           onEdit={(user) => setDrawer({ user })}
           onDelete={handleDelete}
-          columns={[
-            { key: "ldap_username", label: "Username" },
-            { key: "full_name", label: "Full Name" },
-            { key: "email", label: "Email" },
-            { key: "role_id", label: "Role", render: (item) => roleName(item.role_id) },
-            {
-              key: "is_active",
-              label: "Active",
-              render: (item) => (item.is_active ? "Yes" : "No"),
-            },
-            {
-              key: "password_set",
-              label: "Password",
-              render: (item) => (item.password_set ? "Set" : "—"),
-            },
-          ]}
+          columns={userColumns}
         />
         <PaginationBar skip={skip} limit={PAGE_SIZE} total={total} onPageChange={setSkip} />
       </SectionCard>
 
-      <UserFormDrawer
-        open={drawer !== null}
-        user={drawer?.user ?? null}
-        onClose={() => setDrawer(null)}
-      />
+      <UserFormDrawer open={drawer !== null} user={drawer?.user ?? null} onClose={() => setDrawer(null)} />
     </>
   );
 }

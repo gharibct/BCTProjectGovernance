@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, computed_field
 from app.schemas.enums import (
     Category,
     DEAssessmentStatus,
+    DEAssessmentType,
     FindingClassification,
     FindingStatus,
     HealthRating,
@@ -89,7 +90,8 @@ class DEAssessmentCreate(BaseModel):
     """
 
     assessment_date: date | None = None
-    period_id: UUID | None = None  # a Weekly reporting period
+    assessment_type: DEAssessmentType = DEAssessmentType.QUALITY_AUDIT
+    period_id: UUID | None = None  # a Weekly reporting period (Delivery Risk Review only)
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None
     remarks: str | None = None
@@ -102,7 +104,8 @@ class DEAssessmentUpdate(BaseModel):
     status to Submitted finalizes it (writes back the Project charter health)."""
 
     assessment_date: date | None = None
-    period_id: UUID | None = None  # a Weekly reporting period
+    assessment_type: DEAssessmentType | None = None
+    period_id: UUID | None = None  # a Weekly reporting period (Delivery Risk Review only)
     de_assessed_project_health: HealthRating | None = None
     pci_score: Decimal | None = None
     remarks: str | None = None
@@ -114,6 +117,7 @@ class DEAssessmentRead(BaseModel):
     id: UUID
     project_id: UUID
     assessment_date: date | None
+    assessment_type: DEAssessmentType = DEAssessmentType.QUALITY_AUDIT
     period_id: UUID | None = None
     de_assessed_project_health: HealthRating
     pci_score: Decimal | None = None

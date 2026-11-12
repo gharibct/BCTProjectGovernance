@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportHistory } from "@/components/status-review/report-history";
 import { StickyActionBar } from "@/components/forms/sticky-action-bar";
 import * as React from "react";
 import { Lock, TrendingUp } from "lucide-react";
@@ -276,6 +277,8 @@ function AccountDeliveryStatusReportInner({ accountId }: { accountId: string }) 
           />
         </section>
       ) : null}
+
+      {periodId ? <ReportHistory scope="account" scopeId={accountId} report={existing} /> : null}
 
       {periodId ? (
         <StickyActionBar

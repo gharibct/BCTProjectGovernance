@@ -45,6 +45,7 @@ import {
   useUsersByIds,
 } from "@/lib/api/reference-data";
 import {
+  PM_ATTENTION_OPTIONS,
   useCreateProjectResource,
   useDeleteProjectResource,
   useProject,
@@ -108,7 +109,7 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               <option value="" disabled>
                 Select…
               </option>
-              {["FPP", "T&M", "Capped T&M", "Internal"].map((type) => (
+              {["FPP", "T&M", "Capped FP", "Internal"].map((type) => (
                 <option key={type}>{type}</option>
               ))}
             </NativeSelect>
@@ -140,6 +141,14 @@ function ProjectDescriptionTab({ project }: { project: Project | undefined }) {
               </option>
               {PROJECT_OWNED_OPTIONS.map((owned) => (
                 <option key={owned}>{owned}</option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field label="PM Attention / Involvement Needed" htmlFor="pm-attention-needed">
+            <NativeSelect id="pm-attention-needed" value={project?.pm_attention_needed ?? ""} disabled>
+              <option value="">Select…</option>
+              {PM_ATTENTION_OPTIONS.map((level) => (
+                <option key={level}>{level}</option>
               ))}
             </NativeSelect>
           </Field>

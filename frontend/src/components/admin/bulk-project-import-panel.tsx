@@ -5,7 +5,8 @@ import { FolderPlus } from "lucide-react";
 
 import { SectionCard } from "@/components/forms/form-primitives";
 import type { FieldDef } from "@/components/forms/entry-form";
-import { RegisterTable } from "@/components/forms/register-table";
+import { ProjectHealthExportButton } from "@/components/dashboard/project-health-export-button";
+import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import {
   useAccounts,
@@ -15,14 +16,9 @@ import {
   useProjectTypes,
   useRegions,
 } from "@/lib/api/reference-data";
-import {
-  useBulkCreateProject,
-  type ApplicablePhase,
-  type Project,
-  type ProjectBulkPayload,
-} from "@/lib/api/projects";
+import { useBulkCreateProject, type ApplicablePhase, type Project, type ProjectBulkPayload } from "@/lib/api/projects";
 
-const CONTRACT_TYPES = ["FPP", "T&M", "Capped T&M", "Internal"] as const;
+const CONTRACT_TYPES = ["FPP", "T&M", "Capped FP", "Internal"] as const;
 const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
 const YES_NO = ["Yes", "No"] as const;
 const CURRENCIES = ["USD", "OMR", "AED", "SAR", "INR", "EUR"] as const;
@@ -108,7 +104,12 @@ export function BulkProjectImportPanel() {
 
   const defs: FieldDef[] = [
     // Create Project
-    { key: "project_name", label: "Project Name", kind: "text", mandatory: true },
+    {
+      key: "project_name",
+      label: "Project Name",
+      kind: "text",
+      mandatory: true,
+    },
     {
       key: "project_manager_email",
       label: "Project Manager Email",
@@ -116,7 +117,12 @@ export function BulkProjectImportPanel() {
       mandatory: true,
       hint: "Email of an active user.",
     },
-    { key: "oracle_project_id", label: "Oracle Project ID", kind: "text", mandatory: true },
+    {
+      key: "oracle_project_id",
+      label: "Oracle Project ID",
+      kind: "text",
+      mandatory: true,
+    },
     {
       key: "organization_id",
       label: "Organization",
@@ -146,15 +152,30 @@ export function BulkProjectImportPanel() {
       choices: accounts.map((a) => ({ value: a.id, label: a.name })),
     },
     // Project Profile
-    { key: "contract_type", label: "Contract Type", kind: "select", options: CONTRACT_TYPES },
+    {
+      key: "contract_type",
+      label: "Contract Type",
+      kind: "select",
+      options: CONTRACT_TYPES,
+    },
     {
       key: "project_type_id",
       label: "Project Type",
       kind: "select",
       choices: projectTypes.map((t) => ({ value: t.id, label: t.name })),
     },
-    { key: "project_owned", label: "Project Owned", kind: "select", options: PROJECT_OWNED_OPTIONS },
-    { key: "critical_flag", label: "Critical Flag", kind: "select", options: YES_NO },
+    {
+      key: "project_owned",
+      label: "Project Owned",
+      kind: "select",
+      options: PROJECT_OWNED_OPTIONS,
+    },
+    {
+      key: "critical_flag",
+      label: "Critical Flag",
+      kind: "select",
+      options: YES_NO,
+    },
     {
       key: "product_flag",
       label: "BCT Product Implemented",
@@ -176,10 +197,19 @@ export function BulkProjectImportPanel() {
       hint: "Separate multiple phases with ;",
     },
     { key: "project_revenue", label: "Project TCV Revenue", kind: "number" },
-    { key: "project_currency", label: "Project Currency", kind: "select", options: CURRENCIES },
+    {
+      key: "project_currency",
+      label: "Project Currency",
+      kind: "select",
+      options: CURRENCIES,
+    },
     // Scope & Schedule
     { key: "customer_overview", label: "Customer Overview", kind: "textarea" },
-    { key: "project_scope_description", label: "Project Scope Description", kind: "textarea" },
+    {
+      key: "project_scope_description",
+      label: "Project Scope Description",
+      kind: "textarea",
+    },
     { key: "planned_start_date", label: "Planned Start Date", kind: "date" },
     { key: "planned_end_date", label: "Planned End Date", kind: "date" },
     {
@@ -187,6 +217,36 @@ export function BulkProjectImportPanel() {
       label: "Governance Tool Implementation Effective Date",
       kind: "date",
     },
+  ];
+
+  const projectColumns: RegisterColumn<Project>[] = [
+    { key: "project_code", label: "Project Code" },
+    { key: "project_name", label: "Project Name" },
+    {
+      key: "account_id",
+      label: "Account",
+      render: (item) => accountName(item.account_id),
+      excelValue: (item) => accountName(item.account_id),
+    },
+    {
+      key: "geo_id",
+      label: "GEO",
+      render: (item) => geoName(item.geo_id),
+      excelValue: (item) => geoName(item.geo_id),
+    },
+    {
+      key: "planned_start_date",
+      label: "Planned Start",
+      render: (item) => item.planned_start_date || "—",
+      excelValue: (item) => item.planned_start_date || "",
+    },
+    {
+      key: "planned_end_date",
+      label: "Planned End",
+      render: (item) => item.planned_end_date || "—",
+      excelValue: (item) => item.planned_end_date || "",
+    },
+    { key: "project_status", label: "Status", badge: true },
   ];
 
   return (
@@ -197,18 +257,17 @@ export function BulkProjectImportPanel() {
         buildPayload={buildProjectPayload}
         createMutation={createProject}
       />
+      <div className="mb-3 flex justify-end">
+        <ProjectHealthExportButton
+          filename="imported-projects.xlsx"
+          columns={projectColumns}
+          fetchAll={async () => imported}
+        />
+      </div>
       <RegisterTable
         items={imported}
         emptyLabel="No projects imported yet. Use Import Excel or Paste from Excel."
-        columns={[
-          { key: "project_code", label: "Project Code" },
-          { key: "project_name", label: "Project Name" },
-          { key: "account_id", label: "Account", render: (item) => accountName(item.account_id) },
-          { key: "geo_id", label: "GEO", render: (item) => geoName(item.geo_id) },
-          { key: "planned_start_date", label: "Planned Start", render: (item) => item.planned_start_date || "—" },
-          { key: "planned_end_date", label: "Planned End", render: (item) => item.planned_end_date || "—" },
-          { key: "project_status", label: "Status", badge: true },
-        ]}
+        columns={projectColumns}
       />
     </SectionCard>
   );

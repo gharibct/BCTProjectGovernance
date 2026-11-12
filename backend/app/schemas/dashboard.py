@@ -348,6 +348,7 @@ class DEAssessmentWorkQueueRow(BaseModel):
     status: str  # "Assessed" | "Draft" | "Due" | "Not Required" (this calendar month)
     assessments_this_month: int = 0
     last_assessment_date: date | None = None  # most recent assessment, any month
+    last_assessment_type: str | None = None  # Quality Audit / Delivery Risk Review of that assessment
     assessed_by_name: str | None = None  # who filed the most recent assessment this month
     open_findings_count: int = 0
     prev_de_health: HealthRating | None = None  # latest Submitted assessment before this month
@@ -699,8 +700,11 @@ class RagRow(BaseModel):
     account_name: str | None = None
     overall_rating: HealthRating | None = None
     core_delivery_rating: HealthRating | None = None
+    people_rating: HealthRating | None = None
     operational_rating: HealthRating | None = None
+    customer_rating: HealthRating | None = None
     financial_rating: HealthRating | None = None
+    compliance_rating: HealthRating | None = None
     period_label: str | None = None
     last_updated: datetime | None = None
 
@@ -984,12 +988,15 @@ class HighRiskAccountRow(HealthMatrixRow):
     # Onsite + Offshore FTE from the account's filed status report for the
     # period (None when not filed or neither figure was entered).
     total_fte: float | None = None
+    # Status of the filed report for the period: "Submitted" / "Approved", None
+    # when nothing is filed. Lets the UI send approvers to the approval page.
+    report_status: str | None = None
     # "Red" / "Amber" / "Green" / "Not Submitted" (Green only
     # on the Delivery Health Dashboard).
     risk_status: str
-    # Account-level rows only. DE RAG = worst of the account's active projects'
-    # latest Submitted DE assessments dated in the selected week (None = not
-    # assessed); de_assessment_date = the most recent of those. Account RAG =
+    # Account-level rows only. DE RAG = the account's own latest Submitted DE Account
+    # Audit dated on/before the selected week's end (None = never audited);
+    # de_assessment_date = that audit's date. Account RAG =
     # worst of Delivery RAG and DE RAG on the Red / Amber / Green scale.
     de_rating: HealthRating | None = None
     de_assessment_date: date | None = None
@@ -1034,3 +1041,55 @@ class HighRisksResponse(BaseModel):
     # Delivery Health Dashboard's Delivery Manager filter — managers of the
     # in-scope accounts, before the manager filter itself is applied.
     delivery_managers: list[DeliveryManagerOption] = []
+
+
+# PM / DM Compliance (design-reference/Governance-One-Adoption-Flash.xlsx): per
+# person, the weekly reports they owed (as PM of projects and/or DM of accounts)
+# vs filed, for the Weekly periods that end inside the selected month.
+class PmDmCompliancePeriod(BaseModel):
+    id: UUID
+    label: str
+    start_date: date
+    end_date: date
+
+
+class PmDmComplianceWeek(BaseModel):
+    period_id: UUID
+    label: str
+    end_date: date
+
+
+class PmDmComplianceCell(BaseModel):
+    expected: int
+    submitted: int
+    on_time: int
+
+
+class PmDmComplianceRow(BaseModel):
+    user_id: UUID
+    name: str
+    weeks: list[PmDmComplianceCell]  # aligned with the response's `weeks`
+    expected: int
+    submitted: int
+    on_time: int
+    # "Overall Submitted": weeks in which everything owed was filed, out of the
+    # weeks in which anything was owed.
+    weeks_fully_submitted: int
+    weeks_owed: int
+
+
+class PmDmComplianceSummary(BaseModel):
+    people: int
+    fully_compliant_people: int
+    expected: int
+    submitted: int
+    on_time: int
+    submitted_pct: int
+    on_time_pct: int
+
+
+class PmDmComplianceResponse(BaseModel):
+    period: PmDmCompliancePeriod | None
+    weeks: list[PmDmComplianceWeek]
+    rows: list[PmDmComplianceRow]
+    summary: PmDmComplianceSummary

@@ -3,6 +3,7 @@
 // the browser.
 
 import * as XLSX from "xlsx";
+import type { FieldDef } from "@/components/forms/entry-form";
 import { shapeGrid, type ShapedGrid } from "./table-grid-shape";
 import { normalize } from "./register-import-match";
 
@@ -29,12 +30,112 @@ export async function parseExcelFile(file: File): Promise<ShapedGrid> {
   return shaped;
 }
 
-// Headers-only template — no data rows, no formulas/validation/formatting.
-export function exportTemplate(filename: string, headers: string[]): void {
-  const ws = XLSX.utils.aoa_to_sheet([headers]);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Template");
-  XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+// Header colour per column type (ARGB). Labels stay exact — import matches on them.
+const HEADER_FILL = {
+  text: "FF475569", // slate
+  date: "FF7C3AED", // purple
+  decimal: "FF2563EB", // blue
+  integer: "FF0D9488", // teal
+  select: "FFD97706", // amber
+} as const;
+type HeaderType = keyof typeof HEADER_FILL;
+const HEADER_LEGEND: Record<HeaderType, string> = {
+  text: "Text",
+  date: "Date (yyyy-mm-dd)",
+  decimal: "Decimal number",
+  integer: "Whole number",
+  select: "Dropdown - pick from the list",
+};
+const TEMPLATE_ROWS = 1000;
+
+function selectValues(def: FieldDef): string[] {
+  if (def.kind !== "select") return [];
+  return def.choices ? def.choices.map((c) => c.label) : [...(def.options ?? [])];
+}
+
+function headerType(def: FieldDef): HeaderType {
+  if (def.kind === "select" && selectValues(def).length > 0) return "select";
+  if (def.kind === "date") return "date";
+  if (def.kind === "number") return def.integer ? "integer" : "decimal";
+  return "text";
+}
+
+// Template: coloured, frozen header row (colour = data type), number/date
+// formats, and an in-cell dropdown for every select field (values held on a
+// hidden "Lists" sheet so long lists and commas in names are safe).
+export async function exportTemplate(filename: string, defs: FieldDef[]): Promise<void> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Template", { views: [{ state: "frozen", ySplit: 1 }] });
+  const lists = wb.addWorksheet("Lists", { state: "hidden" });
+
+  defs.forEach((def, i) => {
+    const col = i + 1;
+    const type = headerType(def);
+    const column = ws.getColumn(col);
+    column.width = Math.max(14, def.label.length + 4);
+
+    const head = ws.getCell(1, col);
+    head.value = def.label;
+    head.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    head.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL[type] } };
+    head.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    if (def.mandatory) {
+      head.border = { bottom: { style: "thick", color: { argb: "FFDC2626" } } };
+    }
+
+    if (type === "date") column.numFmt = "yyyy-mm-dd";
+    else if (type === "integer") column.numFmt = "0";
+    else if (type === "decimal") column.numFmt = "#,##0.00";
+
+    if (type === "select") {
+      const values = selectValues(def);
+      values.forEach((v, r) => {
+        lists.getCell(r + 1, col).value = v;
+      });
+      const letter = column.letter;
+      const listRef = `Lists!$${letter}$1:$${letter}$${values.length}`;
+      for (let r = 2; r <= TEMPLATE_ROWS + 1; r++) {
+        ws.getCell(r, col).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: [listRef],
+          showErrorMessage: true,
+          errorStyle: "stop",
+          errorTitle: "Invalid value",
+          error: "Pick a value from the dropdown list.",
+        };
+      }
+    } else if (type === "integer") {
+      for (let r = 2; r <= TEMPLATE_ROWS + 1; r++) {
+        ws.getCell(r, col).dataValidation = {
+          type: "whole",
+          operator: "between",
+          allowBlank: true,
+          formulae: [-2147483648, 2147483647],
+          showErrorMessage: true,
+          errorTitle: "Whole number",
+          error: "Enter a whole number.",
+        };
+      }
+    }
+  });
+  ws.getRow(1).height = 30;
+
+  const legend = wb.addWorksheet("Legend");
+  legend.getColumn(1).width = 8;
+  legend.getColumn(2).width = 40;
+  (Object.keys(HEADER_FILL) as HeaderType[]).forEach((t, i) => {
+    legend.getCell(i + 1, 1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL[t] } };
+    legend.getCell(i + 1, 2).value = HEADER_LEGEND[t];
+  });
+  legend.getCell(6, 2).value = "Red underline on a header = mandatory";
+
+  const buf = await wb.xlsx.writeBuffer();
+  saveBlob(
+    new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`,
+  );
 }
 
 // Data export — a header row plus one row per record, written as a plain

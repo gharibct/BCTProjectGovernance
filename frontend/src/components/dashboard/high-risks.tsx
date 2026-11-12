@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useReturnToRow } from "@/lib/return-to-row";
+import { reportHref } from "@/lib/report-links";
+import { useEffectiveRole } from "@/stores/session";
 import { FileText, HeartPulse, LayoutGrid } from "lucide-react";
 
 import { GovernanceMatrix } from "@/components/dashboard/governance-matrix";
@@ -128,11 +130,18 @@ export function HighRisks({
   // Back from a report: scroll to and highlight the row that was opened.
   const { markRow, onClickCapture } = useReturnToRow(variant, !isLoading && !!data);
 
-  const accountHref = (id: string) =>
-    `/account-review/${id}?period=${periodId}&back=${encodeURIComponent(backPath)}`;
-  const projectHref = (id: string) =>
-    `/project-review/${id}?period=${periodId}&back=${encodeURIComponent(backPath)}`;
-  const rowHref = projectHealth ? projectHref : accountHref;
+  // Submitters / approvers land on their action page (Recall / Approve-Reject);
+  // every other role gets the read-only viewer — see lib/report-links.ts.
+  const effectiveRole = useEffectiveRole();
+  const rowHref = (row: HighRiskAccountRow) =>
+    reportHref({
+      scope: projectHealth ? "project" : "account",
+      role: effectiveRole,
+      id: row.entity_id,
+      status: row.report_status,
+      periodId,
+      back: backPath,
+    });
 
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
@@ -237,11 +246,14 @@ export function HighRisks({
           accentColor={sectionAccentColor(0)}
           entityColumnLabel={projectHealth ? "Projects" : "Accounts"}
           rows={executive ? data?.items.filter((r) => statuses.includes(r.risk_status)) : data?.items}
-          entityHref={rowHref}
+          entityHref={(id) => {
+            const row = data?.items.find((r) => r.entity_id === id);
+            return row ? rowHref(row) : "#";
+          }}
           // Not Submitted rows have no report to open, so nothing launches for them.
           onEntityClick={(row) => {
             markRow(row.entity_id);
-            router.push(rowHref(row.entity_id));
+            router.push(rowHref(row));
           }}
           entityClickable={(row) => row.risk_status !== "Not Submitted"}
           actionColumn={{
@@ -258,12 +270,11 @@ export function HighRisks({
                 </span>
               ) : (
               <Link
-                href={rowHref(row.entity_id)}
+                href={rowHref(row)}
                 title={projectHealth ? "Open this project's report" : "Open this account's report"}
-                className="inline-flex items-center gap-1 rounded-xl bg-[#1a6fc4] px-2.5 py-1 text-xs leading-tight font-semibold text-white transition-colors hover:bg-[#15406b]"
+                className="inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap text-blue-700 hover:underline"
               >
-                <FileText className="size-3 shrink-0" />
-                <span>View<br />Report</span>
+                View report →
               </Link>
             ),
           }}
@@ -273,7 +284,7 @@ export function HighRisks({
                 {row.risk_status === "Not Submitted" ? (
                   <span>{row.entity_label}</span>
                 ) : (
-                  <Link href={rowHref(row.entity_id)} onClick={stop} className="hover:underline">
+                  <Link href={rowHref(row)} onClick={stop} className="hover:underline">
                     {row.entity_label}
                   </Link>
                 )}
@@ -338,6 +349,7 @@ export function HighRisks({
           overallLabel="Delivery RAG"
           circleCategories
           riskColumns={!projectHealth}
+          soft
           emptyLabel={isLoading || !periodId ? "Loading…" : executive ? "No Red accounts for these filters." : "No high-risk accounts for these filters."}
         />
         </div>

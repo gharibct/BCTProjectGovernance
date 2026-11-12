@@ -1,8 +1,10 @@
 "use client";
 
-import { Suspense, useMemo, type ChangeEvent } from "react";
+import { Suspense, useEffect, useMemo, type ChangeEvent } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { cn } from "@/lib/utils";
+import { dashboardBackCrumbs } from "@/lib/report-links";
 import { PageBreadcrumb } from "@/components/shell/page-breadcrumb";
 import { selectProjectHref } from "@/lib/project-context-targets";
 import { selectAccountHref } from "@/lib/account-context-targets";
@@ -27,6 +29,7 @@ import { CustomerCommunicationSection } from "./customer-communication-section";
 import { RagStatusSection } from "./rag-status-section";
 import { OpenNcSection } from "./open-nc-section";
 import { ReviewActions } from "./review-actions";
+import { ReportHistory } from "./report-history";
 import { ExecutiveUpdateSection } from "@/components/regional-reporting/executive-update-section";
 
 const SCOPE_NAV_LABEL: Record<ReviewScope, string> = {
@@ -80,15 +83,21 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
   // (Geo Head and CXO) show in every status, incl. Auto Generated. The approve
   // worklist (project / account) lists only Submitted reports — the ones
   // actually awaiting a decision.
+  // The period being looked at stays on the approve page after it is decided
+  // (Approved / Rejected) so its locked Approve / Reject bar can explain why the
+  // buttons are disabled. Without ?period=, the first report is pinned into the URL.
+  const urlPeriodId = searchParams.get("period");
   const reports = useMemo(() => {
     if (scope === "geo") return allReports;
-    if (mode === "approve") return allReports.filter((r) => r.status === "Submitted");
+    if (mode === "approve")
+      return allReports.filter(
+        (r) => r.status === "Submitted" || (r.period_id === urlPeriodId && (isReportFrozen(r.status) || r.status === "Rejected"))
+      );
     return allReports.filter((r) => isReportFrozen(r.status));
-  }, [allReports, mode, scope]);
+  }, [allReports, mode, scope, urlPeriodId]);
 
   // Reports are ordered by the period's start_date desc (same convention as
   // the Reporting hubs), so the first row is the latest report.
-  const urlPeriodId = searchParams.get("period");
   // A ?period= that is no longer listed (e.g. just approved, so it left the
   // approve worklist) falls back to the first remaining report, so the
   // Approve / Reject bar is available by default.
@@ -102,9 +111,20 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
     (cameFromGrid && urlPeriodId ? null : (reports[0]?.period_id ?? null));
   const period = periods.find((p) => p.id === periodId);
   const report = reports.find((r) => r.period_id === periodId);
+  // Pin the period into the URL so the report stays put once it is decided.
+  const needsPinnedPeriod = mode === "approve" && !!periodId && !urlPeriodId;
+  useEffect(() => {
+    if (!needsPinnedPeriod) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("period", periodId!);
+    router.replace(`${pathname}?${next.toString()}`);
+  }, [needsPinnedPeriod, periodId, pathname, router, searchParams]);
 
   const onPeriodChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    router.replace(`${pathname}?period=${e.target.value}`);
+    // Keep ?back= so the breadcrumb still returns to the originating dashboard.
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("period", e.target.value);
+    router.replace(`${pathname}?${next.toString()}`);
   };
 
   // A caller that links into this report from somewhere other than the
@@ -118,30 +138,17 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
   const viewOnly = scope !== "geo" && mode === "view";
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-6">
+    <div className={cn("mx-auto flex max-w-[1400px] flex-col gap-6", approving && !!report && "pb-20")}>
       <div>
         <PageBreadcrumb
           items={[
-            {
-              label: back
-                ? back.startsWith("/executive-risk")
-                  ? "Executive Risk Dashboard"
-                  : back.startsWith("/high-risks")
-                    ? "High Risk Dashboard"
-                    : back.startsWith("/delivery-health")
-                      ? "Delivery Health Dashboard"
-                      : back.startsWith("/projects-health")
-                        ? "Project Health Dashboard"
-                        : back.startsWith("/project-health/account-rag")
-                          ? "Account RAG"
-                          : back.startsWith("/project-health/rag")
-                            ? "Project RAG"
-                            : "Report Submissions"
-                : approving
-                  ? APPROVE_NAV_LABEL[scope]!
-                  : SCOPE_NAV_LABEL[scope],
-              href: back || (approving ? APPROVE_NAV_HREF[scope] : undefined) || SCOPE_NAV_HREF[scope],
-            },
+            // Opened from a dashboard grid (?back=): [GovOne Dashboard >] <that grid> > period.
+            ...(dashboardBackCrumbs(back) ?? [
+              {
+                label: approving ? APPROVE_NAV_LABEL[scope]! : SCOPE_NAV_LABEL[scope],
+                href: (approving ? APPROVE_NAV_HREF[scope] : undefined) || SCOPE_NAV_HREF[scope],
+              },
+            ]),
             ...(period ? [{ label: period.label }] : [{ label: name }]),
           ]}
         />
@@ -150,7 +157,14 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
             {period ? `${name} - ${period.period_type} Report` : name}
           </h1>
           <ActionTrackerTrigger level={SCOPE_ACTION_LEVEL[scope]} id={scopeId} name={name} />
-          {reports.length > 0 ? (
+          {reports.length > 0 && (back || approving) ? (
+            // Opened from a dashboard grid ("View report"): the report is for the
+            // period that row was about (or, on the approval pages, the report being
+            // approved), so the period is shown, not selectable.
+            <span className="inline-flex h-11 shrink-0 items-center rounded-full bg-[#1a6fc4] px-6 text-sm font-bold text-white shadow-md">
+              {period?.label ?? "—"}
+            </span>
+          ) : reports.length > 0 ? (
             <div className="w-64 shrink-0">
               <NativeSelect
                 value={periodId ?? ""}
@@ -201,6 +215,7 @@ function PeriodAwareBody({ scope, scopeId, mode }: { scope: ReviewScope; scopeId
           )}
           <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
           <ReviewActions scope={scope} scopeId={scopeId} report={report} readOnly={viewOnly} />
+          <ReportHistory scope={scope} scopeId={scopeId} report={report} />
         </>
       )}
     </div>
@@ -225,7 +240,7 @@ export function StatusReviewPage({
     // useSearchParams (for the selected reporting period) requires a
     // Suspense boundary at prerender.
     <Suspense fallback={null}>
-      <PeriodAwareBody scope={scope} scopeId={scopeId} mode={mode} />
+      <PeriodAwareBody key={scopeId} scope={scope} scopeId={scopeId} mode={mode} />
     </Suspense>
   );
 }

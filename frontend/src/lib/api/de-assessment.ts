@@ -67,10 +67,13 @@ export type DEAssessmentFinding = {
   overdue: boolean;
 };
 
+export type DEAssessmentType = "Quality Audit" | "Delivery Risk Review";
+
 export type DEAssessment = {
   id: string;
   project_id: string;
   assessment_date: string | null;
+  assessment_type: DEAssessmentType;
   // Weekly reporting period the assessment is aligned with; null on older rows.
   period_id: string | null;
   de_assessed_project_health: HealthRating;
@@ -89,6 +92,7 @@ export type DEAssessment = {
 // "Draft" for Save Draft.
 export type DEAssessmentPayload = {
   assessment_date?: string;
+  assessment_type?: DEAssessmentType;
   period_id?: string;
   de_assessed_project_health: HealthRating;
   pci_score?: string;
@@ -98,9 +102,10 @@ export type DEAssessmentPayload = {
 
 export type DEAssessmentUpdatePayload = {
   assessment_date?: string;
+  assessment_type?: DEAssessmentType;
   period_id?: string;
   de_assessed_project_health?: HealthRating;
-  pci_score?: string | null; // null clears a previously saved DE Score
+  pci_score?: string | null; // null clears a previously saved PCI Score
   remarks?: string;
   status?: DEAssessmentStatus;
 };

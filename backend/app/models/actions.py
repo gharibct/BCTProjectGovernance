@@ -19,6 +19,7 @@ class Action(Base, UUIDPrimaryKey, TimestampColumns):
     description: Mapped[str | None]
     action_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     priority: Mapped[str]
+    triggered_from: Mapped[str | None]
     status: Mapped[str]
 
     due_date: Mapped[date]

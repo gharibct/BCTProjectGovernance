@@ -36,3 +36,10 @@ CREATE INDEX idx_users_is_active ON users(is_active);
 CREATE UNIQUE INDEX idx_users_entra_oid ON users(entra_oid) WHERE entra_oid IS NOT NULL;
 
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- DE Account Allocation: the Delivery Excellence auditor assigned to an account
+-- (independent of projects.delivery_excellence_id). Added here rather than in
+-- 01_reference_data.sql because it references users, which is created after it.
+ALTER TABLE accounts ADD COLUMN delivery_excellence_id UUID REFERENCES users(id);
+ALTER TABLE accounts ADD COLUMN de_allocated_at TIMESTAMPTZ; -- set when a DE is assigned/changed via DE Account Allocation
+CREATE INDEX idx_accounts_delivery_excellence_id ON accounts(delivery_excellence_id);

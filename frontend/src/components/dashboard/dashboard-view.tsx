@@ -34,7 +34,9 @@ export function DashboardView({
   subtitle,
   scope,
   rowScope,
+  softColors = false,
 }: {
+  softColors?: boolean;
   title: string;
   subtitle: string;
   scope: DashboardScope;
@@ -133,6 +135,7 @@ export function DashboardView({
             heading={rowScope === "account" ? "Account Governance Matrix" : "Project Governance Matrix"}
             entityColumnLabel={rowScope === "account" ? "Accounts" : "Projects"}
             showAccountColumn={rowScope === "project"}
+            soft={softColors}
             rows={rowScope === "account" ? data.account_matrix : data.project_matrix}
             entityHref={(id) => (rowScope === "account" ? `/account-review/${id}` : `/project-review/${id}`)}
             emptyLabel={rowScope === "account" ? "No accounts in scope." : "No projects in scope."}

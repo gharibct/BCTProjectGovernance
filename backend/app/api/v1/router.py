@@ -13,9 +13,13 @@ from app.api.v1.endpoints import (
     customer_communications,
     dashboard,
     data_integrity,
+    account_findings,
+    de_account_allocation,
+    de_account_audit,
     de_allocation,
     de_approval,
     de_assessment,
+    de_bulk_copy,
     de_findings,
     documents,
     exchange_rates,
@@ -86,6 +90,10 @@ api_router.include_router(de_assessment.findings_router)
 api_router.include_router(de_findings.router)
 api_router.include_router(pm_findings.router)
 api_router.include_router(de_allocation.router)
+api_router.include_router(de_account_allocation.router)
+api_router.include_router(de_bulk_copy.router)
+api_router.include_router(de_account_audit.router)
+api_router.include_router(account_findings.router)
 api_router.include_router(de_approval.router)
 api_router.include_router(reassignment.router)
 api_router.include_router(data_integrity.router)

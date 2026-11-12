@@ -24,6 +24,8 @@ export type HighRiskAccountRow = HealthMatrixRow & {
   // Account rows: Onsite + Offshore FTE from the account's filed report for the
   // period; null when not filed or no FTE entered.
   total_fte?: number | null;
+  // Status of the filed report for the period ("Submitted" / "Approved"); null when not filed.
+  report_status?: string | null;
   // Project Health Dashboard rows only (entity_* is then the project).
   project_code?: string | null;
   project_name?: string;

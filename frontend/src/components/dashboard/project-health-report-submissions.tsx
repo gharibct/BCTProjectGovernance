@@ -35,6 +35,8 @@ import {
 } from "./project-health-kpi";
 import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 import { useEffectiveRole } from "@/stores/session";
+import type { RoleCode } from "@/lib/api/auth";
+import { reportHref as roleReportHref } from "@/lib/report-links";
 
 const PAGE_SIZE = 15;
 
@@ -133,15 +135,18 @@ const dash = (value: string | null | undefined) => (value && value.trim() ? valu
 // grid better than the hub's full edit-checklist nav. `backPath` rides
 // along as `?back=` so the report screen's breadcrumb can point back here
 // instead of its usual default — see those components' `back` handling.
-function reportHref(row: Row, backPath: string): string | null {
+// Only filed rows get a View link, so project / account delivery status rows go through the shared
+// role-based helper (approvers land on the approval page, others on the viewer).
+function reportHref(row: Row, backPath: string, role: RoleCode | null | undefined): string | null {
   const back = `&back=${encodeURIComponent(backPath)}`;
+  const shared = { role, id: row.entity_id, status: "Submitted", periodId: row.period_id, back: backPath } as const;
   switch (row.report_type) {
     case "Delivery Status - Project":
-      return `/project-review/${row.entity_id}?period=${row.period_id}${back}`;
+      return roleReportHref({ scope: "project", ...shared });
     case "Metrics - Project":
       return `/project-performance/${row.entity_id}?period=${row.period_id}${back}`;
     case "Delivery Status - Account":
-      return `/account-review/${row.entity_id}?period=${row.period_id}${back}`;
+      return roleReportHref({ scope: "account", ...shared });
     case "Delivery Status - Geo":
       return `/geo-review/${row.entity_id}?period=${row.period_id}${back}`;
     default:
@@ -223,7 +228,7 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
       excelValue: () => "",
       render: (row) => {
         if (!FILED_STATUSES.has(row.status)) return null;
-        const href = reportHref(row, backPath);
+        const href = reportHref(row, backPath, effectiveRole);
         return href ? (
           <Link href={href} className="text-sm font-semibold text-[#1a6fc4] hover:underline">
             View
@@ -296,6 +301,7 @@ export function ProjectHealthReportSubmissions({ kpi }: { kpi?: ReportSubmission
               setSkip(0);
             }}
             roleCodes={ACCOUNT_HEAD_CANDIDATE_ROLES}
+            primaryDmOnly
             placeholder={`${ACCOUNT_MANAGER_LABEL} [All]`}
           />
         ) : null}

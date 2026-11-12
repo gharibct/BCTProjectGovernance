@@ -91,6 +91,8 @@ function buildOpportunityPayload(values: Record<string, string>): OpportunityLog
   return {
     ...values,
     approval_required: values.approval_required === "Y",
+    // An empty cell must reach the server as null, not "" (invalid decimal).
+    estimated_benefit: values.estimated_benefit?.trim() ? values.estimated_benefit : null,
   };
 }
 

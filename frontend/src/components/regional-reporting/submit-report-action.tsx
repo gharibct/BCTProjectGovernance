@@ -258,8 +258,8 @@ export function SubmitReportAction({
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 shadow-sm">
           <StatusBadge value="Draft" />
           <span>
-            Recalled{report.recalled_at ? ` on ${formatDateTime(report.recalled_at)}` : ""} — {report.recall_remarks}.
-            Update the report, then resubmit.
+            Recalled{report.recalled_at ? ` on ${formatDateTime(report.recalled_at)}` : ""} — {report.recall_remarks}. Update
+            the report, then resubmit.
           </span>
         </div>
       ) : null}

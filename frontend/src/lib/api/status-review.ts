@@ -1,7 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
+
+import { api } from "./client";
 import type { RoleCode } from "@/lib/api/auth";
 
 import {
   useReviewStatusReport,
+  useRevokeStatusReport,
   useStatusItems,
   useStatusReports,
   type ProjectStatusCategory,
@@ -12,6 +16,7 @@ import {
   useRegionalStatusItems,
   useRegionalStatusReports,
   useReviewRegionalStatusReport,
+  useRevokeAccountStatusReport,
   type RegionalScope,
   type RegionalStatusReport,
 } from "./regional-status";
@@ -103,4 +108,44 @@ export function useReviewStatusReportMutation(scope: ReviewScope, scopeId: strin
   return scope === "project" ? project : regional;
 }
 
+// Revoke an Approved report back to Draft (project: Delivery Manager / Geo Head; account: Geo Head).
+export function useRevokeApprovalMutation(scope: ReviewScope, scopeId: string | null) {
+  const project = useRevokeStatusReport(scope === "project" ? scopeId : null);
+  const account = useRevokeAccountStatusReport(scope === "account" ? scopeId : null);
+  return scope === "project" ? project : account;
+}
+
 export type { StatusReportReviewPayload };
+
+// Append-only audit trail of a report's submit / recall / review / baseline
+// events (backend: services/status_report_history.py).
+export type StatusReportHistoryEntry = {
+  id: string;
+  event_type: "Submitted" | "Recalled" | "Revoked" | "Approved" | "Rejected" | "Baselined";
+  from_status: string | null;
+  to_status: string;
+  comment: string | null;
+  actor_id: string | null;
+  actor_name: string | null;
+  created_at: string;
+};
+
+const HISTORY_PREFIX: Record<ReviewScope, string> = { project: "projects", account: "accounts", geo: "geos" };
+
+export function useStatusReportHistory(
+  scope: ReviewScope,
+  scopeId: string | null,
+  reportId: string | null,
+  // Any value that changes when the report changes (status / updated_at), so the
+  // trail refetches after a submit, recall or review.
+  version?: string
+) {
+  return useQuery({
+    queryKey: ["status-report-history", scope, scopeId, reportId, version],
+    queryFn: () =>
+      api.get<StatusReportHistoryEntry[]>(
+        `/${HISTORY_PREFIX[scope]}/${scopeId}/status-reports/${reportId}/history`
+      ),
+    enabled: !!scopeId && !!reportId,
+  });
+}

@@ -80,10 +80,11 @@ function HistoryInner() {
               <thead>
                 <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                   <th className="py-2 pr-3">Date</th>
+                  <th className="py-2 pr-3">Assessment Type</th>
                   <th className="py-2 pr-3">Assessed By</th>
                   <th className="py-2 pr-3">Overall Project Health</th>
                   <th className="py-2 pr-3">DE Health</th>
-                  <th className="py-2 pr-3 text-right">DE Score</th>
+                  <th className="py-2 pr-3 text-right">PCI Score</th>
                   <th className="py-2">Remarks</th>
                 </tr>
               </thead>
@@ -93,6 +94,7 @@ function HistoryInner() {
                     <td className="py-2 pr-3 whitespace-nowrap text-slate-700">
                       {a.assessment_date ?? "—"}
                     </td>
+                    <td className="py-2 pr-3 whitespace-nowrap text-slate-700">{a.assessment_type}</td>
                     <td className="py-2 pr-3 whitespace-nowrap text-slate-700">
                       {userName(a.assessed_by)}
                     </td>

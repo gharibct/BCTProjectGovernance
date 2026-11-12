@@ -6,7 +6,8 @@ import { Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
-import { RegisterTable } from "@/components/forms/register-table";
+import { ProjectHealthExportButton } from "@/components/dashboard/project-health-export-button";
+import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   PROJECT_CURRENCIES,
@@ -24,7 +25,12 @@ const fields: FieldDef[] = [
     mandatory: true,
     options: PROJECT_CURRENCIES.filter((c) => c !== "USD"),
   },
-  { key: "rate_to_usd", label: "Rate to USD (1 unit = ? USD)", kind: "number", mandatory: true },
+  {
+    key: "rate_to_usd",
+    label: "Rate to USD (1 unit = ? USD)",
+    kind: "number",
+    mandatory: true,
+  },
 ];
 
 export function ExchangeRatesPanel() {
@@ -63,7 +69,10 @@ export function ExchangeRatesPanel() {
       return;
     }
     try {
-      await saveRate.mutateAsync({ currency: values.currency, rate_to_usd: values.rate_to_usd });
+      await saveRate.mutateAsync({
+        currency: values.currency,
+        rate_to_usd: values.rate_to_usd,
+      });
       cancelEdit();
       showSuccess("Exchange Rate Saved Successfully");
     } catch (err) {
@@ -71,23 +80,33 @@ export function ExchangeRatesPanel() {
     }
   }
 
+  const rateColumns: RegisterColumn<ExchangeRate>[] = [
+    { key: "currency", label: "Project Currency" },
+    { key: "rate_to_usd", label: "Rate to USD" },
+    {
+      key: "updated_at",
+      label: "Last Updated",
+      render: (item) => new Date(item.updated_at).toLocaleDateString(),
+      excelValue: (item) => new Date(item.updated_at).toLocaleDateString(),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={Coins} title="Exchange Rates">
+        <div className="mb-3 flex justify-end">
+          <ProjectHealthExportButton
+            filename="exchange-rates.xlsx"
+            columns={rateColumns}
+            fetchAll={async () => rates}
+          />
+        </div>
         <RegisterTable
           items={rates}
           emptyLabel="No exchange rates yet. Projects in a non-USD currency show no Revenue in USD until a rate is added."
           onEdit={startEdit}
           onDelete={handleDelete}
-          columns={[
-            { key: "currency", label: "Project Currency" },
-            { key: "rate_to_usd", label: "Rate to USD" },
-            {
-              key: "updated_at",
-              label: "Last Updated",
-              render: (item) => new Date(item.updated_at).toLocaleDateString(),
-            },
-          ]}
+          columns={rateColumns}
         />
       </SectionCard>
 

@@ -186,6 +186,12 @@ Writes: `_write_roles` = `require_project_access(PM, DELIVERY_EXCELLENCE, AM, GH
 | --- | --- | --- | --- | --- |
 | API-DEAL-10 | `GET /de-allocation` | Projects + current assessor | `require_role(DELIVERY_EXCELLENCE, ADMIN)` | BR-DEAL-010 |
 | API-DEAL-20 | `PATCH /de-allocation/allocations` | Bulk assign `delivery_excellence_id` | `require_role(DE, ADMIN)` | BR-DEAL-010 |
+| API-DEAL-30 | `GET /de-account-allocation` | Active accounts + current DE auditor (`allocation=unallocated\|allocated\|all`) | `require_role(DELIVERY_EXCELLENCE, ADMIN)` | — |
+| API-DEAA-10 | `GET /de-account-audit/queue` | Audit queue for allocated accounts | `require_role(DE, ADMIN, CXO)` | — |
+| API-DEAA-20 | `GET/POST /de-account-audit/accounts/{id}/audits`, `PATCH /de-account-audit/audits/{id}` | Audit history / create / edit Draft | read DE,ADMIN,CXO; write DE,ADMIN (account must have a DE unless Admin) | — |
+| API-DEAA-30 | `GET /de-account-audit/findings`, `/findings/kpis`, `POST /findings`, `PUT /findings/{id}`, `GET /findings/{id}/history` | Account finding register | read DE,ADMIN,CXO; write DE,ADMIN | — |
+| API-DEAA-40 | `GET /account-findings`, `/kpis`, `/{id}/history`, `PUT /{id}/action-taken` | Delivery Manager view + Action Taken | `require_role(ACCOUNT_MANAGER, ADMIN)` + owned accounts | — |
+| API-DEAL-40 | `PATCH /de-account-allocation/allocations` | Bulk assign/clear `accounts.delivery_excellence_id` (target must be an active DE user) | `require_role(DE, ADMIN)` | — |
 | API-DEAP-10 | `GET /de-approval/queue` | Queue scoped to the DE's allocations + KPIs | `require_role(DE, ADMIN)` | `SVC-GOVERNANCE-COMPLETENESS` |
 | API-DEAP-20 | `GET /de-approval/{project_id}` | Review detail (per-module + completeness) | `require_project_de_scope(DE, ADMIN)` | BR-DEAL-020 |
 | API-DEAP-30 | `PUT /de-approval/{project_id}/modules/{module_key}` | Set per-module verdict | `require_project_de_scope(...)` | BR-DEAP-020/050; first verdict → `de_review_status = In Review` |

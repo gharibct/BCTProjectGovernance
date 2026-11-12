@@ -61,3 +61,5 @@
 \ir tables/56_report_attachments.sql
 \ir tables/57_project_proxy_managers.sql
 \ir tables/58_project_activity_restrictions.sql
+\ir tables/59_de_account_audits.sql
+\ir tables/60_status_report_history.sql

@@ -133,7 +133,7 @@ Dashboard.
   Charter, with the Charter screen always showing the latest entry plus a link to history.
   **Please confirm whether to add this.**
 - **Fields/elements — Project Description:**
-  Project Name, Project ID (auto-generated), Contract Type (FPP / T&M / Capped T&M /
+  Project Name, Project ID (auto-generated), Contract Type (FPP / T&M / Capped FP /
   Internal), Project Type (Development / Maintenance / Professional Staffing / Support
   (Application/Infrastructure) / Testing / Cloud Maintenance / Cloud Migration),
   Organization (BCTPL / BCTC / FT), Project Owned (Fully Owned / Co-Owned / Customer

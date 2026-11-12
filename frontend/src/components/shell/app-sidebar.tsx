@@ -20,7 +20,9 @@ import {
   HeartPulse,
   LayoutGrid,
   ListChecks,
+  LogIn,
   CalendarDays,
+  CopyPlus,
   SlidersHorizontal,
   Coins,
   Map as MapIcon,
@@ -72,6 +74,8 @@ const SECTION_HEADER_COLORS: Record<string, string> = {
   "Team Worklist": "bg-[#14B8A6]",
   "DE Worklists": "bg-[#14B8A6]",
   "DE Approvals": "bg-[#14B8A6]",
+  "Project Assessment": "bg-[#14B8A6]",
+  "Account Assessment": "bg-[#14B8A6]",
   "My Reports": "bg-[#3B8DE3]",
   "Status & Performance Dashboards": "bg-[#3B8DE3]",
   "Update Status & Performance": "bg-[#14B8A6]",
@@ -453,6 +457,51 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       bold={ctx.bold}
     />
   ),
+  "de-account-audit": (ctx) => (
+    <SimpleLink
+      href="/de-account-audit"
+      icon={ClipboardCheck}
+      label={ctx.labelFor("de-account-audit", "Account Assessment")}
+      active={ctx.pathname.startsWith("/de-account-audit")}
+      bold={ctx.bold}
+    />
+  ),
+  "de-account-findings": (ctx) => (
+    <SimpleLink
+      href="/de-account-findings"
+      icon={FileSearch}
+      label={ctx.labelFor("de-account-findings", "Account Findings")}
+      active={ctx.pathname.startsWith("/de-account-findings")}
+      bold={ctx.bold}
+    />
+  ),
+  "account-findings": (ctx) => (
+    <SimpleLink
+      href="/account-findings"
+      icon={FileSearch}
+      label={ctx.labelFor("account-findings", "Account DE Findings")}
+      active={ctx.pathname.startsWith("/account-findings")}
+      bold={ctx.bold}
+    />
+  ),
+  "de-account-allocation": (ctx) => (
+    <SimpleLink
+      href="/de-account-allocation"
+      icon={Building2}
+      label={ctx.labelFor("de-account-allocation", "Assign DE – Accounts")}
+      active={ctx.pathname.startsWith("/de-account-allocation")}
+      bold={ctx.bold}
+    />
+  ),
+  "de-bulk-copy": (ctx) => (
+    <SimpleLink
+      href="/de-bulk-copy"
+      icon={CopyPlus}
+      label={ctx.labelFor("de-bulk-copy", "Bulk Copy Assessments")}
+      active={ctx.pathname.startsWith("/de-bulk-copy")}
+      bold={ctx.bold}
+    />
+  ),
   "de-approval": (ctx) => (
     <SimpleLink
       href="/de-approval"
@@ -466,7 +515,7 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
     <SimpleLink
       href="/de-assessment"
       icon={ClipboardCheck}
-      label={ctx.labelFor("de-assessment", "Create DE Assessment")}
+      label={ctx.labelFor("de-assessment", "Project Assessment")}
       active={ctx.pathname.startsWith("/de-assessment")}
       bold={ctx.bold}
     />
@@ -486,6 +535,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       icon={FolderOpen}
       label={ctx.labelFor("de-projects", "View Projects")}
       active={ctx.pathname.startsWith("/de-projects")}
+      bold={ctx.bold}
+    />
+  ),
+  "de-login-details": (ctx) => (
+    <SimpleLink
+      href="/de-login-details"
+      icon={LogIn}
+      label={ctx.labelFor("de-login-details", "User Login Details")}
+      active={ctx.pathname.startsWith("/de-login-details")}
       bold={ctx.bold}
     />
   ),
@@ -664,6 +722,15 @@ const MENU_ITEMS: Record<MenuEntryId, (ctx: SidebarCtx) => React.ReactNode> = {
       icon={TriangleAlert}
       label={ctx.labelFor("high-risks", "High Risk Dashboard")}
       active={ctx.pathname.startsWith("/high-risks")}
+      bold={ctx.bold}
+    />
+  ),
+  "pm-dm-compliance": (ctx) => (
+    <SimpleLink
+      href="/pm-dm-compliance"
+      icon={ClipboardCheck}
+      label={ctx.labelFor("pm-dm-compliance", "PM / DM Compliance")}
+      active={ctx.pathname.startsWith("/pm-dm-compliance")}
       bold={ctx.bold}
     />
   ),
@@ -876,6 +943,8 @@ const SECTION_ICONS: Record<string, React.ElementType> = {
   "Team Worklist": Users,
   "DE Worklists": Briefcase,
   "DE Approvals": CheckCircle2,
+  "Project Assessment": ClipboardCheck,
+  "Account Assessment": Building2,
   "Status & Performance Dashboards": ChartColumn,
   "Update Status & Performance": FileBarChart2,
   "Approvals & Assignments": CheckCircle2,
@@ -983,6 +1052,7 @@ export function AppSidebar() {
     "executive-risk": pathname.startsWith("/executive-risk"),
     "high-risks": pathname.startsWith("/high-risks"),
     "delivery-health": pathname.startsWith("/delivery-health"),
+    "pm-dm-compliance": pathname.startsWith("/pm-dm-compliance"),
     "projects-health": pathname.startsWith("/projects-health"),
     "account-qbr": pathname.startsWith("/account-qbr"),
     "account-reporting": isAccountReporting,
@@ -993,6 +1063,12 @@ export function AppSidebar() {
     reassignment: pathname.startsWith("/reassignment"),
     actions: pathname.startsWith("/actions"),
     "de-findings": pathname.startsWith("/de-findings"),
+    "de-assessment": pathname.startsWith("/de-assessment"),
+    "de-account-audit": pathname.startsWith("/de-account-audit"),
+    "de-account-findings": pathname.startsWith("/de-account-findings"),
+    "de-allocation": pathname.startsWith("/de-allocation"),
+    "de-account-allocation": pathname.startsWith("/de-account-allocation"),
+    "de-bulk-copy": pathname.startsWith("/de-bulk-copy"),
     "pm-findings": pathname.startsWith("/pm-findings"),
   };
 

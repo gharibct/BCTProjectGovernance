@@ -36,8 +36,10 @@ import {
   useUsersByIds,
 } from "@/lib/api/reference-data";
 import {
+  PM_ATTENTION_OPTIONS,
   useCreateProject,
   useProject,
+  useProjectHasMeasurements,
   useUpdateProject,
   type Project,
   type ProjectLifecycleStatus,
@@ -72,7 +74,7 @@ import { ACCOUNT_MANAGER_LABEL } from "@/lib/role-labels";
 const inputClass = "h-11";
 const segmentedActiveClass = "bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-700";
 
-const CONTRACT_TYPES = ["FPP", "T&M", "Capped T&M", "Internal"] as const;
+const CONTRACT_TYPES = ["FPP", "T&M", "Capped FP", "Internal"] as const;
 const PROJECT_OWNED_OPTIONS = ["Fully Owned", "Co-Owned", "Customer Driven"] as const;
 // Matches backend enums.py's ApplicablePhase. Multi-select — a project can be
 // in more than one SDLC phase at once.
@@ -132,6 +134,7 @@ function valuesFromProject(project: Project): ProjectPayload {
     project_type_id: project.project_type_id ?? undefined,
     organization_id: project.organization_id ?? undefined,
     project_owned: project.project_owned ?? undefined,
+    pm_attention_needed: project.pm_attention_needed ?? null,
     geo_id: project.geo_id ?? undefined,
     region_id: project.region_id ?? undefined,
     account_id: project.account_id ?? undefined,
@@ -202,9 +205,10 @@ function ProjectDescriptionTab({
   // The same charter form serves /new-project and /amend-project — the
   // lifecycle Project Status combo only belongs to the Amend flow.
   const isAmend = (usePathname() ?? "").split("/")[1] === "amend-project";
-  // Project Type is fixed once a project exists and is being amended — the
-  // amendment snapshot/measurement wiring is keyed to the original type.
-  const projectTypeLocked = locked || project?.project_status === "Under Amendment";
+  // Project Type can change until the first measurement is submitted — the
+  // measurement targets are keyed to the type.
+  const { data: measurementState } = useProjectHasMeasurements(project?.id ?? null);
+  const projectTypeLocked = locked || (measurementState?.has_measurements ?? false);
   // The lifecycle state (Ongoing / Hold / Closed / …) moves only through an
   // amendment — the server rejects a change in any other status.
   const lifecycleEditable = project?.project_status === "Under Amendment";
@@ -380,6 +384,21 @@ function ProjectDescriptionTab({
                 </option>
                 {PROJECT_OWNED_OPTIONS.map((owned) => (
                   <option key={owned}>{owned}</option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label="PM Attention / Involvement Needed" htmlFor="pm-attention-needed">
+              <NativeSelect
+                id="pm-attention-needed"
+                value={values.pm_attention_needed ?? ""}
+                onChange={(e) =>
+                  setAndClear("pm_attention_needed")((e.target.value || null) as ProjectPayload["pm_attention_needed"])
+                }
+                disabled={locked}
+              >
+                <option value="">Select…</option>
+                {PM_ATTENTION_OPTIONS.map((level) => (
+                  <option key={level}>{level}</option>
                 ))}
               </NativeSelect>
             </Field>
@@ -790,7 +809,7 @@ function ProjectDescriptionActions({
 
   const statusMessage =
     status === "Under Amendment"
-      ? "Under Amendment — every field except Project Type can be changed; then use Send To Approve."
+      ? "Under Amendment — every field can be changed (Project Type until a measurement is submitted); then use Send To Approve."
       : status === "Pending Approval"
         ? "Pending Approval — Delivery Excellence will review and approve."
         : status === "Approved"

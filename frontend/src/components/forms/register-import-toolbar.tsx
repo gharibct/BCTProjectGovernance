@@ -85,7 +85,7 @@ export function RegisterImportToolbar<TPayload>({
     if (custom.kind === "stale") {
       toast.warning("Custom template is out of date — downloaded the default template instead.");
     }
-    exportTemplate(filename, labels);
+    await exportTemplate(filename, defs);
   };
 
   return (

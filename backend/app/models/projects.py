@@ -15,10 +15,11 @@ class Project(Base, UUIDPrimaryKey, TimestampColumns):
 
     project_code: Mapped[str] = mapped_column(unique=True)
     project_name: Mapped[str]
-    contract_type: Mapped[str | None]  # FPP, T&M, Capped T&M, Internal
+    contract_type: Mapped[str | None]  # FPP, T&M, Capped FP, Internal
     project_type_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("project_types.id"))
     organization_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("organizations.id"))
     project_owned: Mapped[str | None]  # Fully Owned, Co-Owned, Customer Driven
+    pm_attention_needed: Mapped[str | None]  # High, Medium, Low
     geo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("geos.id"))
     region_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("regions.id"))
     account_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("accounts.id"))

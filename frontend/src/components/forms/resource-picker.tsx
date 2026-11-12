@@ -22,6 +22,8 @@ export type ResourcePickerProps = {
   /** Restrict to any-of these roles (takes precedence over `roleCode`). */
   roleCodes?: readonly string[];
   activeOnly?: boolean;
+  /** Hide people who are only a proxy Delivery Manager. */
+  primaryDmOnly?: boolean;
   placeholder?: string;
   disabled?: boolean;
   /** Render the selected name without a lookup when the parent already has it. */
@@ -37,12 +39,16 @@ const TRIGGER_BASE =
 const TRIGGER_DISABLED =
   "pointer-events-none cursor-not-allowed border-[#D5DAE0] bg-[#F1F3F5] text-[#98A2B3] opacity-70 hover:border-[#D5DAE0] hover:bg-[#F1F3F5]";
 
+// Must match the `limit` useUserSearch requests.
+const SEARCH_LIMIT = 20;
+
 export function ResourcePicker({
   value,
   onChange,
   roleCode,
   roleCodes,
   activeOnly = true,
+  primaryDmOnly = false,
   placeholder = "Search people…",
   disabled = false,
   initialLabel,
@@ -59,6 +65,7 @@ export function ResourcePicker({
     roleCode,
     roleCodes,
     activeOnly,
+    primaryDmOnly,
   });
 
   // Resolve the selected id -> name, unless the parent handed us the label.
@@ -151,7 +158,7 @@ export function ResourcePicker({
           />
         </div>
 
-        <ul role="listbox" className="max-h-64 overflow-y-auto py-1">
+        <ul role="listbox" className="max-h-64 overflow-x-hidden overflow-y-auto py-1">
           {value ? (
             <li>
               <button
@@ -183,13 +190,19 @@ export function ResourcePicker({
                     i === activeIndex ? "bg-blue-50 dark:bg-blue-950/40" : "",
                   )}
                 >
-                  <span className="text-sm text-slate-900 dark:text-slate-100">{u.full_name}</span>
-                  <span className="text-xs text-muted-foreground">{u.email}</span>
+                  <span className="max-w-full truncate text-sm text-slate-900 dark:text-slate-100">{u.full_name}</span>
+                  <span className="max-w-full truncate text-xs text-muted-foreground">{u.email}</span>
                 </button>
               </li>
             ))
           )}
         </ul>
+
+        {results.length >= SEARCH_LIMIT ? (
+          <div className="border-t border-slate-100 px-3 py-1.5 text-xs text-slate-500">
+            Showing first {SEARCH_LIMIT} — type to search
+          </div>
+        ) : null}
       </PopoverContent>
     </Popover>
   );

@@ -5,7 +5,8 @@ import { ClipboardList } from "lucide-react";
 
 import { SectionCard } from "@/components/forms/form-primitives";
 import type { FieldDef } from "@/components/forms/entry-form";
-import { RegisterTable } from "@/components/forms/register-table";
+import { ProjectHealthExportButton } from "@/components/dashboard/project-health-export-button";
+import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { useAccounts } from "@/lib/api/reference-data";
 import {
@@ -55,8 +56,18 @@ const REPORT_DEFS: FieldDef[] = [
   { key: "revenue", label: "Revenue (USD)", kind: "number" },
   { key: "onsite_fte", label: "Onsite FTE", kind: "number" },
   { key: "offshore_fte", label: "Offshore FTE", kind: "number" },
-  { key: "projects_count", label: "Projects Count", kind: "number" },
-  { key: "key_accomplishments", label: "Key Accomplishments", kind: "textarea", hint: ITEM_HINT },
+  {
+    key: "projects_count",
+    label: "Projects Count",
+    kind: "number",
+    integer: true,
+  },
+  {
+    key: "key_accomplishments",
+    label: "Key Accomplishments",
+    kind: "textarea",
+    hint: ITEM_HINT,
+  },
   {
     key: "upcoming_key_releases",
     label: "Upcoming Key Releases / Milestones / Actions",
@@ -69,7 +80,12 @@ const REPORT_DEFS: FieldDef[] = [
     kind: "textarea",
     hint: ITEM_HINT,
   },
-  { key: "key_risks_issues", label: "Key Risks / Issues", kind: "textarea", hint: ITEM_HINT },
+  {
+    key: "key_risks_issues",
+    label: "Key Risks / Issues",
+    kind: "textarea",
+    hint: ITEM_HINT,
+  },
 ];
 
 type UploadedRow = {
@@ -81,7 +97,11 @@ type UploadedRow = {
   status: string;
 };
 
-function toUploadedRow(subject: string, payload: BulkStatusPayload, report: { id: string; status: string }): UploadedRow {
+function toUploadedRow(
+  subject: string,
+  payload: BulkStatusPayload,
+  report: { id: string; status: string },
+): UploadedRow {
   return {
     id: report.id,
     subject,
@@ -97,18 +117,28 @@ function toUploadedRow(subject: string, payload: BulkStatusPayload, report: { id
 }
 
 function UploadedGrid({ rows, subjectLabel }: { rows: UploadedRow[]; subjectLabel: string }) {
+  const columns: RegisterColumn<UploadedRow>[] = [
+    { key: "subject", label: subjectLabel },
+    { key: "period", label: "Reporting Period" },
+    { key: "revenue", label: "Revenue (USD)" },
+    { key: "itemCount", label: "Status Items" },
+    { key: "status", label: "Status", badge: true },
+  ];
   return (
-    <RegisterTable
-      items={rows}
-      emptyLabel="No reports uploaded yet. Use Import Excel or Paste from Excel."
-      columns={[
-        { key: "subject", label: subjectLabel },
-        { key: "period", label: "Reporting Period" },
-        { key: "revenue", label: "Revenue (USD)" },
-        { key: "itemCount", label: "Status Items" },
-        { key: "status", label: "Status", badge: true },
-      ]}
-    />
+    <>
+      <div className="mb-3 flex justify-end">
+        <ProjectHealthExportButton
+          filename={`uploaded-${subjectLabel.toLowerCase()}-reports.xlsx`}
+          columns={columns}
+          fetchAll={async () => rows}
+        />
+      </div>
+      <RegisterTable
+        items={rows}
+        emptyLabel="No reports uploaded yet. Use Import Excel or Paste from Excel."
+        columns={columns}
+      />
+    </>
   );
 }
 
@@ -125,7 +155,12 @@ export function BulkProjectStatusPanel() {
     },
   };
   const defs: FieldDef[] = [
-    { key: "project_code", label: "Project Code", kind: "text", mandatory: true },
+    {
+      key: "project_code",
+      label: "Project Code",
+      kind: "text",
+      mandatory: true,
+    },
     ...REPORT_DEFS,
   ];
   const buildPayload = (values: Record<string, string>): BulkProjectStatusPayload => ({

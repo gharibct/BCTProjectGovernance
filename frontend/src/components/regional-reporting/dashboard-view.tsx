@@ -13,6 +13,7 @@ import { useGeoBaselinedForAccount, type RegionalStatusReport } from "@/lib/api/
 import { GeoAccountMatrixSection } from "@/components/status-review/geo-account-matrix-section";
 import { OverviewSection } from "@/components/status-review/overview-section";
 import { RagStatusSection } from "@/components/status-review/rag-status-section";
+import { ReportHistory } from "@/components/status-review/report-history";
 import { OpenNcSection } from "@/components/status-review/open-nc-section";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useRegionalStatusReports, type RegionalScope } from "@/lib/api/regional-status";
@@ -91,6 +92,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
           <ExecutiveUpdateSection geoId={scopeId} periodId={periodId} />
           <OverviewSection scope={scope} scopeId={scopeId} periodId={periodId} />
           <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
+          <ReportHistory scope="geo" scopeId={scopeId} report={report} />
           <SubmitReportAction scope={scope} scopeId={scopeId} periodId={periodId} report={report} />
         </>
       ) : (
@@ -99,6 +101,7 @@ function PeriodAwareBody({ scope, scopeId }: { scope: RegionalScope; scopeId: st
           <RagStatusSection scope={scope} scopeId={scopeId} periodId={periodId} />
           <ReportAttachmentsView scope="account" ownerId={scopeId} reportId={report?.id} />
           <OpenNcSection scope={scope} scopeId={scopeId} report={report} />
+          <ReportHistory scope="account" scopeId={scopeId} report={report} />
           <AccountSubmitAction scopeId={scopeId} periodId={periodId} report={report} />
         </>
       )}

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
 import type { User } from "./reference-data";
@@ -176,5 +176,51 @@ export function useClearUserPassword() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
+  });
+}
+
+// DE / Admin "User Login Details" — who has signed in, newest login first.
+export type UserLoginDetail = {
+  id: string;
+  full_name: string;
+  email: string;
+  ldap_username: string;
+  role_id: string;
+  is_active: boolean;
+  last_login_at: string | null;
+};
+
+export type UserLoginDetailQuery = {
+  search?: string;
+  roleCode?: string;
+  isActive?: boolean;
+  neverLoggedIn?: boolean;
+  skip: number;
+  limit: number;
+};
+
+export function userLoginDetailsPath(q: UserLoginDetailQuery): string {
+  const params = new URLSearchParams({ skip: String(q.skip), limit: String(q.limit) });
+  if (q.search?.trim()) params.set("search", q.search.trim());
+  if (q.roleCode) params.append("role_code", q.roleCode);
+  if (q.isActive !== undefined) params.set("is_active", String(q.isActive));
+  if (q.neverLoggedIn) params.set("never_logged_in", "true");
+  return `/users/login-details?${params.toString()}`;
+}
+
+export function useUserLoginDetails(q: UserLoginDetailQuery) {
+  return useQuery({
+    queryKey: [
+      "users",
+      "login-details",
+      q.search?.trim() ?? "",
+      q.roleCode ?? null,
+      q.isActive ?? null,
+      q.neverLoggedIn ?? false,
+      q.skip,
+      q.limit,
+    ],
+    queryFn: () => api.get<{ items: UserLoginDetail[]; total: number }>(userLoginDetailsPath(q)),
+    placeholderData: keepPreviousData,
   });
 }

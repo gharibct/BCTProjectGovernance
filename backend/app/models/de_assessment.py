@@ -14,6 +14,7 @@ class DEAssessment(Base, UUIDPrimaryKey, TimestampColumns):
 
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     assessment_date: Mapped[date | None]
+    assessment_type: Mapped[str] = mapped_column(default="Quality Audit")  # Quality Audit, Delivery Risk Review
     # The Weekly reporting period the assessment is aligned with (same periods as
     # Delivery Status reporting). NULL for assessments recorded before the field existed.
     period_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("reporting_periods.id"))

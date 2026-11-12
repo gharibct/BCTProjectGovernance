@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Page } from "./client";
 import { invalidateReportingDerived } from "./invalidate-derived";
 
-export type ContractType = "FPP" | "T&M" | "Capped T&M" | "Internal";
+export type ContractType = "FPP" | "T&M" | "Capped FP" | "Internal";
+export type PmAttentionNeeded = "High" | "Medium" | "Low";
+export const PM_ATTENTION_OPTIONS: readonly PmAttentionNeeded[] = ["High", "Medium", "Low"];
 export type ProjectOwned = "Fully Owned" | "Co-Owned" | "Customer Driven";
 export type BillingType = "FPP" | "FB" | "T&M" | "Product" | "Unit Based Billing" | "Others";
 export type EngagementType = "Implementation" | "Support";
@@ -75,6 +77,7 @@ export type Project = {
   project_type_id: string | null;
   organization_id: string | null;
   project_owned: ProjectOwned | null;
+  pm_attention_needed: PmAttentionNeeded | null;
   geo_id: string | null;
   region_id: string | null;
   account_id: string | null;
@@ -134,6 +137,7 @@ export type ProjectPayload = Partial<{
   project_type_id: string;
   organization_id: string;
   project_owned: ProjectOwned;
+  pm_attention_needed: PmAttentionNeeded | null;
   geo_id: string;
   region_id: string;
   account_id: string;
@@ -284,6 +288,14 @@ export function useProjectResources(projectId: string | null) {
   return useQuery({
     queryKey: ["project-resources", projectId],
     queryFn: () => api.get<ProjectResource[]>(`/projects/${projectId}/resources`),
+    enabled: !!projectId,
+  });
+}
+
+export function useProjectHasMeasurements(projectId: string | null) {
+  return useQuery({
+    queryKey: ["project-has-measurements", projectId],
+    queryFn: () => api.get<{ has_measurements: boolean }>(`/projects/${projectId}/has-measurements`),
     enabled: !!projectId,
   });
 }

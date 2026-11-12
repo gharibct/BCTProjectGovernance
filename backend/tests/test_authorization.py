@@ -67,6 +67,8 @@ class FakeDB:
         self._get_map = get_map or {}
 
     async def get(self, model, pk):
+        if (model, pk) in self._get_map:  # an explicit entry wins over the caller-role shortcut
+            return self._get_map[(model, pk)]
         if model is Role:
             return self._role
         return self._get_map.get((model, pk))

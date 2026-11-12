@@ -27,14 +27,15 @@ import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole } from "@/stores/session";
 import { useProject } from "@/lib/api/projects";
 import { useAccounts, useReportingPeriods, useUsers } from "@/lib/api/reference-data";
-import { latestWeeklyPeriods } from "@/lib/period-utils";
+import { ASSESSMENT_WINDOW_DAYS, addDays, latestWeeklyPeriods } from "@/lib/period-utils";
 import {
   ACTIVITY_LABEL,
   isRestrictedOn,
   restrictionFor,
   useProjectRestrictions,
 } from "@/lib/api/activity-restrictions";
-import { useLatestHealthDeclaration } from "@/lib/api/health-declarations";
+import { useHealthDeclarations } from "@/lib/api/health-declarations";
+import { isReportFrozen, useStatusReports } from "@/lib/api/project-status";
 import { canWriteDeAssessment, canAssessProject } from "@/lib/api/de-assessment-permissions";
 import {
   useCreateDEAssessment,
@@ -42,6 +43,7 @@ import {
   useDEAssessments,
   useUpdateDEAssessment,
   type DEAssessment,
+  type DEAssessmentType,
 } from "@/lib/api/de-assessment";
 import { HealthDot } from "./shared";
 import { FindingsDrawerTrigger } from "./findings-drawer/findings-drawer-trigger";
@@ -98,7 +100,8 @@ function WorkspaceInner() {
   const { data: allPeriods = [] } = useReportingPeriods();
   const { data: assessments = [] } = useDEAssessments(projectId);
   const { data: findings = [] } = useDEAssessmentFindings(projectId);
-  const { data: health } = useLatestHealthDeclaration(projectId);
+  const { data: declarations = [] } = useHealthDeclarations(projectId);
+  const { data: statusReports = [] } = useStatusReports(projectId);
 
   // DE Assessment switched off for the project (Admin / DE): the workspace turns
   // read-only from the date, existing assessments stay viewable.
@@ -156,7 +159,8 @@ function WorkspaceInner() {
   const [remarks, setRemarks] = React.useState("");
   const [assessmentDate, setAssessmentDate] = React.useState(today());
   const [periodChoice, setPeriodChoice] = React.useState("");
-  const [errors, setErrors] = React.useState<{ remarks?: string; period?: string }>({});
+  const [assessmentType, setAssessmentType] = React.useState<DEAssessmentType>("Quality Audit");
+  const [errors, setErrors] = React.useState<{ remarks?: string; period?: string; date?: string }>({});
 
   const displaySourceKey = displaySource?.id ?? null;
   if (displaySourceKey !== syncedId) {
@@ -166,6 +170,7 @@ function WorkspaceInner() {
     setRemarks(displaySource?.remarks ?? "");
     setAssessmentDate(displaySource?.assessment_date ?? today());
     setPeriodChoice(displaySource?.period_id ?? "");
+    setAssessmentType(displaySource?.assessment_type ?? "Quality Audit");
     setErrors({});
   }
 
@@ -179,7 +184,19 @@ function WorkspaceInner() {
     const savedPeriod = saved && !recent.some((p) => p.id === saved) ? allPeriods.find((p) => p.id === saved) : undefined;
     return savedPeriod ? [...recent, savedPeriod] : recent;
   }, [allPeriods, displaySource?.period_id]);
-  const periodId = periodChoice || (readOnly ? "" : (periodOptions[0]?.id ?? ""));
+  // A Quality Audit has no period; a Delivery Risk Review needs one.
+  const isDrr = assessmentType === "Delivery Risk Review";
+  const periodId = !isDrr ? "" : periodChoice || (readOnly ? "" : (periodOptions[0]?.id ?? ""));
+
+  // Delivery Risk Review: dated on/after the period end date, within 35 days of it.
+  const selectedPeriod = isDrr ? allPeriods.find((p) => p.id === periodId) : undefined;
+  const minDate = selectedPeriod ? addDays(selectedPeriod.end_date, -ASSESSMENT_WINDOW_DAYS) : undefined;
+
+  // The PM's declared health FOR THE SELECTED PERIOD, and only once that period's
+  // status report has been filed (Submitted / Approved). A draft or missing
+  // report shows as not declared, never as a default rating.
+  const periodReport = statusReports.find((r) => r.period_id === periodId);
+  const declaredHealth = periodReport && isReportFrozen(periodReport.status) ? (declarations.find((d) => d.period_id === periodId) ?? null) : null;
 
   // Prefill the form from the latest Submitted assessment. Health always comes
   // across; PCI score and remarks only fill blanks, so typed text is never lost.
@@ -201,17 +218,21 @@ function WorkspaceInner() {
 
   const persist = (status: "Draft" | "Submitted") => {
     if (!projectId) return;
+    const nextErrors: typeof errors = {};
+    // The date window applies to drafts as well as submissions.
+    if (assessmentDate && minDate && assessmentDate < minDate)
+      nextErrors.date = `Assessment date cannot be more than ${ASSESSMENT_WINDOW_DAYS} days before the period end date (earliest ${formatDate(minDate)}).`;
     if (status === "Submitted") {
-      const nextErrors: typeof errors = {};
-      if (!periodId) nextErrors.period = "Period is required.";
+      if (isDrr && !periodId) nextErrors.period = "Period is required.";
       if (!remarks.trim()) nextErrors.remarks = "Assessment Remarks are required.";
-      setErrors(nextErrors);
-      if (Object.keys(nextErrors).length > 0) {
-        showError("Complete the required fields before submitting.");
-        return;
-      }
     }
-    setErrors({});
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      showError(
+        status === "Submitted" ? "Complete the required fields before submitting." : "Correct the assessment date before saving."
+      );
+      return;
+    }
 
     const onSuccess = () => {
       showSuccess(status === "Draft" ? "Draft Saved" : "DE Assessment Submitted Successfully");
@@ -226,6 +247,7 @@ function WorkspaceInner() {
           id: working.id,
           payload: {
             assessment_date: assessmentDate || undefined,
+            assessment_type: assessmentType,
             period_id: periodId || undefined,
             de_assessed_project_health: RATING_TO_API[healthValue],
             pci_score: pciScore.trim() || null,
@@ -239,6 +261,7 @@ function WorkspaceInner() {
       createAssessment.mutate(
         {
           assessment_date: assessmentDate || undefined,
+          assessment_type: assessmentType,
           period_id: periodId || undefined,
           de_assessed_project_health: RATING_TO_API[healthValue],
           pci_score: pciScore || undefined,
@@ -343,16 +366,33 @@ function WorkspaceInner() {
           Period is a Weekly reporting period, aligned with Delivery Status. */}
       <SectionCard icon={CalendarDays} title="Assessment Date & Period">
         <div className="flex flex-wrap items-start gap-6">
-          <Field label="Assessment Date" htmlFor="de-assessment-date" badge={<MandatoryBadge />}>
+          <Field label="Assessment Type" htmlFor="de-assessment-type" badge={<MandatoryBadge />}>
+            <NativeSelect
+              id="de-assessment-type"
+              className="h-11 w-56"
+              value={assessmentType}
+              disabled={readOnly}
+              onChange={(e) => {
+                setAssessmentType(e.target.value as DEAssessmentType);
+                setErrors({});
+              }}
+            >
+              <option value="Quality Audit">Quality Audit</option>
+              <option value="Delivery Risk Review">Delivery Risk Review</option>
+            </NativeSelect>
+          </Field>
+          <Field label="Assessment Date" htmlFor="de-assessment-date" badge={<MandatoryBadge />} error={errors.date}>
             <Input
               id="de-assessment-date"
               type="date"
               className="h-11 w-44"
+              min={minDate}
               value={assessmentDate}
               disabled={readOnly}
               onChange={(e) => setAssessmentDate(e.target.value)}
             />
           </Field>
+          {isDrr ? (
           <Field label="Period" htmlFor="de-assessment-period" badge={<MandatoryBadge />} error={errors.period}>
             <NativeSelect
               id="de-assessment-period"
@@ -374,6 +414,7 @@ function WorkspaceInner() {
               ))}
             </NativeSelect>
           </Field>
+          ) : null}
           {!readOnly && previous ? (
             <div className="self-end">
               <CopyFromLatestButton
@@ -395,8 +436,8 @@ function WorkspaceInner() {
           <ContextItem label="PM">{pmName}</ContextItem>
           <ContextItem label="PM Health">
             <span className="inline-flex items-center gap-2">
-              <HealthDot health={project?.delivery_declared_overall_health ?? null} />
-              {project?.delivery_declared_overall_health ?? "—"}
+              <HealthDot health={declaredHealth?.overall_rating ?? null} />
+              {declaredHealth?.overall_rating ?? "—"}
             </span>
           </ContextItem>
           <ContextItem label="Previous DE Health">
@@ -405,7 +446,7 @@ function WorkspaceInner() {
               {previous?.de_assessed_project_health ?? "—"}
             </span>
           </ContextItem>
-          <ContextItem label="Previous DE Score">
+          <ContextItem label="Previous PCI Score">
             {previous?.pci_score ? `${previous.pci_score}%` : "—"}
           </ContextItem>
         </div>
@@ -413,14 +454,14 @@ function WorkspaceInner() {
 
       {/* Section 2 — Project Health (read-only, from the PM's latest health declaration) */}
       <SectionCard icon={HeartPulse} title="Project Health">
-        {health ? (
+        {declaredHealth ? (
           <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
             <div>
               <span className="block text-[11px] font-bold tracking-wider text-slate-400 uppercase">
                 Overall
               </span>
               <span className="mt-1 block">
-                <HealthPill rating={RATING_FROM_API[health.overall_rating]} />
+                <HealthPill rating={RATING_FROM_API[declaredHealth.overall_rating]} />
               </span>
             </div>
             {CATEGORIES.map((category) => (
@@ -429,13 +470,15 @@ function WorkspaceInner() {
                   {category.name}
                 </span>
                 <span className="mt-1 block">
-                  <HealthPill rating={RATING_FROM_API[health[category.ratingField]]} />
+                  <HealthPill rating={RATING_FROM_API[declaredHealth[category.ratingField]]} />
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-400">No project health declared for this period yet.</p>
+          <p className="text-sm text-slate-400">
+            No project health submitted for the selected period yet.
+          </p>
         )}
       </SectionCard>
 
@@ -468,7 +511,7 @@ function WorkspaceInner() {
             )}
           </Field>
           <Field
-            label="DE Score"
+            label="PCI Score"
             htmlFor="de-pci-score"
             hint="Optional. Enter a value between 0 and 100."
           >

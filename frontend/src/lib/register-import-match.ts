@@ -99,7 +99,8 @@ function coerceDate(raw: string): { value: string; error?: string } {
 
 function coerceNumber(raw: string): { value: string; error?: string } {
   const trimmed = raw.trim();
-  if (trimmed === "") return { value: "" };
+  // A lone dash (Excel accounting-format zero / "n/a" placeholder) means blank.
+  if (trimmed === "" || /^[-–—]+$/.test(trimmed)) return { value: "" };
   const stripped = trimmed.replace(/,/g, "");
   const n = Number(stripped);
   if (Number.isNaN(n)) return { value: raw, error: "Must be a number." };

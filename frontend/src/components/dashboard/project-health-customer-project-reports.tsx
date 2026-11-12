@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffectiveRole } from "@/stores/session";
+import { reportHref } from "@/lib/report-links";
 import { useProjectHealthFilters } from "@/stores/project-health-filters";
 import * as React from "react";
 import Link from "next/link";
@@ -53,6 +55,7 @@ const dash = (value: string | null | undefined) => (value && value.trim() ? valu
 // whether that report was shared with the customer. All statuses are shown by
 // default, sorted with Not Submitted first.
 export function ProjectHealthCustomerProjectReports() {
+  const effectiveRole = useEffectiveRole();
   const [filters, setFilters] = useProjectHealthFilters();
   const [status, setStatus] = React.useState("");
   const [search, setSearch] = React.useState("");
@@ -97,7 +100,14 @@ export function ProjectHealthCustomerProjectReports() {
       render: (row) =>
         row.status === CUSTOMER_REPORT_STATUSES.notSubmitted ? null : (
           <Link
-            href={`/project-review/${row.project_id}?period=${row.period_id}&back=${encodeURIComponent(ROUTE)}`}
+            href={reportHref({
+              scope: "project",
+              role: effectiveRole,
+              id: row.project_id,
+              status: "Submitted", // a filed report (not "Not Submitted")
+              periodId: row.period_id,
+              back: ROUTE,
+            })}
             className="text-sm font-semibold text-[#1a6fc4] hover:underline"
           >
             View

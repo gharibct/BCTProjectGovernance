@@ -26,6 +26,7 @@ from app.models.contractual import (
     MilestonePaymentActual,
 )
 from app.models.data_integrity import DataIntegrityChecklistItem
+from app.models.de_account_audit import DEAccountAudit
 from app.models.de_assessment import DEAssessment, DEAssessmentFinding
 from app.models.executive_updates import ExecutiveUpdate
 from app.models.geo_health_declarations import GeoHealthDeclaration
@@ -975,18 +976,16 @@ async def report_submissions_summary(
 async def _head_names_by_scope(db: AsyncSession, role_code: RoleCode, link_model: type, scope_fk) -> dict[UUID, str]:
     """scope_id -> that scope's Head name (earliest-created user in `role_code`
     mapped to it via user_accounts / user_geos) — same reduction as
-    users.py::get_account_head / get_geo_head, done in bulk."""
+    users.py::get_account_head / get_geo_head, done in bulk. Proxy links
+    (is_proxy=True, user_accounts only) are never shown: the primary Delivery
+    Manager is the one name reports display and filter by."""
     role_id = (await db.execute(select(Role.id).where(Role.code == role_code))).scalar_one_or_none()
     if role_id is None:
         return {}
-    rows = (
-        await db.execute(
-            select(scope_fk, User.full_name)
-            .join(User, User.id == link_model.user_id)
-            .where(User.role_id == role_id)
-            .order_by(User.created_at)
-        )
-    ).all()
+    stmt = select(scope_fk, User.full_name).join(User, User.id == link_model.user_id).where(User.role_id == role_id)
+    if hasattr(link_model, "is_proxy"):
+        stmt = stmt.where(link_model.is_proxy.is_(False))
+    rows = (await db.execute(stmt.order_by(User.created_at, link_model.created_at))).all()
     out: dict[UUID, str] = {}
     for scope_id, name in rows:
         out.setdefault(scope_id, name)  # first (earliest-created) wins
@@ -2200,6 +2199,7 @@ async def de_assessment_work_queue(
                 status=row_status,
                 assessments_this_month=len(this_month),
                 last_assessment_date=last_any.assessment_date if last_any is not None else None,
+                last_assessment_type=last_any.assessment_type if last_any is not None else None,
                 assessed_by_name=(
                     assessor_names.get(latest.assessed_by) if latest is not None else None
                 ),
@@ -2488,7 +2488,7 @@ def de_attention_required(
                 prev_label = recent[1].assessment_date.strftime("%b %d") if recent[1].assessment_date else "an earlier date"
                 items.append(
                     AttentionItem(
-                        title=f"{row.project_name}: DE Score declined from {recent[1].pci_score} to {recent[0].pci_score}",
+                        title=f"{row.project_name}: PCI Score declined from {recent[1].pci_score} to {recent[0].pci_score}",
                         subtitle=f"Previous assessment {prev_label}",
                         href=row.href,
                     )
@@ -3134,8 +3134,11 @@ async def list_rag_rows(
                 account_name=p.account_name,
                 overall_rating=decl.overall_rating if decl else None,
                 core_delivery_rating=decl.core_delivery_rating if decl else None,
+                people_rating=decl.people_rating if decl else None,
                 operational_rating=decl.operational_rating if decl else None,
+                customer_rating=decl.customer_rating if decl else None,
                 financial_rating=decl.financial_rating if decl else None,
+                compliance_rating=decl.compliance_rating if decl else None,
                 period_label=period.label if decl and period else None,
                 last_updated=decl.created_at if decl else None,
             )
@@ -3175,47 +3178,29 @@ _HIGH_RISK_KPI_KEY = {
 async def _account_de_ratings(
     db: AsyncSession, account_ids: list[UUID], period_id: UUID
 ) -> dict[UUID, tuple[HealthRating, date]]:
-    """Per account: the worst latest-Submitted DE assessment rating among its active
-    projects for the selected week, and the most recent assessment date. Accounts
-    with no assessment in the week are absent (= Not Assessed)."""
+    """Per account: the rating of its own latest Submitted DE Account Audit dated on
+    or before the end of the selected week, and that audit's date. DE Account Audit
+    is a calendar-month activity (not weekly), so the latest audit stands until the
+    next one is submitted; its date is shown beside the rating. Accounts never
+    audited are absent (= Not Assessed). Independent of project-level DE assessments."""
     week = await db.get(ReportingPeriod, period_id)
     window = selected_week_window(week)
-    project_rows = (
+    audits = (
         await db.execute(
-            select(Project.id, Project.account_id).where(
-                *_project_conditions(DashboardFilters(active_only=True)), Project.account_id.in_(account_ids)
-            )
-        )
-    ).all()
-    account_of = {pid: aid for pid, aid in project_rows}
-    project_ids = await drop_restricted_projects(db, list(account_of), ProjectActivity.DE_ASSESSMENT, window.start)
-    if not project_ids:
-        return {}
-    assessments = (
-        await db.execute(
-            select(DEAssessment).where(
-                DEAssessment.project_id.in_(project_ids),
-                DEAssessment.status == "Submitted",
-                DEAssessment.assessment_date >= window.start,
-                DEAssessment.assessment_date <= window.end,
+            select(DEAccountAudit).where(
+                DEAccountAudit.account_id.in_(account_ids),
+                DEAccountAudit.status == "Submitted",
+                DEAccountAudit.audit_date.is_not(None),
+                DEAccountAudit.audit_date <= window.end,
             )
         )
     ).scalars().all()
-    latest: dict[UUID, DEAssessment] = {}
-    for a in assessments:
-        current = latest.get(a.project_id)
-        if current is None or a.assessment_date > current.assessment_date:
-            latest[a.project_id] = a
-    by_account: dict[UUID, list[DEAssessment]] = {}
-    for pid, a in latest.items():
-        by_account.setdefault(account_of[pid], []).append(a)
-    return {
-        aid: (
-            compute_overall_rating([HealthRating(a.de_assessed_project_health) for a in items]),
-            max(a.assessment_date for a in items),
-        )
-        for aid, items in by_account.items()
-    }
+    latest: dict[UUID, DEAccountAudit] = {}
+    for a in audits:
+        current = latest.get(a.account_id)
+        if current is None or (a.audit_date, a.created_at) > (current.audit_date, current.created_at):
+            latest[a.account_id] = a
+    return {aid: (HealthRating(a.de_assessed_health), a.audit_date) for aid, a in latest.items()}
 
 
 def _account_rag(delivery: str | None, de: HealthRating | None) -> HealthRating | None:
@@ -3242,16 +3227,25 @@ async def high_risk_accounts(
         )
     ).all()
     kpis = {"red": 0, "amber": 0, "not_submitted": 0, "green": 0}
+    # Accounts not yet onboarded for the selected week owed no report — leave them out.
+    onboarded = set(
+        await accounts_onboarded_for(db, [r[0] for r in account_rows], await db.get(ReportingPeriod, period_id))
+    )
+    account_rows = [r for r in account_rows if r[0] in onboarded]
     if not account_rows:
         return HighRisksResponse(kpis=HighRiskKpis(**kpis), items=[])
     account_ids = [row[0] for row in account_rows]
 
     # Filed report per account -> Total FTE (Onsite + Offshore; None when neither is entered).
     fte_by_account: dict[UUID, float | None] = {}
-    for filed_account_id, onsite, offshore in (
+    report_status_by_account: dict[UUID, str] = {}
+    for filed_account_id, onsite, offshore, filed_status in (
         await db.execute(
             select(
-                AccountStatusReport.account_id, AccountStatusReport.onsite_fte, AccountStatusReport.offshore_fte
+                AccountStatusReport.account_id,
+                AccountStatusReport.onsite_fte,
+                AccountStatusReport.offshore_fte,
+                AccountStatusReport.status,
             ).where(
                 AccountStatusReport.period_id == period_id,
                 AccountStatusReport.account_id.in_(account_ids),
@@ -3262,6 +3256,7 @@ async def high_risk_accounts(
         fte_by_account[filed_account_id] = (
             None if onsite is None and offshore is None else float((onsite or 0) + (offshore or 0))
         )
+        report_status_by_account[filed_account_id] = str(getattr(filed_status, "value", filed_status))
     filed_ids = set(fte_by_account)
     declarations: dict[UUID, AccountHealthDeclaration] = {}
     if filed_ids:
@@ -3328,6 +3323,7 @@ async def high_risk_accounts(
                 delivery_manager_id=dm[0] if dm else None,
                 delivery_manager_name=dm[1] if dm else None,
                 total_fte=fte_by_account.get(account_id),
+                report_status=report_status_by_account.get(account_id),
                 risk_status=risk_status,
                 core_delivery_rating=decl.core_delivery_rating if decl else None,
                 people_rating=decl.people_rating if decl else None,
@@ -3392,17 +3388,19 @@ async def project_health_dashboard(
         return ProjectHealthDashboardResponse(kpis=HighRiskKpis(**kpis), items=[])
     project_ids = [row[0] for row in project_rows]
 
-    filed_ids = set(
-        (
+    report_status_by_project: dict[UUID, str] = {
+        pid: str(getattr(st, "value", st))
+        for pid, st in (
             await db.execute(
-                select(ProjectStatusReport.project_id).where(
+                select(ProjectStatusReport.project_id, ProjectStatusReport.status).where(
                     ProjectStatusReport.period_id == period_id,
                     ProjectStatusReport.project_id.in_(project_ids),
                     ProjectStatusReport.status.in_((ReportStatus.SUBMITTED, ReportStatus.APPROVED)),
                 )
             )
-        ).scalars()
-    )
+        ).all()
+    }
+    filed_ids = set(report_status_by_project)
     declarations: dict[UUID, HealthDeclaration] = {}
     if filed_ids:
         decls = (
@@ -3479,6 +3477,7 @@ async def project_health_dashboard(
                 entity_label=name,
                 project_code=code,
                 project_name=name,
+                report_status=report_status_by_project.get(pid),
                 account_id=account_id,
                 account_name=account_name,
                 geo_id=geo_id,
@@ -3522,7 +3521,8 @@ async def list_account_rag_rows(
     rule the dashboard's Account Health KPI uses (_weekly_health_ratings).
     `status` narrows to one bucket."""
     active_ids = set(await active_account_ids(db, filters))
-    accounts = [a for a in await account_health_rows(db, filters) if a.account_id in active_ids]
+    onboarded = set(await accounts_onboarded_for(db, list(active_ids), period))
+    accounts = [a for a in await account_health_rows(db, filters) if a.account_id in onboarded]
     if not accounts:
         return []
     account_ids = [a.account_id for a in accounts]
@@ -5018,9 +5018,30 @@ async def project_health_week_summary(
     )
 
 
+async def accounts_onboarded_for(
+    db: AsyncSession, account_ids: list[UUID], period: ReportingPeriod | None
+) -> list[UUID]:
+    """`account_ids` minus the accounts whose tool_effective_date is after the
+    period's start — no weekly report was owed for them, so they must not show
+    as "Not Submitted" for that week. Same rule as _owed_pairs."""
+    if not account_ids or period is None:
+        return account_ids
+    start_by_account = dict(
+        (
+            await db.execute(select(Account.id, Account.tool_effective_date).where(Account.id.in_(account_ids)))
+        ).all()
+    )
+    return [
+        aid
+        for aid in account_ids
+        if start_by_account.get(aid) is None or period.start_date >= start_by_account[aid]
+    ]
+
+
 async def account_health_week_summary(
     db: AsyncSession, account_ids: list[UUID], period: ReportingPeriod | None
 ) -> WeeklyHealthBuckets:
+    account_ids = await accounts_onboarded_for(db, account_ids, period)
     return await _weekly_health_buckets(
         db,
         account_ids,

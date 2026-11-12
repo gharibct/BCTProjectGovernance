@@ -29,6 +29,7 @@ export type DEAssessmentWorkQueueRow = {
   assessment_restricted_from?: string | null;
   assessments_this_month: number;
   last_assessment_date: string | null;
+  last_assessment_type?: string | null;
   assessed_by_name: string | null;
   open_findings_count: number;
   prev_de_health: HealthRating | null;

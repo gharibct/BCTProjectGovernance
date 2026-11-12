@@ -17,12 +17,64 @@ import type { HealthRating } from "@/lib/api/projects";
 // per cell, no per-cell text — a `title` tooltip covers accessibility
 // instead, same lightweight pattern as status-review/rag-status-section.tsx's
 // dot indicator.
+// Soft pastel tiles (CXO dashboard): tinted background + coloured glyph, as in
+// design-reference/cxo-dashboard-ref.png.
+const SOFT_TILE: Record<string, { cls: string; glyph: string }> = {
+  green: { cls: "bg-emerald-50 text-emerald-700", glyph: "✓" },
+  amber: { cls: "bg-amber-100 text-amber-700", glyph: "!" },
+  red: { cls: "bg-red-100 text-red-600", glyph: "✕" },
+};
+
+function SoftRagCell({ rating, pill = false }: { rating: HealthRating | null; pill?: boolean }) {
+  const level = rating ? HEALTH_LEVELS.find((l) => l.value === RATING_FROM_API[rating])! : null;
+  const soft = level ? SOFT_TILE[level.value] : undefined;
+  if (!level || !soft) {
+    return (
+      <div className="flex justify-center">
+        <span className="rounded-md border border-dashed border-slate-300 px-2 py-1 text-[11px] whitespace-nowrap text-slate-500">
+          Not assessed
+        </span>
+      </div>
+    );
+  }
+  if (pill) {
+    const pillCls =
+      level.value === "red"
+        ? "bg-red-100 text-red-800"
+        : level.value === "amber"
+          ? "bg-amber-100 text-amber-800"
+          : "bg-emerald-100 text-emerald-800";
+    const dotCls = level.value === "red" ? "bg-red-500" : level.value === "amber" ? "bg-amber-500" : "bg-emerald-500";
+    return (
+      <div className="flex justify-center">
+        <span className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap", pillCls)}>
+          <span className={cn("size-1.5 rounded-full", dotCls)} />
+          {level.label}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-center">
+      <div
+        className={cn("flex size-7 items-center justify-center rounded-md text-sm font-bold", soft.cls)}
+        title={level.label}
+      >
+        {soft.glyph}
+      </div>
+    </div>
+  );
+}
+
 export function RagCell({
   rating,
   circle = false,
   large = false,
   caption,
+  square = false,
 }: {
+  // Small rounded-corner square marker instead of a circle.
+  square?: boolean;
   rating: HealthRating | null;
   circle?: boolean;
   // Bigger mark for the rolled-up RAGs so they read above the per-item circles:
@@ -37,7 +89,10 @@ export function RagCell({
   if (circle) {
     return (
       <div className="flex flex-col items-center gap-1">
-        <div className={cn(large ? "size-7" : "size-4", "rounded-full", color)} title={title} />
+        <div
+          className={cn(square ? "size-6 rounded-md" : cn(large ? "size-7" : "size-4", "rounded-full"), color)}
+          title={title}
+        />
         {caption ? <span className="text-[11px] whitespace-nowrap text-slate-500">{caption}</span> : null}
       </div>
     );
@@ -72,7 +127,10 @@ export function GovernanceMatrix<T extends HealthMatrixRow & RiskColumnFields = 
   overallLabel = "Overall",
   circleCategories = false,
   riskColumns = false,
+  soft = false,
 }: {
+  // Soft pastel pill/tile styling with ✓ ! ✕ glyphs instead of solid blocks.
+  soft?: boolean;
   heading: string;
   // Optional colored PPT-divider-style header (see lib/section-accent-colors.ts)
   // — omit both for the plain header every other caller (CXO/Account/Geo Head
@@ -169,15 +227,19 @@ export function GovernanceMatrix<T extends HealthMatrixRow & RiskColumnFields = 
                   {actionColumn ? <td className="px-3 py-2.5">{actionColumn.render(row)}</td> : null}
                   {riskColumns ? (
                     <td className="px-2 py-2.5">
-                      <RagCell rating={row.account_rating ?? null} large />
+                      {soft ? <SoftRagCell rating={row.account_rating ?? null} pill /> : <RagCell rating={row.account_rating ?? null} large />}
                     </td>
                   ) : null}
                   <td className="px-2 py-2.5">
-                    <RagCell rating={row.overall_rating} circle={riskColumns} large={riskColumns} />
+                    {soft ? (
+                      <RagCell rating={row.overall_rating} circle square />
+                    ) : (
+                      <RagCell rating={row.overall_rating} circle={riskColumns} large={riskColumns} />
+                    )}
                   </td>
                   {CATEGORIES.map((category) => (
                     <td key={category.key} className="px-2 py-2.5">
-                      <RagCell rating={row[category.ratingField]} circle={circleCategories || riskColumns} />
+                      <RagCell rating={row[category.ratingField]} circle={circleCategories || riskColumns || soft} />
                     </td>
                   ))}
                   {riskColumns ? (
@@ -186,6 +248,7 @@ export function GovernanceMatrix<T extends HealthMatrixRow & RiskColumnFields = 
                         rating={row.de_rating ?? null}
                         circle
                         large
+                        square={soft}
                         caption={row.de_assessment_date ? formatAssessmentDate(row.de_assessment_date) : "Not assessed"}
                       />
                     </td>

@@ -19,10 +19,14 @@ export function StickyActionBar({
   secondary,
   children,
   className,
+  spacer = true,
 }: {
   secondary?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  // Reserve the bar's height in the flow. Turn off when the caller pads the page bottom itself
+  // (the bar is not the last element, so an in-flow spacer would leave a gap mid-page).
+  spacer?: boolean;
 }) {
   const spacerRef = React.useRef<HTMLDivElement>(null);
   const [box, setBox] = React.useState<{ left: number; width: number } | null>(null);
@@ -51,7 +55,7 @@ export function StickyActionBar({
 
   return (
     <>
-      <div ref={spacerRef} aria-hidden style={{ height: BAR_HEIGHT }} />
+      <div ref={spacerRef} aria-hidden style={{ height: spacer ? BAR_HEIGHT : 0 }} />
       <div
         style={{ height: BAR_HEIGHT, left: box?.left, width: box?.width, visibility: box ? "visible" : "hidden" }}
         className={cn(

@@ -6,7 +6,8 @@ import { Map as MapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
-import { RegisterTable } from "@/components/forms/register-table";
+import { ProjectHealthExportButton } from "@/components/dashboard/project-health-export-button";
+import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { usePageBanner } from "@/stores/page-banner";
 import { useGeos, useRegions, type Region } from "@/lib/api/reference-data";
 import { useCreateRegion, useDeleteRegion, useUpdateRegion, type RegionPayload } from "@/lib/api/regions";
@@ -53,7 +54,12 @@ export function CreateRegionPanel() {
     },
     { key: "code", label: "Region Code", kind: "text", mandatory: true },
     { key: "name", label: "Region Name", kind: "text", mandatory: true },
-    { key: "is_active", label: "Active", kind: "select", options: ["Yes", "No"] },
+    {
+      key: "is_active",
+      label: "Active",
+      kind: "select",
+      options: ["Yes", "No"],
+    },
   ];
 
   const startEdit = (region: Region) => {
@@ -97,24 +103,35 @@ export function CreateRegionPanel() {
 
   const busy = createRegion.isPending || updateRegion.isPending;
 
+  const regionColumns: RegisterColumn<Region>[] = [
+    {
+      key: "geo_id",
+      label: "Geo",
+      render: (item) => geoName(item.geo_id),
+      excelValue: (item) => geoName(item.geo_id),
+    },
+    { key: "code", label: "Region Code" },
+    { key: "name", label: "Region Name" },
+    {
+      key: "is_active",
+      label: "Active",
+      render: (item) => (item.is_active ? "Yes" : "No"),
+      excelValue: (item) => (item.is_active ? "Yes" : "No"),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={MapIcon} title="Region Directory">
+        <div className="mb-3 flex justify-end">
+          <ProjectHealthExportButton filename="regions.xlsx" columns={regionColumns} fetchAll={async () => regions} />
+        </div>
         <RegisterTable
           items={regions}
           emptyLabel="No regions yet."
           onEdit={startEdit}
           onDelete={handleDelete}
-          columns={[
-            { key: "geo_id", label: "Geo", render: (item) => geoName(item.geo_id) },
-            { key: "code", label: "Region Code" },
-            { key: "name", label: "Region Name" },
-            {
-              key: "is_active",
-              label: "Active",
-              render: (item) => (item.is_active ? "Yes" : "No"),
-            },
-          ]}
+          columns={regionColumns}
         />
       </SectionCard>
 

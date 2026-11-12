@@ -1,6 +1,6 @@
 # Import Excel Templates
 
-The **Export Template** button on every import grid downloads a predefined, hand-formatted Excel template when one exists on the server. If there is none (or it is out of date), it downloads an auto-generated headers-only template instead.
+The **Export Template** button on every import grid downloads a predefined, hand-formatted Excel template when one exists on the server. If there is none (or it is out of date), it downloads an auto-generated template instead: a frozen header row coloured by data type (text grey, date purple, decimal blue, whole number teal, dropdown amber; mandatory fields have a red underline), number/date formats, and an in-cell dropdown for every combo field (values on a hidden `Lists` sheet). A `Legend` sheet explains the colours. Server-supplied custom templates are served as-is, so add your own dropdowns there.
 
 ## How to add or update a template
 

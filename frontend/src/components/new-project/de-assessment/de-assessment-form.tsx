@@ -57,7 +57,7 @@ export function DeAssessmentForm() {
           <Field label="DE Assessed Project Health" badge={<MandatoryBadge />}>
             <HealthPicker value={health} onChange={setHealth} />
           </Field>
-          <Field label="DE Score" htmlFor="pci-score" hint="Optional.">
+          <Field label="PCI Score" htmlFor="pci-score" hint="Optional.">
             <Input
               id="pci-score"
               type="number"

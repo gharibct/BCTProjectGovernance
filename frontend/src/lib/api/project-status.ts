@@ -266,6 +266,16 @@ export type StatusReportReviewPayload = {
   reviewed_by?: string;
 };
 
+// Revoke an approval (Delivery Manager / Geo Head): Approved -> Draft, back to the PM.
+export function useRevokeStatusReport(projectId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, remarks }: { id: string; remarks: string }) =>
+      api.patch<ProjectStatusReport>(`/projects/${projectId}/status-reports/${id}/revoke`, { remarks }),
+    onSuccess: () => invalidateStatusReports(queryClient, projectId),
+  });
+}
+
 export function useReviewStatusReport(projectId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({

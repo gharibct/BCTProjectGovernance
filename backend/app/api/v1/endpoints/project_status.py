@@ -36,6 +36,8 @@ from app.services import dashboard as dashboard_service
 from app.services.account_rag_validation import assert_project_rag_within_submitted_account
 from app.services.copy_from_latest import copy_category_items
 from app.services import notifications as notify_svc
+from app.schemas.status_report_history import StatusReportHistoryRead
+from app.services import status_report_history as history_svc
 from app.services.report_lock import assert_report_editable
 from app.services.activity_restriction import assert_period_open
 from app.services.reporting_activity import build_reporting_activity
@@ -158,6 +160,7 @@ async def create_status_report(
     project_id: UUID,
     payload: ProjectStatusReportCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     period = await db.get(ReportingPeriod, payload.period_id)
     if period is None:
@@ -203,13 +206,15 @@ async def create_status_report(
     alerts_count, alerts_snapshot = await dashboard_service.open_alerts_snapshot(
         db, scope="project", scope_id=project_id
     )
-    return await project_status_report_crud.create(
+    created = await project_status_report_crud.create(
         db,
         payload,
         project_id=project_id,
         open_alerts_count=alerts_count,
         open_alerts_snapshot=alerts_snapshot,
     )
+    await history_svc.record_transition(db, history_svc.PROJECT, created.id, current_user.id, None, created.status)
+    return created
 
 
 @router.put("/{report_id}", response_model=ProjectStatusReportRead, dependencies=_pm_write)
@@ -218,6 +223,7 @@ async def update_status_report(
     report_id: UUID,
     payload: ProjectStatusReportUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     obj = await project_status_report_crud.get(db, report_id)
     if obj is None or obj.project_id != project_id:
@@ -228,6 +234,7 @@ async def update_status_report(
     assert_report_editable(obj.status)
     await assert_period_open(db, project_id, obj.period_id)
     was_rejected = obj.status == ReportStatus.REJECTED
+    prior_status = obj.status
     updated = await project_status_report_crud.update(db, obj, payload)
 
     if updated.customer_report_shared is False:
@@ -282,6 +289,10 @@ async def update_status_report(
         await db.flush()
         await db.refresh(updated)
 
+    await history_svc.record_transition(
+        db, history_svc.PROJECT, updated.id, current_user.id, prior_status, updated.status
+    )
+
     if updated.status == ReportStatus.SUBMITTED:
         project = await project_crud.get(db, project_id)
         if project is not None:
@@ -308,6 +319,12 @@ async def _get_report_or_404(db: AsyncSession, project_id: UUID, report_id: UUID
     if obj is None or obj.project_id != project_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
     return obj
+
+
+@router.get("/{report_id}/history", response_model=list[StatusReportHistoryRead], dependencies=_pm_read)
+async def status_report_history(project_id: UUID, report_id: UUID, db: AsyncSession = Depends(get_db)):
+    obj = await _get_report_or_404(db, project_id, report_id)
+    return await history_svc.list_history(db, history_svc.PROJECT, obj.id)
 
 
 @router.post("/{report_id}/customer-report-file", response_model=ProjectStatusReportRead, dependencies=_pm_write)
@@ -369,6 +386,7 @@ async def recall_status_report(
     report_id: UUID,
     payload: StatusReportRecallRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     obj = await _get_report_or_404(db, project_id, report_id)
     if obj.status != ReportStatus.SUBMITTED:
@@ -393,6 +411,9 @@ async def recall_status_report(
     obj.recalled_at = datetime.now(UTC)
     await db.flush()
     await db.refresh(obj)
+    await history_svc.record_transition(
+        db, history_svc.PROJECT, obj.id, current_user.id, ReportStatus.SUBMITTED, obj.status, payload.remarks
+    )
 
     project = await project_crud.get(db, project_id)
     if project is not None:
@@ -420,6 +441,7 @@ async def review_status_report(
     report_id: UUID,
     payload: StatusReportReviewRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     obj = await project_status_report_crud.get(db, report_id)
     if obj is None or obj.project_id != project_id:
@@ -433,6 +455,9 @@ async def review_status_report(
     obj.review_comment = payload.comment
     await db.flush()
     await db.refresh(obj)
+    await history_svc.record_transition(
+        db, history_svc.PROJECT, obj.id, current_user.id, ReportStatus.SUBMITTED, obj.status, payload.comment
+    )
 
     project = await project_crud.get(db, project_id)
     if project is not None:
@@ -447,6 +472,47 @@ async def review_status_report(
             entity_id=obj.id,
             actor_id=payload.reviewed_by,
             data={"decision": str(payload.decision), "project_code": project.project_code},
+        )
+    return obj
+
+
+# Revoke an approval: the Delivery Manager / Geo Head takes an Approved report back to
+# Submitted. The Project Manager can recall it, change it and resubmit; either way it is
+# approved again. The remarks are mandatory; they go in the history and the PM's notification.
+@router.patch("/{report_id}/revoke", response_model=ProjectStatusReportRead, dependencies=_account_manager_review)
+async def revoke_status_report(
+    project_id: UUID,
+    report_id: UUID,
+    payload: StatusReportRecallRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    obj = await _get_report_or_404(db, project_id, report_id)
+    if obj.status != ReportStatus.APPROVED:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only an Approved report can have its approval revoked.")
+    obj.status = ReportStatus.SUBMITTED
+    obj.reviewed_by = None
+    obj.reviewed_at = None
+    obj.review_comment = None
+    await db.flush()
+    await db.refresh(obj)
+    await history_svc.record_transition(
+        db, history_svc.PROJECT, obj.id, current_user.id, ReportStatus.APPROVED, obj.status, payload.remarks
+    )
+
+    project = await project_crud.get(db, project_id)
+    if project is not None:
+        await notify_svc.notify_project_pms(
+            db,
+            project,
+            type="REPORT_REVOKED",
+            title=f"Approval of your {project.project_code} status report was revoked — it is back to Submitted",
+            body=payload.remarks,
+            link=f"/project-reporting/{project.id}/dashboard",
+            entity_type="status_report",
+            entity_id=obj.id,
+            actor_id=current_user.id,
+            data={"project_code": project.project_code},
         )
     return obj
 

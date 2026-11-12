@@ -1,8 +1,8 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric
+from sqlalchemy import DateTime, ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -69,6 +69,10 @@ class Account(Base, UUIDPrimaryKey, TimestampColumns):
     # YesNo. A critical account owes the customer a QBR every quarter — only
     # these are judged on Account QBR Reporting (services/dashboard.py).
     critical_flag: Mapped[str] = mapped_column(default="No", server_default="No")
+    # DE Account Allocation — the Delivery Excellence auditor for this account.
+    # Independent of projects.delivery_excellence_id.
+    delivery_excellence_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    de_allocated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ReportingPeriod(Base, UUIDPrimaryKey, TimestampColumns):

@@ -111,7 +111,7 @@ Each requirement is tagged **[Built]** (working in the current system), **[Parti
 
 | ID | Requirement | Status |
 |---|---|---|
-| FR-CHART-1 | Capture project master data once at project creation: Project Name, Project ID (auto), Contract Type (FPP / T&M / Capped T&M / Internal), Project Type, Organization (BCTPL / BCTC / FT), Project Owned (Fully Owned / Co-Owned / Customer Driven), Geo, Account, Project Manager, Delivery Manager, Delivery Excellence owner, Customer Overview, Scope Description, Revenue, Currency, Oracle Project ID(s), Billing Type, Engagement Type | **[Built]** |
+| FR-CHART-1 | Capture project master data once at project creation: Project Name, Project ID (auto), Contract Type (FPP / T&M / Capped FP / Internal), Project Type, Organization (BCTPL / BCTC / FT), Project Owned (Fully Owned / Co-Owned / Customer Driven), Geo, Account, Project Manager, Delivery Manager, Delivery Excellence owner, Customer Overview, Scope Description, Revenue, Currency, Oracle Project ID(s), Billing Type, Engagement Type | **[Built]** |
 | FR-CHART-2 | Capture Planned/Actual Start and End Dates and derived Duration | **[Built]** |
 | FR-CHART-3 | Show Resource Allocation (resource list, FTE, computed Head Count) sourced from the BCT Oracle Application | **[Partial]** — Oracle **project/resource ID mapping** exists; live sync of allocation data is not yet wired |
 | FR-CHART-4 | Capture a Delivery-Declared health rating (Red / Potential Red / Amber / Green) across six categories: Core Delivery, People, Operational, Customer, Financial, Compliance | **[Partial → migrating]** — a newer **itemized** register (`project_health_items`, one line item per category per period) is replacing the earlier single free-text-per-category rating; both models currently coexist during migration |
@@ -176,6 +176,15 @@ Each requirement is tagged **[Built]** (working in the current system), **[Parti
 | FR-DE-4 | Capture Key Findings: sequence #, Classification (Observation/Recommendation), Action Taken, Date, Status (Open/Closed/On Hold/Deferred), Remarks | **[Built]** |
 | FR-DE-5 | A project retains full assessment history, not just the latest; the latest assessment's rating shows read-only on the Project Charter | **[Built]** |
 | FR-DE-6 | A Next Assessment Due Date drives overdue/reminder tracking | **⚠ Open Item** — assessment cadence (monthly vs quarterly) is unconfirmed (see §8, Open Item 5) |
+
+**Account-level DE Audit** — management asked for DE audits at Account level, in addition to the project-level assessment above. Independent of the project-level assessment and of reporting periods.
+
+| ID | Requirement | Status |
+|---|---|---|
+| FR-DEA-1 | DE / Admin allocates a Delivery Excellence auditor to any active account, and can reassign or clear the allocation at any time. The account allocation is independent of project-level DE allocation. | **[Built]** |
+| FR-DEA-2 | DE records a dated audit per allocated account (DE-assessed 4-state RAG, remarks, next due date), as Draft then Submitted; at least once per calendar month, any number of times. A submitted audit is immutable; full history is kept. | **[Built]** |
+| FR-DEA-3 | DE raises account-level findings (Category, Classification, Finding/Due date) and closes them with verification remarks; Closed is terminal. | **[Built]** |
+| FR-DEA-4 | The account's Delivery Manager (primary or proxy) records the Action Taken, moving the finding to Awaiting Closure; both sides are notified of each step. | **[Built]** |
 
 ### 4.8 Data Integrity Checklist
 

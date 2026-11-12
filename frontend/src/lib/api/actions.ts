@@ -9,6 +9,15 @@ import { api } from "./client";
 
 export type ActionLevel = "GEO" | "ACCOUNT" | "PROJECT";
 export type ActionPriority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+export const ACTION_TRIGGERED_FROM_OPTIONS = [
+  "QBR",
+  "Delivery Review",
+  "Account Planning",
+  "Sales Review",
+  "Team Meeting",
+  "DE Assessment",
+] as const;
+export type ActionTriggeredFrom = (typeof ACTION_TRIGGERED_FROM_OPTIONS)[number];
 export type ActionStatus = "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CLOSED" | "CANCELLED";
 export type ActionHistoryEventType =
   | "CREATED"
@@ -47,6 +56,7 @@ export type Action = {
   description: string | null;
   action_by_id: string;
   priority: ActionPriority;
+  triggered_from: ActionTriggeredFrom | null;
   status: ActionStatus;
   due_date: string;
   raised_by: string;
@@ -74,6 +84,7 @@ export type ActionCreatePayload = {
   title: string;
   description?: string | null;
   priority: ActionPriority;
+  triggered_from?: ActionTriggeredFrom | null;
   action_by_id?: string | null;
   due_date: string;
 };

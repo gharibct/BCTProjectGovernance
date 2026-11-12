@@ -28,6 +28,10 @@ const nextConfig: NextConfig = {
   // one we actually had), just cheap insurance against a transient one.
   experimental: {
     staticGenerationRetryCount: 2,
+    // The rewrite proxy aborts backend calls after 30s by default, surfacing as
+    // "socket hang up" / ECONNRESET. Heavy dashboard endpoints (e.g.
+    // /dashboard/project-health) can exceed that against a remote DB.
+    proxyTimeout: 120_000,
   },
   async rewrites() {
     return [

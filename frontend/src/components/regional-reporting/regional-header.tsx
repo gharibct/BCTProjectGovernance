@@ -10,6 +10,7 @@ import { QueryErrorState } from "@/components/shared/query-error-state";
 import { StatusBadge } from "@/components/forms/status-badge";
 import { ActionTrackerTrigger } from "@/components/action-tracker/action-tracker-trigger";
 import type { ActionLevel } from "@/lib/api/actions";
+import { dashboardBackCrumbs } from "@/lib/report-links";
 import { useAccounts, useGeos, useReportingPeriods } from "@/lib/api/reference-data";
 import { useRegionalStatusReports, type RegionalScope } from "@/lib/api/regional-status";
 
@@ -100,10 +101,13 @@ function PeriodAwareHeading({
     <>
       <PageBreadcrumb
         items={[
-          crumb ?? {
-            label: SCOPE_LABEL[scope],
-            href: scope === "account" ? `/account-reporting/${scopeId}/summary` : `/geo-reporting/${scopeId}`,
-          },
+          // Opened from a dashboard grid (?back=): <dashboard> > period.
+          ...(dashboardBackCrumbs(searchParams.get("back")) ?? [
+            crumb ?? {
+              label: SCOPE_LABEL[scope],
+              href: scope === "account" ? `/account-reporting/${scopeId}/summary` : `/geo-reporting/${scopeId}`,
+            },
+          ]),
           ...(period ? [{ label: period.label }] : []),
         ]}
       />

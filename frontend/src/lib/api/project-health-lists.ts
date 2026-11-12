@@ -40,8 +40,11 @@ export type RagRow = {
   account_name: string | null;
   overall_rating: string | null;
   core_delivery_rating: string | null;
+  people_rating: string | null;
   operational_rating: string | null;
+  customer_rating: string | null;
   financial_rating: string | null;
+  compliance_rating: string | null;
   period_label: string | null;
   last_updated: string | null;
 };

@@ -20,6 +20,7 @@ CREATE TABLE actions (
     description TEXT,
     action_by_id UUID NOT NULL REFERENCES users(id), -- person responsible (assignee/owner)
     priority TEXT NOT NULL,         -- CRITICAL, HIGH, MEDIUM, LOW
+    triggered_from TEXT,            -- QBR, Delivery Review, Account Planning, Sales Review, Team Meeting, DE Assessment (optional)
     status TEXT NOT NULL DEFAULT 'OPEN', -- OPEN, IN_PROGRESS, COMPLETED, CLOSED, CANCELLED
 
     due_date DATE NOT NULL,

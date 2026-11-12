@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { SectionCard } from "@/components/forms/form-primitives";
 import { PaginationBar } from "@/components/forms/pagination-bar";
-import { RegisterTable } from "@/components/forms/register-table";
+import { ProjectHealthExportButton } from "@/components/dashboard/project-health-export-button";
+import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { usePageBanner } from "@/stores/page-banner";
 import { useAccounts, useGeos, useRegions, type Account } from "@/lib/api/reference-data";
@@ -45,9 +46,7 @@ export function CreateAccountPanel() {
   // Bulk import runs with no Geo context, so the geo-filtered Region choices
   // would be empty. Give the importer the full region list to match against.
   const importFields = buildAccountFields(geos, regions).map((f) =>
-    f.key === "region_id"
-      ? { ...f, choices: regions.map((r) => ({ value: r.id, label: r.name })) }
-      : f,
+    f.key === "region_id" ? { ...f, choices: regions.map((r) => ({ value: r.id, label: r.name })) } : f,
   );
 
   // Region options cascade off the selected Geo.
@@ -85,6 +84,45 @@ export function CreateAccountPanel() {
       onError: (err) => showError(err instanceof Error ? err.message : "Failed to delete account."),
     });
   };
+
+  const accountColumns: RegisterColumn<Account>[] = [
+    { key: "name", label: "Account Name" },
+    {
+      key: "geo_id",
+      label: "Geo",
+      render: (item) => geoName(item.geo_id),
+      excelValue: (item) => geoName(item.geo_id),
+    },
+    {
+      key: "region_id",
+      label: "Region",
+      render: (item) => regionName(item.region_id),
+      excelValue: (item) => regionName(item.region_id),
+    },
+    {
+      key: "description",
+      label: "Description",
+      excelValue: (item) => item.description ?? "",
+      render: (item) => (
+        <span className="line-clamp-1 max-w-xs" title={item.description ?? ""}>
+          {item.description || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "is_active",
+      label: "Active",
+      render: (item) => (item.is_active ? "Yes" : "No"),
+      excelValue: (item) => (item.is_active ? "Yes" : "No"),
+    },
+    { key: "critical_flag", label: "Critical Flag" },
+    {
+      key: "tool_effective_date",
+      label: "Tool Effective Date",
+      render: (item) => item.tool_effective_date || "—",
+      excelValue: (item) => item.tool_effective_date || "",
+    },
+  ];
 
   return (
     <>
@@ -189,51 +227,26 @@ export function CreateAccountPanel() {
           ) : null}
         </div>
 
+        <div className="mb-3 flex justify-end">
+          <ProjectHealthExportButton
+            filename="accounts.xlsx"
+            columns={accountColumns}
+            fetchAll={async () => filtered}
+          />
+        </div>
         <RegisterTable
           items={pageItems}
           emptyLabel={
-            isLoading
-              ? "Loading…"
-              : filtersActive
-                ? "No accounts match the current filters."
-                : "No accounts yet."
+            isLoading ? "Loading…" : filtersActive ? "No accounts match the current filters." : "No accounts yet."
           }
           onEdit={(account) => setDrawer({ account })}
           onDelete={handleDelete}
-          columns={[
-            { key: "name", label: "Account Name" },
-            { key: "geo_id", label: "Geo", render: (item) => geoName(item.geo_id) },
-            { key: "region_id", label: "Region", render: (item) => regionName(item.region_id) },
-            {
-              key: "description",
-              label: "Description",
-              render: (item) => (
-                <span className="line-clamp-1 max-w-xs" title={item.description ?? ""}>
-                  {item.description || "—"}
-                </span>
-              ),
-            },
-            {
-              key: "is_active",
-              label: "Active",
-              render: (item) => (item.is_active ? "Yes" : "No"),
-            },
-            { key: "critical_flag", label: "Critical Flag" },
-            {
-              key: "tool_effective_date",
-              label: "Tool Effective Date",
-              render: (item) => item.tool_effective_date || "—",
-            },
-          ]}
+          columns={accountColumns}
         />
         <PaginationBar skip={pageSkip} limit={PAGE_SIZE} total={filtered.length} onPageChange={setSkip} />
       </SectionCard>
 
-      <AccountFormDrawer
-        open={drawer !== null}
-        account={drawer?.account ?? null}
-        onClose={() => setDrawer(null)}
-      />
+      <AccountFormDrawer open={drawer !== null} account={drawer?.account ?? null} onClose={() => setDrawer(null)} />
     </>
   );
 }

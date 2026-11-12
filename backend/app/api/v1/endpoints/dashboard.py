@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 from typing import Literal
 from uuid import UUID
@@ -37,6 +38,7 @@ from app.schemas.dashboard import (
     OpenNcListResponse,
     OpportunityRow,
     PaymentMilestoneRow,
+    PmDmComplianceResponse,
     PmoDashboardSummary,
     ProjectHealthCardSummary,
     ProjectHealthDashboardSummary,
@@ -55,6 +57,7 @@ from app.schemas.oracle_project_mapping import (
 )
 from app.services import dashboard as dashboard_service
 from app.services import oracle_project_mapping as oracle_mapping_service
+from app.services import pm_dm_compliance as pm_dm_compliance_service
 from app.services.dashboard import DashboardFilters
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -523,26 +526,45 @@ async def get_project_health_dashboard(
     month = dashboard_service.previous_month_window(week)
     month_period = await dashboard_service.monthly_period_for(db, month)
 
-    return ProjectHealthDashboardSummary(
-        portfolio=await dashboard_service.project_portfolio_summary(db, filters),
-        health=await dashboard_service.project_health_week_summary(db, active_project_ids, week),
-        account_health=await dashboard_service.account_health_week_summary(db, active_account_ids, week),
-        risks=await dashboard_service.risk_card_summary(db, active_filters),
-        issues=await dashboard_service.issue_card_summary(db, active_filters),
-        dependencies=await dashboard_service.dependency_card_summary(db, active_filters),
-        assumptions=await dashboard_service.assumption_card_summary(db, active_filters),
-        opportunities=await dashboard_service.opportunity_card_summary(db, active_filters),
-        metrics=await dashboard_service.project_metrics_bucket_summary(db, active_project_ids, month_period),
-        commitments=await dashboard_service.commitments_bucket_summary(db, active_project_ids, month),
-        payment_milestones=await dashboard_service.payment_milestones_card_summary(db, filters),
-        actions=await dashboard_service.actions_card_summary(db, filters, project_ids),
-        findings=await dashboard_service.findings_card_summary(db, filters),
-        alerts=await dashboard_service.alerts_card_summary(db, filters),
-        de_assessments=await dashboard_service.de_assessments_card_summary(
-            db, active_project_ids, dashboard_service.selected_week_window(week)
-        ),
-        report_submissions=await dashboard_service.report_submissions_week_summary(
-            db,
+    # Each card is an independent read-only query batch. Against a remote DB the
+    # sequential round trips dominate, so run them concurrently — one session
+    # per task (an AsyncSession cannot run concurrent statements), capped so we
+    # never exhaust the connection pool.
+    gate = asyncio.Semaphore(6)
+
+    async def run(fn, *args, **kwargs):
+        # Sessions are derived from the request's own session (same engine), so
+        # a test-injected db keeps working; a non-AsyncSession stand-in is used
+        # as-is.
+        if isinstance(db, AsyncSession) and db.bind is not None:
+            async with gate, AsyncSession(db.bind, expire_on_commit=False) as session:
+                return await fn(session, *args, **kwargs)
+        return await fn(db, *args, **kwargs)
+
+    svc = dashboard_service
+    (
+        portfolio, health, account_health, risks, issues, dependencies, assumptions,
+        opportunities, metrics, commitments, payment_milestones, actions, findings,
+        alerts, de_assessments, report_submissions, customer_project_reports,
+        customer_account_reports,
+    ) = await asyncio.gather(
+        run(svc.project_portfolio_summary, filters),
+        run(svc.project_health_week_summary, active_project_ids, week),
+        run(svc.account_health_week_summary, active_account_ids, week),
+        run(svc.risk_card_summary, active_filters),
+        run(svc.issue_card_summary, active_filters),
+        run(svc.dependency_card_summary, active_filters),
+        run(svc.assumption_card_summary, active_filters),
+        run(svc.opportunity_card_summary, active_filters),
+        run(svc.project_metrics_bucket_summary, active_project_ids, month_period),
+        run(svc.commitments_bucket_summary, active_project_ids, month),
+        run(svc.payment_milestones_card_summary, filters),
+        run(svc.actions_card_summary, filters, project_ids),
+        run(svc.findings_card_summary, filters),
+        run(svc.alerts_card_summary, filters),
+        run(svc.de_assessments_card_summary, active_project_ids, svc.selected_week_window(week)),
+        run(
+            svc.report_submissions_week_summary,
             active_filters,
             active_project_ids,
             week,
@@ -550,10 +572,29 @@ async def get_project_health_dashboard(
             project_manager_id=project_manager_id,
             account_head_id=account_head_id,
         ),
-        customer_project_reports=await dashboard_service.customer_project_report_summary(
-            db, active_project_ids, week
-        ),
-        customer_account_reports=await dashboard_service.customer_account_report_summary(db, active_account_ids),
+        run(svc.customer_project_report_summary, active_project_ids, week),
+        run(svc.customer_account_report_summary, active_account_ids),
+    )
+
+    return ProjectHealthDashboardSummary(
+        portfolio=portfolio,
+        health=health,
+        account_health=account_health,
+        risks=risks,
+        issues=issues,
+        dependencies=dependencies,
+        assumptions=assumptions,
+        opportunities=opportunities,
+        metrics=metrics,
+        commitments=commitments,
+        payment_milestones=payment_milestones,
+        actions=actions,
+        findings=findings,
+        alerts=alerts,
+        de_assessments=de_assessments,
+        report_submissions=report_submissions,
+        customer_project_reports=customer_project_reports,
+        customer_account_reports=customer_account_reports,
         period_id=week.id if week else None,
         period_label=week.label if week else None,
         previous_month_label=month.start.strftime("%B %Y"),
@@ -701,7 +742,7 @@ async def get_project_health_rag(
 @router.get(
     "/high-risks",
     response_model=HighRisksResponse,
-    dependencies=[Depends(require_role(RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.ADMIN))],
+    dependencies=[Depends(require_role(RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN))],
 )
 async def get_high_risks(
     period_id: UUID | None = Query(default=None),
@@ -726,13 +767,69 @@ async def get_high_risks(
     return await dashboard_service.high_risk_accounts(db, filters, week.id, overall)
 
 
+_PM_DM_COMPLIANCE_ROLES = (
+    RoleCode.CXO, RoleCode.GEO_HEAD, RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN,
+)
+
+
+# PM / DM Compliance (design-reference/Governance-One-Adoption-Flash.xlsx).
+# Period combo source: completed Weekly periods, newest first.
+@router.get(
+    "/pm-dm-compliance/periods",
+    response_model=list[ProjectHealthPeriod],
+    dependencies=[Depends(require_role(*_PM_DM_COMPLIANCE_ROLES))],
+)
+async def get_pm_dm_compliance_periods(db: AsyncSession = Depends(get_db)):
+    periods = await pm_dm_compliance_service.completed_weekly_periods(db)
+    return [
+        ProjectHealthPeriod(
+            id=p.id, label=p.label, start_date=p.start_date, end_date=p.end_date, is_current=(i == 0)
+        )
+        for i, p in enumerate(periods)
+    ]
+
+
+# CXO / Delivery Excellence / Admin see everyone; a Geo Head only their geos' projects and accounts.
+@router.get(
+    "/pm-dm-compliance",
+    response_model=PmDmComplianceResponse,
+    dependencies=[Depends(require_role(*_PM_DM_COMPLIANCE_ROLES))],
+)
+async def get_pm_dm_compliance(
+    period_id: UUID | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    filters = DashboardFilters()
+    role = await _role_code(db, current_user)
+    if role == RoleCode.GEO_HEAD:
+        owned = (await db.execute(select(UserGeo.geo_id).where(UserGeo.user_id == current_user.id))).scalars().all()
+        filters = replace(filters, geo_ids=list(owned))
+
+    if period_id is not None:
+        month = await db.get(ReportingPeriod, period_id)
+        if month is None:
+            raise HTTPException(status_code=404, detail="Reporting period not found.")
+        if month.period_type != "Weekly":
+            raise HTTPException(status_code=400, detail="PM / DM Compliance periods are Weekly only.")
+        if month.end_date > date.today():
+            raise HTTPException(status_code=400, detail="That reporting period has not ended yet.")
+    else:
+        periods = await pm_dm_compliance_service.completed_weekly_periods(db)
+        month = periods[0] if periods else None
+    return await pm_dm_compliance_service.pm_dm_compliance(db, filters, month)
+
+
 # Project Health Dashboard (CXO / Geo Head / Delivery Manager): the Delivery
 # Health grid at project level, filterable by Project Manager. Same scoping.
 @router.get(
     "/project-health-grid",
     response_model=ProjectHealthDashboardResponse,
     dependencies=[
-        Depends(require_role(RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))
+        Depends(require_role(
+            RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER,
+            RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN,
+        ))
     ],
 )
 async def get_project_health_grid(
@@ -779,7 +876,10 @@ async def get_project_health_grid(
     "/delivery-health",
     response_model=HighRisksResponse,
     dependencies=[
-        Depends(require_role(RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER, RoleCode.ADMIN))
+        Depends(require_role(
+            RoleCode.CXO, RoleCode.PMO, RoleCode.GEO_HEAD, RoleCode.ACCOUNT_MANAGER,
+            RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN,
+        ))
     ],
 )
 async def get_delivery_health(

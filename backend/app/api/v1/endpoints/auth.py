@@ -95,6 +95,8 @@ async def login(body: LoginRequest, response: Response, db: AsyncSession = Depen
     elif user is None or not user.is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No active user found for that identifier")
 
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.flush()
     _set_session_cookie(response, user.id)
     return await _build_session_read(db, user)
 

@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, FileDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ButtonSpinner, SectionCard } from "@/components/forms/form-primitives";
+import { exportRowsToExcel } from "@/lib/excel-io";
 import { usePageBanner } from "@/stores/page-banner";
 import {
   useAdminReportingPeriods,
@@ -92,8 +93,20 @@ function PeriodRow({ period }: { period: AdminReportingPeriod }) {
 }
 
 function PeriodTable({ title, periods }: { title: string; periods: AdminReportingPeriod[] }) {
+  const exportPeriods = () =>
+    exportRowsToExcel(
+      `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.xlsx`,
+      ["Code", "Label", "Start Date", "End Date", "Due Date"],
+      periods.map((p) => [p.code, p.label, p.start_date, p.end_date, p.due_date ?? ""]),
+    );
   return (
     <SectionCard icon={CalendarDays} title={title}>
+      <div className="mb-3 flex justify-end">
+        <Button type="button" variant="outline" size="sm" onClick={exportPeriods} disabled={periods.length === 0}>
+          <FileDown className="size-3.5" />
+          Download to Excel
+        </Button>
+      </div>
       <div className="overflow-hidden rounded-xl border border-slate-200">
         <table className="w-full text-left text-sm">
           <thead className="bg-[#D6E9F8]">

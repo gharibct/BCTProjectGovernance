@@ -7,6 +7,7 @@ import { ProjectHeader } from "@/components/shell/project-header";
 import { OverviewSection } from "@/components/status-review/overview-section";
 import { RagStatusSection } from "@/components/status-review/rag-status-section";
 import { CustomerCommunicationSection } from "@/components/status-review/customer-communication-section";
+import { ReportHistory } from "@/components/status-review/report-history";
 import { OpenNcSection } from "@/components/status-review/open-nc-section";
 import { useReportingPeriods } from "@/lib/api/reference-data";
 import { useStatusReports } from "@/lib/api/project-status";
@@ -54,6 +55,7 @@ function PeriodAwareBody({ projectId }: { projectId: string }) {
           <CustomerCommunicationSection projectId={projectId} report={report} />
           <ReportAttachmentsView scope="project" ownerId={projectId} reportId={report?.id} />
           <OpenNcSection scope="project" scopeId={projectId} report={report} />
+          <ReportHistory scope="project" scopeId={projectId} report={report} />
           <SubmitReportAction
             projectId={projectId}
             periodId={periodId}

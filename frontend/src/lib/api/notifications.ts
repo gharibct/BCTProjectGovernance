@@ -21,7 +21,8 @@ export type NotificationType =
   | "ACTION_STATUS"
   | "ACTION_DUE"
   | "AMENDMENT_INITIATED"
-  | "ASSESSMENT_OVERDUE";
+  | "ASSESSMENT_OVERDUE"
+  | "DE_ACCOUNT_ALLOCATED";
 
 export type AppNotification = {
   id: string;

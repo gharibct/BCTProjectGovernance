@@ -1,17 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { Check, X } from "lucide-react";
+import { Check, Lock, Undo2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner } from "@/components/forms/form-primitives";
+import { StickyActionBar } from "@/components/forms/sticky-action-bar";
+import { RecallReportDialog } from "@/components/forms/recall-report-dialog";
 import { ConfirmationDialog } from "@/components/forms/confirmation-dialog";
+import { LOCK_BAR_CLASS } from "@/components/new-project/baseline-lock";
 import { StatusBadge } from "@/components/forms/status-badge";
+import { cn } from "@/lib/utils";
 import { usePageBanner } from "@/stores/page-banner";
 import { useEffectiveRole, useSession } from "@/stores/session";
 import {
   REVIEWER_ROLE_BY_SCOPE,
   useReviewStatusReportMutation,
+  useRevokeApprovalMutation,
   type ReviewScope,
   type ReviewStatusReport,
 } from "@/lib/api/status-review";
@@ -46,6 +51,8 @@ export function ReviewActions({
   const effectiveRole = useEffectiveRole();
   const [comment, setComment] = React.useState("");
   const reviewMutation = useReviewStatusReportMutation(scope, scopeId);
+  const revokeMutation = useRevokeApprovalMutation(scope, scopeId);
+  const [revokeOpen, setRevokeOpen] = React.useState(false);
   const [pending, setPending] = React.useState<"Approved" | "Rejected" | null>(null);
   const [remarksError, setRemarksError] = React.useState(false);
   const showSuccess = usePageBanner((s) => s.showSuccess);
@@ -59,14 +66,64 @@ export function ReviewActions({
   if (!report || !canReview) return null;
 
   if (report.status === "Approved" || report.status === "Rejected") {
+    const when = report.reviewed_at ? ` on ${formatDateTime(report.reviewed_at)}` : "";
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-700 shadow-sm">
-        <StatusBadge value={report.status} />
-        <span>
-          Reviewed{report.reviewed_at ? ` on ${formatDateTime(report.reviewed_at)}` : ""}
-          {report.review_comment ? ` — ${report.review_comment}` : ""}
-        </span>
-      </div>
+      <>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-700 shadow-sm">
+          <StatusBadge value={report.status} />
+          <span>
+            Reviewed{when}
+            {report.review_comment ? ` — ${report.review_comment}` : ""}
+          </span>
+        </div>
+        {readOnly || scope === "geo" ? null : (
+          // Approve page: keep the action bar, locked, so it is clear why nothing can be done.
+          <StickyActionBar
+            spacer={false}
+            className={cn("z-40", LOCK_BAR_CLASS)}
+            secondary={
+              <p role="status" className="flex items-center gap-2 text-sm text-amber-800">
+                <Lock className="size-4 shrink-0" />
+                {report.status === "Approved"
+                  ? `This report was approved${when} and is now locked. Revoke the approval to put it back to Submitted; the reporter can then recall and change it.`
+                  : `This report was rejected${when} and sent back to the reporter — it can be reviewed again once it is resubmitted.`}
+              </p>
+            }
+          >
+            <Button variant="destructive" className="h-11 gap-2 px-6 text-sm font-semibold" disabled>
+              <X className="size-4" />
+              Reject
+            </Button>
+            <Button className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white" disabled>
+              <Check className="size-4" />
+              Approve
+            </Button>
+            {report.status === "Approved" ? (
+              <>
+                <Button
+                  variant="outline"
+                  className="h-11 gap-2 border-red-200 bg-red-50 px-6 text-sm font-semibold text-red-700 hover:bg-red-100 hover:text-red-800"
+                  disabled={revokeMutation.isPending}
+                  onClick={() => setRevokeOpen(true)}
+                >
+                  {revokeMutation.isPending ? <ButtonSpinner /> : <Undo2 className="size-4" />}
+                  Revoke Approval
+                </Button>
+                <RecallReportDialog
+                  action="Revoke"
+                  open={revokeOpen}
+                  onOpenChange={setRevokeOpen}
+                  description={`The report goes back to Submitted. The ${scope === "project" ? "Project Manager" : "Delivery Manager"} can recall it, change it and submit it again, and it will need approval again. Do you want to proceed?`}
+                  onRecall={async (remarks) => {
+                    await revokeMutation.mutateAsync({ id: report.id, remarks });
+                    showSuccess("Approval revoked — the report is back to Submitted.");
+                  }}
+                />
+              </>
+            ) : null}
+          </StickyActionBar>
+        )}
+      </>
     );
   }
 
@@ -88,6 +145,7 @@ export function ReviewActions({
   };
 
   return (
+    <>
     <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-sm font-bold text-slate-800">Review this report</p>
       <textarea
@@ -108,31 +166,6 @@ export function ReviewActions({
           Rejection remarks are required.
         </p>
       ) : null}
-      <div className="flex gap-2">
-        <Button
-          className="h-9 gap-2 bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
-          disabled={reviewMutation.isPending}
-          onClick={() => setPending("Approved")}
-        >
-          {reviewMutation.isPending ? <ButtonSpinner /> : <Check className="size-4" />}
-          Approve
-        </Button>
-        <Button
-          variant="destructive"
-          className="h-9 gap-2 text-sm font-semibold"
-          disabled={reviewMutation.isPending}
-          onClick={() => {
-            if (!comment.trim()) {
-              setRemarksError(true);
-              return;
-            }
-            setPending("Rejected");
-          }}
-        >
-          {reviewMutation.isPending ? <ButtonSpinner /> : <X className="size-4" />}
-          Reject
-        </Button>
-      </div>
       <ConfirmationDialog
         open={pending !== null}
         onOpenChange={(open) => {
@@ -149,5 +182,32 @@ export function ReviewActions({
         }}
       />
     </div>
+    <StickyActionBar spacer={false}>
+      <Button
+        variant="destructive"
+        className="h-11 gap-2 px-6 text-sm font-semibold"
+        disabled={reviewMutation.isPending}
+        onClick={() => {
+          if (!comment.trim()) {
+            setRemarksError(true);
+            showError("Enter the rejection remarks before rejecting this report.");
+            return;
+          }
+          setPending("Rejected");
+        }}
+      >
+        {reviewMutation.isPending ? <ButtonSpinner /> : <X className="size-4" />}
+        Reject
+      </Button>
+      <Button
+        className="h-11 gap-2 bg-[#1a4a7a] px-6 text-sm font-semibold text-white hover:bg-[#15406b]"
+        disabled={reviewMutation.isPending}
+        onClick={() => setPending("Approved")}
+      >
+        {reviewMutation.isPending ? <ButtonSpinner /> : <Check className="size-4" />}
+        Approve
+      </Button>
+    </StickyActionBar>
+    </>
   );
 }

@@ -145,6 +145,11 @@
 | SCR | Route | Type | Module | Roles | Purpose |
 | --- | --- | --- | --- | --- | --- |
 | SCR-DEAL-10 | `/de-allocation` | List | MOD-DEAL | `DELIVERY_EXCELLENCE`/`ADMIN` | DE Project Allocation grid — assign assessors (bulk). |
+| SCR-DEAL-20 | `/de-account-allocation` | List | MOD-DEAL | `DELIVERY_EXCELLENCE`/`ADMIN` | DE Account Allocation grid — assign/reassign/clear the DE auditor of an active account (bulk). |
+| SCR-DEAA-10 | `/de-account-audit` | List | MOD-DEAL | `DELIVERY_EXCELLENCE`/`ADMIN` (CXO read) | DE Account Audit queue — allocated accounts with this month's audit status. |
+| SCR-DEAA-20 | `/de-account-audit/[accountId]` | Workspace | MOD-DEAL | `DELIVERY_EXCELLENCE`/`ADMIN` | Record an account audit (Save Draft / Submit), open findings, audit history. |
+| SCR-DEAA-30 | `/de-account-findings` | List + drawer | MOD-DEAL | `DELIVERY_EXCELLENCE`/`ADMIN` (CXO read) | DE Account Findings register — raise, start, close/reopen, cancel. |
+| SCR-DEAA-40 | `/account-findings` | List + drawer | MOD-DEAL | `ACCOUNT_MANAGER`/`ADMIN` | Delivery Manager records Action Taken on findings for their accounts. |
 | SCR-DEAP-10 | `/de-approval` | List | MOD-DEAP | `DELIVERY_EXCELLENCE`/`ADMIN` | DE Project Approval queue — KPIs + rows scoped to the DE's allocations. |
 | SCR-DEAP-20 | `/de-approval/[projectId]` | Workbench | MOD-DEAP | allocated `DELIVERY_EXCELLENCE` | Governance review workspace — per-module verdicts, completeness %, Approve/Return. |
 | SCR-DEA-20 | `/de-assessment` | List | MOD-DEA | `DELIVERY_EXCELLENCE`/`ADMIN` | DE Assessment work queue. |
@@ -173,7 +178,7 @@ Edit Project (revert to `Draft`).
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Project Name | text | Yes | user | status:Draft | — | non-empty | BR-PROJ-050 |
 | Project ID / Code | derived | — | system | No | `PRJ-YYYY-NNNN` | — | BR-PROJ-010/020 |
-| Contract Type | select | Yes | `ContractType` | status:Draft | — | ∈ {FPP, T&M, Capped T&M, Internal} | BR-PROJ-050 |
+| Contract Type | select | Yes | `ContractType` | status:Draft | — | ∈ {FPP, T&M, Capped FP, Internal} | BR-PROJ-050 |
 | Project Type | select | Yes | `ref:project_types` | status:Draft; **editable after Approved** | — | ∈ project types (incl. Consulting) | BR-PROJ-080 |
 | Organization | select | Yes | `ContractType`/ref (BCTPL/BCTC/FT) | status:Draft | — | ∈ codes | BR-PROJ-050 |
 | Project Owned | select | Yes | `ProjectOwned` | status:Draft | — | ∈ {Fully Owned, Co-Owned, Customer Driven} | BR-PROJ-050 |

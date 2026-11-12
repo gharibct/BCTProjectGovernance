@@ -129,6 +129,13 @@ async def _run(code: str, dry_run: bool, assume_yes: bool, delete_files: bool) -
         # 1) rows with no FK -> 2) the project (cascades the rest, deepest first).
         await db.execute(text(f"DELETE FROM notifications WHERE entity_id IN ({entity_ids})"), {"p": pid})
         await db.execute(text(f"DELETE FROM user_activity_log WHERE entity_id IN ({entity_ids})"), {"p": pid})
+        await db.execute(
+            text(
+                "DELETE FROM status_report_history WHERE report_type = 'Project' "
+                "AND report_id IN (SELECT id FROM project_status_reports WHERE project_id = :p)"
+            ),
+            {"p": pid},
+        )
         await db.execute(text("DELETE FROM projects WHERE id = :p"), {"p": pid})
         await db.commit()
         print(f"\nDeleted {row.project_code}.")

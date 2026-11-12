@@ -29,6 +29,7 @@ import {
   type ReportSubmissionKpi,
 } from "@/lib/api/project-health-dashboard";
 import { REPORT_SUBMISSION_STREAMS } from "@/lib/api/project-health-lists";
+import { usePmDmCompliance } from "@/lib/api/pm-dm-compliance";
 import { useEffectiveRole } from "@/stores/session";
 import { ProjectHealthFilterBar } from "./project-health-filter-bar";
 import { BigStat, Card, RAG_BUCKET_STYLES, RagCountCell, SubStat, type RagBucket } from "./project-health-kpi";
@@ -143,14 +144,22 @@ function ReportSubmissionCard({
   href,
   period,
   variant = "submission",
+  metric = "submission",
 }: {
   title: string;
   period: string;
+  metric?: "submission" | "approval";
   kpi: ReportSubmissionKpi;
   href: string;
   variant?: "submission" | "approval" | "baseline";
 }) {
   const notSubmitted = Math.max(kpi.expected_count - kpi.submitted_count, 0);
+  const isApproval = metric === "approval";
+  const pct = isApproval
+    ? kpi.expected_count > 0
+      ? Math.round((kpi.approved_count / kpi.expected_count) * 100)
+      : 0
+    : kpi.adherence_pct;
   return (
     <Card
       title={title}
@@ -161,9 +170,9 @@ function ReportSubmissionCard({
       period={period}
     >
       <BigStat
-        value={`${kpi.adherence_pct}%`}
-        label="Adherence"
-        valueClass={adherenceTone(kpi.adherence_pct)}
+        value={`${pct}%`}
+        label={isApproval ? "Approved" : "Adherence"}
+        valueClass={adherenceTone(pct)}
       />
       <div className="flex flex-col gap-1">
         {variant === "baseline" ? (
@@ -262,6 +271,34 @@ function AccountQbrCard({ summary }: { summary: CustomerAccountReportSummary }) 
   );
 }
 
+// PM / DM Compliance widget: org-wide (or role-scoped) weekly-report adherence
+// for the latest completed week (rolling 4 weeks), linking to the full per-person report.
+function PmDmComplianceCard() {
+  const { data } = usePmDmCompliance();
+  if (!data || !data.period) return null;
+  const s = data.summary;
+  return (
+    <Card
+      title="PM / DM Compliance"
+      icon={ClipboardCheck}
+      iconClassName="text-slate-500"
+      href="/pm-dm-compliance"
+      footerLabel="View Report"
+      period={`Week ending: ${data.period.label}`}
+    >
+      <BigStat value={`${s.submitted_pct}%`} label="Submitted" valueClass={adherenceTone(s.submitted_pct)} />
+      <div className="flex flex-col gap-1">
+        <SubStat label="On time" value={`${s.on_time_pct}%`} />
+        <SubStat
+          label="People below 100%"
+          value={s.people - s.fully_compliant_people}
+          valueClass={s.people - s.fully_compliant_people > 0 ? "text-red-600" : undefined}
+        />
+      </div>
+    </Card>
+  );
+}
+
 export function ProjectHealthDashboard() {
   const [filters, setFilters] = useProjectHealthFilters();
   const { data, isLoading, isError, error, refetch } = useProjectHealthDashboardSummary(filters);
@@ -269,6 +306,13 @@ export function ProjectHealthDashboard() {
   // A PM only owns projects — hide every Account- and Geo-level card/filter.
   const effectiveRole = useEffectiveRole();
   const isPm = effectiveRole === "PROJECT_MANAGER";
+  // PM / DM Compliance is for CXO, Geo Head and Delivery Excellence only (matches the endpoint;
+  // Admin passes the endpoint check so "Work as" these roles works).
+  // Temporarily hidden — flip SHOW_PM_DM_COMPLIANCE to true to bring it back.
+  const SHOW_PM_DM_COMPLIANCE = false;
+  const showPmDmCompliance =
+    SHOW_PM_DM_COMPLIANCE &&
+    (effectiveRole === "CXO" || effectiveRole === "GEO_HEAD" || effectiveRole === "DELIVERY_EXCELLENCE");
   // The period each KPI covers, shown at the bottom of its card.
   const weekPeriod = `Selected Period: ${data?.period_label ?? "current week"}`;
   const monthPeriod = `Previous Month: ${data?.previous_month_label ?? "—"}`;
@@ -531,23 +575,32 @@ export function ProjectHealthDashboard() {
             <p className="text-xs text-slate-400">
               The selected week&apos;s weekly Delivery Status report. Draft reports count as Not Submitted.
             </p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", !isPm && showPmDmCompliance ? "xl:grid-cols-4" : !isPm ? "xl:grid-cols-3" : "")}>
               <ReportSubmissionCard
-                title="Delivery Status — Projects"
+                title="Delivery Status — Projects Submission"
                 kpi={data.report_submissions.delivery_status_projects}
                 href={REPORT_SUBMISSION_STREAMS["delivery-status-projects"].route}
                 period={weekPeriod}
                 variant="approval"
               />
+              <ReportSubmissionCard
+                title="Delivery Status — Projects Approval"
+                kpi={data.report_submissions.delivery_status_projects}
+                href={REPORT_SUBMISSION_STREAMS["delivery-status-projects"].route}
+                period={weekPeriod}
+                variant="approval"
+                metric="approval"
+              />
               {isPm ? null : (
                 <>
                   <ReportSubmissionCard
-                    title="Delivery Status — Account"
+                    title="Delivery Status — Account Submission"
                     kpi={data.report_submissions.delivery_status_accounts}
                     href={REPORT_SUBMISSION_STREAMS["delivery-status-account"].route}
                     period={weekPeriod}
                     variant="approval"
                   />
+                  {showPmDmCompliance ? <PmDmComplianceCard /> : null}
                 </>
               )}
             </div>

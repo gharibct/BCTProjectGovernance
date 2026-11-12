@@ -6,7 +6,8 @@ import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner, Field, SectionCard } from "@/components/forms/form-primitives";
 import { EntryFields, useEntryValues, type FieldDef } from "@/components/forms/entry-form";
-import { RegisterTable } from "@/components/forms/register-table";
+import { ProjectHealthExportButton } from "@/components/dashboard/project-health-export-button";
+import { RegisterTable, type RegisterColumn } from "@/components/forms/register-table";
 import { RegisterImportToolbar } from "@/components/forms/register-import-toolbar";
 import { ResourcePicker } from "@/components/forms/resource-picker";
 import { usePageBanner } from "@/stores/page-banner";
@@ -59,7 +60,12 @@ export function CreateGeoPanel() {
   const fields: FieldDef[] = [
     { key: "code", label: "Geo Code", kind: "text", mandatory: true },
     { key: "name", label: "Geo Name", kind: "text", mandatory: true },
-    { key: "is_active", label: "Active", kind: "select", options: ["Yes", "No"] },
+    {
+      key: "is_active",
+      label: "Active",
+      kind: "select",
+      options: ["Yes", "No"],
+    },
     {
       key: "tool_effective_date",
       label: "Governance Tool Implementation Effective Date",
@@ -105,7 +111,10 @@ export function CreateGeoPanel() {
       } else {
         const created = await createGeo.mutateAsync(payload);
         if (geoHeadId) {
-          await setGeoHead.mutateAsync({ geoId: created.id, userId: geoHeadId });
+          await setGeoHead.mutateAsync({
+            geoId: created.id,
+            userId: geoHeadId,
+          });
         }
         reset();
         setGeoHeadId(null);
@@ -118,6 +127,23 @@ export function CreateGeoPanel() {
 
   const busy = createGeo.isPending || updateGeo.isPending || setGeoHead.isPending;
 
+  const geoColumns: RegisterColumn<Geo>[] = [
+    { key: "code", label: "Geo Code" },
+    { key: "name", label: "Geo Name" },
+    {
+      key: "is_active",
+      label: "Active",
+      render: (item) => (item.is_active ? "Yes" : "No"),
+      excelValue: (item) => (item.is_active ? "Yes" : "No"),
+    },
+    {
+      key: "tool_effective_date",
+      label: "Tool Effective Date",
+      render: (item) => item.tool_effective_date || "—",
+      excelValue: (item) => item.tool_effective_date || "",
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-8">
       <SectionCard icon={Globe} title="Geo Directory">
@@ -127,25 +153,15 @@ export function CreateGeoPanel() {
           buildPayload={buildGeoPayload}
           createMutation={createGeo}
         />
+        <div className="mb-3 flex justify-end">
+          <ProjectHealthExportButton filename="geos.xlsx" columns={geoColumns} fetchAll={async () => geos} />
+        </div>
         <RegisterTable
           items={geos}
           emptyLabel="No geos yet."
           onEdit={startEdit}
           onDelete={handleDelete}
-          columns={[
-            { key: "code", label: "Geo Code" },
-            { key: "name", label: "Geo Name" },
-            {
-              key: "is_active",
-              label: "Active",
-              render: (item) => (item.is_active ? "Yes" : "No"),
-            },
-            {
-              key: "tool_effective_date",
-              label: "Tool Effective Date",
-              render: (item) => item.tool_effective_date || "—",
-            },
-          ]}
+          columns={geoColumns}
         />
       </SectionCard>
 

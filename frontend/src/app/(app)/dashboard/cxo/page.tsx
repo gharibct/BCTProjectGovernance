@@ -13,6 +13,7 @@ export default function CxoDashboardPage() {
       subtitle="Portfolio-wide delivery health across every account and geo"
       scope={{}}
       rowScope="account"
+      softColors
     />
   );
 }

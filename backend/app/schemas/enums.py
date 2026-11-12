@@ -42,7 +42,7 @@ class RoleCode(StrEnum):
 class ContractType(StrEnum):
     FPP = "FPP"
     TM = "T&M"
-    CAPPED_TM = "Capped T&M"
+    CAPPED_FP = "Capped FP"
     INTERNAL = "Internal"
 
 
@@ -50,6 +50,14 @@ class ProjectOwned(StrEnum):
     FULLY_OWNED = "Fully Owned"
     CO_OWNED = "Co-Owned"
     CUSTOMER_DRIVEN = "Customer Driven"
+
+
+class PmAttentionNeeded(StrEnum):
+    """How much PM attention / involvement the project needs (Project Charter)."""
+
+    HIGH = "High"
+    MEDIUM = "Medium"
+    LOW = "Low"
 
 
 class BillingType(StrEnum):
@@ -374,6 +382,14 @@ class DEFindingHistoryEventType(StrEnum):
     ACTION_TAKEN = "ACTION_TAKEN"
 
 
+class DEAssessmentType(StrEnum):
+    """Project DE assessment kind. A Quality Audit has no reporting period; a
+    Delivery Risk Review is tied to a Weekly period and its 35-day date window."""
+
+    QUALITY_AUDIT = "Quality Audit"
+    DELIVERY_RISK_REVIEW = "Delivery Risk Review"
+
+
 class DEAssessmentStatus(StrEnum):
     """A DE assessment is a Draft until the DE submits it. "Not Started" is the
     absence of a row for the period and is never stored."""
@@ -461,6 +477,18 @@ class ActionLevel(StrEnum):
     GEO = "GEO"
     ACCOUNT = "ACCOUNT"
     PROJECT = "PROJECT"
+
+
+class ActionTriggeredFrom(StrEnum):
+    """Which forum an Action Tracker action came out of (optional, free to be
+    unset on older rows). Values are the display labels."""
+
+    QBR = "QBR"
+    DELIVERY_REVIEW = "Delivery Review"
+    ACCOUNT_PLANNING = "Account Planning"
+    SALES_REVIEW = "Sales Review"
+    TEAM_MEETING = "Team Meeting"
+    DE_ASSESSMENT = "DE Assessment"
 
 
 class ActionPriority(StrEnum):

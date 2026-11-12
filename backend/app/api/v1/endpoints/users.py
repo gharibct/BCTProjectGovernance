@@ -23,6 +23,7 @@ from app.schemas.users import (
     UserAccountsUpdate,
     UserCreate,
     UserGeosUpdate,
+    UserLoginDetail,
     UserRead,
     UserUpdate,
 )
@@ -35,6 +36,52 @@ router = APIRouter()
 
 _admin_only = [Depends(require_role(RoleCode.ADMIN))]
 
+# DE / Admin: who has signed in, newest login first, never-logged-in last.
+@router.get(
+    "/users/login-details",
+    response_model=Page[UserLoginDetail],
+    tags=["Users"],
+    dependencies=[Depends(require_role(RoleCode.DELIVERY_EXCELLENCE, RoleCode.ADMIN))],
+)
+async def list_user_login_details(
+    search: str | None = Query(default=None, description="ILIKE over full_name, email, ldap_username."),
+    is_active: bool | None = Query(default=None),
+    role_code: list[RoleCode] | None = Query(default=None),
+    never_logged_in: bool = Query(default=False),
+    pagination: PaginationParams = Depends(pagination_params),
+    db: AsyncSession = Depends(get_db),
+):
+    conditions = []
+    if search:
+        like = f"%{search}%"
+        conditions.append(
+            or_(User.full_name.ilike(like), User.email.ilike(like), User.ldap_username.ilike(like))
+        )
+    if is_active is not None:
+        conditions.append(User.is_active == is_active)
+    if never_logged_in:
+        conditions.append(User.last_login_at.is_(None))
+
+    stmt = select(User)
+    count_stmt = select(func.count()).select_from(User)
+    if role_code:
+        stmt = stmt.join(Role, Role.id == User.role_id)
+        count_stmt = count_stmt.join(Role, Role.id == User.role_id)
+        conditions.append(Role.code.in_([rc.value for rc in role_code]))
+
+    total = (await db.execute(count_stmt.where(*conditions))).scalar_one()
+    stmt = (
+        stmt.where(*conditions)
+        .order_by(User.last_login_at.desc().nulls_last(), func.lower(func.trim(User.full_name)), User.id)
+        .offset(pagination.skip)
+        .limit(pagination.limit)
+    )
+    items = (await db.execute(stmt)).scalars().all()
+    return Page(items=list(items), total=total, skip=pagination.skip, limit=pagination.limit)
+
+
+# (Registered before the generic CRUD router below, whose /users/{id} would
+# otherwise capture 'login-details'.)
 # Only user create/update/delete is admin-gated; the user list stays readable by
 # every authenticated caller — assessor/assignee dropdowns (DE Allocation, the
 # Action Tracker, etc.) depend on it and are used by non-admin roles.
@@ -75,6 +122,12 @@ async def list_users(
     ids: str | None = Query(
         default=None,
         description="Comma-separated user UUIDs; returns exactly those, ignoring search/paging.",
+    ),
+    primary_dm_only: bool = Query(
+        default=False,
+        description="Drop users who are only a proxy Delivery Manager (every "
+        "account link is_proxy=true). Users with no account link, or at least "
+        "one primary link, stay.",
     ),
     pagination: PaginationParams = Depends(pagination_params),
     db: AsyncSession = Depends(get_db),
@@ -120,6 +173,10 @@ async def list_users(
         )
     if is_active is not None:
         conditions.append(User.is_active == is_active)
+    if primary_dm_only:
+        has_proxy = select(UserAccount.id).where(UserAccount.user_id == User.id, UserAccount.is_proxy.is_(True))
+        has_primary = select(UserAccount.id).where(UserAccount.user_id == User.id, UserAccount.is_proxy.is_(False))
+        conditions.append(or_(~has_proxy.exists(), has_primary.exists()))
 
     stmt = select(User)
     count_stmt = select(func.count()).select_from(User)
@@ -160,6 +217,12 @@ async def _unallocate_user(db: AsyncSession, user_id: UUID) -> None:
     await db.execute(delete(ProjectProxyManager).where(ProjectProxyManager.user_id == user_id))
     await db.execute(delete(UserAccount).where(UserAccount.user_id == user_id))
     await db.execute(delete(UserGeo).where(UserGeo.user_id == user_id))
+    # A DE auditor allocated to accounts (DE Account Allocation) loses them too.
+    await db.execute(
+        sa_update(Account)
+        .where(Account.delivery_excellence_id == user_id)
+        .values(delivery_excellence_id=None, de_allocated_at=None)
+    )
     await db.flush()
 
 

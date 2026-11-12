@@ -187,6 +187,16 @@ export type StatusReportReviewPayload = {
   reviewed_by?: string;
 };
 
+// Revoke an approval (Geo Head): Approved -> Draft, back to the Delivery Manager.
+export function useRevokeAccountStatusReport(accountId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, remarks }: { id: string; remarks: string }) =>
+      api.patch<RegionalStatusReport>(`${basePath("account", accountId!)}/${id}/revoke`, { remarks }),
+    onSuccess: () => invalidateRegionalStatusReports(queryClient, "account", accountId),
+  });
+}
+
 export function useReviewRegionalStatusReport(scope: RegionalScope, scopeId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({

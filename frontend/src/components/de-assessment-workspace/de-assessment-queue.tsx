@@ -48,7 +48,7 @@ export function DeAssessmentQueue() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900">DE Assessment</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900">Project Assessment</h1>
           <p className="mt-1 text-sm text-slate-500">
             Delivery Excellence assessment of projects — at least once per calendar month
           </p>
@@ -84,7 +84,7 @@ export function DeAssessmentQueue() {
             <StatCard label="Due This Month" value={data.pending_count} />
             <StatCard label="Red / Amber Assessed" value={data.red_amber_assessed_count} accent="red" />
             <StatCard
-              label="Average DE Score"
+              label="Average PCI Score"
               value={data.average_pci != null ? `${data.average_pci}%` : "—"}
             />
           </div>
@@ -118,7 +118,7 @@ export function DeAssessmentQueue() {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1040px] text-left text-sm">
+                <table className="w-full min-w-[1160px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#8EBBE0] bg-[#D6E9F8] text-xs font-bold tracking-wide text-[#205889] uppercase">
                       <th className="px-5 py-3">Project</th>
@@ -126,8 +126,9 @@ export function DeAssessmentQueue() {
                       <th className="px-3 py-3">Geo - Region</th>
                       <th className="px-3 py-3">Project Manager</th>
                       <th className="px-3 py-3 text-center">PM Health</th>
+                      <th className="px-3 py-3">Assessment Type</th>
                       <th className="px-3 py-3 text-center">DE Health</th>
-                      <th className="px-3 py-3 text-right">DE Score</th>
+                      <th className="px-3 py-3 text-right">PCI Score</th>
                       <th className="px-3 py-3 text-center">Open Findings</th>
                       <th className="px-3 py-3 text-center">
                         Status
@@ -152,6 +153,7 @@ export function DeAssessmentQueue() {
                         <td className="px-3 py-2.5 text-center">
                           <HealthDot health={row.pm_health} />
                         </td>
+                        <td className="px-3 py-2.5 text-slate-600">{row.last_assessment_type ?? "—"}</td>
                         <td className="px-3 py-2.5 text-center">
                           <HealthDot health={row.de_health ?? row.prev_de_health} />
                         </td>

@@ -249,7 +249,7 @@ disown
 
 
  psql -h localhost -U postgres -d project_governance
-
++
 ssh -L 0.0.0.0:5432:10.0.1.237:5432 localhost
 
 River47Cloud
@@ -286,3 +286,12 @@ socat TCP-LISTEN:5432,reuseaddr,fork TCP:10.0.1.237:5432
 
 python -m scripts.delete_project PRJ-2026-0031 --dry-run 
 python -m scripts.delete_project PRJ-2026-0031 
+
+pg_dump -h 13.126.15.148 -U postgres -d project_governance -Fc -f backup_05Nov26.dump
+
+createdb -h 192.168.1.175 -U postgres project_governance_09oct26
+
+pg_restore -h 192.168.1.175 -U postgres -d project_governance_09oct26 --no-owner --no-privileges -v backup_09OCT26.dump
+
+ssh gov-live-ec2   
+ssh bastion

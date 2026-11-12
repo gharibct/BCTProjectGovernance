@@ -20,6 +20,7 @@ from app.api.deps import (
 )
 from app.core.db import get_db
 from app.crud.projects import project_crud, project_oracle_id_crud, project_resource_crud
+from app.models import measurement as measurement_models
 from app.models.projects import Project, ProjectOracleId, ProjectResource
 from app.models.reference_data import Account, Region
 from app.models.users import User, UserAccount
@@ -234,6 +235,27 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db)):
     return obj
 
 
+async def _has_measurements(db: AsyncSession, project_id: UUID) -> bool:
+    """True once any measurement row has been submitted for the project."""
+    for name in (
+        "MeasurementDevelopment", "MeasurementSupport", "MeasurementStaffing",
+        "MeasurementTesting", "MeasurementConsulting",
+        "MeasurementCloudMaintenance", "MeasurementCloudMigration",
+    ):
+        model = getattr(measurement_models, name)
+        found = (
+            await db.execute(select(model.id).where(model.project_id == project_id).limit(1))
+        ).first()
+        if found is not None:
+            return True
+    return False
+
+
+@router.get("/{project_id}/has-measurements", dependencies=_pm_read)
+async def project_has_measurements(project_id: UUID, db: AsyncSession = Depends(get_db)):
+    return {"has_measurements": await _has_measurements(db, project_id)}
+
+
 @router.put("/{project_id}", response_model=ProjectRead, dependencies=_baseline_write)
 async def update_project(project_id: UUID, payload: ProjectUpdate, db: AsyncSession = Depends(get_db)):
     obj = await project_crud.get(db, project_id)
@@ -255,14 +277,14 @@ async def update_project(project_id: UUID, payload: ProjectUpdate, db: AsyncSess
                 },
             )
     if "project_type_id" in changes and changes["project_type_id"] != obj.project_type_id:
-        # An amendment only ever starts from an approved project, so Under Amendment
-        # means "has been approved" — the measurement targets are keyed to its type.
-        if obj.project_status == ProjectStatus.UNDER_AMENDMENT:
+        # Measurement targets are keyed to the type, so it is fixed once the first
+        # measurement has been submitted.
+        if await _has_measurements(db, project_id):
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={
                     "code": PROJECT_LOCKED,
-                    "message": "Project Type cannot be changed once a project has been approved.",
+                    "message": "Project Type cannot be changed once a measurement has been submitted.",
                     "project_status": str(obj.project_status),
                 },
             )

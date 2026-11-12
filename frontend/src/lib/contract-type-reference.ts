@@ -13,7 +13,7 @@ export const CONTRACT_TYPE_INFO_ENTRIES: {
     description: "Billing based on actual effort and resource usage",
   },
   {
-    label: "Capped T&M",
+    label: "Capped FP",
     description: "Actual effort billing up to an agreed maximum limit",
   },
   {

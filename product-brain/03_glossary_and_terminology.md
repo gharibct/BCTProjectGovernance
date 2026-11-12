@@ -43,7 +43,7 @@
 | **Charter** | The Project Charter — the system-of-record screen and record for a project's identity, contract/engagement attributes, dates, resource allocation, Oracle Project ID mapping, and cached health/approval state. | Send for Approval |
 | **Confidence** | An AI suggestion's certainty (High / Medium / Low), shown as a coloured box before the affected control. | AI suggestion, Evidence |
 | **Consulting** | One of the seven engagement / measurement types; its computed metrics are Effort Variation, SPI, and CPI. | Engagement type, Measurement |
-| **Contract Type** | A Charter attribute: `FPP`, `T&M`, `Capped T&M`, or `Internal`. | Charter |
+| **Contract Type** | A Charter attribute: `FPP`, `T&M`, `Capped FP`, or `Internal`. | Charter |
 | **Contractual Commitment** | An SLA / contractual obligation with a Frequency, Name, Formula, Target, and optional Penalty; actuals are recorded per Frequency and yield a `Met` / `Not Met` status. | Milestone Payment, Frequency |
 | **Data Integrity checklist** | A per-project, per-period view of which data points across every module have or have not been updated, each judged against its own expected cadence. | Freshness source, Defaulter |
 | **DE** | Delivery Excellence — both the team and the `DELIVERY_EXCELLENCE` role. Performs assessments and governance approval. | DE Assessment, DE Governance Approval |

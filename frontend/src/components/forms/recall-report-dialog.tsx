@@ -21,11 +21,14 @@ export function RecallReportDialog({
   onOpenChange,
   description,
   onRecall,
+  action = "Recall",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   description: string;
   onRecall: (remarks: string) => Promise<unknown>;
+  // Wording of the action: "Recall" (default) or "Revoke" (approval revoked by the reviewer).
+  action?: "Recall" | "Revoke";
 }) {
   // Remarks/error live in the body, which only mounts while the dialog is
   // open, so every open starts blank.
@@ -35,6 +38,7 @@ export function RecallReportDialog({
         onOpenChange={onOpenChange}
         description={description}
         onRecall={onRecall}
+        action={action}
       />
     </Dialog>
   );
@@ -44,11 +48,14 @@ function RecallBody({
   onOpenChange,
   description,
   onRecall,
+  action,
 }: {
   onOpenChange: (open: boolean) => void;
   description: string;
   onRecall: (remarks: string) => Promise<unknown>;
+  action: "Recall" | "Revoke";
 }) {
+  const revoke = action === "Revoke";
   const [remarks, setRemarks] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
@@ -56,7 +63,7 @@ function RecallBody({
   const confirm = async () => {
     const trimmed = remarks.trim();
     if (!trimmed) {
-      setError("Recall remarks are required.");
+      setError(`${action} remarks are required.`);
       return;
     }
     setPending(true);
@@ -65,7 +72,7 @@ function RecallBody({
       onOpenChange(false);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to recall the report.",
+        err instanceof Error ? err.message : `Failed to ${action.toLowerCase()} the report.`,
       );
     } finally {
       setPending(false);
@@ -75,7 +82,7 @@ function RecallBody({
   return (
     <DialogContent className="max-w-md">
       <DialogHeader>
-        <DialogTitle>Recall report?</DialogTitle>
+        <DialogTitle>{revoke ? "Revoke approval?" : "Recall report?"}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1.5">
@@ -83,12 +90,12 @@ function RecallBody({
           htmlFor="recall-remarks"
           className="text-sm font-semibold text-slate-700"
         >
-          Recall remarks <span className="text-red-600">*</span>
+          {action} remarks <span className="text-red-600">*</span>
         </label>
         <Textarea
           id="recall-remarks"
           rows={4}
-          placeholder="Why is this report being recalled?"
+          placeholder={revoke ? "Why is the approval being revoked?" : "Why is this report being recalled?"}
           value={remarks}
           onChange={(e) => {
             setRemarks(e.target.value);
@@ -114,7 +121,7 @@ function RecallBody({
           onClick={confirm}
         >
           {pending ? <ButtonSpinner /> : null}
-          Recall Report
+          {revoke ? "Revoke Approval" : "Recall Report"}
         </Button>
       </DialogFooter>
     </DialogContent>

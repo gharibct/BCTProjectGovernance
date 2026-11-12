@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import require_account_geo_scope, require_account_or_geo_scope, require_geo_scope, require_role
+from app.api.deps import get_current_user, require_account_geo_scope, require_account_or_geo_scope, require_geo_scope, require_role
 from app.core.db import get_db
 from app.crud.regional_status import (
     account_status_item_crud,
@@ -18,6 +18,7 @@ from app.models.account_health_declarations import AccountHealthDeclaration, Acc
 from app.models.projects import Project
 from app.models.project_status import ProjectStatusReport
 from app.models.reference_data import Account, ReportingPeriod
+from app.models.users import User
 from app.models.regional_status import AccountStatusItem, AccountStatusReport, GeoStatusItem, GeoStatusReport
 from app.services.account_rag_validation import assert_account_rag_not_better_than_projects
 from app.schemas.copy_from_latest import CopyFromLatestResult
@@ -39,7 +40,10 @@ from app.schemas.regional_status import (
 )
 from app.schemas.reporting_activity import WeeklyReportingActivityResponse
 from app.schemas.status_review import StatusReportRecallRequest, StatusReportReviewRequest
+from app.schemas.status_report_history import StatusReportHistoryRead
 from app.services import dashboard as dashboard_service
+from app.services import notifications as notify_svc
+from app.services import status_report_history as history_svc
 from app.services.copy_from_latest import copy_category_items
 from app.services.geo_autogen import mark_geo_report_saved, sync_geo_report_from_accounts
 from app.services.report_lock import assert_report_editable
@@ -126,7 +130,9 @@ async def _sync_geo_report(db: AsyncSession, account_id: UUID, period_id: UUID) 
         await sync_geo_report_from_accounts(db, account.geo_id, period_id)
 
 
-async def _approve_submitted_reports(db: AsyncSession, geo_id: UUID, period_id: UUID) -> None:
+async def _approve_submitted_reports(
+    db: AsyncSession, geo_id: UUID, period_id: UUID, actor_id: UUID | None = None
+) -> None:
     """Baselining a geo report automatically approves every still-Submitted
     account report and project report of that period under the geo."""
     now = datetime.now(UTC)
@@ -149,6 +155,10 @@ async def _approve_submitted_reports(db: AsyncSession, geo_id: UUID, period_id: 
         report.status = ReportStatus.APPROVED
         report.reviewed_at = now
         report.review_comment = "Approved on geo report baseline"
+        await history_svc.record_transition(
+            db, history_svc.ACCOUNT, report.id, actor_id, ReportStatus.SUBMITTED, ReportStatus.APPROVED,
+            "Approved on geo report baseline",
+        )
 
     submitted_projects = (
         (
@@ -169,6 +179,10 @@ async def _approve_submitted_reports(db: AsyncSession, geo_id: UUID, period_id: 
         report.status = ReportStatus.APPROVED
         report.reviewed_at = now
         report.review_comment = "Approved on geo report baseline"
+        await history_svc.record_transition(
+            db, history_svc.PROJECT, report.id, actor_id, ReportStatus.SUBMITTED, ReportStatus.APPROVED,
+            "Approved on geo report baseline",
+        )
     await db.flush()
 
 
@@ -241,6 +255,7 @@ async def create_account_status_report(
     account_id: UUID,
     payload: AccountStatusReportCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     period = await db.get(ReportingPeriod, payload.period_id)
     if period is None:
@@ -258,6 +273,7 @@ async def create_account_status_report(
         open_alerts_count=alerts_count,
         open_alerts_snapshot=alerts_snapshot,
     )
+    await history_svc.record_transition(db, history_svc.ACCOUNT, created.id, current_user.id, None, created.status)
     await _sync_geo_report(db, account_id, payload.period_id)
     return created
 
@@ -268,6 +284,7 @@ async def update_account_status_report(
     report_id: UUID,
     payload: AccountStatusReportUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     obj = await account_status_report_crud.get(db, report_id)
     if obj is None or obj.account_id != account_id:
@@ -293,6 +310,9 @@ async def update_account_status_report(
     await db.refresh(updated)
 
     await _clear_prior_review_on_resubmit(db, prior_status, updated)
+    await history_svc.record_transition(
+        db, history_svc.ACCOUNT, updated.id, current_user.id, prior_status, updated.status
+    )
     await _sync_geo_report(db, account_id, updated.period_id)
     return updated
 
@@ -305,6 +325,7 @@ async def review_account_status_report(
     report_id: UUID,
     payload: StatusReportReviewRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     obj = await account_status_report_crud.get(db, report_id)
     if obj is None or obj.account_id != account_id:
@@ -318,7 +339,50 @@ async def review_account_status_report(
     obj.review_comment = payload.comment
     await db.flush()
     await db.refresh(obj)
+    await history_svc.record_transition(
+        db, history_svc.ACCOUNT, obj.id, current_user.id, ReportStatus.SUBMITTED, obj.status, payload.comment
+    )
     await _sync_geo_report(db, account_id, obj.period_id)
+    return obj
+
+
+# Revoke an approval: the Geo Head takes an Approved account report back to Submitted; the
+# Delivery Manager can recall it, change it and resubmit, and it is approved again. Not possible once the
+# geo report for the period is baselined (the account reports are closed by then).
+@account_status_router.patch("/{report_id}/revoke", response_model=AccountStatusReportRead, dependencies=_geo_head_review)
+async def revoke_account_status_report(
+    account_id: UUID,
+    report_id: UUID,
+    payload: StatusReportRecallRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    obj = await account_status_report_crud.get(db, report_id)
+    if obj is None or obj.account_id != account_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
+    if obj.status != ReportStatus.APPROVED:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only an Approved report can have its approval revoked.")
+    await _assert_geo_not_baselined_for_account(db, account_id, obj.period_id)
+    obj.status = ReportStatus.SUBMITTED
+    obj.reviewed_by = None
+    obj.reviewed_at = None
+    obj.review_comment = None
+    await db.flush()
+    await db.refresh(obj)
+    await history_svc.record_transition(
+        db, history_svc.ACCOUNT, obj.id, current_user.id, ReportStatus.APPROVED, obj.status, payload.remarks
+    )
+    await _sync_geo_report(db, account_id, obj.period_id)
+    await notify_svc.notify_many(
+        db,
+        await notify_svc.account_manager_ids(db, account_id),
+        type="REPORT_REVOKED",
+        title="Approval of your account status report was revoked — it is back to Submitted",
+        body=payload.remarks,
+        link=f"/account-reporting/{account_id}/dashboard",
+        entity_type="status_report",
+        entity_id=obj.id,
+    )
     return obj
 
 
@@ -326,7 +390,11 @@ async def review_account_status_report(
 # it can be edited and resubmitted. Only possible until the Geo Head reviews it.
 @account_status_router.patch("/{report_id}/recall", response_model=AccountStatusReportRead, dependencies=_account_manager_write)
 async def recall_account_status_report(
-    account_id: UUID, report_id: UUID, payload: StatusReportRecallRequest, db: AsyncSession = Depends(get_db)
+    account_id: UUID,
+    report_id: UUID,
+    payload: StatusReportRecallRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     obj = await account_status_report_crud.get(db, report_id)
     if obj is None or obj.account_id != account_id:
@@ -341,8 +409,19 @@ async def recall_account_status_report(
     obj.recalled_at = datetime.now(UTC)
     await db.flush()
     await db.refresh(obj)
+    await history_svc.record_transition(
+        db, history_svc.ACCOUNT, obj.id, current_user.id, ReportStatus.SUBMITTED, obj.status, payload.remarks
+    )
     await _sync_geo_report(db, account_id, obj.period_id)
     return obj
+
+
+@account_status_router.get("/{report_id}/history", response_model=list[StatusReportHistoryRead], dependencies=_account_read)
+async def account_status_report_history(account_id: UUID, report_id: UUID, db: AsyncSession = Depends(get_db)):
+    obj = await account_status_report_crud.get(db, report_id)
+    if obj is None or obj.account_id != account_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
+    return await history_svc.list_history(db, history_svc.ACCOUNT, obj.id)
 
 
 @geo_status_router.get("", response_model=list[GeoStatusReportRead], dependencies=_geo_read)
@@ -376,6 +455,7 @@ async def create_geo_status_report(
     geo_id: UUID,
     payload: GeoStatusReportCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     period = await db.get(ReportingPeriod, payload.period_id)
     if period is None:
@@ -386,14 +466,16 @@ async def create_geo_status_report(
     if payload.status in (ReportStatus.DRAFT, ReportStatus.AUTO_GENERATED):
         payload.status = ReportStatus.DRAFT_SAVED
     if payload.status == ReportStatus.BASELINED:
-        await _approve_submitted_reports(db, geo_id, payload.period_id)
-    return await geo_status_report_crud.create(
+        await _approve_submitted_reports(db, geo_id, payload.period_id, current_user.id)
+    created = await geo_status_report_crud.create(
         db,
         payload,
         geo_id=geo_id,
         open_alerts_count=alerts_count,
         open_alerts_snapshot=alerts_snapshot,
     )
+    await history_svc.record_transition(db, history_svc.GEO, created.id, current_user.id, None, created.status)
+    return created
 
 
 @geo_status_router.put("/{report_id}", response_model=GeoStatusReportRead, dependencies=_geo_head_write)
@@ -402,6 +484,7 @@ async def update_geo_status_report(
     report_id: UUID,
     payload: GeoStatusReportUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     obj = await geo_status_report_crud.get(db, report_id)
     if obj is None or obj.geo_id != geo_id:
@@ -411,7 +494,7 @@ async def update_geo_status_report(
     if payload.status == ReportStatus.AUTO_GENERATED:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A report cannot be set back to Auto Generated")
     if payload.status == ReportStatus.BASELINED:
-        await _approve_submitted_reports(db, geo_id, obj.period_id)
+        await _approve_submitted_reports(db, geo_id, obj.period_id, current_user.id)
     updated = await geo_status_report_crud.update(db, obj, payload)
     # Any save by the Geo Head takes over an Auto Generated report.
     if prior_status == ReportStatus.AUTO_GENERATED and payload.status is None:
@@ -424,6 +507,7 @@ async def update_geo_status_report(
     await db.refresh(updated)
 
     await _clear_prior_review_on_resubmit(db, prior_status, updated)
+    await history_svc.record_transition(db, history_svc.GEO, updated.id, current_user.id, prior_status, updated.status)
     return updated
 
 
@@ -432,7 +516,11 @@ async def update_geo_status_report(
 # there is no CXO approve/reject step.)
 @geo_status_router.patch("/{report_id}/recall", response_model=GeoStatusReportRead, dependencies=_geo_head_write)
 async def recall_geo_status_report(
-    geo_id: UUID, report_id: UUID, payload: StatusReportRecallRequest, db: AsyncSession = Depends(get_db)
+    geo_id: UUID,
+    report_id: UUID,
+    payload: StatusReportRecallRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     obj = await geo_status_report_crud.get(db, report_id)
     if obj is None or obj.geo_id != geo_id:
@@ -444,7 +532,18 @@ async def recall_geo_status_report(
     obj.recalled_at = datetime.now(UTC)
     await db.flush()
     await db.refresh(obj)
+    await history_svc.record_transition(
+        db, history_svc.GEO, obj.id, current_user.id, ReportStatus.BASELINED, obj.status, payload.remarks
+    )
     return obj
+
+
+@geo_status_router.get("/{report_id}/history", response_model=list[StatusReportHistoryRead], dependencies=_geo_read)
+async def geo_status_report_history(geo_id: UUID, report_id: UUID, db: AsyncSession = Depends(get_db)):
+    obj = await geo_status_report_crud.get(db, report_id)
+    if obj is None or obj.geo_id != geo_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Status report not found")
+    return await history_svc.list_history(db, history_svc.GEO, obj.id)
 
 
 # Reporting Hub activity — the Weekly submission timeline behind the progress

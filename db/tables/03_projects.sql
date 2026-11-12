@@ -5,10 +5,11 @@ CREATE TABLE projects (
     id UUID PRIMARY KEY,
     project_code TEXT NOT NULL UNIQUE,
     project_name TEXT NOT NULL,
-    contract_type TEXT, -- FPP, T&M, Capped T&M, Internal
+    contract_type TEXT, -- FPP, T&M, Capped FP, Internal
     project_type_id UUID REFERENCES project_types(id),
     organization_id UUID REFERENCES organizations(id),
     project_owned TEXT, -- Fully Owned, Co-Owned, Customer Driven
+    pm_attention_needed TEXT, -- PM Attention / Involvement Needed: High, Medium, Low
     geo_id UUID REFERENCES geos(id),
     region_id UUID REFERENCES regions(id),
     account_id UUID REFERENCES accounts(id),

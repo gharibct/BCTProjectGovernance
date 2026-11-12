@@ -46,6 +46,9 @@ class _LoginDB:
     async def get(self, model, pk):
         return self._role if model is Role else None
 
+    async def flush(self):
+        pass
+
     async def execute(self, stmt):
         compiled = str(stmt)
         if "FROM users" in compiled:

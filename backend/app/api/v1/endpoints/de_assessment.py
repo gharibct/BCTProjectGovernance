@@ -22,9 +22,10 @@ from app.schemas.de_assessment import (
     DEAssessmentUpdate,
 )
 from app.schemas.de_findings import DEFindingHistoryRead
-from app.schemas.enums import DEAssessmentStatus, DEFindingHistoryEventType, ProjectActivity, RoleCode
+from app.schemas.enums import DEAssessmentStatus, DEAssessmentType, DEFindingHistoryEventType, ProjectActivity, RoleCode
 from app.services.activity_restriction import assert_activity_open
 from app.services import notifications as notify_svc
+from app.services.assessment_window import check_assessment_window
 from app.services.de_findings import (
     FindingStatusError,
     apply_closure_side_effects,
@@ -68,6 +69,11 @@ async def _require_weekly_period(db: AsyncSession, period_id: UUID | None) -> No
     ).scalar_one_or_none()
     if period_type != "Weekly":
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "period_id must be a Weekly reporting period")
+
+
+def _require_drr_period(assessment_type: str, period_id: UUID | None, final: bool) -> None:
+    if assessment_type == DEAssessmentType.DELIVERY_RISK_REVIEW and final and period_id is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A Delivery Risk Review requires a period")
 
 
 @router.get("", response_model=list[DEAssessmentRead], dependencies=_de_read)
@@ -114,7 +120,12 @@ async def create_assessment(
     project = await project_crud.get(db, project_id)
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
-    await _require_weekly_period(db, payload.period_id)
+    # A Quality Audit carries no period; a Delivery Risk Review needs one on submit.
+    period_id = None if payload.assessment_type == DEAssessmentType.QUALITY_AUDIT else payload.period_id
+    await _require_weekly_period(db, period_id)
+    _require_drr_period(payload.assessment_type, period_id, payload.status == DEAssessmentStatus.SUBMITTED)
+    if payload.assessment_type == DEAssessmentType.DELIVERY_RISK_REVIEW:
+        await check_assessment_window(db, period_id, payload.assessment_date or date.today())
     await assert_activity_open(
         db, project_id, ProjectActivity.DE_ASSESSMENT, payload.assessment_date or date.today()
     )
@@ -124,7 +135,8 @@ async def create_assessment(
         id=uuid4(),
         project_id=project_id,
         assessment_date=payload.assessment_date,
-        period_id=payload.period_id,
+        assessment_type=payload.assessment_type,
+        period_id=period_id,
         de_assessed_project_health=payload.de_assessed_project_health,
         pci_score=payload.pci_score,
         remarks=payload.remarks,
@@ -159,7 +171,17 @@ async def update_assessment(
         raise HTTPException(status.HTTP_409_CONFLICT, "A submitted assessment can no longer be edited")
 
     data = payload.model_dump(exclude_unset=True)
-    await _require_weekly_period(db, data.get("period_id"))
+    new_type = data.get("assessment_type") or assessment.assessment_type
+    new_status = data.get("status") or assessment.status
+    if new_type == DEAssessmentType.QUALITY_AUDIT:
+        data["period_id"] = None
+        data["assessment_type"] = new_type
+    new_period = data["period_id"] if "period_id" in data else assessment.period_id
+    new_date = data.get("assessment_date") or assessment.assessment_date or date.today()
+    await _require_weekly_period(db, new_period)
+    _require_drr_period(new_type, new_period, new_status == DEAssessmentStatus.SUBMITTED)
+    if new_type == DEAssessmentType.DELIVERY_RISK_REVIEW:
+        await check_assessment_window(db, new_period, new_date)
     await assert_activity_open(
         db,
         project_id,

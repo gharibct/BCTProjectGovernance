@@ -187,6 +187,8 @@ export type UserSearchOpts = {
   roleCode?: string;
   roleCodes?: readonly string[];
   activeOnly?: boolean;
+  /** Hide people who are only a proxy Delivery Manager (primaries stay). */
+  primaryDmOnly?: boolean;
 };
 
 function roleCodeList(opts: Pick<UserSearchOpts, "roleCode" | "roleCodes">): string[] {
@@ -198,15 +200,16 @@ function roleCodeList(opts: Pick<UserSearchOpts, "roleCode" | "roleCodes">): str
 // alphabetical. Always enabled; `keepPreviousData` keeps the old list visible
 // (no flicker) while a new term's request is in flight.
 export function useUserSearch(term: string, opts: UserSearchOpts = {}) {
-  const { activeOnly = true } = opts;
+  const { activeOnly = true, primaryDmOnly = false } = opts;
   const codes = roleCodeList(opts);
   const q = term.trim();
   return useQuery({
-    queryKey: ["users", "search", q, codes.join(",") || null, activeOnly],
+    queryKey: ["users", "search", q, codes.join(",") || null, activeOnly, primaryDmOnly],
     queryFn: () => {
       const params = new URLSearchParams({ limit: "20" });
       if (q) params.set("search", q);
       if (activeOnly) params.set("is_active", "true");
+      if (primaryDmOnly) params.set("primary_dm_only", "true");
       for (const c of codes) params.append("role_code", c);
       return api.get<Page<User>>(`/users?${params.toString()}`);
     },
